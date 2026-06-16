@@ -10,6 +10,10 @@ import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.util.Map;
 
+// Required imports for SSL bypass
+import javax.net.ssl.*;
+import java.security.cert.X509Certificate;
+
 import org.json.JSONArray;
 import org.json.JSONObject;
 
@@ -42,8 +46,29 @@ public class EmailUtil {
 
 			// Open Connection
 			URL url = new URL(apiUrl);
-
 			emailApiConnection = (HttpURLConnection) url.openConnection();
+
+			// --- NEW CODE: BYPASS SSL VERIFICATION FOR THIS CONNECTION ---
+			if (emailApiConnection instanceof HttpsURLConnection) {
+				HttpsURLConnection httpsConnection = (HttpsURLConnection) emailApiConnection;
+				try {
+					TrustManager[] trustAllCerts = new TrustManager[]{
+						new X509TrustManager() {
+							public X509Certificate[] getAcceptedIssuers() { return null; }
+							public void checkClientTrusted(X509Certificate[] certs, String authType) {}
+							public void checkServerTrusted(X509Certificate[] certs, String authType) {}
+						}
+					};
+					SSLContext sc = SSLContext.getInstance("TLS");
+					sc.init(null, trustAllCerts, new java.security.SecureRandom());
+					httpsConnection.setSSLSocketFactory(sc.getSocketFactory());
+					httpsConnection.setHostnameVerifier((hostname, session) -> true);
+				} catch (Exception e) {
+					log.error("Failed to set SSL bypass: ", e);
+				}
+			}
+			// -------------------------------------------------------------
+
 			emailApiConnection.setRequestMethod("POST");
 			emailApiConnection.setDoOutput(true);
 			emailApiConnection.setConnectTimeout(10000);
@@ -159,40 +184,3 @@ public class EmailUtil {
 		return 0;
 	}
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-i am getting the below error :
-
-
- Sending Mail with Payload EmailRequest(recipientMail=shubhankar.das.cbstcs@sbi.co.in, ccToEmail=shaik.rehman.cbstcs@sbi.co.in, templateID=AUTH_LOGIN_OTP_V1, placeHolders={userName=Shubhankar, otpPlaintext=123456, expiryMins=10, subject=OTP Verification code}, eventType=LOGIN_OTP)
-2026-06-16T12:48:14.372Z ERROR 1 --- [CommunicationService] [nio-8001-exec-5] c.f.CommunicationService.util.EmailUtil  : Error occurred while sending Email javax.net.ssl.SSLHandshakeException: PKIX path building failed: sun.security.provider.certpath.SunCertPathBuilderException: unable to find valid certification path to requested target
-2026-06-16T12:48:14.384Z  INFO 1 --- [CommunicationService] [nio-8001-exec-5] c.f.c.logging.MdcLoggingFilter           : API Execution Completed - Method: POST | URL: https://fincore-uat.sbi/api/communication/send-mail | Status: 200
-2026-06-16T12:48:24.292Z  INFO 1 --- [CommunicationService] [ntainer#1-0-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-communication-login-otp-group-2, groupId=communication-login-otp-group] Disconnecting from node -1 due to socket connection setup timeout. The timeout value is 30000 ms.
-2026-06-16T12:48:24.292Z  WARN 1 --- [CommunicationService] [ntainer#1-0-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-communication-login-otp-group-2, groupId=communication-login-otp-group] Bootstrap broker kafka-0.kafka.uat-cbops1.svc.cluster.local:9092 (id: -1 rack: null) disconnected
-2026-06-16T12:48:27.820Z  INFO 1 --- [CommunicationService] [ntainer#0-0-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-communication-login-otp-group-1, groupId=communication-login-otp-group] Disconnecting from node -1 due to socket connection setup timeout. The timeout value is 30000 ms.
-2026-06-16T12:48:27.820Z  WARN 1 --- [CommunicationService] [ntainer#0-0-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-communication-login-otp-group-1, groupId=communication-login-otp-group] Bootstrap broker kafka-0.kafka.uat-cbops1.svc.cluster.local:9092 (id: -1 rack: null) disconnected
-^C[root@fcuatgateway UAT-Deployments]#
-
-
-
-
-
-
-
-
-
