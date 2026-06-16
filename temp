@@ -1,375 +1,165 @@
-```java
-package com.fincore.communication.exception;
+package com.fincore.CommunicationService.util;
 
-/**
- * Enterprise Exception Taxonomy for the Communication Service.
- */
-public class CommunicationExceptions {
-
-    /**
-     * Deterministic Error: Do NOT Retry. Route to DLQ instantly.
-     */
-    public static class DecryptionFailureException extends RuntimeException {
-        public DecryptionFailureException(String message, Throwable cause) { super(message, cause); }
-    }
-
-    /**
-     * Deterministic Error: Do NOT Retry. Missing DB configuration.
-     */
-    public static class TemplateNotFoundException extends RuntimeException {
-        public TemplateNotFoundException(String message) { super(message); }
-    }
-
-    /**
-     * Transient Error: Vendor Timeout/502. DO Retry with Exponential Backoff.
-     */
-    public static class VendorDeliveryException extends RuntimeException {
-        public VendorDeliveryException(String message, Throwable cause) { super(message, cause); }
-    }
-    
-    /**
-     * Data Error: Invalid Payload structure. Do NOT Retry.
-     */
-    public static class InvalidPayloadException extends RuntimeException {
-        public InvalidPayloadException(String message) { super(message); }
-    }
-}
-
-```
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-```java
-package com.fincore.communication.config;
-
-import org.apache.kafka.clients.consumer.ConsumerConfig;
-import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Configuration;
-import org.springframework.kafka.annotation.EnableKafka;
-import org.springframework.kafka.config.ConcurrentKafkaListenerContainerFactory;
-import org.springframework.kafka.core.ConsumerFactory;
-import org.springframework.kafka.listener.ContainerProperties;
-
-@EnableKafka
-@Configuration
-public class KafkaConsumerConfig {
-
-    /**
-     * THE BULKHEAD: Dedicated Thread Pool for Tier-0 OTPs.
-     * Prevents End-of-Day PDF emails from starving the OTP pipeline.
-     */
-    @Bean("priorityOtpContainerFactory")
-    public ConcurrentKafkaListenerContainerFactory<String, String> priorityOtpContainerFactory(
-            ConsumerFactory<String, String> consumerFactory) {
-            
-        ConcurrentKafkaListenerContainerFactory<String, String> factory = new ConcurrentKafkaListenerContainerFactory<>();
-        factory.setConsumerFactory(consumerFactory);
-        
-        // Match this concurrency to the number of partitions on 'fincore.auth.otp.priority' (e.g., 10-20)
-        factory.setConcurrency(10); 
-        
-        // Strict Manual Acknowledgment. We only ACK when the SMS/Email is securely handed to the Vendor.
-        factory.getContainerProperties().setAckMode(ContainerProperties.AckMode.MANUAL_IMMEDIATE);
-        
-        // CRITICAL FIX: If Twilio hangs for 45s, Kafka will think the consumer is dead and rebalance.
-        // We set the poll interval high enough to outlast the Resilience4j max timeout.
-        factory.getContainerProperties().setPollTimeout(3000); 
-        
-        return factory;
-    }
-}
-
-```
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-```java
-package com.fincore.communication.consumer;
-
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fincore.commonutilities.util.AesEncryptionUtil;
-import com.fincore.communication.exception.CommunicationExceptions.*;
-import com.fincore.communication.service.EmailService; // Junior's Component
-import com.fincore.communication.service.SmsService;   // Junior's Component
-import com.fincore.communication.service.TemplateEngineService;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.data.redis.core.StringRedisTemplate;
-import org.springframework.kafka.annotation.KafkaListener;
-import org.springframework.kafka.annotation.RetryableTopic;
-import org.springframework.kafka.retrytopic.TopicSuffixingStrategy;
-import org.springframework.kafka.support.Acknowledgment;
-import org.springframework.kafka.support.KafkaHeaders;
-import org.springframework.messaging.handler.annotation.Header;
-import org.springframework.messaging.handler.annotation.Payload;
-import org.springframework.retry.annotation.Backoff;
-import org.springframework.stereotype.Component;
-
-import java.time.Duration;
-import java.util.List;
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.io.OutputStream;
+import java.net.HttpURLConnection;
+import java.net.URL;
+import java.nio.charset.StandardCharsets;
 import java.util.Map;
 
-@Slf4j
-@Component
-@RequiredArgsConstructor
-public class PriorityOtpConsumer {
+import org.json.JSONArray;
+import org.json.JSONObject;
 
-    private final ObjectMapper mapper;
-    private final AesEncryptionUtil aesUtil;
-    private final StringRedisTemplate redisTemplate;
-    
-    // Services
-    private final TemplateEngineService templateService;
-    private final SmsService smsService;     // Built by Juniors
-    private final EmailService emailService; // Built by Juniors
-
-    @Value("${security.internal.kafka-aes-key}")
-    private String internalAesKey;
-
-    /**
-     * KAFKA RETRY ARCHITECTURE:
-     * - Attempts: 4 (1 Initial + 3 Retries)
-     * - Backoff: 2s, 4s, 8s (Exponential)
-     * - Excludes: DecryptionFailure, InvalidPayload, TemplateNotFound (Goes straight to DLQ)
-     * - Includes: VendorDeliveryException (API Timeouts)
-     */
-    @RetryableTopic(
-            attempts = "4",
-            backoff = @Backoff(delay = 2000, multiplier = 2.0),
-            topicSuffixingStrategy = TopicSuffixingStrategy.SUFFIX_WITH_INDEX_VALUE,
-            dltTopicSuffix = "-dlq",
-            exclude = {
-                DecryptionFailureException.class, 
-                InvalidPayloadException.class, 
-                TemplateNotFoundException.class
-            }
-    )
-    @KafkaListener(
-            topics = "fincore.auth.otp.priority",
-            groupId = "otp-priority-consumer-group",
-            containerFactory = "priorityOtpContainerFactory"
-    )
-    public void consumeOtpEvent(
-            @Payload String message,
-            @Header(KafkaHeaders.RECEIVED_TOPIC) String topic,
-            @Header(KafkaHeaders.RECEIVED_PARTITION) int partition,
-            Acknowledgment acknowledgment) {
-
-        log.debug("Received message on topic {} partition {}", topic, partition);
-        String txId = "UNKNOWN";
-
-        try {
-            // 1. Parse Outer Wrapper
-            Map<String, Object> eventWrapper = mapper.readValue(message, new TypeReference<>() {});
-            txId = (String) eventWrapper.get("txId");
-            String environment = (String) eventWrapper.get("environment");
-            String templateId = (String) eventWrapper.get("templateId");
-            List<String> channels = (List<String>) eventWrapper.get("channels");
-            Map<String, String> recipients = (Map<String, String>) eventWrapper.get("recipient");
-            String encryptedPayload = (String) eventWrapper.get("payload");
-
-            if (txId == null || encryptedPayload == null) throw new InvalidPayloadException("Missing txId or encrypted payload");
-
-            // 2. ZERO-TRUST DECRYPTION
-            String decryptedJson;
-            try {
-                decryptedJson = aesUtil.decrypt(encryptedPayload, internalAesKey);
-            } catch (Exception e) {
-                log.error("SECURITY ALERT: Decryption failed for txId={}. Possible tampering or key mismatch.", txId);
-                throw new DecryptionFailureException("AES Decryption Failed", e);
-            }
-
-            Map<String, Object> templateData = mapper.readValue(decryptedJson, new TypeReference<>() {});
-            
-            // Track partial failures to trigger Spring Kafka Retry
-            boolean requiresRetry = false; 
-
-            // 3. CHANNEL ROUTING & IDEMPOTENCY
-            for (String channel : channels) {
-                // Idempotency Key: Prevents duplicate SMS if Email fails and triggers a retry
-                String idempotencyKey = "COMM_IDEMP:" + txId + ":" + channel;
-                
-                Boolean alreadyProcessed = redisTemplate.opsForValue().setIfAbsent(idempotencyKey, "PROCESSED", Duration.ofMinutes(15));
-                if (Boolean.FALSE.equals(alreadyProcessed)) {
-                    log.info("Idempotency hit: Already processed {} for txId={}. Skipping.", channel, txId);
-                    continue; 
-                }
-
-                try {
-                    // Dispatch based on channel
-                    if ("SMS".equalsIgnoreCase(channel)) {
-                        processSms(environment, templateId, recipients.get("mobile"), templateData);
-                    } else if ("EMAIL".equalsIgnoreCase(channel)) {
-                        processEmail(environment, templateId, recipients.get("email"), templateData);
-                    }
-                } catch (Exception e) {
-                    // If a channel fails, we must remove the idempotency key so it can be retried
-                    redisTemplate.delete(idempotencyKey);
-                    log.error("Vendor dispatch failed for txId={} channel={}. Exception: {}", txId, channel, e.getMessage());
-                    requiresRetry = true;
-                }
-            }
-
-            // 4. RESOLUTION
-            if (requiresRetry) {
-                // By throwing this, Spring Kafka routes the message to the Retry Topic
-                throw new VendorDeliveryException("One or more channels failed to deliver.", null);
-            }
-
-            // ONLY acknowledge if all channels succeeded or were skipped idempotently.
-            acknowledgment.acknowledge();
-            log.info("Successfully processed Tier-0 OTP Event for txId={}", txId);
-
-        } catch (DecryptionFailureException | InvalidPayloadException | TemplateNotFoundException e) {
-            // Deterministic errors: Acknowledge the original message immediately, 
-            // the @RetryableTopic will automatically route this payload to the DLT (Dead Letter Topic).
-            log.error("Fatal deterministic error processing txId={}. Routing to DLQ. Reason: {}", txId, e.getMessage());
-            throw e; 
-        } catch (Exception e) {
-            // Broad catch for unexpected Jackson parsing errors
-            log.error("Unexpected error processing Kafka message: {}", e.getMessage(), e);
-            throw new InvalidPayloadException("Unexpected message parsing error");
-        }
-    }
-
-    // --- Private Processors ---
-
-    private void processSms(String env, String templateId, String mobile, Map<String, Object> data) {
-        if (mobile == null || mobile.isBlank()) return;
-        
-        // 1. Fetch from Oracle / L1 Cache
-        String compiledText = templateService.compileTemplate(templateId, "SMS", "EN", data);
-        
-        // 2. Hand off to Junior's Vendor Service
-        smsService.sendSms(mobile, compiledText);
-    }
-
-    private void processEmail(String env, String templateId, String email, Map<String, Object> data) {
-        if (email == null || email.isBlank()) return;
-        
-        // 1. Fetch from Oracle / L1 Cache
-        String compiledHtml = templateService.compileTemplate(templateId, "EMAIL", "EN", data);
-        String subject = templateService.getTemplateSubject(templateId, "EMAIL", "EN");
-        
-        // 2. Hand off to Junior's Vendor Service
-        emailService.sendEmail(email, subject, compiledHtml);
-    }
-}
-
-```
-
-
-
-
-
-
-
-
-
-
-
-
-
-```java
-package com.fincore.communication.service;
-
-import com.fincore.communication.exception.CommunicationExceptions.TemplateNotFoundException;
-// import com.fincore.communication.repository.CommTemplateRepository;
-// import com.fincore.communication.model.CommTemplateMaster;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.cache.annotation.CacheEvict;
-import org.springframework.cache.annotation.Cacheable;
-import org.springframework.stereotype.Service;
 
-import java.util.Map;
-
-/**
- * Enterprise Template Engine with L1 Caching.
- * Instruct juniors to implement Apache FreeMarker inside `compileFreeMarker()`.
- */
 @Slf4j
-@Service
-@RequiredArgsConstructor
-public class TemplateEngineService {
+public class EmailUtil {
 
-    // private final CommTemplateRepository templateRepository;
-    // private final FreeMarkerConfiguration freemarkerConfig; // Junior implementation
+	private static final String URL = "url";
+	private static final String API_KEY = "api_key";
+	private static final String SENDER_ID = "senderId";
+	private static final String TO_EMAIL = "toEmail";
+	private static final String CC_TO_EMAIL = "ccToEmail";
+	private static final String EMAIL_BODY = "emailBody";
+	private static final String SUBJECT = "subject";
 
-    /**
-     * Fetches the template CLOB and compiles it with the dynamic variables.
-     * Caches the raw string to prevent Database OOM and connection exhaustion.
-     * Cache name "templates" should be configured with a 12-hour TTL in your CacheManager.
-     */
-    @Cacheable(value = "templates", key = "#templateCode + ':' + #channel + ':' + #language", unless = "#result == null")
-    public String compileTemplate(String templateCode, String channel, String language, Map<String, Object> templateData) {
-        
-        log.info("CACHE MISS: Fetching Template {} for {} from Oracle DB.", templateCode, channel);
-        
-        // 1. Database Lookup (Mocked for architecture)
-        // CommTemplateMaster template = templateRepository.findById(new TemplateId(templateCode, channel, language))
-        //         .orElseThrow(() -> new TemplateNotFoundException("Template not found: " + templateCode));
+	public static int sendEmail(Map<String, Object> emailRequest) {
 
-        // if (!"Y".equals(template.getIsActive())) {
-        //     throw new TemplateNotFoundException("Template is disabled: " + templateCode);
-        // }
-        
-        // String rawClobContent = template.getBodyContent(); // Convert CLOB to String
-        String rawClobContent = "Mock Hello ${userName}, your OTP is ${otpPlaintext}"; 
+		HttpURLConnection emailApiConnection = null;
 
-        // 2. Pass to FreeMarker for secure compilation (Prevents XSS vs String.replace)
-        return compileFreeMarker(rawClobContent, templateData);
-    }
+		try {
+			// Email Request Values
+			String apiUrl = emailRequest.get(URL).toString();
+			String apiKey = emailRequest.get(API_KEY).toString();
+			String senderEmail = emailRequest.get(SENDER_ID).toString();
+			String recipientMail = emailRequest.get(TO_EMAIL).toString();
+			String ccToEmail = emailRequest.get(CC_TO_EMAIL).toString();
+			String emailBody = emailRequest.get(EMAIL_BODY).toString();
+			String subject = emailRequest.get(SUBJECT).toString();
 
-    @Cacheable(value = "template_subjects", key = "#templateCode + ':' + #channel + ':' + #language")
-    public String getTemplateSubject(String templateCode, String channel, String language) {
-        // Fetch subject logic...
-        return "Fincore Login OTP";
-    }
+			// Open Connection
+			URL url = new URL(apiUrl);
 
-    /**
-     * The "Emergency Flush" endpoint.
-     * Trigger this via a secured REST API if a manager requires an instant template update
-     * without waiting for the 12-hour TTL to expire.
-     */
-    @CacheEvict(value = {"templates", "template_subjects"}, allEntries = true)
-    public void flushTemplateCache() {
-        log.warn("ADMIN ACTION: All communication templates evicted from L1/L2 Cache.");
-    }
+			emailApiConnection = (HttpURLConnection) url.openConnection();
+			emailApiConnection.setRequestMethod("POST");
+			emailApiConnection.setDoOutput(true);
+			emailApiConnection.setConnectTimeout(10000);
+			emailApiConnection.setReadTimeout(10000);
 
-    private String compileFreeMarker(String rawTemplate, Map<String, Object> data) {
-        // Juniors will implement FreeMarker processing here.
-        // Try-Catch any FreeMarker parsing exceptions and throw TemplateNotFoundException.
-        return rawTemplate.replace("${otpPlaintext}", (String) data.get("otpPlaintext")); // Fallback Mock
-    }
+			// Request headers
+			emailApiConnection.setRequestProperty("Content-Type", "application/json");
+			emailApiConnection.setRequestProperty("Accept", "application/json");
+			emailApiConnection.setRequestProperty("api_key", apiKey);
+			emailApiConnection.setDoOutput(true);
+
+			// Sender Details
+			JSONObject senderJson = new JSONObject();
+			senderJson.put("email", senderEmail);
+			senderJson.put("name", "FINCORE");
+
+			// Email Content
+			JSONObject emailContentJson = new JSONObject();
+			emailContentJson.put("type", "html");
+			emailContentJson.put("value", emailBody);
+
+			JSONArray contentArray = new JSONArray();
+			contentArray.put(emailContentJson);
+
+			// Recipient Details
+			JSONObject recipientJson = new JSONObject();
+			recipientJson.put("email", recipientMail);
+
+			JSONArray recipientArray = new JSONArray();
+			recipientArray.put(recipientJson);
+
+			// Custom Attributes
+			JSONObject attributesJson = new JSONObject();
+			attributesJson.put("LEAD", "Andy Dwyer");
+			attributesJson.put("BAND", "Mouse Rat");
+
+			// Personalization
+			JSONObject personalizationsJson = new JSONObject();
+			personalizationsJson.put("to", recipientArray);
+			personalizationsJson.put("attributes", attributesJson);
+
+			// CC details
+			if (emailRequest.containsKey("ccToEmail")) {
+				JSONObject ccRecipientJson = new JSONObject();
+				ccRecipientJson.put("email", ccToEmail);
+
+				JSONArray ccArray = new JSONArray();
+				ccArray.put(ccRecipientJson);
+				personalizationsJson.put("cc", ccArray);
+			}
+
+			personalizationsJson.put("token_to", "8693839845");
+			personalizationsJson.put("token_cc", "MSGID657243");
+			personalizationsJson.put("token_bcc", "MSGID657244");
+
+			JSONArray personalizationsJsonArray = new JSONArray();
+			personalizationsJsonArray.put(personalizationsJson);
+
+			// Tracking Settings
+			JSONObject trackingSettingsJson = new JSONObject();
+			trackingSettingsJson.put("open_track", true);
+			trackingSettingsJson.put("click_track", true);
+			trackingSettingsJson.put("unsubscribe_track", true);
+
+			// Final Request JSON
+			JSONObject emailRequestJson = new JSONObject();
+			emailRequestJson.put("from", senderJson);
+			emailRequestJson.put("subject", subject);
+			emailRequestJson.put("content", contentArray);
+			emailRequestJson.put("personalizations", personalizationsJsonArray);
+			emailRequestJson.put("settings", trackingSettingsJson);
+
+			String finalRequestBody = emailRequestJson.toString();
+
+			// Send Request
+			try (OutputStream outputStream = emailApiConnection.getOutputStream()) {
+				byte[] requestBytes = finalRequestBody.getBytes(StandardCharsets.UTF_8);
+				outputStream.write(requestBytes);
+			}
+
+			// Read response
+			int responseCode = emailApiConnection.getResponseCode();
+			InputStream responseStream = (responseCode >= 200 && responseCode < 300)
+					? emailApiConnection.getInputStream()
+					: emailApiConnection.getErrorStream();
+
+			if (responseStream != null) {
+				try (BufferedReader reader = new BufferedReader(
+						new InputStreamReader(responseStream, StandardCharsets.UTF_8))) {
+
+					StringBuilder responseBody = new StringBuilder();
+					String line;
+
+					while ((line = reader.readLine()) != null) {
+						responseBody.append(line).append("\n");
+					}
+
+					System.out.println("Server Response: " + responseBody);
+				}
+			} else {
+				System.out.println("No response body received. HTTP " + responseCode);
+			}
+
+			return responseCode;
+
+		} catch (IOException e) {
+			log.error("Error occurred while sending Email " + e);
+		} finally {
+			if (emailApiConnection != null) {
+				emailApiConnection.disconnect();
+			}
+		}
+		return 0;
+	}
 }
 
-```
 
 
 
@@ -384,35 +174,19 @@ public class TemplateEngineService {
 
 
 
-CREATE TABLE COMM_TEMPLATE_MASTER (
-    -- Composite Primary Key
-    TEMPLATE_CODE        VARCHAR2(100) NOT NULL,  -- e.g., 'AUTH_LOGIN_OTP_V1', 'EOD_REPORT'
-    CHANNEL              VARCHAR2(20)  NOT NULL,  -- e.g., 'SMS', 'EMAIL', 'WHATSAPP'
-    LANGUAGE_CODE        VARCHAR2(5)   DEFAULT 'EN' NOT NULL, -- e.g., 'EN', 'HI'
-    
-    -- Content
-    SUBJECT              VARCHAR2(255),           -- Nullable (SMS doesn't need this)
-    BODY_CONTENT         CLOB          NOT NULL,  -- CLOB for large HTML FreeMarker/Mustache payloads
-    
-    -- Audit & State
-    IS_ACTIVE            CHAR(1)       DEFAULT 'Y' NOT NULL,
-    CREATED_BY           VARCHAR2(50)  DEFAULT 'SYSTEM' NOT NULL,
-    CREATED_AT           TIMESTAMP(6)  DEFAULT SYSTIMESTAMP NOT NULL,
-    UPDATED_BY           VARCHAR2(50),
-    UPDATED_AT           TIMESTAMP(6),
-
-    CONSTRAINT PK_COMM_TEMPLATE PRIMARY KEY (TEMPLATE_CODE, CHANNEL, LANGUAGE_CODE)
-);
-
--- Index to quickly find only active templates (useful for pre-warming caches on startup)
-CREATE INDEX IDX_COMM_TMPL_ACTIVE ON COMM_TEMPLATE_MASTER(IS_ACTIVE);
 
 
+i am getting the below error :
 
 
-
-
-
+ Sending Mail with Payload EmailRequest(recipientMail=shubhankar.das.cbstcs@sbi.co.in, ccToEmail=shaik.rehman.cbstcs@sbi.co.in, templateID=AUTH_LOGIN_OTP_V1, placeHolders={userName=Shubhankar, otpPlaintext=123456, expiryMins=10, subject=OTP Verification code}, eventType=LOGIN_OTP)
+2026-06-16T12:48:14.372Z ERROR 1 --- [CommunicationService] [nio-8001-exec-5] c.f.CommunicationService.util.EmailUtil  : Error occurred while sending Email javax.net.ssl.SSLHandshakeException: PKIX path building failed: sun.security.provider.certpath.SunCertPathBuilderException: unable to find valid certification path to requested target
+2026-06-16T12:48:14.384Z  INFO 1 --- [CommunicationService] [nio-8001-exec-5] c.f.c.logging.MdcLoggingFilter           : API Execution Completed - Method: POST | URL: https://fincore-uat.sbi/api/communication/send-mail | Status: 200
+2026-06-16T12:48:24.292Z  INFO 1 --- [CommunicationService] [ntainer#1-0-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-communication-login-otp-group-2, groupId=communication-login-otp-group] Disconnecting from node -1 due to socket connection setup timeout. The timeout value is 30000 ms.
+2026-06-16T12:48:24.292Z  WARN 1 --- [CommunicationService] [ntainer#1-0-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-communication-login-otp-group-2, groupId=communication-login-otp-group] Bootstrap broker kafka-0.kafka.uat-cbops1.svc.cluster.local:9092 (id: -1 rack: null) disconnected
+2026-06-16T12:48:27.820Z  INFO 1 --- [CommunicationService] [ntainer#0-0-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-communication-login-otp-group-1, groupId=communication-login-otp-group] Disconnecting from node -1 due to socket connection setup timeout. The timeout value is 30000 ms.
+2026-06-16T12:48:27.820Z  WARN 1 --- [CommunicationService] [ntainer#0-0-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-communication-login-otp-group-1, groupId=communication-login-otp-group] Bootstrap broker kafka-0.kafka.uat-cbops1.svc.cluster.local:9092 (id: -1 rack: null) disconnected
+^C[root@fcuatgateway UAT-Deployments]#
 
 
 
