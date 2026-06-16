@@ -1,107 +1,197 @@
-package com.fincore.CommunicationService.client;
+```java
+package com.fincore.communication.config;
 
-import org.springframework.stereotype.Component;
+import com.github.benmanes.caffeine.cache.Caffeine;
+import org.springframework.cache.CacheManager;
+import org.springframework.cache.annotation.EnableCaching;
+import org.springframework.cache.caffeine.CaffeineCacheManager;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
 
-import com.fincore.CommunicationService.dto.SmsResponseDTO;
-import com.fincore.CommunicationService.model.FincoreSettings;
-import com.fincore.CommunicationService.repository.*;
+import java.util.concurrent.TimeUnit;
 
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
+/**
+ * Enterprise Caching Configuration for Communication Service.
+ * Implements a High-Speed L1 (In-Memory) Cache using Caffeine.
+ */
+@EnableCaching
+@Configuration
+public class CacheConfig {
 
-import javax.net.ssl.*;
-import java.io.BufferedReader;
-import java.io.IOException;
-import java.io.InputStreamReader;
-import java.io.OutputStream;
-import java.net.HttpURLConnection;
-import java.net.URL;
-import java.net.URLEncoder;
-import java.nio.charset.StandardCharsets;
-import java.security.cert.X509Certificate;
-import java.util.Base64;
-
-@Component
-@RequiredArgsConstructor
-@Slf4j
-public class SmsGatewayClient {
-
-    private final FincoreSettingsRepository settingsRepository;
-
-    public SmsResponseDTO sendSms(String mobileNumber, String message, String env) {
-
-        FincoreSettings settings = settingsRepository.findByFunctionalityAndEnv("SMS", env)
-                .orElseThrow(() -> new RuntimeException("SMS Configuration Missing"));
-
-        try {
-
-            URL url = new URL(settings.getUrl());
-            HttpURLConnection connection = (HttpURLConnection) url.openConnection();
-
-            // --- NEW CODE: BYPASS SSL VERIFICATION FOR THIS CONNECTION ---
-            if (connection instanceof HttpsURLConnection) {
-                HttpsURLConnection httpsConnection = (HttpsURLConnection) connection;
+    @Bean
+    public CacheManager cacheManager() {
+        // Define the cache names we will use for templates and subjects
+        CaffeineCacheManager cacheManager = new CaffeineCacheManager("templates", "template_subjects");
+        
+        cacheManager.setCaffeine(Caffeine.newBuilder()
+                // Evict entries 12 hours after they were written to the cache
+                .expireAfterWrite(12, TimeUnit.HOURS)
+                // Prevent memory leaks by capping the maximum number of cached templates
+                .maximumSize(1000)
+                // Optional: Record stats for APM (e.g., Datadog/Prometheus) tracking cache hit ratios
+                .recordStats());
                 
-                TrustManager[] trustAllCerts = new TrustManager[]{
-                    new X509TrustManager() {
-                        public X509Certificate[] getAcceptedIssuers() { return null; }
-                        public void checkClientTrusted(X509Certificate[] certs, String authType) {}
-                        public void checkServerTrusted(X509Certificate[] certs, String authType) {}
-                    }
-                };
-                
-                SSLContext sc = SSLContext.getInstance("TLS");
-                sc.init(null, trustAllCerts, new java.security.SecureRandom());
-                httpsConnection.setSSLSocketFactory(sc.getSocketFactory());
-                
-                // Allow all hostnames
-                httpsConnection.setHostnameVerifier((hostname, session) -> true);
-            }
-            // -------------------------------------------------------------
-
-            connection.setRequestMethod("POST");
-            connection.setConnectTimeout(10000);
-            connection.setReadTimeout(10000);
-
-            if (settings.getUsername() != null && settings.getPassword() != null) {
-                String auth = settings.getUsername() + ":" + settings.getPassword();
-                String encoded = Base64.getEncoder().encodeToString(auth.getBytes());
-                connection.setRequestProperty("Authorization", "Basic " + encoded);
-            }
-
-            connection.setRequestProperty("Content-Type", "application/x-www-form-urlencoded");
-
-            String payload = "content_type=text" + "&sender_id=" + settings.getSenderId() + "&mobile=0" + mobileNumber + "&message=" + URLEncoder.encode(message, StandardCharsets.UTF_8) + "&intflag=0" + "&charging=0";
-
-            connection.setDoOutput(true);
-
-            try (OutputStream os = connection.getOutputStream()) {
-                os.write(payload.getBytes(StandardCharsets.UTF_8));
-            }
-
-            int responseCode = connection.getResponseCode();
-            String response = readResponse(connection);
-
-            return SmsResponseDTO.builder()
-                    .success(responseCode == 200 && response.contains("MESSAGE_SUBMIT_SUCCESS"))
-                    .message("SMS Processed")
-                    .providerResponse(response)
-                    .build();
-
-        } catch (Exception ex) {
-            log.error("SMS Sending Failed", ex);
-            return SmsResponseDTO.builder().success(false).message(ex.getMessage()).build();
-        }
-    }
-
-    private String readResponse(HttpURLConnection connection) throws IOException {
-        StringBuilder response = new StringBuilder();
-        try (BufferedReader reader = new BufferedReader(new InputStreamReader(connection.getInputStream()))) {
-            String line;
-            while ((line = reader.readLine()) != null) {
-                response.append(line);
-            }
-        }
-        return response.toString();
+        return cacheManager;
     }
 }
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+```java
+package com.fincore.communication.exception;
+
+/**
+ * Enterprise Exception Taxonomy for the Communication Service.
+ * These are strictly Unchecked Exceptions (Runtime) to integrate with Spring Kafka @RetryableTopic.
+ */
+public class CommunicationExceptions {
+
+    // ... (Keep existing exceptions: DecryptionFailureException, VendorDeliveryException, etc.) ...
+
+    public static class TemplateNotFoundException extends RuntimeException {
+        public TemplateNotFoundException(String message) { super(message); }
+    }
+
+    /**
+     * Deterministic Error: Thrown if FreeMarker fails to compile (e.g., missing variable).
+     * DO NOT RETRY. Route to DLQ instantly, as retrying a broken template will always fail.
+     */
+    public static class TemplateProcessingException extends RuntimeException {
+        public TemplateProcessingException(String message, Throwable cause) { super(message, cause); }
+    }
+    
+    // ...
+}
+
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+```java
+package com.fincore.communication.service;
+
+import com.fincore.communication.exception.CommunicationExceptions.TemplateNotFoundException;
+import com.fincore.communication.exception.CommunicationExceptions.TemplateProcessingException;
+// import com.fincore.communication.repository.CommTemplateRepository;
+// import com.fincore.communication.model.CommTemplateMaster;
+import freemarker.template.Configuration;
+import freemarker.template.Template;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
+import org.springframework.stereotype.Service;
+
+import java.io.StringReader;
+import java.io.StringWriter;
+import java.util.Map;
+
+/**
+ * High-Speed Template Rendering Engine.
+ * * ARCHITECTURE FLOW:
+ * 1. Consumer requests compiled template.
+ * 2. @Cacheable intercepts: If exists in RAM, returns instantly (< 0.1ms).
+ * 3. If missing/expired (12h TTL), method executes: Fetches CLOB from Oracle.
+ * 4. FreeMarker securely binds dynamic variables (e.g., ${otpPlaintext}).
+ * 5. Compiled String is cached and returned to Consumer.
+ */
+@Slf4j
+@Service
+@RequiredArgsConstructor
+public class TemplateEngineService {
+
+    // private final CommTemplateRepository templateRepository;
+    private final Configuration freeMarkerConfig; // Spring Boot auto-configures this if spring-boot-starter-freemarker is in pom.xml
+
+    /**
+     * Compiles the dynamic FreeMarker template.
+     * The cache key is a composite of Code + Channel + Language (e.g., 'AUTH_LOGIN_OTP_V1:SMS:EN').
+     */
+    @Cacheable(value = "templates", key = "#templateCode + ':' + #channel + ':' + #language", unless = "#result == null")
+    public String compileTemplate(String templateCode, String channel, String language, Map<String, Object> templateData) {
+        
+        log.info("L1 CACHE MISS: Fetching Template {} for {} from Oracle DB.", templateCode, channel);
+        
+        // --- 1. Database Lookup (Uncomment when repository is ready) ---
+        /*
+        CommTemplateMaster tmpl = templateRepository.findById(new TemplateId(templateCode, channel, language))
+                .orElseThrow(() -> new TemplateNotFoundException("Template not found in Oracle: " + templateCode));
+
+        if (!"Y".equals(tmpl.getIsActive())) {
+            throw new TemplateNotFoundException("Template is disabled: " + templateCode);
+        }
+        String rawClobContent = tmpl.getBodyContent();
+        */
+
+        // MOCK CLOB for compilation
+        String rawClobContent = "${otpPlaintext} is the OTP to login to your Fincore application account at SBI. This OTP is valid for ${expiryMins} minutes. Please do not share this OTP with anyone.";
+
+        // --- 2. Secure FreeMarker Compilation ---
+        return executeFreeMarkerCompilation(templateCode, rawClobContent, templateData);
+    }
+
+    /**
+     * Translates Checked Exceptions (IOException, TemplateException) into our 
+     * Unchecked Custom Exception (TemplateProcessingException).
+     * This ensures the Spring Kafka router cleanly sends the message to the DLQ instead of looping infinitely.
+     */
+    private String executeFreeMarkerCompilation(String templateCode, String rawContent, Map<String, Object> data) {
+        try (StringWriter writer = new StringWriter()) {
+            // Treat the raw string from DB as a dynamic FreeMarker template
+            Template template = new Template(templateCode, new StringReader(rawContent), freeMarkerConfig);
+            
+            // Process the template safely
+            template.process(data, writer);
+            
+            return writer.toString();
+        } catch (Exception e) {
+            log.error("Fatal error compiling template {}. Missing variables or malformed HTML.", templateCode, e);
+            throw new TemplateProcessingException("Failed to bind dynamic variables to template: " + templateCode, e);
+        }
+    }
+
+    /**
+     * Emergency Manual Cache Flush.
+     * Attach this to a secured internal Controller endpoint so DBAs can force a refresh 
+     * without waiting for the 12-hour TTL to expire.
+     */
+    @CacheEvict(value = {"templates", "template_subjects"}, allEntries = true)
+    public void flushTemplateCache() {
+        log.warn("ADMIN ACTION: All communication templates evicted from Caffeine L1 Cache. Next request will hit Oracle.");
+    }
+}
+
+
+```
