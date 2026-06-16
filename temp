@@ -1,4 +1,366 @@
+```java
+package com.fincore.CommunicationService.dto;
+
+import lombok.Data;
+import java.util.List;
+
+@Data
+public class KafkaEvent {
+    private String eventId;
+    private String eventType;
+    private String txId;
+    private String environment;
+    private List<String> channels;
+    private String templateId;
+    private Recipients recipient; // Note: Singular to match Gateway JSON
+    
+    // CRITICAL: This MUST be a String because it arrives AES-Encrypted from the Gateway.
+    private String payload; 
+    private String createdAt;
+}
+
+```
+
+
+
+
+
+
+
+
+
+```java
+package com.fincore.CommunicationService.dto;
+
+import lombok.Data;
+
+@Data
+public class Recipients {
+    private String mobile;
+    private String email;
+}
+
+```
+
+
+
+
+
+
+
+
+
+
+
+```java
+package com.fincore.CommunicationService.dto;
+
+import lombok.Data;
+
+@Data
+public class TemplateData {
+    private String otpPlaintext;
+    private String expiryMins;
+    private String userName;
+}
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
+```java
+package com.fincore.CommunicationService.consumer;
+
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fincore.commonutilities.util.AesEncryptionUtil;
+import com.fincore.CommunicationService.dto.KafkaEvent;
+import com.fincore.CommunicationService.exception.CommunicationExceptions.*;
+import com.fincore.CommunicationService.service.EmailService;
+import com.fincore.CommunicationService.service.SmsService;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.kafka.annotation.KafkaListener;
+import org.springframework.kafka.annotation.RetryableTopic;
+import org.springframework.kafka.retrytopic.TopicSuffixingStrategy;
+import org.springframework.kafka.support.Acknowledgment;
+import org.springframework.messaging.handler.annotation.Payload;
+import org.springframework.retry.annotation.Backoff;
+import org.springframework.stereotype.Component;
+
+import javax.crypto.BadPaddingException;
+import javax.crypto.IllegalBlockSizeException;
+import java.security.GeneralSecurityException;
+import java.time.Duration;
+import java.util.Map;
+
+@Slf4j
+@Component
+@RequiredArgsConstructor
+public class PriorityOtpConsumer {
+
+    private final ObjectMapper mapper;
+    private final AesEncryptionUtil aesUtil;
+    private final StringRedisTemplate redisTemplate;
+    
+    private final SmsService smsService;     
+    private final EmailService emailService; 
+
+    @Value("${security.internal.kafka-aes-key}")
+    private String internalAesKey;
+
+    @RetryableTopic(
+            attempts = "4",
+            backoff = @Backoff(delay = 2000, multiplier = 2.0),
+            topicSuffixingStrategy = TopicSuffixingStrategy.SUFFIX_WITH_INDEX_VALUE,
+            dltTopicSuffix = "-dlq",
+            exclude = { DecryptionFailureException.class, InvalidPayloadException.class, TemplateNotFoundException.class }
+    )
+    @KafkaListener(
+            topics = "fincore.auth.otp.priority",
+            groupId = "communication-login-otp-group",
+            containerFactory = "priorityOtpContainerFactory"
+    )
+    public void consumeOtpEvent(@Payload KafkaEvent event, Acknowledgment acknowledgment) {
+
+        String txId = event.getTxId();
+        log.debug("Received Tier-0 OTP Event for txId={}", txId);
+
+        try {
+            if (txId == null || event.getPayload() == null) {
+                throw new InvalidPayloadException("Missing txId or encrypted payload");
+            }
+
+            // 1. ZERO-TRUST DECRYPTION
+            String decryptedJson;
+            try {
+                decryptedJson = aesUtil.decrypt(event.getPayload(), internalAesKey);
+            } catch (BadPaddingException | IllegalBlockSizeException e) {
+                log.error("SECURITY ALERT: Decryption failed for txId={}. Data tampered or key mismatch.", txId, e);
+                throw new DecryptionFailureException("AES Decryption Failed: Invalid Padding", e);
+            } catch (GeneralSecurityException e) {
+                throw new DecryptionFailureException("AES Decryption Failed", e);
+            }
+
+            // Map decrypted JSON into a generic map to pass to FreeMarker/TemplateService
+            Map<String, Object> templateDataMap = mapper.readValue(decryptedJson, new TypeReference<>() {});
+
+            boolean requiresRetry = false;
+
+            // 2. CHANNEL ROUTING & IDEMPOTENCY
+            for (String channel : event.getChannels()) {
+                String idempotencyKey = "COMM_IDEMP:" + txId + ":" + channel.toUpperCase();
+
+                Boolean alreadyProcessed = redisTemplate.opsForValue().setIfAbsent(idempotencyKey, "PROCESSED", Duration.ofMinutes(15));
+                if (Boolean.FALSE.equals(alreadyProcessed)) {
+                    log.info("Idempotency hit: Already processed {} for txId={}. Skipping.", channel, txId);
+                    continue;
+                }
+
+                try {
+                    if ("SMS".equalsIgnoreCase(channel)) {
+                        smsService.sendSms(event.getEnvironment(), event.getTemplateId(), event.getRecipient().getMobile(), templateDataMap);
+                    } else if ("EMAIL".equalsIgnoreCase(channel)) {
+                        emailService.sendEmail(event.getEnvironment(), event.getTemplateId(), event.getRecipient().getEmail(), templateDataMap);
+                    }
+                } catch (Exception e) {
+                    redisTemplate.delete(idempotencyKey); // Allow retry on failure
+                    log.error("Vendor dispatch failed for txId={} channel={}. Exception: {}", txId, channel, e.getMessage());
+                    requiresRetry = true;
+                }
+            }
+
+            if (requiresRetry) {
+                throw new VendorDeliveryException("One or more channels failed to deliver.", null);
+            }
+
+            acknowledgment.acknowledge();
+            log.info("Successfully processed Tier-0 OTP Event for txId={}", txId);
+
+        } catch (DecryptionFailureException | InvalidPayloadException | TemplateNotFoundException e) {
+            log.error("Fatal deterministic error processing txId={}. Routing to DLQ. Reason: {}", txId, e.getMessage());
+            throw e;
+        } catch (Exception e) {
+            log.error("Unexpected error processing Kafka message: {}", e.getMessage(), e);
+            throw new InvalidPayloadException("Unexpected message parsing error");
+        }
+    }
+}
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+```java
+package com.fincore.CommunicationService.service;
+
+import java.util.Map;
+
+public interface EmailService {
+    void sendEmail(String environment, String templateId, String toEmail, Map<String, Object> templateData);
+}
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
+```java
+package com.fincore.CommunicationService.service;
+
+import com.fincore.CommunicationService.cache.ExternalApiConfigProvider;
+import com.fincore.CommunicationService.exception.CommunicationExceptions.VendorDeliveryException;
+import com.fincore.CommunicationService.model.FincoreSettings;
+import com.fincore.CommunicationService.util.EmailUtil;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.stereotype.Service;
+import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
+import io.github.resilience4j.retry.annotation.Retry;
+
+import java.util.HashMap;
+import java.util.Map;
+
+@Service
+@RequiredArgsConstructor
+@Slf4j
+public class EmailServiceImpl implements EmailService {
+
+    private final ExternalApiConfigProvider configProvider;
+    private final TemplateEngineService templateService; // Our L1 Cache Engine
+
+    private static final String FUNCTIONALITY_EMAIL = "EMAIL";
+    
+    // Constants mapping to EmailUtil
+    private static final String URL = "url";
+    private static final String API_KEY = "api_key";
+    private static final String SENDER_ID = "senderId";
+    private static final String TO_EMAIL = "toEmail";
+    private static final String EMAIL_BODY = "emailBody";
+    private static final String SUBJECT = "subject";
+
+    /**
+     * Attempts Primary Email Dispatch.
+     * Retries via Resilience4j. If broken, routes to fallbackEmail.
+     */
+    @Override
+    @Retry(name = "primaryEmailRetry", fallbackMethod = "fallbackEmail")
+    @CircuitBreaker(name = "primaryEmailCircuit", fallbackMethod = "fallbackEmail")
+    public void sendEmail(String environment, String templateId, String toEmail, Map<String, Object> templateData) {
+        
+        // 1. Fetch Oracle L1 Cached Template & Compile FreeMarker
+        String emailBody = templateService.compileTemplate(templateId, "EMAIL", "EN", templateData);
+        String subject = templateService.getTemplateSubject(templateId, "EMAIL", "EN");
+
+        // 2. Fetch API Credentials from Fincore Settings
+        FincoreSettings config = configProvider.getConfig(FUNCTIONALITY_EMAIL, environment);
+
+        // 3. Prepare Payload for Junior's EmailUtil
+        Map<String, Object> emailRequestBody = new HashMap<>();
+        emailRequestBody.put(URL, config.getUrl());
+        emailRequestBody.put(API_KEY, config.getApiKey());
+        emailRequestBody.put(SENDER_ID, config.getSenderId());
+        emailRequestBody.put(TO_EMAIL, toEmail);
+        emailRequestBody.put(SUBJECT, subject);
+        emailRequestBody.put(EMAIL_BODY, emailBody);
+
+        log.info("Dispatching Email via Primary Provider to {}", maskEmail(toEmail));
+        
+        int responseCode = EmailUtil.sendEmail(emailRequestBody);
+
+        // CRITICAL: Failures throw an exception so Resilience4j/Kafka knows it failed
+        if (responseCode < 200 || responseCode >= 300) {
+            throw new VendorDeliveryException("Email Provider rejected request. HTTP " + responseCode, null);
+        }
+    }
+
+    /**
+     * THE FALLBACK HOOK.
+     * Invoked automatically if Primary Provider is down.
+     */
+    public void fallbackEmail(String environment, String templateId, String toEmail, Map<String, Object> templateData, Exception ex) {
+        log.warn("Primary Email Provider offline. Error: {}. Routing to Fallback Provider.", ex.getMessage());
+        
+        try {
+            // TODO: Implement Secondary Provider (e.g. AWS SES) here later.
+            // For now, if Fallback also fails (or isn't implemented), we must throw
+            // so Kafka routes this to the Dead Letter Queue (DLQ).
+            throw new VendorDeliveryException("Total Email Infrastructure Failure", ex);
+            
+        } catch (Exception fallbackEx) {
+            log.error("CRITICAL: All Email Providers failed for {}.", maskEmail(toEmail));
+            throw new VendorDeliveryException("Total Email Infrastructure Failure", fallbackEx);
+        }
+    }
+
+    private String maskEmail(String email) {
+        if (email == null || !email.contains("@")) return email;
+        String[] p = email.split("@");
+        return (p[0].length() <= 2 ? "**" : p[0].charAt(0) + "***" + p[0].charAt(p[0].length() - 1)) + "@" + p[1];
+    }
+}
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+```java
 package com.fincore.CommunicationService.util;
+
+import lombok.extern.slf4j.Slf4j;
+import org.json.JSONArray;
+import org.json.JSONObject;
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -10,177 +372,120 @@ import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.util.Map;
 
-// Required imports for SSL bypass
-import javax.net.ssl.*;
-import java.security.cert.X509Certificate;
-
-import org.json.JSONArray;
-import org.json.JSONObject;
-
-import lombok.extern.slf4j.Slf4j;
-
 @Slf4j
 public class EmailUtil {
 
-	private static final String URL = "url";
-	private static final String API_KEY = "api_key";
-	private static final String SENDER_ID = "senderId";
-	private static final String TO_EMAIL = "toEmail";
-	private static final String CC_TO_EMAIL = "ccToEmail";
-	private static final String EMAIL_BODY = "emailBody";
-	private static final String SUBJECT = "subject";
+    private static final String URL_KEY = "url";
+    private static final String API_KEY = "api_key";
+    private static final String SENDER_ID = "senderId";
+    private static final String TO_EMAIL = "toEmail";
+    private static final String EMAIL_BODY = "emailBody";
+    private static final String SUBJECT = "subject";
 
-	public static int sendEmail(Map<String, Object> emailRequest) {
+    public static int sendEmail(Map<String, Object> emailRequest) {
+        HttpURLConnection emailApiConnection = null;
 
-		HttpURLConnection emailApiConnection = null;
+        try {
+            String apiUrl = emailRequest.get(URL_KEY).toString();
+            String apiKey = emailRequest.get(API_KEY).toString();
+            String senderEmail = emailRequest.get(SENDER_ID).toString();
+            String recipientMail = emailRequest.get(TO_EMAIL).toString();
+            String emailBody = emailRequest.get(EMAIL_BODY).toString();
+            String subject = emailRequest.get(SUBJECT).toString();
 
-		try {
-			// Email Request Values
-			String apiUrl = emailRequest.get(URL).toString();
-			String apiKey = emailRequest.get(API_KEY).toString();
-			String senderEmail = emailRequest.get(SENDER_ID).toString();
-			String recipientMail = emailRequest.get(TO_EMAIL).toString();
-			String ccToEmail = emailRequest.get(CC_TO_EMAIL).toString();
-			String emailBody = emailRequest.get(EMAIL_BODY).toString();
-			String subject = emailRequest.get(SUBJECT).toString();
+            URL url = new URL(apiUrl);
+            emailApiConnection = (HttpURLConnection) url.openConnection();
+            emailApiConnection.setRequestMethod("POST");
+            emailApiConnection.setDoOutput(true);
+            
+            // ARCHITECTURE MANDATE: Reduced timeouts from 10s to 3s to prevent Kafka thread starvation
+            emailApiConnection.setConnectTimeout(3000);
+            emailApiConnection.setReadTimeout(3000);
 
-			// Open Connection
-			URL url = new URL(apiUrl);
-			emailApiConnection = (HttpURLConnection) url.openConnection();
+            emailApiConnection.setRequestProperty("Content-Type", "application/json");
+            emailApiConnection.setRequestProperty("Accept", "application/json");
+            emailApiConnection.setRequestProperty("api_key", apiKey);
 
-			// --- NEW CODE: BYPASS SSL VERIFICATION FOR THIS CONNECTION ---
-			if (emailApiConnection instanceof HttpsURLConnection) {
-				HttpsURLConnection httpsConnection = (HttpsURLConnection) emailApiConnection;
-				try {
-					TrustManager[] trustAllCerts = new TrustManager[]{
-						new X509TrustManager() {
-							public X509Certificate[] getAcceptedIssuers() { return null; }
-							public void checkClientTrusted(X509Certificate[] certs, String authType) {}
-							public void checkServerTrusted(X509Certificate[] certs, String authType) {}
-						}
-					};
-					SSLContext sc = SSLContext.getInstance("TLS");
-					sc.init(null, trustAllCerts, new java.security.SecureRandom());
-					httpsConnection.setSSLSocketFactory(sc.getSocketFactory());
-					httpsConnection.setHostnameVerifier((hostname, session) -> true);
-				} catch (Exception e) {
-					log.error("Failed to set SSL bypass: ", e);
-				}
-			}
-			// -------------------------------------------------------------
+            // Build JSON matching Vendor API requirements
+            JSONObject senderJson = new JSONObject();
+            senderJson.put("email", senderEmail);
+            senderJson.put("name", "SBI Fincore");
 
-			emailApiConnection.setRequestMethod("POST");
-			emailApiConnection.setDoOutput(true);
-			emailApiConnection.setConnectTimeout(10000);
-			emailApiConnection.setReadTimeout(10000);
+            JSONObject emailContentJson = new JSONObject();
+            emailContentJson.put("type", "html");
+            emailContentJson.put("value", emailBody);
 
-			// Request headers
-			emailApiConnection.setRequestProperty("Content-Type", "application/json");
-			emailApiConnection.setRequestProperty("Accept", "application/json");
-			emailApiConnection.setRequestProperty("api_key", apiKey);
-			emailApiConnection.setDoOutput(true);
+            JSONArray contentArray = new JSONArray();
+            contentArray.put(emailContentJson);
 
-			// Sender Details
-			JSONObject senderJson = new JSONObject();
-			senderJson.put("email", senderEmail);
-			senderJson.put("name", "FINCORE");
+            JSONObject recipientJson = new JSONObject();
+            recipientJson.put("email", recipientMail);
+            JSONArray recipientArray = new JSONArray();
+            recipientArray.put(recipientJson);
 
-			// Email Content
-			JSONObject emailContentJson = new JSONObject();
-			emailContentJson.put("type", "html");
-			emailContentJson.put("value", emailBody);
+            JSONObject personalizationsJson = new JSONObject();
+            personalizationsJson.put("to", recipientArray);
 
-			JSONArray contentArray = new JSONArray();
-			contentArray.put(emailContentJson);
+            JSONArray personalizationsJsonArray = new JSONArray();
+            personalizationsJsonArray.put(personalizationsJson);
 
-			// Recipient Details
-			JSONObject recipientJson = new JSONObject();
-			recipientJson.put("email", recipientMail);
+            JSONObject emailRequestJson = new JSONObject();
+            emailRequestJson.put("from", senderJson);
+            emailRequestJson.put("subject", subject);
+            emailRequestJson.put("content", contentArray);
+            emailRequestJson.put("personalizations", personalizationsJsonArray);
 
-			JSONArray recipientArray = new JSONArray();
-			recipientArray.put(recipientJson);
+            String finalRequestBody = emailRequestJson.toString();
 
-			// Custom Attributes
-			JSONObject attributesJson = new JSONObject();
-			attributesJson.put("LEAD", "Andy Dwyer");
-			attributesJson.put("BAND", "Mouse Rat");
+            try (OutputStream outputStream = emailApiConnection.getOutputStream()) {
+                byte[] requestBytes = finalRequestBody.getBytes(StandardCharsets.UTF_8);
+                outputStream.write(requestBytes);
+            }
 
-			// Personalization
-			JSONObject personalizationsJson = new JSONObject();
-			personalizationsJson.put("to", recipientArray);
-			personalizationsJson.put("attributes", attributesJson);
+            int responseCode = emailApiConnection.getResponseCode();
+            
+            InputStream responseStream = (responseCode >= 200 && responseCode < 300)
+                    ? emailApiConnection.getInputStream()
+                    : emailApiConnection.getErrorStream();
 
-			// CC details
-			if (emailRequest.containsKey("ccToEmail")) {
-				JSONObject ccRecipientJson = new JSONObject();
-				ccRecipientJson.put("email", ccToEmail);
+            if (responseStream != null) {
+                try (BufferedReader reader = new BufferedReader(new InputStreamReader(responseStream, StandardCharsets.UTF_8))) {
+                    StringBuilder responseBody = new StringBuilder();
+                    String line;
+                    while ((line = reader.readLine()) != null) {
+                        responseBody.append(line);
+                    }
+                    if (responseCode >= 400) {
+                        log.error("Vendor Error Response: {}", responseBody);
+                    }
+                }
+            }
+            
+            return responseCode;
 
-				JSONArray ccArray = new JSONArray();
-				ccArray.put(ccRecipientJson);
-				personalizationsJson.put("cc", ccArray);
-			}
-
-			personalizationsJson.put("token_to", "8693839845");
-			personalizationsJson.put("token_cc", "MSGID657243");
-			personalizationsJson.put("token_bcc", "MSGID657244");
-
-			JSONArray personalizationsJsonArray = new JSONArray();
-			personalizationsJsonArray.put(personalizationsJson);
-
-			// Tracking Settings
-			JSONObject trackingSettingsJson = new JSONObject();
-			trackingSettingsJson.put("open_track", true);
-			trackingSettingsJson.put("click_track", true);
-			trackingSettingsJson.put("unsubscribe_track", true);
-
-			// Final Request JSON
-			JSONObject emailRequestJson = new JSONObject();
-			emailRequestJson.put("from", senderJson);
-			emailRequestJson.put("subject", subject);
-			emailRequestJson.put("content", contentArray);
-			emailRequestJson.put("personalizations", personalizationsJsonArray);
-			emailRequestJson.put("settings", trackingSettingsJson);
-
-			String finalRequestBody = emailRequestJson.toString();
-
-			// Send Request
-			try (OutputStream outputStream = emailApiConnection.getOutputStream()) {
-				byte[] requestBytes = finalRequestBody.getBytes(StandardCharsets.UTF_8);
-				outputStream.write(requestBytes);
-			}
-
-			// Read response
-			int responseCode = emailApiConnection.getResponseCode();
-			InputStream responseStream = (responseCode >= 200 && responseCode < 300)
-					? emailApiConnection.getInputStream()
-					: emailApiConnection.getErrorStream();
-
-			if (responseStream != null) {
-				try (BufferedReader reader = new BufferedReader(
-						new InputStreamReader(responseStream, StandardCharsets.UTF_8))) {
-
-					StringBuilder responseBody = new StringBuilder();
-					String line;
-
-					while ((line = reader.readLine()) != null) {
-						responseBody.append(line).append("\n");
-					}
-
-					System.out.println("Server Response: " + responseBody);
-				}
-			} else {
-				System.out.println("No response body received. HTTP " + responseCode);
-			}
-
-			return responseCode;
-
-		} catch (IOException e) {
-			log.error("Error occurred while sending Email " + e);
-		} finally {
-			if (emailApiConnection != null) {
-				emailApiConnection.disconnect();
-			}
-		}
-		return 0;
-	}
+        } catch (IOException e) {
+            log.error("IO Exception during Vendor Dispatch: {}", e.getMessage());
+            // Returning 0 ensures the calling Service throws the VendorDeliveryException
+            return 0; 
+        } finally {
+            if (emailApiConnection != null) {
+                emailApiConnection.disconnect();
+            }
+        }
+    }
 }
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
