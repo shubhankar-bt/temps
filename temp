@@ -644,3 +644,230 @@ public class EmailServiceImpl implements EmailService {
     }
 }
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+*******************************************
+
+
+
+
+
+    /**
+     * THE DEAD LETTER QUEUE (DLQ) HANDLER.
+     * This is automatically invoked by Spring Kafka when:
+     * 1. All 4 retries for VendorDeliveryException are exhausted.
+     * 2. A deterministic exception (e.g., DecryptionFailureException) is thrown.
+     * * @param event The original KafkaEvent that failed.
+     * @param headerTopic The original topic.
+     * @param exception The final exception that caused the DLQ routing.
+     */
+    @org.springframework.kafka.annotation.DltHandler
+    public void handleDltPayment(
+            KafkaEvent event, 
+            @Header(KafkaHeaders.ORIGINAL_TOPIC) String headerTopic,
+            @Header(KafkaHeaders.EXCEPTION_MESSAGE) String exceptionMessage) {
+
+        String txId = event != null ? event.getTxId() : "UNKNOWN_TX";
+        
+        log.error("=====================================================");
+        log.error("DLQ ALERT: OTP Delivery Permanently Failed!");
+        log.error("Transaction ID: {}", txId);
+        log.error("Original Topic: {}", headerTopic);
+        log.error("Failure Reason: {}", exceptionMessage);
+        log.error("=====================================================");
+
+        // TODO: (Future Enhancement) 
+        // Inject your CommunicationAuditRepository here and update the DB row for this txId
+        // to "FAILED" with the exceptionMessage, so the Bank's Support Desk dashboard 
+        // can see exactly why the user didn't get their OTP.
+    }
+
+
+
+
+
+
+
+
+# ==========================================
+# KAFKA CONSUMER CONFIG (Communication Service)
+# ==========================================
+spring.kafka.bootstrap-servers=10.0.19.100:9092
+spring.kafka.consumer.group-id=communication-login-otp-group
+
+# Auto offset: if a new consumer group starts, read from the earliest unread message
+spring.kafka.consumer.auto-offset-reset=earliest
+
+# Key/Value Deserializers
+spring.kafka.consumer.key-deserializer=org.apache.kafka.common.serialization.StringDeserializer
+spring.kafka.consumer.value-deserializer=org.springframework.kafka.support.serializer.JsonDeserializer
+
+# JSON Deserialization Mappings
+spring.kafka.consumer.properties.spring.json.trusted.packages=*
+spring.kafka.consumer.properties.spring.json.value.default.type=com.fincore.CommunicationService.dto.KafkaEvent
+
+# Note: We enforce AckMode.MANUAL_IMMEDIATE directly in the priorityOtpContainerFactory @Bean,
+# so we don't strictly need to set it here, but it's good documentation.
+spring.kafka.listener.ack-mode=manual-immediate
+
+# Shared AES Key
+security.internal.kafka-aes-key=u1L8a/eW4D/k4oQ5M6w9kO+Xy/o0E5eA/Zz1L8a/eW4=
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+package com.fincore.CommunicationService.util;
+
+import com.fincore.CommunicationService.exception.CommunicationExceptions.VendorDeliveryException;
+import lombok.extern.slf4j.Slf4j;
+import org.json.JSONArray;
+import org.json.JSONObject;
+
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.io.OutputStream;
+import java.net.HttpURLConnection;
+import java.net.URL;
+import java.nio.charset.StandardCharsets;
+import java.util.Map;
+
+@Slf4j
+public class EmailUtil {
+
+    private static final String URL_KEY = "url";
+    private static final String API_KEY = "api_key";
+    private static final String SENDER_ID = "senderId";
+    private static final String TO_EMAIL = "toEmail";
+    private static final String EMAIL_BODY = "emailBody";
+    private static final String SUBJECT = "subject";
+
+    public static void sendEmail(Map<String, Object> emailRequest) {
+        HttpURLConnection emailApiConnection = null;
+
+        try {
+            String apiUrl = emailRequest.get(URL_KEY).toString();
+            String apiKey = emailRequest.get(API_KEY).toString();
+            String senderEmail = emailRequest.get(SENDER_ID).toString();
+            String recipientMail = emailRequest.get(TO_EMAIL).toString();
+            String emailBody = emailRequest.get(EMAIL_BODY).toString();
+            String subject = emailRequest.get(SUBJECT).toString();
+
+            URL url = new URL(apiUrl);
+            emailApiConnection = (HttpURLConnection) url.openConnection();
+            emailApiConnection.setRequestMethod("POST");
+            emailApiConnection.setDoOutput(true);
+            
+            // STRICT TIMEOUTS: 3 seconds max. We must fail fast to trigger Resilience4j retries.
+            emailApiConnection.setConnectTimeout(3000);
+            emailApiConnection.setReadTimeout(3000);
+
+            emailApiConnection.setRequestProperty("Content-Type", "application/json");
+            emailApiConnection.setRequestProperty("Accept", "application/json");
+            emailApiConnection.setRequestProperty("api_key", apiKey);
+
+            // --- Construct Bank API Payload ---
+            JSONObject senderJson = new JSONObject();
+            senderJson.put("email", senderEmail);
+            senderJson.put("name", "SBI Fincore");
+
+            JSONObject emailContentJson = new JSONObject();
+            emailContentJson.put("type", "html");
+            emailContentJson.put("value", emailBody);
+
+            JSONArray contentArray = new JSONArray();
+            contentArray.put(emailContentJson);
+
+            JSONObject recipientJson = new JSONObject();
+            recipientJson.put("email", recipientMail);
+            JSONArray recipientArray = new JSONArray();
+            recipientArray.put(recipientJson);
+
+            JSONObject personalizationsJson = new JSONObject();
+            personalizationsJson.put("to", recipientArray);
+
+            JSONArray personalizationsJsonArray = new JSONArray();
+            personalizationsJsonArray.put(personalizationsJson);
+
+            JSONObject emailRequestJson = new JSONObject();
+            emailRequestJson.put("from", senderJson);
+            emailRequestJson.put("subject", subject);
+            emailRequestJson.put("content", contentArray);
+            emailRequestJson.put("personalizations", personalizationsJsonArray);
+
+            String finalRequestBody = emailRequestJson.toString();
+
+            // --- Dispatch Request ---
+            try (OutputStream outputStream = emailApiConnection.getOutputStream()) {
+                byte[] requestBytes = finalRequestBody.getBytes(StandardCharsets.UTF_8);
+                outputStream.write(requestBytes);
+            }
+
+            // --- Handle Response ---
+            int responseCode = emailApiConnection.getResponseCode();
+            
+            // Read success stream or error stream
+            InputStream responseStream = (responseCode >= 200 && responseCode < 300)
+                    ? emailApiConnection.getInputStream()
+                    : emailApiConnection.getErrorStream();
+
+            StringBuilder responseBody = new StringBuilder();
+            if (responseStream != null) {
+                try (BufferedReader reader = new BufferedReader(new InputStreamReader(responseStream, StandardCharsets.UTF_8))) {
+                    String line;
+                    while ((line = reader.readLine()) != null) {
+                        responseBody.append(line).append("\n");
+                    }
+                }
+            }
+            
+            // CRITICAL: Throw exception on failure to trigger Resilience4j / Kafka DLQ
+            if (responseCode < 200 || responseCode >= 300) {
+                log.error("Bank API rejected request. HTTP Status: {}. Response: {}", responseCode, responseBody);
+                throw new VendorDeliveryException("Bank API Failed. HTTP " + responseCode + " | " + responseBody.toString().trim(), null);
+            }
+
+            log.debug("Bank API Email dispatch successful. Response: {}", responseBody.toString().trim());
+
+        } catch (IOException e) {
+            // DO NOT SWALLOW THIS. Convert to our unchecked exception so Spring Kafka retries it.
+            log.error("Network IO Exception connecting to Bank API: {}", e.getMessage());
+            throw new VendorDeliveryException("Network timeout or connection refused connecting to Bank API", e);
+        } finally {
+            if (emailApiConnection != null) {
+                emailApiConnection.disconnect();
+            }
+        }
+    }
+}
+
+
