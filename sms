@@ -9,6 +9,7 @@ import com.fincore.CommunicationService.repository.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
+import javax.net.ssl.*;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
@@ -17,6 +18,7 @@ import java.net.HttpURLConnection;
 import java.net.URL;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
+import java.security.cert.X509Certificate;
 import java.util.Base64;
 
 @Component
@@ -28,25 +30,42 @@ public class SmsGatewayClient {
 
     public SmsResponseDTO sendSms(String mobileNumber, String message, String env) {
 
-        FincoreSettings settings = settingsRepository.findByFunctionalityAndEnv("SMS", env).orElseThrow(() -> new RuntimeException("SMS Configuration Missing"));
+        FincoreSettings settings = settingsRepository.findByFunctionalityAndEnv("SMS", env)
+                .orElseThrow(() -> new RuntimeException("SMS Configuration Missing"));
 
         try {
 
             URL url = new URL(settings.getUrl());
-
             HttpURLConnection connection = (HttpURLConnection) url.openConnection();
 
-            connection.setRequestMethod("POST");
+            // --- NEW CODE: BYPASS SSL VERIFICATION FOR THIS CONNECTION ---
+            if (connection instanceof HttpsURLConnection) {
+                HttpsURLConnection httpsConnection = (HttpsURLConnection) connection;
+                
+                TrustManager[] trustAllCerts = new TrustManager[]{
+                    new X509TrustManager() {
+                        public X509Certificate[] getAcceptedIssuers() { return null; }
+                        public void checkClientTrusted(X509Certificate[] certs, String authType) {}
+                        public void checkServerTrusted(X509Certificate[] certs, String authType) {}
+                    }
+                };
+                
+                SSLContext sc = SSLContext.getInstance("TLS");
+                sc.init(null, trustAllCerts, new java.security.SecureRandom());
+                httpsConnection.setSSLSocketFactory(sc.getSocketFactory());
+                
+                // Allow all hostnames
+                httpsConnection.setHostnameVerifier((hostname, session) -> true);
+            }
+            // -------------------------------------------------------------
 
+            connection.setRequestMethod("POST");
             connection.setConnectTimeout(10000);
             connection.setReadTimeout(10000);
 
             if (settings.getUsername() != null && settings.getPassword() != null) {
-
                 String auth = settings.getUsername() + ":" + settings.getPassword();
-
                 String encoded = Base64.getEncoder().encodeToString(auth.getBytes());
-
                 connection.setRequestProperty("Authorization", "Basic " + encoded);
             }
 
@@ -57,154 +76,32 @@ public class SmsGatewayClient {
             connection.setDoOutput(true);
 
             try (OutputStream os = connection.getOutputStream()) {
-
                 os.write(payload.getBytes(StandardCharsets.UTF_8));
             }
 
             int responseCode = connection.getResponseCode();
-
             String response = readResponse(connection);
 
-            return SmsResponseDTO.builder().success(responseCode == 200 && response.contains("MESSAGE_SUBMIT_SUCCESS")).message("SMS Processed").providerResponse(response).build();
+            return SmsResponseDTO.builder()
+                    .success(responseCode == 200 && response.contains("MESSAGE_SUBMIT_SUCCESS"))
+                    .message("SMS Processed")
+                    .providerResponse(response)
+                    .build();
 
         } catch (Exception ex) {
-
             log.error("SMS Sending Failed", ex);
-
             return SmsResponseDTO.builder().success(false).message(ex.getMessage()).build();
         }
     }
 
     private String readResponse(HttpURLConnection connection) throws IOException {
-
         StringBuilder response = new StringBuilder();
-
         try (BufferedReader reader = new BufferedReader(new InputStreamReader(connection.getInputStream()))) {
-
             String line;
-
             while ((line = reader.readLine()) != null) {
-
                 response.append(line);
             }
         }
-
         return response.toString();
     }
 }
-
-
-this is my client where to make changes i am getting this below error :
-
-
-Started CommunicationServiceApplication in 7.46 seconds (process running for 7.862)
-2026-06-16T07:23:20.080Z  INFO 1 --- [CommunicationService] [ntainer#0-0-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-communication-login-otp-group-1, groupId=communication-login-otp-group] Disconnecting from node -1 due to socket connection setup timeout. The timeout value is 8668 ms.
-2026-06-16T07:23:20.082Z  WARN 1 --- [CommunicationService] [ntainer#0-0-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-communication-login-otp-group-1, groupId=communication-login-otp-group] Bootstrap broker kafka-0.kafka.uat-cbops1.svc.cluster.local:9092 (id: -1 rack: null) disconnected
-2026-06-16T07:23:38.963Z  INFO 1 --- [CommunicationService] [ntainer#0-0-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-communication-login-otp-group-1, groupId=communication-login-otp-group] Disconnecting from node -1 due to socket connection setup timeout. The timeout value is 18760 ms.
-2026-06-16T07:23:38.964Z  WARN 1 --- [CommunicationService] [ntainer#0-0-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-communication-login-otp-group-1, groupId=communication-login-otp-group] Bootstrap broker kafka-0.kafka.uat-cbops1.svc.cluster.local:9092 (id: -1 rack: null) disconnected
-2026-06-16T07:24:05.723Z  INFO 1 --- [CommunicationService] [ntainer#0-0-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-communication-login-otp-group-1, groupId=communication-login-otp-group] Disconnecting from node -1 due to socket connection setup timeout. The timeout value is 26601 ms.
-2026-06-16T07:24:05.723Z  WARN 1 --- [CommunicationService] [ntainer#0-0-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-communication-login-otp-group-1, groupId=communication-login-otp-group] Bootstrap broker kafka-0.kafka.uat-cbops1.svc.cluster.local:9092 (id: -1 rack: null) disconnected
-2026-06-16T07:24:06.479Z  INFO 1 --- [CommunicationService] [nio-8001-exec-3] o.a.c.c.C.[Tomcat].[localhost].[/]       : Initializing Spring DispatcherServlet 'dispatcherServlet'
-2026-06-16T07:24:06.479Z  INFO 1 --- [CommunicationService] [nio-8001-exec-3] o.s.web.servlet.DispatcherServlet        : Initializing Servlet 'dispatcherServlet'
-2026-06-16T07:24:06.481Z  INFO 1 --- [CommunicationService] [nio-8001-exec-3] o.s.web.servlet.DispatcherServlet        : Completed initialization in 2 ms
-2026-06-16T07:24:06.577Z  INFO 1 --- [CommunicationService] [nio-8001-exec-3] c.f.C.c.CommunicationController          : mobileNumber 9064632186
-2026-06-16T07:24:07.100Z ERROR 1 --- [CommunicationService] [nio-8001-exec-3] c.f.C.client.SmsGatewayClient            : SMS Sending Failed
-
-javax.net.ssl.SSLHandshakeException: PKIX path building failed: sun.security.provider.certpath.SunCertPathBuilderException: unable to find valid certification path to requested target
-        at java.base/sun.security.ssl.Alert.createSSLException(Alert.java:130) ~[na:na]
-        at java.base/sun.security.ssl.TransportContext.fatal(TransportContext.java:378) ~[na:na]
-        at java.base/sun.security.ssl.TransportContext.fatal(TransportContext.java:321) ~[na:na]
-        at java.base/sun.security.ssl.TransportContext.fatal(TransportContext.java:316) ~[na:na]
-        at java.base/sun.security.ssl.CertificateMessage$T13CertificateConsumer.checkServerCerts(CertificateMessage.java:1326) ~[na:na]
-        at java.base/sun.security.ssl.CertificateMessage$T13CertificateConsumer.onConsumeCertificate(CertificateMessage.java:1203) ~[na:na]
-        at java.base/sun.security.ssl.CertificateMessage$T13CertificateConsumer.consume(CertificateMessage.java:1146) ~[na:na]
-        at java.base/sun.security.ssl.SSLHandshake.consume(SSLHandshake.java:393) ~[na:na]
-        at java.base/sun.security.ssl.HandshakeContext.dispatch(HandshakeContext.java:476) ~[na:na]
-        at java.base/sun.security.ssl.HandshakeContext.dispatch(HandshakeContext.java:447) ~[na:na]
-        at java.base/sun.security.ssl.TransportContext.dispatch(TransportContext.java:201) ~[na:na]
-        at java.base/sun.security.ssl.SSLTransport.decode(SSLTransport.java:172) ~[na:na]
-        at java.base/sun.security.ssl.SSLSocketImpl.decode(SSLSocketImpl.java:1507) ~[na:na]
-        at java.base/sun.security.ssl.SSLSocketImpl.readHandshakeRecord(SSLSocketImpl.java:1422) ~[na:na]
-        at java.base/sun.security.ssl.SSLSocketImpl.startHandshake(SSLSocketImpl.java:455) ~[na:na]
-        at java.base/sun.security.ssl.SSLSocketImpl.startHandshake(SSLSocketImpl.java:426) ~[na:na]
-        at java.base/sun.net.www.protocol.https.HttpsClient.afterConnect(HttpsClient.java:586) ~[na:na]
-        at java.base/sun.net.www.protocol.https.AbstractDelegateHttpsURLConnection.connect(AbstractDelegateHttpsURLConnection.java:187) ~[na:na]
-        at java.base/sun.net.www.protocol.http.HttpURLConnection.getOutputStream0(HttpURLConnection.java:1460) ~[na:na]
-        at java.base/sun.net.www.protocol.http.HttpURLConnection.getOutputStream(HttpURLConnection.java:1423) ~[na:na]
-        at java.base/sun.net.www.protocol.https.HttpsURLConnectionImpl.getOutputStream(HttpsURLConnectionImpl.java:219) ~[na:na]
-        at com.fincore.CommunicationService.client.SmsGatewayClient.sendSms(SmsGatewayClient.java:59) ~[!/:0.0.1-SNAPSHOT]
-        at com.fincore.CommunicationService.controller.CommunicationController.sendSMS(CommunicationController.java:32) ~[!/:0.0.1-SNAPSHOT]
-        at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:103) ~[na:na]
-        at java.base/java.lang.reflect.Method.invoke(Method.java:580) ~[na:na]
-        at org.springframework.web.method.support.InvocableHandlerMethod.doInvoke(InvocableHandlerMethod.java:255) ~[spring-web-6.1.8.jar!/:6.1.8]
-        at org.springframework.web.method.support.InvocableHandlerMethod.invokeForRequest(InvocableHandlerMethod.java:188) ~[spring-web-6.1.8.jar!/:6.1.8]
-        at org.springframework.web.servlet.mvc.method.annotation.ServletInvocableHandlerMethod.invokeAndHandle(ServletInvocableHandlerMethod.java:118) ~[spring-webmvc-6.1.8.jar!/:6.1.8]
-        at org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerAdapter.invokeHandlerMethod(RequestMappingHandlerAdapter.java:926) ~[spring-webmvc-6.1.8.jar!/:6.1.8]
-        at org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerAdapter.handleInternal(RequestMappingHandlerAdapter.java:831) ~[spring-webmvc-6.1.8.jar!/:6.1.8]
-        at org.springframework.web.servlet.mvc.method.AbstractHandlerMethodAdapter.handle(AbstractHandlerMethodAdapter.java:87) ~[spring-webmvc-6.1.8.jar!/:6.1.8]
-        at org.springframework.web.servlet.DispatcherServlet.doDispatch(DispatcherServlet.java:1089) ~[spring-webmvc-6.1.8.jar!/:6.1.8]
-        at org.springframework.web.servlet.DispatcherServlet.doService(DispatcherServlet.java:979) ~[spring-webmvc-6.1.8.jar!/:6.1.8]
-        at org.springframework.web.servlet.FrameworkServlet.processRequest(FrameworkServlet.java:1014) ~[spring-webmvc-6.1.8.jar!/:6.1.8]
-        at org.springframework.web.servlet.FrameworkServlet.doPost(FrameworkServlet.java:914) ~[spring-webmvc-6.1.8.jar!/:6.1.8]
-        at jakarta.servlet.http.HttpServlet.service(HttpServlet.java:590) ~[tomcat-embed-core-10.1.24.jar!/:na]
-        at org.springframework.web.servlet.FrameworkServlet.service(FrameworkServlet.java:885) ~[spring-webmvc-6.1.8.jar!/:6.1.8]
-        at jakarta.servlet.http.HttpServlet.service(HttpServlet.java:658) ~[tomcat-embed-core-10.1.24.jar!/:na]
-        at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:195) ~[tomcat-embed-core-10.1.24.jar!/:na]
-        at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:140) ~[tomcat-embed-core-10.1.24.jar!/:na]
-        at org.apache.tomcat.websocket.server.WsFilter.doFilter(WsFilter.java:51) ~[tomcat-embed-websocket-10.1.24.jar!/:na]
-        at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:164) ~[tomcat-embed-core-10.1.24.jar!/:na]
-        at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:140) ~[tomcat-embed-core-10.1.24.jar!/:na]
-        at org.springframework.web.filter.RequestContextFilter.doFilterInternal(RequestContextFilter.java:100) ~[spring-web-6.1.8.jar!/:6.1.8]
-        at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:116) ~[spring-web-6.1.8.jar!/:6.1.8]
-        at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:164) ~[tomcat-embed-core-10.1.24.jar!/:na]
-        at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:140) ~[tomcat-embed-core-10.1.24.jar!/:na]
-        at org.springframework.web.filter.FormContentFilter.doFilterInternal(FormContentFilter.java:93) ~[spring-web-6.1.8.jar!/:6.1.8]
-        at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:116) ~[spring-web-6.1.8.jar!/:6.1.8]
-        at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:164) ~[tomcat-embed-core-10.1.24.jar!/:na]
-        at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:140) ~[tomcat-embed-core-10.1.24.jar!/:na]
-        at org.springframework.web.filter.ServerHttpObservationFilter.doFilterInternal(ServerHttpObservationFilter.java:109) ~[spring-web-6.1.8.jar!/:6.1.8]
-        at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:116) ~[spring-web-6.1.8.jar!/:6.1.8]
-        at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:164) ~[tomcat-embed-core-10.1.24.jar!/:na]
-        at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:140) ~[tomcat-embed-core-10.1.24.jar!/:na]
-        at org.springframework.web.filter.CharacterEncodingFilter.doFilterInternal(CharacterEncodingFilter.java:201) ~[spring-web-6.1.8.jar!/:6.1.8]
-        at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:116) ~[spring-web-6.1.8.jar!/:6.1.8]
-        at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:164) ~[tomcat-embed-core-10.1.24.jar!/:na]
-        at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:140) ~[tomcat-embed-core-10.1.24.jar!/:na]
-        at org.apache.catalina.core.StandardWrapperValve.invoke(StandardWrapperValve.java:167) ~[tomcat-embed-core-10.1.24.jar!/:na]
-        at org.apache.catalina.core.StandardContextValve.invoke(StandardContextValve.java:90) ~[tomcat-embed-core-10.1.24.jar!/:na]
-        at org.apache.catalina.authenticator.AuthenticatorBase.invoke(AuthenticatorBase.java:482) ~[tomcat-embed-core-10.1.24.jar!/:na]
-        at org.apache.catalina.core.StandardHostValve.invoke(StandardHostValve.java:115) ~[tomcat-embed-core-10.1.24.jar!/:na]
-        at org.apache.catalina.valves.ErrorReportValve.invoke(ErrorReportValve.java:93) ~[tomcat-embed-core-10.1.24.jar!/:na]
-        at org.apache.catalina.core.StandardEngineValve.invoke(StandardEngineValve.java:74) ~[tomcat-embed-core-10.1.24.jar!/:na]
-        at org.apache.catalina.valves.RemoteIpValve.invoke(RemoteIpValve.java:731) ~[tomcat-embed-core-10.1.24.jar!/:na]
-        at org.apache.catalina.connector.CoyoteAdapter.service(CoyoteAdapter.java:344) ~[tomcat-embed-core-10.1.24.jar!/:na]
-        at org.apache.coyote.http11.Http11Processor.service(Http11Processor.java:389) ~[tomcat-embed-core-10.1.24.jar!/:na]
-        at org.apache.coyote.AbstractProcessorLight.process(AbstractProcessorLight.java:63) ~[tomcat-embed-core-10.1.24.jar!/:na]
-        at org.apache.coyote.AbstractProtocol$ConnectionHandler.process(AbstractProtocol.java:896) ~[tomcat-embed-core-10.1.24.jar!/:na]
-        at org.apache.tomcat.util.net.NioEndpoint$SocketProcessor.doRun(NioEndpoint.java:1741) ~[tomcat-embed-core-10.1.24.jar!/:na]
-        at org.apache.tomcat.util.net.SocketProcessorBase.run(SocketProcessorBase.java:52) ~[tomcat-embed-core-10.1.24.jar!/:na]
-        at org.apache.tomcat.util.threads.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1190) ~[tomcat-embed-core-10.1.24.jar!/:na]
-        at org.apache.tomcat.util.threads.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:659) ~[tomcat-embed-core-10.1.24.jar!/:na]
-        at org.apache.tomcat.util.threads.TaskThread$WrappingRunnable.run(TaskThread.java:63) ~[tomcat-embed-core-10.1.24.jar!/:na]
-        at java.base/java.lang.Thread.run(Thread.java:1570) ~[na:na]
-Caused by: sun.security.validator.ValidatorException: PKIX path building failed: sun.security.provider.certpath.SunCertPathBuilderException: unable to find valid certification path to requested target
-        at java.base/sun.security.validator.PKIXValidator.doBuild(PKIXValidator.java:388) ~[na:na]
-        at java.base/sun.security.validator.PKIXValidator.engineValidate(PKIXValidator.java:271) ~[na:na]
-        at java.base/sun.security.validator.Validator.validate(Validator.java:256) ~[na:na]
-        at java.base/sun.security.ssl.X509TrustManagerImpl.checkTrusted(X509TrustManagerImpl.java:230) ~[na:na]
-        at java.base/sun.security.ssl.X509TrustManagerImpl.checkServerTrusted(X509TrustManagerImpl.java:132) ~[na:na]
-        at java.base/sun.security.ssl.CertificateMessage$T13CertificateConsumer.checkServerCerts(CertificateMessage.java:1310) ~[na:na]
-        ... 71 common frames omitted
-Caused by: sun.security.provider.certpath.SunCertPathBuilderException: unable to find valid certification path to requested target
-        at java.base/sun.security.provider.certpath.SunCertPathBuilder.build(SunCertPathBuilder.java:148) ~[na:na]
-        at java.base/sun.security.provider.certpath.SunCertPathBuilder.engineBuild(SunCertPathBuilder.java:129) ~[na:na]
-        at java.base/java.security.cert.CertPathBuilder.build(CertPathBuilder.java:297) ~[na:na]
-        at java.base/sun.security.validator.PKIXValidator.doBuild(PKIXValidator.java:383) ~[na:na]
-        ... 76 common frames omitted
-
-
-
-
-
-
-
