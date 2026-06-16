@@ -489,3 +489,158 @@ public class EmailUtil {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+************************************
+
+
+
+
+
+
+
+
+
+
+package com.fincore.CommunicationService.config;
+
+import com.github.benmanes.caffeine.cache.Caffeine;
+import org.springframework.cache.CacheManager;
+import org.springframework.cache.annotation.EnableCaching;
+import org.springframework.cache.caffeine.CaffeineCacheManager;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Primary;
+import java.util.concurrent.TimeUnit;
+
+@EnableCaching
+@Configuration
+public class CacheConfig {
+
+    @Bean
+    @Primary // Forces Spring to use this for all @Cacheable annotations
+    public CacheManager caffeineCacheManager() {
+        // We register ALL cache names here
+        CaffeineCacheManager cacheManager = new CaffeineCacheManager(
+            "templates", 
+            "template_subjects", 
+            "externalApiConfigs" // <--- Added the Junior's cache
+        );
+        
+        cacheManager.setCaffeine(Caffeine.newBuilder()
+                .expireAfterWrite(12, TimeUnit.HOURS)
+                .maximumSize(1000));
+                
+        return cacheManager;
+    }
+}
+
+
+
+
+
+
+
+
+
+package com.fincore.CommunicationService.service;
+
+import com.fincore.CommunicationService.cache.ExternalApiConfigProvider;
+import com.fincore.CommunicationService.exception.CommunicationExceptions.VendorDeliveryException;
+import com.fincore.CommunicationService.model.FincoreSettings;
+import com.fincore.CommunicationService.util.EmailUtil;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.stereotype.Service;
+import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
+import io.github.resilience4j.retry.annotation.Retry;
+
+import java.util.HashMap;
+import java.util.Map;
+
+@Service
+@RequiredArgsConstructor
+@Slf4j
+public class EmailServiceImpl implements EmailService {
+
+    private final ExternalApiConfigProvider configProvider;
+    private final TemplateEngineService templateService; 
+
+    private static final String FUNCTIONALITY_EMAIL = "EMAIL";
+    
+    // Constants mapping to Junior's EmailUtil
+    private static final String URL = "url";
+    private static final String API_KEY = "api_key";
+    private static final String SENDER_ID = "senderId";
+    private static final String TO_EMAIL = "toEmail";
+    private static final String EMAIL_BODY = "emailBody";
+    private static final String SUBJECT = "subject";
+
+    /**
+     * Attempts to send via the single Bank API.
+     * Retries automatically via Resilience4j.
+     */
+    @Override
+    @Retry(name = "bankApiRetry", fallbackMethod = "handleTotalApiFailure")
+    @CircuitBreaker(name = "bankApiCircuit", fallbackMethod = "handleTotalApiFailure")
+    public void sendEmail(String environment, String templateId, String toEmail, Map<String, Object> templateData) {
+        
+        // 1. Fetch Oracle L1 Cached Template & Compile
+        String emailBody = templateService.compileTemplate(templateId, "EMAIL", "EN", templateData);
+        String subject = templateService.getTemplateSubject(templateId, "EMAIL", "EN");
+
+        // 2. Fetch API Credentials from Fincore Settings
+        FincoreSettings config = configProvider.getConfig(FUNCTIONALITY_EMAIL, environment);
+
+        // 3. Prepare Payload for Junior's EmailUtil
+        Map<String, Object> emailRequestBody = new HashMap<>();
+        emailRequestBody.put(URL, config.getUrl());
+        emailRequestBody.put(API_KEY, config.getApiKey());
+        emailRequestBody.put(SENDER_ID, config.getSenderId());
+        emailRequestBody.put(TO_EMAIL, toEmail);
+        emailRequestBody.put(SUBJECT, subject);
+        emailRequestBody.put(EMAIL_BODY, emailBody);
+
+        log.info("Dispatching Email via Bank API to {}", maskEmail(toEmail));
+        
+        int responseCode = EmailUtil.sendEmail(emailRequestBody);
+
+        // CRITICAL: Failures must throw an exception so Resilience4j/Kafka knows it failed
+        if (responseCode < 200 || responseCode >= 300) {
+            throw new VendorDeliveryException("Bank API rejected request. HTTP " + responseCode, null);
+        }
+    }
+
+    /**
+     * THE DLQ HOOK.
+     * Invoked automatically if all retries fail, or if the Circuit Breaker is OPEN.
+     */
+    public void handleTotalApiFailure(String env, String tempId, String toEmail, Map<String, Object> data, Exception ex) {
+        log.error("CRITICAL: Bank Email API is completely down or unreachable for {}. Error: {}", maskEmail(toEmail), ex.getMessage());
+        
+        // Since we have no fallback API, we MUST throw the exception.
+        // This ensures the PriorityOtpConsumer catches it and routes the event to the DLQ.
+        throw new VendorDeliveryException("Total Bank API Infrastructure Failure", ex);
+    }
+
+    private String maskEmail(String email) {
+        if (email == null || !email.contains("@")) return email;
+        String[] p = email.split("@");
+        return (p[0].length() <= 2 ? "**" : p[0].charAt(0) + "***" + p[0].charAt(p[0].length() - 1)) + "@" + p[1];
+    }
+}
+
