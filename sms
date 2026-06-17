@@ -1,9 +1,9 @@
-The Critical Flaw: Caching the Wrong Layer
-Your @Cacheable annotation is on compileTemplate, which means you are caching the final rendered HTML string (the output), not the compiled FreeMarker Template object.
-
-Inefficient Key Scope: Your cache key includes #templateCode + ':' + #channel + ':' + #language. However, you are not including the templateData (the dynamic variables like OTP, names, dates) in the key.
-Result: If User A gets an OTP "1234", that specific HTML ("1234 is the OTP...") is cached. If User B requests the same template immediately after with OTP "5678", they will incorrectly receive the cached HTML containing "1234".
-Correction: You cannot cache the final rendered email body if it contains dynamic data unique to each request (like OTPs). Caching the output is only safe for static content.
-Missed Optimization: The most expensive part of FreeMarker is parsing and compiling the template string into an executable Template object. Your current code does this every single time because compileTemplate is only called when the result is missing from cache (which it always should be for dynamic emails).
-Current Flow: Cache Miss -> Fetch DB -> Compile Template -> Process Data -> Return HTML.
-Ideal Flow: Cache Miss (Compiled Template) -> Fetch DB -> Compile & Cache Template Object -> Process Data -> Return HTML.
+2026-06-17 :: 15:54:39.600 || INFO :: AuthController.java: | 436 | :: OTP Resend for TxId: b9c0d784-7172-43ff-b330-1fba6aec1c98
+2026-06-17 :: 15:54:39.601 || INFO :: LoginUtility.java: | 11 | :: X-Forwarded-For ip : ::ffff:10.0.17.242
+2026-06-17 :: 15:54:39.731 || WARN :: GlobalExceptionHandler.java: | 20 | :: Auth Status Error: 429 TOO_MANY_REQUESTS - Please wait 3 seconds before requesting another OTP.
+2026-06-17 :: 15:54:43.707 || INFO :: AuthController.java: | 436 | :: OTP Resend for TxId: b9c0d784-7172-43ff-b330-1fba6aec1c98
+2026-06-17 :: 15:54:43.708 || INFO :: LoginUtility.java: | 11 | :: X-Forwarded-For ip : ::ffff:10.0.17.242
+2026-06-17 :: 15:54:43.720 || WARN :: GlobalExceptionHandler.java: | 20 | :: Auth Status Error: 401 UNAUTHORIZED - Transaction expired.
+2026-06-17 :: 15:54:46.956 || INFO :: AuthController.java: | 436 | :: OTP Resend for TxId: b9c0d784-7172-43ff-b330-1fba6aec1c98
+2026-06-17 :: 15:54:46.957 || INFO :: LoginUtility.java: | 11 | :: X-Forwarded-For ip : ::ffff:10.0.17.242
+2026-06-17 :: 15:54:46.968 || WARN :: GlobalExceptionHandler.java: | 20 | :: Auth Status Error: 429 TOO_MANY_REQUESTS - Please wait 26 seconds before requesting another OTP.
