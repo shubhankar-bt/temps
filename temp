@@ -1,240 +1,154 @@
-```java
-package com.fincore.CommunicationService.service;
-
-import com.fincore.CommunicationService.exception.CommunicationExceptions.TemplateNotFoundException;
-import com.fincore.CommunicationService.exception.CommunicationExceptions.TemplateProcessingException;
-// import com.fincore.CommunicationService.repository.CommTemplateRepository;
-// import com.fincore.CommunicationService.model.CommTemplateMaster;
-import freemarker.template.Configuration;
-import freemarker.template.Template;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.cache.annotation.CacheEvict;
-import org.springframework.cache.annotation.Cacheable;
-import org.springframework.stereotype.Service;
+2026-06-17 :: 17:02:52.769 || INFO :: LoginUtility.java: | 11 | :: X-Forwarded-For ip : ::ffff:10.0.17.242
+2026-06-17 :: 17:02:52.777 || INFO :: AuthController.java: | 107 | :: Check-User info user id: v1018405 , ip : 10.0.17.242
+2026-06-17 :: 17:03:04.319 || INFO :: LoginUtility.java: | 11 | :: X-Forwarded-For ip : ::ffff:10.0.17.242
+2026-06-17 :: 17:03:04.321 || INFO :: AuthController.java: | 147 | :: Login request for user: v1018405 from IP: 10.0.17.242
+2026-06-17 :: 17:03:04.582 || INFO :: LoginServiceImpl.java: | 388 | :: Password-based login for userId=v1018405
+2026-06-17 :: 17:03:04.794 || INFO :: LoginServiceImpl.java: | 635 | :: Credentials validated. Issuing token for userId=v1018405
+2026-06-17 :: 17:03:04.995 || INFO :: HmacJwtUtil.java: | 52 | :: Generated exp in Seconds=2026-06-17T11:48:04.995099300Z
+2026-06-17 :: 17:03:04.997 || INFO :: HmacJwtUtil.java: | 54 | :: Jti generated=428a8ef8-4b94-46b8-a320-fcdc8abd192d
+2026-06-17 :: 17:03:05.450 || INFO :: AuthController.java: | 202 | :: Routing user v1018405 to OTP Phase.
+2026-06-17 :: 17:03:06.691 || INFO :: OtpSessionService.java: | 100 | :: Saved OTP State txId=66339fa0-0245-420e-bda2-a76acce5fc14 for user=v1018405 isResend=false
+2026-06-17 :: 17:03:06.777 || INFO :: AbstractConfig.java: | 371 | :: ProducerConfig values: 
+	acks = -1
+	auto.include.jmx.reporter = true
+	batch.size = 16384
+	bootstrap.servers = [10.0.17.242:9092]
+	buffer.memory = 33554432
+	client.dns.lookup = use_all_dns_ips
+	client.id = CommonUtilities-producer-1
+	compression.gzip.level = -1
+	compression.lz4.level = 9
+	compression.type = none
+	compression.zstd.level = 3
+	connections.max.idle.ms = 540000
+	delivery.timeout.ms = 120000
+	enable.idempotence = true
+	enable.metrics.push = true
+	interceptor.classes = []
+	key.serializer = class org.apache.kafka.common.serialization.StringSerializer
+	linger.ms = 0
+	max.block.ms = 60000
+	max.in.flight.requests.per.connection = 5
+	max.request.size = 1048576
+	metadata.max.age.ms = 300000
+	metadata.max.idle.ms = 300000
+	metadata.recovery.strategy = none
+	metric.reporters = []
+	metrics.num.samples = 2
+	metrics.recording.level = INFO
+	metrics.sample.window.ms = 30000
+	partitioner.adaptive.partitioning.enable = true
+	partitioner.availability.timeout.ms = 0
+	partitioner.class = null
+	partitioner.ignore.keys = false
+	receive.buffer.bytes = 32768
+	reconnect.backoff.max.ms = 1000
+	reconnect.backoff.ms = 50
+	request.timeout.ms = 5000
+	retries = 3
+	retry.backoff.max.ms = 1000
+	retry.backoff.ms = 100
+	sasl.client.callback.handler.class = null
+	sasl.jaas.config = null
+	sasl.kerberos.kinit.cmd = /usr/bin/kinit
+	sasl.kerberos.min.time.before.relogin = 60000
+	sasl.kerberos.service.name = null
+	sasl.kerberos.ticket.renew.jitter = 0.05
+	sasl.kerberos.ticket.renew.window.factor = 0.8
+	sasl.login.callback.handler.class = null
+	sasl.login.class = null
+	sasl.login.connect.timeout.ms = null
+	sasl.login.read.timeout.ms = null
+	sasl.login.refresh.buffer.seconds = 300
+	sasl.login.refresh.min.period.seconds = 60
+	sasl.login.refresh.window.factor = 0.8
+	sasl.login.refresh.window.jitter = 0.05
+	sasl.login.retry.backoff.max.ms = 10000
+	sasl.login.retry.backoff.ms = 100
+	sasl.mechanism = GSSAPI
+	sasl.oauthbearer.clock.skew.seconds = 30
+	sasl.oauthbearer.expected.audience = null
+	sasl.oauthbearer.expected.issuer = null
+	sasl.oauthbearer.header.urlencode = false
+	sasl.oauthbearer.jwks.endpoint.refresh.ms = 3600000
+	sasl.oauthbearer.jwks.endpoint.retry.backoff.max.ms = 10000
+	sasl.oauthbearer.jwks.endpoint.retry.backoff.ms = 100
+	sasl.oauthbearer.jwks.endpoint.url = null
+	sasl.oauthbearer.scope.claim.name = scope
+	sasl.oauthbearer.sub.claim.name = sub
+	sasl.oauthbearer.token.endpoint.url = null
+	security.protocol = PLAINTEXT
+	security.providers = null
+	send.buffer.bytes = 131072
+	socket.connection.setup.timeout.max.ms = 30000
+	socket.connection.setup.timeout.ms = 10000
+	ssl.cipher.suites = null
+	ssl.enabled.protocols = [TLSv1.2, TLSv1.3]
+	ssl.endpoint.identification.algorithm = https
+	ssl.engine.factory.class = null
+	ssl.key.password = null
+	ssl.keymanager.algorithm = SunX509
+	ssl.keystore.certificate.chain = null
+	ssl.keystore.key = null
+	ssl.keystore.location = null
+	ssl.keystore.password = null
+	ssl.keystore.type = JKS
+	ssl.protocol = TLSv1.3
+	ssl.provider = null
+	ssl.secure.random.implementation = null
+	ssl.trustmanager.algorithm = PKIX
+	ssl.truststore.certificates = null
+	ssl.truststore.location = null
+	ssl.truststore.password = null
+	ssl.truststore.type = JKS
+	transaction.timeout.ms = 60000
+	transactional.id = null
+	value.serializer = class org.apache.kafka.common.serialization.StringSerializer
 
-import java.io.StringReader;
-import java.io.StringWriter;
-import java.util.Map;
+2026-06-17 :: 17:03:06.873 || INFO :: KafkaMetricsCollector.java: | 270 | :: initializing Kafka metrics collector
+2026-06-17 :: 17:03:06.907 || INFO :: KafkaProducer.java: | 623 | :: [Producer clientId=CommonUtilities-producer-1] Instantiated an idempotent producer.
+2026-06-17 :: 17:03:06.991 || INFO :: AppInfoParser.java: | 125 | :: Kafka version: 3.9.1
+2026-06-17 :: 17:03:06.992 || INFO :: AppInfoParser.java: | 126 | :: Kafka commitId: f745dfdcee2b9851
+2026-06-17 :: 17:03:06.992 || INFO :: AppInfoParser.java: | 127 | :: Kafka startTimeMs: 1781695986988
+2026-06-17 :: 17:03:07.556 || INFO :: Metadata.java: | 365 | :: [Producer clientId=CommonUtilities-producer-1] Cluster ID: 
+2026-06-17 :: 17:03:07.557 || INFO :: TransactionManager.java: | 503 | :: [Producer clientId=CommonUtilities-producer-1] ProducerId set to 1007 with epoch 0
+2026-06-17 :: 17:03:07.611 || INFO :: OtpKafkaProducer.java: | 83 | :: Encrypted OTP event published to Kafka for txId=66339fa0-0245-420e-bda2-a76acce5fc14
 
-@Slf4j
-@Service
-@RequiredArgsConstructor
-public class TemplateEngineService {
 
-    // private final CommTemplateRepository templateRepository;
-    private final Configuration freeMarkerConfig;
 
-    /**
-     * PUBLIC API: Renders the final string.
-     * CRITICAL: THIS IS NOT CACHED. It processes dynamic variables on every single request
-     * to prevent Cross-Pollination data leaks (e.g., User B getting User A's OTP).
-     */
-    public String renderTemplate(String templateCode, String channel, String language, Map<String, Object> templateData) {
-        
-        // 1. Fetch the cached, pre-compiled Template AST Object
-        Template compiledTemplate = getCompiledTemplate(templateCode, channel, language);
 
-        // 2. Thread-safely merge dynamic data (OTP, Names) into the template
-        try (StringWriter writer = new StringWriter()) {
-            compiledTemplate.process(templateData, writer);
-            return writer.toString();
-        } catch (Exception e) {
-            log.error("Fatal error binding dynamic variables to template {}.", templateCode, e);
-            throw new TemplateProcessingException("Failed to bind dynamic variables to template: " + templateCode, e);
-        }
-    }
 
-    /**
-     * INTERNAL CACHE: Fetches from Oracle DB and compiles the FreeMarker AST.
-     * Caching the FreeMarker Template object saves both Database I/O and Parsing CPU.
-     * Note: This works perfectly because Caffeine is an In-Memory L1 Cache.
-     */
-    @Cacheable(value = "templates", key = "#templateCode + ':' + #channel + ':' + #language", unless = "#result == null")
-    public Template getCompiledTemplate(String templateCode, String channel, String language) {
-        
-        log.info("L1 CACHE MISS: Fetching and Compiling Template {} for {} from Oracle DB.", templateCode, channel);
 
-        // --- 1. Database Lookup (Uncomment when repository is ready) ---
-        /*
-        CommTemplateMaster tmpl = templateRepository.findById(new TemplateId(templateCode, channel, language))
-                .orElseThrow(() -> new TemplateNotFoundException("Template not found in Oracle: " + templateCode));
 
-        if (!"Y".equals(tmpl.getIsActive())) {
-            throw new TemplateNotFoundException("Template is disabled: " + templateCode);
-        }
-        String rawClobContent = tmpl.getBodyContent();
-        */
 
-        // MOCK CLOB for compilation
-        String rawClobContent = "${otpPlaintext} is the OTP to login to your Fincore application account at SBI. This OTP is valid for ${expiryMins} minutes. Please do not share this OTP with anyone.";
 
-        // --- 2. Compile into Abstract Syntax Tree (AST) ---
-        try {
-            return new Template(templateCode, new StringReader(rawClobContent), freeMarkerConfig);
-        } catch (Exception e) {
-            log.error("Syntax error in FreeMarker template {}.", templateCode, e);
-            throw new TemplateProcessingException("Syntax error compiling template: " + templateCode, e);
-        }
-    }
 
-    @Cacheable(value = "template_subjects", key = "#templateCode + ':' + #channel + ':' + #language")
-    public String getTemplateSubject(String templateCode, String channel, String language) {
-        // Mock DB fetch
-        return "Fincore Login OTP";
-    }
 
-    @CacheEvict(value = {"templates", "template_subjects"}, allEntries = true)
-    public void flushTemplateCache() {
-        log.warn("ADMIN ACTION: All communication templates evicted from Caffeine L1 Cache.");
-    }
-}
 
-```
 
 
 
 
 
-
-
-
-
-
-
-
-
-
-String emailBody = templateService.renderTemplate(templateId, "EMAIL", "EN", templateData);
-
-### Why this is the Ultimate Architecture
-You have combined the **Speed of Caffeine** with the **Execution Safety of FreeMarker**:
-1. **Zero Data Leaks:** The dynamic JSON map containing the OTP is strictly injected *after* the cache boundary.
-2. **Absolute Maximum Speed:** The database is hit *once* every 12 hours. FreeMarker's parsing engine runs *once* every 12 hours. For the next 11.99 hours, thousands of OTP requests will simply grab the `Template` object from RAM and merge the JSON in ~0.05 milliseconds.
-
-Excellent catch. This is exactly why code review is essential before deploying to UAT/PROD. You are fully cleared to proceed with the Dry Run!
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-# ==========================================
-# KAFKA PRODUCER CONFIG
-# ==========================================
-spring.kafka.bootstrap-servers=10.0.19.100:9092
-spring.kafka.producer.key-serializer=org.apache.kafka.common.serialization.StringSerializer
-spring.kafka.producer.value-serializer=org.apache.kafka.common.serialization.StringSerializer
-spring.kafka.producer.acks=all
-spring.kafka.producer.properties.enable.idempotence=true
-
-# Ensure this matches exactly between both services
-security.internal.kafka-aes-key=u1L8a/eW4D/k4oQ5M6w9kO+Xy/o0E5eA/Zz1L8a/eW4=
-
-
-
-
-
-
-
-
-
-
-
-# ==========================================
-# KAFKA CONSUMER CONFIG
-# ==========================================
-spring.kafka.bootstrap-servers=10.0.19.100:9092
-spring.kafka.consumer.group-id=communication-login-otp-group
-spring.kafka.consumer.auto-offset-reset=earliest
-
-# CRITICAL FIX: Use StringDeserializer, NOT JsonDeserializer
-spring.kafka.consumer.key-deserializer=org.apache.kafka.common.serialization.StringDeserializer
-spring.kafka.consumer.value-deserializer=org.apache.kafka.common.serialization.StringDeserializer
-
-security.internal.kafka-aes-key=u1L8a/eW4D/k4oQ5M6w9kO+Xy/o0E5eA/Zz1L8a/eW4=
-
-
-
-
-
-
-
-
-
-
-
-
-
-```java
-package com.fincore.CommunicationService.config;
-
-import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Configuration;
-import org.springframework.kafka.annotation.EnableKafka;
-import org.springframework.kafka.config.ConcurrentKafkaListenerContainerFactory;
-import org.springframework.kafka.core.ConsumerFactory;
-import org.springframework.kafka.listener.ContainerProperties;
-
-@EnableKafka
-@Configuration
-public class KafkaConsumerConfig {
-
-    @Bean("priorityOtpContainerFactory")
-    public ConcurrentKafkaListenerContainerFactory<String, String> priorityOtpContainerFactory(
-            ConsumerFactory<String, String> consumerFactory) {
-            
-        ConcurrentKafkaListenerContainerFactory<String, String> factory = new ConcurrentKafkaListenerContainerFactory<>();
-        factory.setConsumerFactory(consumerFactory);
-        factory.setConcurrency(10); 
-        factory.getContainerProperties().setAckMode(ContainerProperties.AckMode.MANUAL_IMMEDIATE);
-        // High poll timeout to survive Resilience4j retries without triggering consumer rebalance
-        factory.getContainerProperties().setPollTimeout(3000); 
-        return factory;
-    }
-}
-
-```
-
-
-
-
-
-
-
-
-
-
-
-
-
-```java
 package com.fincore.CommunicationService.consumer;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fincore.commonutilities.util.AesEncryptionUtil;
 import com.fincore.CommunicationService.dto.KafkaEvent;
-import com.fincore.CommunicationService.exception.CommunicationExceptions.*;
+import com.fincore.CommunicationService.exception.CommunicationExceptions.DecryptionFailureException;
+import com.fincore.CommunicationService.exception.CommunicationExceptions.InvalidPayloadException;
+import com.fincore.CommunicationService.exception.CommunicationExceptions.TemplateNotFoundException;
+import com.fincore.CommunicationService.exception.CommunicationExceptions.VendorDeliveryException;
 import com.fincore.CommunicationService.service.EmailService;
 import com.fincore.CommunicationService.service.SmsService;
+import com.fincore.commonutilities.util.AesEncryptionUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.kafka.annotation.DltHandler;
+import org.springframework.kafka.annotation.EnableKafka;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.kafka.annotation.RetryableTopic;
 import org.springframework.kafka.retrytopic.TopicSuffixingStrategy;
@@ -254,24 +168,36 @@ import java.util.Map;
 @Slf4j
 @Component
 @RequiredArgsConstructor
+@EnableKafka  // ← Required on a @Configuration class
 public class PriorityOtpConsumer {
 
     private final ObjectMapper mapper;
     private final AesEncryptionUtil aesUtil;
     private final StringRedisTemplate redisTemplate;
-    
-    private final SmsService smsService;     
-    private final EmailService emailService; 
+
+    private final SmsService smsService;
+    private final EmailService emailService;
 
     @Value("${security.internal.kafka-aes-key}")
     private String internalAesKey;
 
+    /**
+     * KAFKA RETRY ARCHITECTURE:
+     * - Attempts: 4 (1 Initial + 3 Retries)
+     * - Backoff: 2s, 4s, 8s (Exponential)
+     * - Excludes: DecryptionFailure, InvalidPayload, TemplateNotFound (Goes straight to DLQ)
+     * - Includes: VendorDeliveryException (API Timeouts)
+     */
     @RetryableTopic(
             attempts = "4",
             backoff = @Backoff(delay = 2000, multiplier = 2.0),
             topicSuffixingStrategy = TopicSuffixingStrategy.SUFFIX_WITH_INDEX_VALUE,
             dltTopicSuffix = "-dlq",
-            exclude = { DecryptionFailureException.class, InvalidPayloadException.class, TemplateNotFoundException.class }
+            exclude = {
+                    DecryptionFailureException.class,
+                    InvalidPayloadException.class,
+                    TemplateNotFoundException.class
+            }
     )
     @KafkaListener(
             topics = "fincore.auth.otp.priority",
@@ -297,22 +223,28 @@ public class PriorityOtpConsumer {
                 throw new InvalidPayloadException("Missing txId or encrypted payload");
             }
 
-            // 2. ZERO-TRUST DECRYPTION
+            // 2. DECRYPTION of personal data using aes key synced with login service
             String decryptedJson;
             try {
                 decryptedJson = aesUtil.decrypt(event.getPayload(), internalAesKey);
-            } catch (BadPaddingException | IllegalBlockSizeException e) {
+            }
+            catch (BadPaddingException | IllegalBlockSizeException e) {
                 log.error("SECURITY ALERT: Decryption failed for txId={}. Data tampered or key mismatch.", txId, e);
                 throw new DecryptionFailureException("AES Decryption Failed: Invalid Padding", e);
-            } catch (GeneralSecurityException e) {
+            }
+            catch (GeneralSecurityException e) {
                 throw new DecryptionFailureException("AES Decryption Failed", e);
             }
 
+            // Map decrypted JSON into a generic map to pass to FreeMarker/TemplateService
             Map<String, Object> templateDataMap = mapper.readValue(decryptedJson, new TypeReference<>() {});
+
+            // Track partial failures to trigger Spring Kafka Retry
             boolean requiresRetry = false;
 
-            // 3. CHANNEL ROUTING & IDEMPOTENCY
-            for (String channel : event.getChannels()) {
+            // 3. CHANNEL ROUTING & IDEMPOTENCY (for sms and email - if one fail only that needs to be retried not the both)
+            for (String channel : event.getChannel()) {
+                // Idempotency Key: Prevents duplicate SMS if Email fails and triggers a retry
                 String idempotencyKey = "COMM_IDEMP:" + txId + ":" + channel.toUpperCase();
 
                 Boolean alreadyProcessed = redisTemplate.opsForValue().setIfAbsent(idempotencyKey, "PROCESSED", Duration.ofMinutes(15));
@@ -323,25 +255,31 @@ public class PriorityOtpConsumer {
 
                 try {
                     if ("SMS".equalsIgnoreCase(channel)) {
-                        smsService.sendSms(event.getEnvironment(), event.getTemplateId(), event.getRecipient().getMobile(), templateDataMap);
+//                        smsService.sendSms(event.getEnvironment(), event.getTemplateId(), event.getRecipient().getMobile(), templateDataMap);
                     } else if ("EMAIL".equalsIgnoreCase(channel)) {
-                        emailService.sendEmail(event.getEnvironment(), event.getTemplateId(), event.getRecipient().getEmail(), templateDataMap);
+                        emailService.sendEmail(event.getTemplateId(), event.getRecipient().getEmail(), templateDataMap);
                     }
                 } catch (Exception e) {
-                    redisTemplate.delete(idempotencyKey); // Allow retry on failure
+                    // If a channel fails, we must remove the idempotency key so it can be retried
+                    redisTemplate.delete(idempotencyKey);
                     log.error("Vendor dispatch failed for txId={} channel={}. Exception: {}", txId, channel, e.getMessage());
                     requiresRetry = true;
                 }
             }
 
+            // 4. RESOLUTION
             if (requiresRetry) {
+                // By throwing this, Spring Kafka routes the message to the Retry Topic
                 throw new VendorDeliveryException("One or more channels failed to deliver.", null);
             }
 
+            // ONLY acknowledge if all channels succeeded or were skipped idempotently.
             acknowledgment.acknowledge();
             log.info("Successfully processed Tier-0 OTP Event for txId={}", txId);
 
         } catch (DecryptionFailureException | InvalidPayloadException | TemplateNotFoundException e) {
+            // Deterministic errors: Acknowledge the original message immediately,
+            // the @RetryableTopic will automatically route this payload to the DLT (Dead Letter Topic).
             log.error("Fatal deterministic error processing txId={}. Routing to DLQ. Reason: {}", txId, e.getMessage());
             throw e;
         } catch (Exception e) {
@@ -349,22 +287,138 @@ public class PriorityOtpConsumer {
             throw new InvalidPayloadException("Unexpected message parsing error");
         }
     }
-    
-    @org.springframework.kafka.annotation.DltHandler
+
+
+    /**
+     * THE DEAD LETTER QUEUE (DLQ) HANDLER.
+     * This is automatically invoked by Spring Kafka when:
+     * 1. All 4 retries for VendorDeliveryException are exhausted.
+     * 2. A deterministic exception (e.g., DecryptionFailureException) is thrown.
+     * @param event The original KafkaEvent that failed.
+     * @param headerTopic The original topic.
+     * @param exceptionMessage The final exception that caused the DLQ routing.
+     */
+    @DltHandler
     public void handleDltPayment(
-            String message, 
+            KafkaEvent event,
             @Header(KafkaHeaders.ORIGINAL_TOPIC) String headerTopic,
             @Header(KafkaHeaders.EXCEPTION_MESSAGE) String exceptionMessage) {
+
+        String txId = event != null ? event.getTxId() : "UNKNOWN_TX";
+
         log.error("=====================================================");
         log.error("DLQ ALERT: OTP Delivery Permanently Failed!");
+        log.error("Transaction ID: {}", txId);
         log.error("Original Topic: {}", headerTopic);
         log.error("Failure Reason: {}", exceptionMessage);
         log.error("=====================================================");
+
+        // TODO: (Future Work)
+        // Inject your CommunicationAuditRepository here and update the DB row for this txId
+        // to "FAILED" with the exceptionMessage, so the Bank's Support Desk dashboard
+        // can see exactly why the user didn't get their OTP.
+    }
+
+}
+
+
+
+
+
+
+
+
+
+
+
+package com.fincore.gateway.Service;
+
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fincore.commonutilities.util.AesEncryptionUtil;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.kafka.core.KafkaTemplate;
+import org.springframework.stereotype.Service;
+import reactor.core.publisher.Mono;
+
+import java.time.Instant;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
+
+/**
+ * Publishes encrypted PII payloads to Kafka.
+ * * INTERNAL AES KEY INSTRUCTION:
+ * The `security.internal.kafka-aes-key` property is a static, shared secret between
+ * the Fincore Gateway and the Communication Service.
+ * Generate this once using `AesEncryptionUtil.generateBase64SessionKey()` and store
+ * it in your application-dev/uat/prod.properties.
+ * Example: security.internal.kafka-aes-key=bWV0a...
+ */
+@Slf4j
+@Service
+@RequiredArgsConstructor
+public class OtpKafkaProducer {
+
+    private final KafkaTemplate<String, String> kafkaTemplate;
+    private final ObjectMapper mapper;
+    private final AesEncryptionUtil aesUtil;
+
+    @Value("${security.internal.kafka-aes-key}")
+    private String internalAesKey;
+
+    @Value("${spring.profiles.active:dev}")
+    private String currentEnvironment;
+
+    public Mono<Void> publishOtpEvent(String txId, String mobile, String email, String plainOtp, String userName, List<String> activeChannels) {
+        return Mono.fromCallable(() -> {
+                    /*
+                     * ====================================================================
+                     * ZERO-TRUST KAFKA PAYLOAD ARCHITECTURE
+                     * ====================================================================
+                     */
+
+                    // 1. Build the sensitive inner payload
+                    Map<String, Object> innerPayload = Map.of(
+                            "otp", plainOtp,
+                            "expirySeconds", 300,
+                            "userName", userName != null ? userName : "User"
+                    );
+                    String innerJson = mapper.writeValueAsString(innerPayload);
+
+                    // 2. Encrypt the inner payload (Zero-Trust on Broker)
+                    String encryptedPayload = aesUtil.encrypt(innerJson, internalAesKey);
+
+                    // 3. Build the outer routable event
+                    Map<String, Object> event = Map.of(
+                            "eventId", "evt-" + UUID.randomUUID().toString(),
+                            "txId", txId,
+                            "eventType", "LOGIN_OTP",
+                            "channel", activeChannels,
+                            "priority", "CRITICAL",
+                            "templateId", "AUTH_LOGIN_OTP_V1",
+                            "recipient", Map.of(
+                                    "mobile", mobile != null ? mobile : "",
+                                    "email", email != null ? email : ""
+                            ),
+                            "payload", encryptedPayload,
+                            "createdAt", Instant.now().toString()
+                    );
+
+                    return mapper.writeValueAsString(event);
+
+                }).flatMap(jsonString -> {
+                    // Wraps standard KafkaTemplate into a non-blocking Mono
+                    return Mono.fromFuture(
+                            kafkaTemplate.send("fincore.auth.otp.priority", txId, jsonString)
+                    );
+                }).doOnSuccess(result -> log.info("Encrypted OTP event published to Kafka for txId={}", txId))
+                .then();
     }
 }
 
 
-```
 
 
 
@@ -373,10 +427,290 @@ public class PriorityOtpConsumer {
 
 
 
+in communication :
+
+application.properties:
+spring.application.name=CommunicationService
+spring.datasource.driver-class-name=oracle.jdbc.OracleDriver
+spring.profiles.active=dev
+server.port=8001
+
+# ===================================================================
+# DEFAULT ENVIRONMENT NAME FOR FALLBACK
+# ===================================================================
+app.preIpString=PROD
+
+
+
+application-dev.properties:
+
+
+
+# ===================================================================
+# SPRING DATASOURCE (ORACLE)
+# ===================================================================
+spring.datasource.url=jdbc:oracle:thin:@10.177.103.192:1523/fincorepdb1
+spring.datasource.username=fincore
+spring.datasource.password=Password#1234
+spring.datasource.driver-class-name=oracle.jdbc.OracleDriver
+
+# ===================================================================
+# REDIS CONFIG
+# ===================================================================
+spring.data.redis.host=10.0.17.242
+spring.data.redis.port=6379
+spring.cache.type=redis
+
+# ===================================================================
+# ENVIRONMENT NAME
+# ===================================================================
+app.preIpString=DEV
+
+# ===================================================================
+# KAFKA CONSUMER CONFIG
+# ===================================================================
+spring.kafka.bootstrap-servers=10.0.17.242:9092
+spring.kafka.consumer.group-id=communication-login-otp-group
+# Auto offset: if a new consumer group starts, read from the earliest unread message
+spring.kafka.consumer.auto-offset-reset=earliest
+spring.kafka.consumer.key-deserializer=org.apache.kafka.common.serialization.StringDeserializer
+spring.kafka.consumer.value-deserializer=org.apache.kafka.common.serialization.StringDeserializer
+# JSON Deserialization Mappings
+spring.kafka.consumer.properties.spring.json.trusted.packages=*
+spring.kafka.consumer.properties.spring.json.value.default.type=com.fincore.CommunicationService.dto.KafkaEvent
+spring.kafka.listener.ack-mode=manual-immediate
+# Shared aes key to decrypt the otp event payload
+security.internal.kafka-aes-key: xVEzviA5Ysgdp/YzTOskDOHbQwVoLgYNRRcK0+Dwdes=
 
 
 
 
 
 
+package com.fincore.CommunicationService.config;
+
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.kafka.annotation.EnableKafka;
+import org.springframework.kafka.config.ConcurrentKafkaListenerContainerFactory;
+import org.springframework.kafka.core.ConsumerFactory;
+import org.springframework.kafka.listener.ContainerProperties;
+
+@EnableKafka
+@Configuration
+public class KafkaConsumerConfig {
+
+    /**
+     * THE BULKHEAD: Dedicated Thread Pool for Tier-0 OTPs.
+     * Prevents End-of-Day PDF emails from starving the OTP pipeline.
+     */
+    @Bean("priorityOtpContainerFactory")
+    public ConcurrentKafkaListenerContainerFactory<String, String> priorityOtpContainerFactory(
+            ConsumerFactory<String, String> consumerFactory) {
+
+        ConcurrentKafkaListenerContainerFactory<String, String> factory = new ConcurrentKafkaListenerContainerFactory<>();
+        factory.setConsumerFactory(consumerFactory);
+
+        // Match this concurrency to the number of partitions on 'fincore.auth.otp.priority' (e.g., 10-20)
+        factory.setConcurrency(10);
+
+        // Strict Manual Acknowledgment. We only ACK when the SMS/Email is securely handed to the Vendor.
+        factory.getContainerProperties().setAckMode(ContainerProperties.AckMode.MANUAL_IMMEDIATE);
+
+        // If Twilio hangs for 45s, Kafka will think the consumer is dead and rebalance.
+        // We set the poll interval high enough to outlast the Resilience4j max timeout.
+        factory.getContainerProperties().setPollTimeout(3000);
+
+        return factory;
+    }
+}
+
+
+
+
+
+
+
+login :
+
+application.yml:
+spring:
+  application:
+    name: LoginService
+  ldap:
+    domain: UATAD.SBI
+    urls: ldaps://uatrootdc1.uatad.sbi:3269
+    base: DC=UATAD,DC=SBI
+    username: "fincorecbops@UATAD.SBI"
+    password: "F1C0re#15"
+
+  profiles:
+    active: dev
+  main:
+    web-application-type: reactive
+
+# ========== DB Details ==========
+  datasource:
+    url: jdbc:oracle:thin:@10.177.103.192:1523/fincorepdb1
+    username: fincore
+    password: Password#1234
+    driver-class-name: oracle.jdbc.OracleDriver
+
+  # ========== kafka Details ==========
+  kafka:
+    bootstrap-servers: 10.0.17.242:9092
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.apache.kafka.common.serialization.StringSerializer
+      acks: all
+      retries: 2147483647
+      properties:
+        enable.idempotence: true
+        linger.ms: 0
+        request.timeout.ms: 5000
+
+server:
+  port: 8085
+
+# ========== JWT MODE ==========
+security:
+  jwt:
+    mode: hmac
+    hmac-base64-secret: bWV0aGlvbnlsdGhyZW9ueWx0aHJlb255bGdsdXRhbWlueWxhbGFueWw=
+#    Timeout in 15 Min (900 Sec)
+    ttl-seconds: 900
+#    ttl-seconds: 60
+    refresh-ttl-seconds: 43200
+  ldap:
+    # LOCAL WINDOWS PATH EXAMPLE (Note the forward slashes /)
+    truststore-path: ${LDAP_TRUSTSTORE_PATH}
+    truststore-password: ${LDAP_TRUSTSTORE_PASSWORD}
+  payload:
+    rsa-private: |
+      -----BEGIN PRIVATE KEY-----
+      MIIEvgIBADANBgkqhkiG9w0BAQEFAASCBKgwggSkAgEAAoIBAQC23w0qcSOrrTez
+      Ybv/CRfiRGgZXMm7/tXk6kT8ApAHYG/4Pr8FJ9EnficJG9TK/qZ0JNXWMqmLDzcQ
+      9gYCWTQ7q77dTPSXK1FP6YuVVIuRgJAVYjHniRu6f0SsteiyrfEvXEi4sKbOfYar
+      bj6z2oaAyxm8g6BGiTH7XfJ9yV0HchrkrYQfY7HklM7rPCxLLxZ6zrUZx/Lg12rH
+      /6FjjeQNMTTpcZHA3rlhoDGYQT0Cd1jXLgByxEw0fEoIRyMc+eWB4mE/uGNh5H9S
+      nNQ5acjSMHnovifmoJG9SHjE5DLmtC1mOm/+PqXCjgzsVEZTI0dh8CGVrzEV2qzp
+      LEdj91ZlAgMBAAECggEAREKoOHJ4/SkwRH4z3XP4fVZJgUYYa1spXkRwMZ2HQ6mk
+      wgYx6Wu+b75wNb80w/0gBvSE+Wp5zNWGGYesII5JqAhou1RxbEgYFvs3RiuD2XEi
+      10iLFkEgn5HIAav5S1EQWTxaTM5rxWInta/2Kc5lLIgjeDGtzwaBKLIdxQQ3/IHi
+      QXDRzT6WndW8olM9uB9Y+hq6QIGOy1sSIqx+Kpgl1xV+tEcGUNBCZbxZintzXj++
+      vPfLTo12U1Wi/FcZDSFychsCftMM25y3O1Ao0YfmUcjghcS/BOssll4DqpNno0jo
+      4NCp4cG/wh9d1g5rDvZSbi4xpHlnqUQ/V8GP/NI1FQKBgQDop2q3y3jyC86R0TG/
+      tTzhAyv5kP+Lvx56+xysaBuUfO4HxS2TzB80vf6rbeLtz57WynCYV8vbd+85sL2Q
+      3hdUhMdXRgzeYGdjoVVwSeYXgVZ2S2/rTrtKfZlFoJAUaeJEIwcYT28ifVjsdUAC
+      akOW9xFroMeI6qL6QMMXaI52EwKBgQDJOMf9y049U1g9Ccz5eCRIJGmPSWj7WGmr
+      2ux4m3suLa4+ZoVeqa2fAq9rHaSvxVHzs0gFMvVKsE7Az1EBSPpzkP/ob/f6hLYJ
+      yXV51MekXR1B8kmM+hL+YHbYuFIg6H8yIbUj8MjSBOkcbomITbKvu2PTHXHqjOWV
+      tlR9oyBwpwKBgQCTEkpXF4xEToxuB3VQgCyU/aFN6Yhx+gY1rgpJPqK4smTyioYu
+      WSoc+EJGcney5728gEq/MzkOavnSWVTsgEj1R96P4BuAdCbHh5RwIHcQwtU6gKOm
+      d6XUCCPdLQwHq4u6kP4KMyTJA74z9Ebbf/tsMpFTnValydXvJwNtB86O+wKBgQDE
+      7Sb8gF1/svNmORM7CpMnb0tHiaaOZUZ1g/ltR2zUEqy2MQtRS2m5dp1KjWZBBzFe
+      +RQA0pAwmj9Yfwxd35gMRdnNFtdvezXUei7YHp+Lgf1CLuZAa/TusmVdT3ZA8oiY
+      /VgTZnCC6X9h7eP3W2MGjLPzRpvX2jBNxnUFyAHVfQKBgGCgfZG71cRFwShb6zP9
+      PrpXAqyTOJVAuEHVit86+v44ijWicgs+Lb8HkGq4LDYum1vyiCTImhkVKgvRObaH
+      7Ppi9i1O/P3MJliNiUlSdLyitCwz25EfReeJfqb+Wq8WqFJ2WOcx97ev0EHt8QrM
+      5VLF1yEPbg+SpHwbA52SQdNe
+      -----END PRIVATE KEY-----
+
+    rsa-public: |
+      -----BEGIN PUBLIC KEY-----
+      MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAtt8NKnEjq603s2G7/wkX
+      4kRoGVzJu/7V5OpE/AKQB2Bv+D6/BSfRJ34nCRvUyv6mdCTV1jKpiw83EPYGAlk0
+      O6u+3Uz0lytRT+mLlVSLkYCQFWIx54kbun9ErLXosq3xL1xIuLCmzn2Gq24+s9qG
+      gMsZvIOgRokx+13yfcldB3Ia5K2EH2Ox5JTO6zwsSy8Wes61Gcfy4Ndqx/+hY43k
+      DTE06XGRwN65YaAxmEE9AndY1y4AcsRMNHxKCEcjHPnlgeJhP7hjYeR/UpzUOWnI
+      0jB56L4n5qCRvUh4xOQy5rQtZjpv/j6lwo4M7FRGUyNHYfAhla8xFdqs6SxHY/dW
+      ZQIDAQAB
+      -----END PUBLIC KEY-----
+
+
+# ========== Redis ==========
+redis:
+  enabled: true
+  data:
+    redis:
+      host: 10.0.17.242
+      port: 6379
+      database: 0
+      # password: ""  # if needed
+
+# ========== Logging ==========
+logging:
+  pattern:
+    console: "%d{yyyy-MM-dd :: HH:mm:ss.SSS ||} %highlight(%-5level:: %file: | %line |){ERROR=bold red, WARN=yellow, INFO=white, DEBUG=green, TRACE=green} :: %msg%n"
+
+
+# ========= Actuator ==========
+management:
+  endpoints:
+    web:
+      base-path: /actuator
+      exposure:
+        include: health,info,prometheus
+  endpoint:
+    health:
+      probes:
+        enabled: true
+      show-details: always
+  metrics:
+    tags:
+      application: ${spring.application.name}
+  info:
+    env:
+      enabled: true
+
+info:
+  app:
+    name: LoginService
+    description: Service to handle Login Related Active User check, Login, Logout, Refresh token, Update Password
+    version: 1.0.0
+
+
+
+
+
+application-dev.yml:
+
+
+security:
+  jwt:
+    mode: hmac
+    # example 32-byte (256-bit) base64-encoded secret
+    hmac-base64-secret: bWV0aGlvbnlsdGhyZW9ueWx0aHJlb255bGdsdXRhbWlueWxhbGFueWw=
+    ttl-seconds: 900
+    #    ttl-seconds: 60 #For testing purpose
+    # bypass-paths: /auth/login,/actuator/**
+  login:
+    blocked-ips: "10.0.19.49,10.0.19.55,10.0.19.50"
+  internal:
+    kafka-aes-key: xVEzviA5Ysgdp/YzTOskDOHbQwVoLgYNRRcK0+Dwdes=
+
+spring:
+  data:
+    redis:
+      host: 10.0.17.242
+      port: 6379
+      database: 0
+  datasource:
+    url: jdbc:oracle:thin:@10.177.103.192:1523/fincorepdb1
+    username: fincore
+    password: Password#1234
+    driver-class-name: oracle.jdbc.OracleDriver
+  kafka:
+    bootstrap-servers: 10.0.17.242:9092
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.apache.kafka.common.serialization.StringSerializer
+      acks: all
+      retries: 3
+      properties:
+        enable.idempotence: true
+        linger.ms: 0
+        request.timeout.ms: 5000
+redis:
+  enabled: true
 
