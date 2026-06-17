@@ -113,3 +113,270 @@ You have combined the **Speed of Caffeine** with the **Execution Safety of FreeM
 2. **Absolute Maximum Speed:** The database is hit *once* every 12 hours. FreeMarker's parsing engine runs *once* every 12 hours. For the next 11.99 hours, thousands of OTP requests will simply grab the `Template` object from RAM and merge the JSON in ~0.05 milliseconds.
 
 Excellent catch. This is exactly why code review is essential before deploying to UAT/PROD. You are fully cleared to proceed with the Dry Run!
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# ==========================================
+# KAFKA PRODUCER CONFIG
+# ==========================================
+spring.kafka.bootstrap-servers=10.0.19.100:9092
+spring.kafka.producer.key-serializer=org.apache.kafka.common.serialization.StringSerializer
+spring.kafka.producer.value-serializer=org.apache.kafka.common.serialization.StringSerializer
+spring.kafka.producer.acks=all
+spring.kafka.producer.properties.enable.idempotence=true
+
+# Ensure this matches exactly between both services
+security.internal.kafka-aes-key=u1L8a/eW4D/k4oQ5M6w9kO+Xy/o0E5eA/Zz1L8a/eW4=
+
+
+
+
+
+
+
+
+
+
+
+# ==========================================
+# KAFKA CONSUMER CONFIG
+# ==========================================
+spring.kafka.bootstrap-servers=10.0.19.100:9092
+spring.kafka.consumer.group-id=communication-login-otp-group
+spring.kafka.consumer.auto-offset-reset=earliest
+
+# CRITICAL FIX: Use StringDeserializer, NOT JsonDeserializer
+spring.kafka.consumer.key-deserializer=org.apache.kafka.common.serialization.StringDeserializer
+spring.kafka.consumer.value-deserializer=org.apache.kafka.common.serialization.StringDeserializer
+
+security.internal.kafka-aes-key=u1L8a/eW4D/k4oQ5M6w9kO+Xy/o0E5eA/Zz1L8a/eW4=
+
+
+
+
+
+
+
+
+
+
+
+
+
+```java
+package com.fincore.CommunicationService.config;
+
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.kafka.annotation.EnableKafka;
+import org.springframework.kafka.config.ConcurrentKafkaListenerContainerFactory;
+import org.springframework.kafka.core.ConsumerFactory;
+import org.springframework.kafka.listener.ContainerProperties;
+
+@EnableKafka
+@Configuration
+public class KafkaConsumerConfig {
+
+    @Bean("priorityOtpContainerFactory")
+    public ConcurrentKafkaListenerContainerFactory<String, String> priorityOtpContainerFactory(
+            ConsumerFactory<String, String> consumerFactory) {
+            
+        ConcurrentKafkaListenerContainerFactory<String, String> factory = new ConcurrentKafkaListenerContainerFactory<>();
+        factory.setConsumerFactory(consumerFactory);
+        factory.setConcurrency(10); 
+        factory.getContainerProperties().setAckMode(ContainerProperties.AckMode.MANUAL_IMMEDIATE);
+        // High poll timeout to survive Resilience4j retries without triggering consumer rebalance
+        factory.getContainerProperties().setPollTimeout(3000); 
+        return factory;
+    }
+}
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+```java
+package com.fincore.CommunicationService.consumer;
+
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fincore.commonutilities.util.AesEncryptionUtil;
+import com.fincore.CommunicationService.dto.KafkaEvent;
+import com.fincore.CommunicationService.exception.CommunicationExceptions.*;
+import com.fincore.CommunicationService.service.EmailService;
+import com.fincore.CommunicationService.service.SmsService;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.kafka.annotation.KafkaListener;
+import org.springframework.kafka.annotation.RetryableTopic;
+import org.springframework.kafka.retrytopic.TopicSuffixingStrategy;
+import org.springframework.kafka.support.Acknowledgment;
+import org.springframework.kafka.support.KafkaHeaders;
+import org.springframework.messaging.handler.annotation.Header;
+import org.springframework.messaging.handler.annotation.Payload;
+import org.springframework.retry.annotation.Backoff;
+import org.springframework.stereotype.Component;
+
+import javax.crypto.BadPaddingException;
+import javax.crypto.IllegalBlockSizeException;
+import java.security.GeneralSecurityException;
+import java.time.Duration;
+import java.util.Map;
+
+@Slf4j
+@Component
+@RequiredArgsConstructor
+public class PriorityOtpConsumer {
+
+    private final ObjectMapper mapper;
+    private final AesEncryptionUtil aesUtil;
+    private final StringRedisTemplate redisTemplate;
+    
+    private final SmsService smsService;     
+    private final EmailService emailService; 
+
+    @Value("${security.internal.kafka-aes-key}")
+    private String internalAesKey;
+
+    @RetryableTopic(
+            attempts = "4",
+            backoff = @Backoff(delay = 2000, multiplier = 2.0),
+            topicSuffixingStrategy = TopicSuffixingStrategy.SUFFIX_WITH_INDEX_VALUE,
+            dltTopicSuffix = "-dlq",
+            exclude = { DecryptionFailureException.class, InvalidPayloadException.class, TemplateNotFoundException.class }
+    )
+    @KafkaListener(
+            topics = "fincore.auth.otp.priority",
+            groupId = "communication-login-otp-group",
+            containerFactory = "priorityOtpContainerFactory"
+    )
+    public void consumeOtpEvent(@Payload String message, Acknowledgment acknowledgment) {
+
+        log.debug("Received raw Kafka message: {}", message);
+        String txId = "UNKNOWN";
+
+        try {
+            // 1. SAFE DESERIALIZATION
+            KafkaEvent event;
+            try {
+                event = mapper.readValue(message, KafkaEvent.class);
+                txId = event.getTxId();
+            } catch (Exception e) {
+                throw new InvalidPayloadException("Malformed JSON Payload: " + e.getMessage());
+            }
+
+            if (txId == null || event.getPayload() == null) {
+                throw new InvalidPayloadException("Missing txId or encrypted payload");
+            }
+
+            // 2. ZERO-TRUST DECRYPTION
+            String decryptedJson;
+            try {
+                decryptedJson = aesUtil.decrypt(event.getPayload(), internalAesKey);
+            } catch (BadPaddingException | IllegalBlockSizeException e) {
+                log.error("SECURITY ALERT: Decryption failed for txId={}. Data tampered or key mismatch.", txId, e);
+                throw new DecryptionFailureException("AES Decryption Failed: Invalid Padding", e);
+            } catch (GeneralSecurityException e) {
+                throw new DecryptionFailureException("AES Decryption Failed", e);
+            }
+
+            Map<String, Object> templateDataMap = mapper.readValue(decryptedJson, new TypeReference<>() {});
+            boolean requiresRetry = false;
+
+            // 3. CHANNEL ROUTING & IDEMPOTENCY
+            for (String channel : event.getChannels()) {
+                String idempotencyKey = "COMM_IDEMP:" + txId + ":" + channel.toUpperCase();
+
+                Boolean alreadyProcessed = redisTemplate.opsForValue().setIfAbsent(idempotencyKey, "PROCESSED", Duration.ofMinutes(15));
+                if (Boolean.FALSE.equals(alreadyProcessed)) {
+                    log.info("Idempotency hit: Already processed {} for txId={}. Skipping.", channel, txId);
+                    continue;
+                }
+
+                try {
+                    if ("SMS".equalsIgnoreCase(channel)) {
+                        smsService.sendSms(event.getEnvironment(), event.getTemplateId(), event.getRecipient().getMobile(), templateDataMap);
+                    } else if ("EMAIL".equalsIgnoreCase(channel)) {
+                        emailService.sendEmail(event.getEnvironment(), event.getTemplateId(), event.getRecipient().getEmail(), templateDataMap);
+                    }
+                } catch (Exception e) {
+                    redisTemplate.delete(idempotencyKey); // Allow retry on failure
+                    log.error("Vendor dispatch failed for txId={} channel={}. Exception: {}", txId, channel, e.getMessage());
+                    requiresRetry = true;
+                }
+            }
+
+            if (requiresRetry) {
+                throw new VendorDeliveryException("One or more channels failed to deliver.", null);
+            }
+
+            acknowledgment.acknowledge();
+            log.info("Successfully processed Tier-0 OTP Event for txId={}", txId);
+
+        } catch (DecryptionFailureException | InvalidPayloadException | TemplateNotFoundException e) {
+            log.error("Fatal deterministic error processing txId={}. Routing to DLQ. Reason: {}", txId, e.getMessage());
+            throw e;
+        } catch (Exception e) {
+            log.error("Unexpected error processing Kafka message: {}", e.getMessage(), e);
+            throw new InvalidPayloadException("Unexpected message parsing error");
+        }
+    }
+    
+    @org.springframework.kafka.annotation.DltHandler
+    public void handleDltPayment(
+            String message, 
+            @Header(KafkaHeaders.ORIGINAL_TOPIC) String headerTopic,
+            @Header(KafkaHeaders.EXCEPTION_MESSAGE) String exceptionMessage) {
+        log.error("=====================================================");
+        log.error("DLQ ALERT: OTP Delivery Permanently Failed!");
+        log.error("Original Topic: {}", headerTopic);
+        log.error("Failure Reason: {}", exceptionMessage);
+        log.error("=====================================================");
+    }
+}
+
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
