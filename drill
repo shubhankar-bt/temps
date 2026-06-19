@@ -1,0 +1,22 @@
+
+
+
+
+
+  SELECT
+  "__time",
+  "currency",
+  "cgl",
+  "comp",
+  "name",
+  "amt",
+  "type"
+FROM "bncs";
+
+
+| __time                   | currency |        cgl |  comp | name                            |               amt | type |
+| :----------------------- | :------- | ---------: | ----: | :------------------------------ | ----------------: | :--- |
+| 2026-03-31T00:00:00.000Z | ACD      | 1175505001 | 20531 |  CURRENCY CONTROL A/C (CR/DR)   |        2138896192 | bgl  |
+| 2026-03-31T00:00:00.000Z | ACD      | 1209505013 |  1352 |  ACD SBI DHAKA (ACD)            |          -1379746 | bgl  |
+| 2026-03-31T00:00:00.000Z | ACD      | 1209505014 |  1352 |  ACD SBI, COLOMBO (ACD) - SBCLA |          -1847368 | bgl  |
+| 2026-03-31T00:00:00.000Z | ACD      | 1209505015 |  1352 |  ACD SBI NEW YORK - SBNYA       |       -2135662667 | bgl  |
