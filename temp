@@ -961,4 +961,9 @@ public class OtpKafkaProducer {
 
 
 getting this below error :
-
+2026-06-19T14:07:53.116+05:30 ERROR 11028 --- [CommunicationService] [ner#0-dlq-0-C-1] c.f.C.consumer.PriorityOtpConsumer       : =====================================================
+2026-06-19T14:07:53.122+05:30 ERROR 11028 --- [CommunicationService] [ner#0-dlq-0-C-1] c.f.C.consumer.PriorityOtpConsumer       : DLQ ALERT: OTP Delivery Permanently Failed!
+2026-06-19T14:07:53.122+05:30 ERROR 11028 --- [CommunicationService] [ner#0-dlq-0-C-1] c.f.C.consumer.PriorityOtpConsumer       : Original Topic: fincore.auth.otp.priority
+2026-06-19T14:07:53.122+05:30 ERROR 11028 --- [CommunicationService] [ner#0-dlq-0-C-1] c.f.C.consumer.PriorityOtpConsumer       : Failure Reason: Listener failed; Unexpected message parsing error
+2026-06-19T14:07:53.122+05:30 ERROR 11028 --- [CommunicationService] [ner#0-dlq-0-C-1] c.f.C.consumer.PriorityOtpConsumer       : Failed Message Payload: {"channel":["SMS","EMAIL"],"createdAt":"2026-06-19T08:37:23.316227600Z","txId":"60e7a426-a288-49a2-afd6-bb2962b45100","recipient":{"mobile":"**********","email":"shubhankar.das.cbstcs@sbi.co.in"},"templateId":"AUTH_LOGIN_OTP_V1","payload":"GBuWcDsIvat5FkPj:Qvy15cdJ3+YCbVmHuwLUAJjb81cW/IhDyTRXvT+/Xtx5o3i9M8UROou6jUTYCW3TgDeg+hjLlQSHOu8wLyOlsLuH2JNTqJzTzxXzDA==","priority":"CRITICAL","eventId":"evt-9dbcd411-33d9-446c-9fcf-92827f1067b5","eventType":"LOGIN_OTP"}
+2026-06-19T14:07:53.122+05:30 ERROR 11028 --- [CommunicationService] [ner#0-dlq-0-C-1] c.f.C.consumer.PriorityOtpConsumer       : =====================================================
