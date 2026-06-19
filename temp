@@ -1,969 +1,258 @@
-package com.fincore.CommunicationService.consumer;
-
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fincore.CommunicationService.dto.KafkaEvent;
-import com.fincore.CommunicationService.exception.CommunicationExceptions.DecryptionFailureException;
-import com.fincore.CommunicationService.exception.CommunicationExceptions.InvalidPayloadException;
-import com.fincore.CommunicationService.exception.CommunicationExceptions.TemplateNotFoundException;
-import com.fincore.CommunicationService.exception.CommunicationExceptions.VendorDeliveryException;
-import com.fincore.CommunicationService.service.EmailService;
-import com.fincore.CommunicationService.service.SmsService;
-import com.fincore.commonutilities.util.AesEncryptionUtil;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.data.redis.core.StringRedisTemplate;
-import org.springframework.kafka.annotation.DltHandler;
-import org.springframework.kafka.annotation.EnableKafka;
-import org.springframework.kafka.annotation.KafkaListener;
-import org.springframework.kafka.annotation.RetryableTopic;
-import org.springframework.kafka.retrytopic.TopicSuffixingStrategy;
-import org.springframework.kafka.support.Acknowledgment;
-import org.springframework.kafka.support.KafkaHeaders;
-import org.springframework.messaging.handler.annotation.Header;
-import org.springframework.messaging.handler.annotation.Payload;
-import org.springframework.retry.annotation.Backoff;
-import org.springframework.stereotype.Component;
-
-import javax.crypto.BadPaddingException;
-import javax.crypto.IllegalBlockSizeException;
-import java.security.GeneralSecurityException;
-import java.time.Duration;
-import java.util.Map;
-
-@Slf4j
-@Component
-@RequiredArgsConstructor
-@EnableKafka  // ← Required on a @Configuration class
-public class PriorityOtpConsumer {
-
-    private final ObjectMapper mapper;
-    private final AesEncryptionUtil aesUtil;
-    private final StringRedisTemplate redisTemplate;
-
-    private final SmsService smsService;
-    private final EmailService emailService;
-
-    @Value("${security.internal.kafka-aes-key}")
-    private String internalAesKey;
-
-    /**
-     * KAFKA RETRY ARCHITECTURE:
-     * - Attempts: 4 (1 Initial + 3 Retries)
-     * - Backoff: 2s, 4s, 8s (Exponential)
-     * - Excludes: DecryptionFailure, InvalidPayload, TemplateNotFound (Goes straight to DLQ)
-     * - Includes: VendorDeliveryException (API Timeouts)
-     */
-    @RetryableTopic(
-            attempts = "4",
-            backoff = @Backoff(delay = 2000, multiplier = 2.0),
-            topicSuffixingStrategy = TopicSuffixingStrategy.SUFFIX_WITH_INDEX_VALUE,
-            dltTopicSuffix = "-dlq",
-            exclude = {
-                    DecryptionFailureException.class,
-                    InvalidPayloadException.class,
-                    TemplateNotFoundException.class
-            }
-    )
-    @KafkaListener(
-            topics = "fincore.auth.otp.priority",
-            groupId = "communication-login-otp-group-v3",
-            containerFactory = "priorityOtpContainerFactory"
-    )
-    public void consumeOtpEvent(@Payload String message, Acknowledgment acknowledgment) {
-
-        log.info("Received raw Kafka message: {}", message);
-        String txId = "UNKNOWN";
-
-        try {
-            // 1. SAFE DESERIALIZATION
-            KafkaEvent event;
-            try {
-                event = mapper.readValue(message, KafkaEvent.class);
-                txId = event.getTxId();
-            } catch (Exception e) {
-                throw new InvalidPayloadException("Malformed JSON Payload: " + e.getMessage());
-            }
-
-            if (txId == null || event.getPayload() == null) {
-                throw new InvalidPayloadException("Missing txId or encrypted payload");
-            }
-
-            // 2. DECRYPTION of personal data using aes key synced with login service
-            String decryptedJson;
-            try {
-                decryptedJson = aesUtil.decrypt(event.getPayload(), internalAesKey);
-            }
-            catch (BadPaddingException | IllegalBlockSizeException e) {
-                log.error("SECURITY ALERT: Decryption failed for txId={}. Data tampered or key mismatch.", txId, e);
-                throw new DecryptionFailureException("AES Decryption Failed: Invalid Padding", e);
-            }
-            catch (GeneralSecurityException e) {
-                throw new DecryptionFailureException("AES Decryption Failed", e);
-            }
-
-            // Map decrypted JSON into a generic map to pass to FreeMarker/TemplateService
-            Map<String, Object> templateDataMap = mapper.readValue(decryptedJson, new TypeReference<>() {});
-
-            // Track partial failures to trigger Spring Kafka Retry
-            boolean requiresRetry = false;
-
-            // 3. CHANNEL ROUTING & IDEMPOTENCY (for sms and email - if one fail only that needs to be retried not the both)
-            for (String channel : event.getChannel()) {
-                // Idempotency Key: Prevents duplicate SMS if Email fails and triggers a retry
-                String idempotencyKey = "COMM_IDEMP:" + txId + ":" + channel.toUpperCase();
-
-                Boolean alreadyProcessed = redisTemplate.opsForValue().setIfAbsent(idempotencyKey, "PROCESSED", Duration.ofMinutes(15));
-                if (Boolean.FALSE.equals(alreadyProcessed)) {
-                    log.info("Idempotency hit: Already processed {} for txId={}. Skipping.", channel, txId);
-                    continue;
-                }
-
-                try {
-                    if ("SMS".equalsIgnoreCase(channel)) {
-//                        smsService.sendSms(event.getEnvironment(), event.getTemplateId(), event.getRecipient().getMobile(), templateDataMap);
-                    } else if ("EMAIL".equalsIgnoreCase(channel)) {
-                        emailService.sendEmail(event.getTemplateId(), event.getRecipient().getEmail(), templateDataMap);
-                    }
-                } catch (Exception e) {
-                    // If a channel fails, we must remove the idempotency key so it can be retried
-                    redisTemplate.delete(idempotencyKey);
-                    log.error("Vendor dispatch failed for txId={} channel={}. Exception: {}", txId, channel, e.getMessage());
-                    requiresRetry = true;
-                }
-            }
-
-            // 4. RESOLUTION
-            if (requiresRetry) {
-                // By throwing this, Spring Kafka routes the message to the Retry Topic
-                throw new VendorDeliveryException("One or more channels failed to deliver.", null);
-            }
-
-            // ONLY acknowledge if all channels succeeded or were skipped idempotently.
-            acknowledgment.acknowledge();
-            log.info("Successfully processed Tier-0 OTP Event for txId={}", txId);
-
-        } catch (DecryptionFailureException | InvalidPayloadException | TemplateNotFoundException e) {
-            log.error("Fatal deterministic error processing txId={}. Routing to DLQ. Reason: {}", txId, e.getMessage());
-            throw e;
-        } catch (Exception e) {
-            log.error("Unexpected error processing Kafka message: {}", e.getMessage(), e);
-            throw new InvalidPayloadException("Unexpected message parsing error");
-        }
-    }
-
-
-    /**
-     * THE DEAD LETTER QUEUE (DLQ) HANDLER.
-     * This is automatically invoked by Spring Kafka when:
-     * 1. All 4 retries for VendorDeliveryException are exhausted.
-     * 2. A deterministic exception (e.g., DecryptionFailureException) is thrown.
-     * @param message The original KafkaEvent that failed.
-     * @param headerTopic The original topic.
-     * @param exceptionMessage The final exception that caused the DLQ routing.
-     */
-    @DltHandler
-    public void handleDltPayment(
-            String message,
-            @Header(KafkaHeaders.ORIGINAL_TOPIC) String headerTopic,
-            @Header(KafkaHeaders.EXCEPTION_MESSAGE) String exceptionMessage) {
-
-        log.error("=====================================================");
-        log.error("DLQ ALERT: OTP Delivery Permanently Failed!");
-        log.error("Original Topic: {}", headerTopic);
-        log.error("Failure Reason: {}", exceptionMessage);
-        log.error("Failed Message Payload: {}", message);
-        log.error("=====================================================");
-
-        // TODO: (Future Work)
-        // Inject your CommunicationAuditRepository here and update the DB row for this txId
-        // to "FAILED" with the exceptionMessage, so the Bank's Support Desk dashboard
-        // can see exactly why the user didn't get their OTP.
-    }
-
-}
-
-
-
-
-
-
-
-
-package com.fincore.CommunicationService.dto;
-
-import java.util.List;
-
-import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
-import com.fasterxml.jackson.annotation.JsonProperty;
-import lombok.Data;
-
-@Data
-@JsonIgnoreProperties(ignoreUnknown = true)
-public class KafkaEvent {
-
-	private String eventId;
-    private String txId;
-    private String eventType;
-
-    @JsonProperty("channel")
-    private List<String> channel;
-
-    private String priority;
-	private String templateId;
-
-    @JsonProperty("recipient")
-    private Recipients recipient;
-
-    private String payload;
-    private String createdAt;
-}
-
-
-
-
-
-
-
-package com.fincore.CommunicationService.service;
-
-import com.fincore.CommunicationService.exception.CommunicationExceptions.*;
-import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
-import io.github.resilience4j.retry.annotation.Retry;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.stereotype.Service;
-import com.fincore.CommunicationService.cache.ExternalApiConfigProvider;
-import com.fincore.CommunicationService.client.EmailGatewayClient;
-import com.fincore.CommunicationService.dto.EmailResponse;
-import com.fincore.CommunicationService.model.FincoreSettings;
-import java.util.HashMap;
-import java.util.Map;
-
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
-
-@Service
-@RequiredArgsConstructor
-@Slf4j
-public class EmailServiceImpl implements EmailService {
-
-	@Value("${app.preIpString:PROD}")
-	private String environment;
-
-	private final ExternalApiConfigProvider configProvider;
-	private final TemplateEngineService templateService; // Our L1 Cache Engine
-	private static final String FUNCTIONALITY_EMAIL = "EMAIL";
-
-	// Constants mapping to EmailGatewayClient
-	private static final String URL = "url";
-	private static final String API_KEY = "api_key";
-	private static final String SENDER_ID = "senderId";
-	private static final String TO_EMAIL = "toEmail";
-	private static final String EMAIL_BODY = "emailBody";
-	private static final String SUBJECT = "subject";
-
-	/**
-	 * Attempts to send via the single Bank API provider (only primary). Retries
-	 * automatically via Resilience4j.
-	 */
-	@Override
-	@Retry(name = "bankApiRetry", fallbackMethod = "handleTotalApiFailure")
-	@CircuitBreaker(name = "bankApiCircuit", fallbackMethod = "handleTotalApiFailure")
-	public EmailResponse sendEmail(String templateId, String toEmail, Map<String, Object> templateData) {
-		log.info("reached send Email service file");
-
-		// 1. Fetch Oracle L1 Cached Template & Compile FreeMarker
-		String emailBody = templateService.renderTemplate(templateId, "EMAIL", "EN", templateData);
-		String subject = templateService.getTemplateSubject(templateId, "EMAIL", "EN");
-
-		// 2. Fetch API Credentials from Fincore Settings
-		FincoreSettings config = configProvider.getConfig(FUNCTIONALITY_EMAIL, environment);
-
-		// 3. Prepare Payload for EmailUtil
-		Map<String, Object> emailRequestBody = new HashMap<>();
-		emailRequestBody.put(URL, config.getUrl());
-		emailRequestBody.put(API_KEY, config.getApiKey());
-		emailRequestBody.put(SENDER_ID, config.getSenderId());
-		emailRequestBody.put(TO_EMAIL, toEmail);
-		emailRequestBody.put(SUBJECT, subject);
-		emailRequestBody.put(EMAIL_BODY, emailBody);
-
-		log.info("Dispatching Email via Primary Provider to {}", maskEmail(toEmail));
-
-		int responseCode = EmailGatewayClient.sendEmail(emailRequestBody);
-        log.info("responseCode : {}", responseCode);
-
-		EmailResponse responseDto = new EmailResponse();
-		responseDto.setStatus(responseCode);
-		if (responseCode == 202) {
-			responseDto.setMessage("Email Sent Successfully");
-		} else if (responseCode < 200 || responseCode >= 300) {
-			responseDto.setMessage("Email Sending Failed");
-			throw new VendorDeliveryException("Email Provider rejected request. HTTP " + responseCode, null);
-		}
-		return responseDto;
-	}
-
-	/**
-	 * THE DLQ HOOK. Invoked automatically if all retries fail, or if the Circuit
-	 * Breaker is OPEN.
-	 */
-	public EmailResponse handleTotalApiFailure(String templateId, String toEmail, Map<String, Object> templateData,
-			Throwable ex) {
-		log.error("CRITICAL: Bank Email API is completely down or unreachable for {}. Error: {}", maskEmail(toEmail),
-				ex.getMessage());
-		// Throwing this routes the message to the DLQ gracefully without crashing
-		// Resilience4j
-		throw new VendorDeliveryException("Total Bank API Infrastructure Failure", ex);
-	}
-
-	private String maskEmail(String email) {
-		if (email == null || !email.contains("@"))
-			return email;
-		String[] p = email.split("@");
-		return (p[0].length() <= 2 ? "**" : p[0].charAt(0) + "***" + p[0].charAt(p[0].length() - 1)) + "@" + p[1];
-	}
-}
-
-
-
-
-
-
-
-
-package com.fincore.CommunicationService.service;
-
-import com.fincore.CommunicationService.exception.CommunicationExceptions.TemplateNotFoundException;
-import com.fincore.CommunicationService.exception.CommunicationExceptions.TemplateProcessingException;
-import com.fincore.CommunicationService.model.CommTemplateMaster;
-import com.fincore.CommunicationService.model.TemplateId;
-import com.fincore.CommunicationService.repository.TemplateRepository;
-import freemarker.template.Configuration;
-import freemarker.template.Template;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.cache.annotation.CacheEvict;
-import org.springframework.cache.annotation.Cacheable;
-import org.springframework.context.annotation.Lazy;
-import org.springframework.stereotype.Service;
-
-import java.io.StringReader;
-import java.io.StringWriter;
-import java.util.Map;
-
-/**
- * High-Speed Template Rendering Engine.
- * * ARCHITECTURE FLOW:
- * 1. Consumer requests compiled template.
- * 2. @Cacheable intercepts: If exists in RAM, returns instantly (< 0.1ms).
- * 3. If missing/expired (12h TTL), method executes: Fetches CLOB from Oracle.
- * 4. FreeMarker securely binds dynamic variables (e.g., ${otpPlaintext}).
- * 5. Compiled String is cached and returned to Consumer.
- */
-@Slf4j
-@Service
-@RequiredArgsConstructor
-public class TemplateEngineService {
-
-    private final TemplateRepository templateRepository;
-    private final Configuration freeMarkerConfig; // Spring Boot auto-configures this if spring-boot-starter-freemarker is in pom.xml
-
-    @Autowired
-    @Lazy
-    private TemplateEngineService self;
-
-    /**
-     * PUBLIC API: Renders the final string.
-     * THIS IS NOT CACHED. It processes dynamic variables on every single request
-     * to prevent Cross-Pollination data leaks (e.g., User B getting User A's OTP).
-     */
-    public String renderTemplate(String templateCode, String channel, String language, Map<String, Object> templateData) {
-        // 1. Fetch the cached, pre-compiled Template AST Object
-        Template compiledTemplate = self.getCompiledTemplate(templateCode, channel, language);
-
-        // 2. Thread-safely merge dynamic data (OTP, Names) into the template
-        try (StringWriter writer = new StringWriter()) {
-            compiledTemplate.process(templateData, writer);
-            return writer.toString();
-        } catch (Exception e) {
-            log.error("Fatal error binding dynamic variables to template {}.", templateCode, e);
-            throw new TemplateProcessingException("Failed to bind dynamic variables to template: " + templateCode, e);
-        }
-    }
-
-    /**
-     * INTERNAL CACHE: Fetches from Oracle DB and compiles the FreeMarker AST.
-     * Caching the FreeMarker Template object saves both Database I/O and Parsing CPU.
-     * The cache key is a composite of Code + Channel + Language (e.g., 'AUTH_LOGIN_OTP_V1:SMS:EN').
-     */
-    @Cacheable(value = "templates", key = "#templateCode + ':' + #channel + ':' + #language", unless = "#result == null")
-    public Template getCompiledTemplate(String templateCode, String channel, String language) {
-
-        log.info("L1 CACHE MISS: Fetching and Compiling Template {} for {} from Oracle DB.", templateCode, channel);
-
-        // 1. Database Lookup
-        CommTemplateMaster tmpl = templateRepository.findById(new TemplateId(templateCode, channel, language))
-                .orElseThrow(() -> new TemplateNotFoundException("Template not found in Oracle: " + templateCode));
-
-        if (!"Y".equals(tmpl.getIsActive())) {
-            throw new TemplateNotFoundException("Template is disabled: " + templateCode);
-        }
-        String rawClobContent = tmpl.getBodyContent();
-
-        // 2. Compile into Abstract Syntax Tree (AST)
-        try {
-            return new Template(templateCode, new StringReader(rawClobContent), freeMarkerConfig);
-        } catch (Exception e) {
-            log.error("Syntax error in FreeMarker template {}.", templateCode, e);
-            throw new TemplateProcessingException("Syntax error compiling template: " + templateCode, e);
-        }
-    }
-
-
-    @Cacheable(value = "template_subjects", key = "#templateCode + ':' + #channel + ':' + #language")
-    public String getTemplateSubject(String templateCode, String channel, String language) {
-        // 1. Database Lookup
-        CommTemplateMaster tmpl = templateRepository.findById(new TemplateId(templateCode, channel, language))
-                .orElseThrow(() -> new TemplateNotFoundException("Template not found in Oracle: " + templateCode));
-        return tmpl.getSubject();
-    }
-
-    /**
-     * The "Emergency Flush" endpoint.
-     * Trigger this via a secured REST API if a manager requires an instant template update
-     * without waiting for the 12-hour TTL to expire.
-     */
-    @CacheEvict(value = {"templates", "template_subjects"}, allEntries = true)
-    public void flushTemplateCache() {
-        log.warn("ADMIN ACTION: All communication templates evicted from L1/L2 Cache.");
-    }
-
-}
-
-
-
-
-
-
-
-
-
-
-package com.fincore.CommunicationService.controller;
-
-import com.fincore.CommunicationService.client.SmsGatewayClient;
-import com.fincore.CommunicationService.dto.EmailRequest;
-import com.fincore.CommunicationService.dto.EmailResponse;
-import com.fincore.CommunicationService.dto.SmsResponseDTO;
-import com.fincore.CommunicationService.service.EmailService;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
-
-import java.util.Map;
-
-@Slf4j
-@RestController
-@RequiredArgsConstructor
-@RequestMapping("/api/communication")
-public class CommunicationController {
-
-	private final SmsGatewayClient smsGatewayClient;
-
-	private final EmailService emailService;
-
-	@PostMapping("/send-sms")
-	public ResponseEntity<SmsResponseDTO> sendSMS(@RequestBody Map<String, String> map) {
-		log.info("mobileNumber {}", map.get("mobileNumber"));
-
-		String mobileNumber = map.get("mobileNumber");
-		String message = map.get("message");
-		String env = map.get("env");
-
-		SmsResponseDTO smsResponseDTO = smsGatewayClient.sendSms(mobileNumber, message, env);
-
-		return new ResponseEntity<>(smsResponseDTO, HttpStatus.OK);
-	}
-
-	@PostMapping("/send-mail")
-	public ResponseEntity<EmailResponse> sendMail(@RequestBody Map<String, Object> map) {
-		String templateId = map.get("templateId").toString();
-		String toEmail = map.get("toEmail").toString();
-		Map<String, Object> templateData = (Map<String, Object>) map.get("templateData");
-		log.info("Sending Mail with Payload {}", templateId, toEmail, templateData);
-		// emailService.sendEmail(event.getEnvironment(), event.getTemplateId(),
-		// event.getRecipient().getEmail(), templateDataMap);
-		EmailResponse emailResponseDto = emailService.sendEmail(templateId, toEmail, templateData);
-		return new ResponseEntity<>(emailResponseDto, HttpStatus.OK);
-	}
-
-}
-
-
-
-
-
-
-
-package com.fincore.CommunicationService.config;
-
-import org.apache.kafka.clients.consumer.ConsumerConfig;
-import org.apache.kafka.common.serialization.StringDeserializer;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Configuration;
-import org.springframework.kafka.annotation.EnableKafka;
-import org.springframework.kafka.config.ConcurrentKafkaListenerContainerFactory;
-import org.springframework.kafka.core.DefaultKafkaConsumerFactory;
-import org.springframework.kafka.listener.ContainerProperties;
-
-import java.util.HashMap;
-import java.util.Map;
-
-
-@EnableKafka
-@Configuration
-public class KafkaConsumerConfig {
-
-    @Value("${spring.kafka.bootstrap-servers}")
-    private String bootstrapServers;
-
-    @Bean
-    public DefaultKafkaConsumerFactory<String, String> stringConsumerFactory() {
-        Map<String, Object> props = new HashMap<>();
-        props.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
-        // Force reading from the beginning
-        props.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest");
-
-        // ABSOLUTE MANDATE: Ignore properties files and custom libraries. Force String.
-        props.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class);
-        props.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class);
-
-        return new DefaultKafkaConsumerFactory<>(props);
-    }
-
-    /**
-     * THE BULKHEAD: Dedicated Thread Pool for Tier-0 OTPs.
-     * Prevents End-of-Day PDF emails from starving the OTP pipeline.
-     */
-    @Bean("priorityOtpContainerFactory")
-    public ConcurrentKafkaListenerContainerFactory<String, String> priorityOtpContainerFactory() {
-
-        ConcurrentKafkaListenerContainerFactory<String, String> factory = new ConcurrentKafkaListenerContainerFactory<>();
-        factory.setConsumerFactory(stringConsumerFactory());
-
-        // Match this concurrency to the number of partitions on 'fincore.auth.otp.priority' (e.g., 10-20)
-        factory.setConcurrency(10);
-
-        // Strict Manual Acknowledgment. We only ACK when the SMS/Email is securely handed to the Vendor.
-        factory.getContainerProperties().setAckMode(ContainerProperties.AckMode.MANUAL_IMMEDIATE);
-
-        // If Twilio hangs for 45s, Kafka will think the consumer is dead and rebalance.
-        // We set the poll interval high enough to outlast the Resilience4j max timeout.
-        factory.getContainerProperties().setPollTimeout(3000);
-
-        return factory;
-    }
-}
-
-
-
-
-
-package com.fincore.CommunicationService.config;
-
-import com.github.benmanes.caffeine.cache.Caffeine;
-import org.springframework.cache.CacheManager;
-import org.springframework.cache.annotation.EnableCaching;
-import org.springframework.cache.caffeine.CaffeineCacheManager;
-import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Configuration;
-
-import java.util.concurrent.TimeUnit;
-
-/**
- * Caching Configuration for Communication Service.
- * Implements a High-Speed L1 (In-Memory) Cache using Caffeine.
- */
-@EnableCaching
-@Configuration
-public class CacheConfig {
-
-    @Bean
-    public CacheManager cacheManager() {
-        // Defining the cache names we will use for templates and subjects
-        CaffeineCacheManager cacheManager = new CaffeineCacheManager(
-                "templates",
-                "template_subjects",
-                "externalApiConfigs"
-        );
-
-        cacheManager.setCaffeine(Caffeine.newBuilder()
-                // Evict entries 12 hours after they were written to the cache
-                .expireAfterWrite(12, TimeUnit.HOURS)
-                // Prevent memory leaks by capping the maximum number of cached templates
-                .maximumSize(1000)
-                // Record stats for APM (e.g., Datadog/Prometheus) tracking cache hit ratios
-                .recordStats());
-
-        return cacheManager;
-    }
-}
-
-
-
-
-
-
-
-package com.fincore.CommunicationService.client;
-
-import java.io.BufferedReader;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.io.OutputStream;
-import java.net.HttpURLConnection;
-import java.net.URL;
-import java.nio.charset.StandardCharsets;
-import java.util.Map;
-
-import org.json.JSONArray;
-import org.json.JSONObject;
-
-// Required imports for SSL bypass
-import javax.net.ssl.*;
-import java.security.cert.X509Certificate;
-
-import lombok.extern.slf4j.Slf4j;
-
-@Slf4j
-public class EmailGatewayClient {
-
-	private static final String URL = "url";
-	private static final String API_KEY = "api_key";
-	private static final String SENDER_ID = "senderId";
-	private static final String TO_EMAIL = "toEmail";
-	private static final String CC_TO_EMAIL = "ccToEmail";
-	private static final String EMAIL_BODY = "emailBody";
-	private static final String SUBJECT = "subject";
-
-	public static int sendEmail(Map<String, Object> emailRequest) {
-
-		HttpURLConnection emailApiConnection = null;
-		log.info("Connection created");
-		try {
-			// Email Request Values
-			String apiUrl = emailRequest.get(URL).toString();
-			String apiKey = emailRequest.get(API_KEY).toString();
-			String senderEmail = emailRequest.get(SENDER_ID).toString();
-			String recipientMail = emailRequest.get(TO_EMAIL).toString();
-			String ccToEmail = emailRequest.get(CC_TO_EMAIL).toString();
-			String emailBody = emailRequest.get(EMAIL_BODY).toString();
-			String subject = emailRequest.get(SUBJECT).toString();
-
-			// Open Connection
-			URL url = new URL(apiUrl);
-			emailApiConnection = (HttpURLConnection) url.openConnection();
-			log.info("Connection opened");
-			emailApiConnection.setRequestMethod("POST");
-			emailApiConnection.setDoOutput(true);
-
-			// ARCHITECTURE MANDATE: Reduced timeouts from 10s to 3s to prevent Kafka thread
-			// starvation
-			emailApiConnection.setConnectTimeout(3000);
-			emailApiConnection.setReadTimeout(3000);
-
-			// --- BYPASS SSL VERIFICATION FOR THIS CONNECTION ---
-			if (emailApiConnection instanceof HttpsURLConnection) {
-				HttpsURLConnection httpsConnection = (HttpsURLConnection) emailApiConnection;
-				try {
-					TrustManager[] trustAllCerts = new TrustManager[] { new X509TrustManager() {
-						public X509Certificate[] getAcceptedIssuers() {
-							return null;
-						}
-
-						public void checkClientTrusted(X509Certificate[] certs, String authType) {
-						}
-
-						public void checkServerTrusted(X509Certificate[] certs, String authType) {
-						}
-					} };
-					SSLContext sc = SSLContext.getInstance("TLS");
-					sc.init(null, trustAllCerts, new java.security.SecureRandom());
-					httpsConnection.setSSLSocketFactory(sc.getSocketFactory());
-					httpsConnection.setHostnameVerifier((hostname, session) -> true);
-				} catch (Exception e) {
-					log.error("Failed to set SSL bypass: ", e);
-				}
-			}
-			// -------------------------------------------------------------
-
-			// Request headers
-			emailApiConnection.setRequestProperty("Content-Type", "application/json");
-			emailApiConnection.setRequestProperty("Accept", "application/json");
-			emailApiConnection.setRequestProperty("api_key", apiKey);
-			emailApiConnection.setDoOutput(true);
-
-			log.info("Done Setting properties");
-
-			// Sender Details
-			JSONObject senderJson = new JSONObject();
-			senderJson.put("email", senderEmail);
-			senderJson.put("name", "FINCORE");
-
-			// Email Content
-			JSONObject emailContentJson = new JSONObject();
-			emailContentJson.put("type", "html");
-			emailContentJson.put("value", emailBody);
-
-			JSONArray contentArray = new JSONArray();
-			contentArray.put(emailContentJson);
-
-			// Recipient Details
-			JSONObject recipientJson = new JSONObject();
-			recipientJson.put("email", recipientMail);
-
-			JSONArray recipientArray = new JSONArray();
-			recipientArray.put(recipientJson);
-
-			// Custom Attributes
-			JSONObject attributesJson = new JSONObject();
-			attributesJson.put("LEAD", "Andy Dwyer");
-			attributesJson.put("BAND", "Mouse Rat");
-
-			// Personalization
-			JSONObject personalizationsJson = new JSONObject();
-			personalizationsJson.put("to", recipientArray);
-			personalizationsJson.put("attributes", attributesJson);
-
-			// CC details
-			if (emailRequest.containsKey("ccToEmail")) {
-				JSONObject ccRecipientJson = new JSONObject();
-				ccRecipientJson.put("email", ccToEmail);
-
-				JSONArray ccArray = new JSONArray();
-				ccArray.put(ccRecipientJson);
-				personalizationsJson.put("cc", ccArray);
-			}
-
-			personalizationsJson.put("token_to", "8693839845");
-			personalizationsJson.put("token_cc", "MSGID657243");
-			personalizationsJson.put("token_bcc", "MSGID657244");
-
-			JSONArray personalizationsJsonArray = new JSONArray();
-			personalizationsJsonArray.put(personalizationsJson);
-
-			// Tracking Settings
-			JSONObject trackingSettingsJson = new JSONObject();
-			trackingSettingsJson.put("open_track", true);
-			trackingSettingsJson.put("click_track", true);
-			trackingSettingsJson.put("unsubscribe_track", true);
-
-			log.info("building email request json");
-
-			// Final Request JSON
-			JSONObject emailRequestJson = new JSONObject();
-			emailRequestJson.put("from", senderJson);
-			emailRequestJson.put("subject", subject);
-			emailRequestJson.put("content", contentArray);
-			emailRequestJson.put("personalizations", personalizationsJsonArray);
-			emailRequestJson.put("settings", trackingSettingsJson);
-
-			String finalRequestBody = emailRequestJson.toString();
-
-			log.info("finalRequestBody   " + finalRequestBody);
-
-			// Send Request
-			log.info("sending request");
-			try (OutputStream outputStream = emailApiConnection.getOutputStream()) {
-				byte[] requestBytes = finalRequestBody.getBytes(StandardCharsets.UTF_8);
-				outputStream.write(requestBytes);
-				log.info("Request sent");
-			}
-			// Read response
-			int responseCode = emailApiConnection.getResponseCode();
-			log.info("responseCode" + responseCode);
-			InputStream responseStream = (responseCode >= 200 && responseCode < 300)
-					? emailApiConnection.getInputStream()
-					: emailApiConnection.getErrorStream();
-
-			if (responseStream != null) {
-				try (BufferedReader reader = new BufferedReader(
-						new InputStreamReader(responseStream, StandardCharsets.UTF_8))) {
-
-					StringBuilder responseBody = new StringBuilder();
-					String line;
-
-					while ((line = reader.readLine()) != null) {
-						responseBody.append(line).append("\n");
-					}
-
-					log.info("Server Response: " + responseBody);
-				}
-			} else {
-				log.info("No response body received. HTTP " + responseCode);
-			}
-
-			return responseCode;
-
-		} catch (IOException e) {
-			log.error("Error occurred while sending Email " + e);
-		} finally {
-			if (emailApiConnection != null) {
-				emailApiConnection.disconnect();
-			}
-		}
-		return 0;
-	}
-}
-
-
-
-
-
-
-
-
-
-# ===================================================================
-# KAFKA CONSUMER CONFIG
-# ===================================================================
-spring.kafka.bootstrap-servers=10.0.17.242:9092
-spring.kafka.consumer.group-id=communication-login-otp-group-v3
-# Auto offset: if a new consumer group starts, read from the earliest unread message
-spring.kafka.consumer.auto-offset-reset=earliest
-spring.kafka.consumer.key-deserializer=org.apache.kafka.common.serialization.StringDeserializer
-spring.kafka.consumer.value-deserializer=org.apache.kafka.common.serialization.StringDeserializer
-# JSON Deserialization Mappings
-spring.kafka.consumer.properties.spring.json.trusted.packages=*
-spring.kafka.consumer.properties.spring.json.value.default.type=com.fincore.CommunicationService.dto.KafkaEvent
-spring.kafka.listener.ack-mode=manual-immediate
-# Shared aes key to decrypt the otp event payload
-security.internal.kafka-aes-key: xVEzviA5Ysgdp/YzTOskDOHbQwVoLgYNRRcK0+Dwdes=
-
-
-
-
-
-
-
-in login service >
-
-package com.fincore.gateway.Service;
-
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fincore.commonutilities.util.AesEncryptionUtil;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.kafka.core.KafkaTemplate;
-import org.springframework.stereotype.Service;
-import reactor.core.publisher.Mono;
-
-import java.time.Instant;
-import java.util.List;
-import java.util.Map;
-import java.util.UUID;
-
-/**
- * Publishes encrypted PII payloads to Kafka.
- * * INTERNAL AES KEY INSTRUCTION:
- * The `security.internal.kafka-aes-key` property is a static, shared secret between
- * the Fincore Gateway and the Communication Service.
- * Generate this once using `AesEncryptionUtil.generateBase64SessionKey()` and store
- * it in your application-dev/uat/prod.properties.
- * Example: security.internal.kafka-aes-key=bWV0a...
- */
-@Slf4j
-@Service
-@RequiredArgsConstructor
-public class OtpKafkaProducer {
-
-    private final KafkaTemplate<String, String> kafkaTemplate;
-    private final ObjectMapper mapper;
-    private final AesEncryptionUtil aesUtil;
-
-    @Value("${security.internal.kafka-aes-key}")
-    private String internalAesKey;
-
-    @Value("${spring.profiles.active:dev}")
-    private String currentEnvironment;
-
-    public Mono<Void> publishOtpEvent(String txId, String mobile, String email, String plainOtp, String userName, List<String> activeChannels) {
-        return Mono.fromCallable(() -> {
-                    /*
-                     * ====================================================================
-                     * ZERO-TRUST KAFKA PAYLOAD ARCHITECTURE
-                     * ====================================================================
-                     */
-
-                    // 1. Build the sensitive inner payload
-                    Map<String, Object> innerPayload = Map.of(
-                            "otp", plainOtp,
-                            "expirySeconds", 300,
-                            "userName", userName != null ? userName : "User"
-                    );
-                    String innerJson = mapper.writeValueAsString(innerPayload);
-
-                    // 2. Encrypt the inner payload (Zero-Trust on Broker)
-                    String encryptedPayload = aesUtil.encrypt(innerJson, internalAesKey);
-
-                    // 3. Build the outer routable event
-                    Map<String, Object> event = Map.of(
-                            "eventId", "evt-" + UUID.randomUUID().toString(),
-                            "txId", txId,
-                            "eventType", "LOGIN_OTP",
-                            "channel", activeChannels,
-                            "priority", "CRITICAL",
-                            "templateId", "AUTH_LOGIN_OTP_V1",
-                            "recipient", Map.of(
-                                    "mobile", mobile != null ? mobile : "",
-                                    "email", email != null ? email : ""
-                            ),
-                            "payload", encryptedPayload,
-                            "createdAt", Instant.now().toString()
-                    );
-
-                    return mapper.writeValueAsString(event);
-
-                }).flatMap(jsonString -> {
-                    // Wraps standard KafkaTemplate into a non-blocking Mono
-                    return Mono.fromFuture(
-                            kafkaTemplate.send("fincore.auth.otp.priority", txId, jsonString)
-                    );
-                }).doOnSuccess(result -> log.info("Encrypted OTP event published to Kafka for txId={}", txId))
-                .then();
-    }
-}
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-getting this below error :
-2026-06-19T14:07:53.116+05:30 ERROR 11028 --- [CommunicationService] [ner#0-dlq-0-C-1] c.f.C.consumer.PriorityOtpConsumer       : =====================================================
-2026-06-19T14:07:53.122+05:30 ERROR 11028 --- [CommunicationService] [ner#0-dlq-0-C-1] c.f.C.consumer.PriorityOtpConsumer       : DLQ ALERT: OTP Delivery Permanently Failed!
-2026-06-19T14:07:53.122+05:30 ERROR 11028 --- [CommunicationService] [ner#0-dlq-0-C-1] c.f.C.consumer.PriorityOtpConsumer       : Original Topic: fincore.auth.otp.priority
-2026-06-19T14:07:53.122+05:30 ERROR 11028 --- [CommunicationService] [ner#0-dlq-0-C-1] c.f.C.consumer.PriorityOtpConsumer       : Failure Reason: Listener failed; Unexpected message parsing error
-2026-06-19T14:07:53.122+05:30 ERROR 11028 --- [CommunicationService] [ner#0-dlq-0-C-1] c.f.C.consumer.PriorityOtpConsumer       : Failed Message Payload: {"channel":["SMS","EMAIL"],"createdAt":"2026-06-19T08:37:23.316227600Z","txId":"60e7a426-a288-49a2-afd6-bb2962b45100","recipient":{"mobile":"**********","email":"shubhankar.das.cbstcs@sbi.co.in"},"templateId":"AUTH_LOGIN_OTP_V1","payload":"GBuWcDsIvat5FkPj:Qvy15cdJ3+YCbVmHuwLUAJjb81cW/IhDyTRXvT+/Xtx5o3i9M8UROou6jUTYCW3TgDeg+hjLlQSHOu8wLyOlsLuH2JNTqJzTzxXzDA==","priority":"CRITICAL","eventId":"evt-9dbcd411-33d9-446c-9fcf-92827f1067b5","eventType":"LOGIN_OTP"}
-2026-06-19T14:07:53.122+05:30 ERROR 11028 --- [CommunicationService] [ner#0-dlq-0-C-1] c.f.C.consumer.PriorityOtpConsumer       : =====================================================
+2026-06-19T14:42:15.961+05:30  INFO 3296 --- [CommunicationService] [ntainer#0-0-C-1] c.f.C.consumer.PriorityOtpConsumer       : Received raw Kafka message: {"eventType":"LOGIN_OTP","eventId":"evt-8e06574b-d365-43e7-b6df-4583fab3af14","priority":"CRITICAL","payload":"Aj+Kt+vM68HkFLjd:ccMQeZcOJdFkAKquLh5LlVVE3/iTtrAUZBAlpqJ9U0XpZrSTuBmMFzCIE/G6jKm1nJTwaMZs/N1GZfA+2pSq5g4QcKI3idX5KnIEHg==","templateId":"AUTH_LOGIN_OTP_V1","recipient":{"mobile":"9064632186","email":"shubhankar.das.cbstcs@sbi.co.in"},"txId":"0c23a863-9e2f-4633-971d-bc3c7403f968","createdAt":"2026-06-19T09:12:14.584163200Z","channel":["SMS","EMAIL"]}
+2026-06-19T14:42:16.742+05:30  INFO 3296 --- [CommunicationService] [ntainer#0-0-C-1] c.f.C.service.EmailServiceImpl           : reached send Email service file
+2026-06-19T14:42:16.778+05:30  INFO 3296 --- [CommunicationService] [ntainer#0-0-C-1] c.f.C.service.TemplateEngineService      : L1 CACHE MISS: Fetching and Compiling Template AUTH_LOGIN_OTP_V1 for EMAIL from Oracle DB.
+2026-06-19T14:42:17.577+05:30  INFO 3296 --- [CommunicationService] [ntainer#0-0-C-1] c.f.C.service.TemplateEngineService      : L1 CACHE MISS: Fetching and Compiling Template AUTH_LOGIN_OTP_V1 for EMAIL from Oracle DB.
+2026-06-19T14:42:18.208+05:30  INFO 3296 --- [CommunicationService] [ntainer#0-0-C-1] c.f.C.service.TemplateEngineService      : L1 CACHE MISS: Fetching and Compiling Template AUTH_LOGIN_OTP_V1 for EMAIL from Oracle DB.
+2026-06-19T14:42:18.841+05:30  INFO 3296 --- [CommunicationService] [ntainer#0-0-C-1] c.f.C.service.TemplateEngineService      : L1 CACHE MISS: Fetching and Compiling Template AUTH_LOGIN_OTP_V1 for EMAIL from Oracle DB.
+2026-06-19T14:42:19.487+05:30  INFO 3296 --- [CommunicationService] [ntainer#0-0-C-1] c.f.C.service.TemplateEngineService      : L1 CACHE MISS: Fetching and Compiling Template AUTH_LOGIN_OTP_V1 for EMAIL from Oracle DB.
+2026-06-19T14:42:20.125+05:30  INFO 3296 --- [CommunicationService] [ntainer#0-0-C-1] c.f.C.service.TemplateEngineService      : L1 CACHE MISS: Fetching and Compiling Template AUTH_LOGIN_OTP_V1 for EMAIL from Oracle DB.
+2026-06-19T14:42:20.755+05:30  INFO 3296 --- [CommunicationService] [ntainer#0-0-C-1] c.f.C.service.TemplateEngineService      : L1 CACHE MISS: Fetching and Compiling Template AUTH_LOGIN_OTP_V1 for EMAIL from Oracle DB.
+2026-06-19T14:42:21.389+05:30  INFO 3296 --- [CommunicationService] [ntainer#0-0-C-1] c.f.C.service.TemplateEngineService      : L1 CACHE MISS: Fetching and Compiling Template AUTH_LOGIN_OTP_V1 for EMAIL from Oracle DB.
+2026-06-19T14:42:22.027+05:30  INFO 3296 --- [CommunicationService] [ntainer#0-0-C-1] c.f.C.service.TemplateEngineService      : L1 CACHE MISS: Fetching and Compiling Template AUTH_LOGIN_OTP_V1 for EMAIL from Oracle DB.
+2026-06-19T14:42:22.159+05:30 ERROR 3296 --- [CommunicationService] [ntainer#0-0-C-1] c.f.C.service.EmailServiceImpl           : CRITICAL: Bank Email API is completely down or unreachable for s***s@sbi.co.in. Error: Template is disabled: AUTH_LOGIN_OTP_V1
+2026-06-19T14:42:22.661+05:30 ERROR 3296 --- [CommunicationService] [ntainer#0-0-C-1] c.f.C.service.EmailServiceImpl           : CRITICAL: Bank Email API is completely down or unreachable for s***s@sbi.co.in. Error: Template is disabled: AUTH_LOGIN_OTP_V1
+2026-06-19T14:42:23.162+05:30 ERROR 3296 --- [CommunicationService] [ntainer#0-0-C-1] c.f.C.service.EmailServiceImpl           : CRITICAL: Bank Email API is completely down or unreachable for s***s@sbi.co.in. Error: Template is disabled: AUTH_LOGIN_OTP_V1
+2026-06-19T14:42:23.663+05:30  INFO 3296 --- [CommunicationService] [ntainer#0-0-C-1] c.f.C.service.EmailServiceImpl           : reached send Email service file
+2026-06-19T14:42:23.664+05:30  INFO 3296 --- [CommunicationService] [ntainer#0-0-C-1] c.f.C.service.TemplateEngineService      : L1 CACHE MISS: Fetching and Compiling Template AUTH_LOGIN_OTP_V1 for EMAIL from Oracle DB.
+2026-06-19T14:42:24.296+05:30  INFO 3296 --- [CommunicationService] [ntainer#0-0-C-1] c.f.C.service.TemplateEngineService      : L1 CACHE MISS: Fetching and Compiling Template AUTH_LOGIN_OTP_V1 for EMAIL from Oracle DB.
+2026-06-19T14:42:24.929+05:30  INFO 3296 --- [CommunicationService] [ntainer#0-0-C-1] c.f.C.service.TemplateEngineService      : L1 CACHE MISS: Fetching and Compiling Template AUTH_LOGIN_OTP_V1 for EMAIL from Oracle DB.
+2026-06-19T14:42:25.560+05:30  INFO 3296 --- [CommunicationService] [ntainer#0-0-C-1] c.f.C.service.TemplateEngineService      : L1 CACHE MISS: Fetching and Compiling Template AUTH_LOGIN_OTP_V1 for EMAIL from Oracle DB.
+2026-06-19T14:42:26.191+05:30  INFO 3296 --- [CommunicationService] [ntainer#0-0-C-1] c.f.C.service.TemplateEngineService      : L1 CACHE MISS: Fetching and Compiling Template AUTH_LOGIN_OTP_V1 for EMAIL from Oracle DB.
+2026-06-19T14:42:26.820+05:30  INFO 3296 --- [CommunicationService] [ntainer#0-0-C-1] c.f.C.service.TemplateEngineService      : L1 CACHE MISS: Fetching and Compiling Template AUTH_LOGIN_OTP_V1 for EMAIL from Oracle DB.
+2026-06-19T14:42:27.456+05:30  INFO 3296 --- [CommunicationService] [ntainer#0-0-C-1] c.f.C.service.TemplateEngineService      : L1 CACHE MISS: Fetching and Compiling Template AUTH_LOGIN_OTP_V1 for EMAIL from Oracle DB.
+2026-06-19T14:42:28.093+05:30  INFO 3296 --- [CommunicationService] [ntainer#0-0-C-1] c.f.C.service.TemplateEngineService      : L1 CACHE MISS: Fetching and Compiling Template AUTH_LOGIN_OTP_V1 for EMAIL from Oracle DB.
+2026-06-19T14:42:28.722+05:30  INFO 3296 --- [CommunicationService] [ntainer#0-0-C-1] c.f.C.service.TemplateEngineService      : L1 CACHE MISS: Fetching and Compiling Template AUTH_LOGIN_OTP_V1 for EMAIL from Oracle DB.
+2026-06-19T14:42:28.827+05:30 ERROR 3296 --- [CommunicationService] [ntainer#0-0-C-1] c.f.C.service.EmailServiceImpl           : CRITICAL: Bank Email API is completely down or unreachable for s***s@sbi.co.in. Error: Template is disabled: AUTH_LOGIN_OTP_V1
+2026-06-19T14:42:29.337+05:30 ERROR 3296 --- [CommunicationService] [ntainer#0-0-C-1] c.f.C.service.EmailServiceImpl           : CRITICAL: Bank Email API is completely down or unreachable for s***s@sbi.co.in. Error: Template is disabled: AUTH_LOGIN_OTP_V1
+2026-06-19T14:42:29.842+05:30 ERROR 3296 --- [CommunicationService] [ntainer#0-0-C-1] c.f.C.service.EmailServiceImpl           : CRITICAL: Bank Email API is completely down or unreachable for s***s@sbi.co.in. Error: Template is disabled: AUTH_LOGIN_OTP_V1
+2026-06-19T14:42:30.344+05:30  INFO 3296 --- [CommunicationService] [ntainer#0-0-C-1] c.f.C.service.EmailServiceImpl           : reached send Email service file
+2026-06-19T14:42:30.345+05:30  INFO 3296 --- [CommunicationService] [ntainer#0-0-C-1] c.f.C.service.TemplateEngineService      : L1 CACHE MISS: Fetching and Compiling Template AUTH_LOGIN_OTP_V1 for EMAIL from Oracle DB.
+2026-06-19T14:42:30.975+05:30  INFO 3296 --- [CommunicationService] [ntainer#0-0-C-1] c.f.C.service.TemplateEngineService      : L1 CACHE MISS: Fetching and Compiling Template AUTH_LOGIN_OTP_V1 for EMAIL from Oracle DB.
+2026-06-19T14:42:31.612+05:30  INFO 3296 --- [CommunicationService] [ntainer#0-0-C-1] c.f.C.service.TemplateEngineService      : L1 CACHE MISS: Fetching and Compiling Template AUTH_LOGIN_OTP_V1 for EMAIL from Oracle DB.
+2026-06-19T14:42:32.251+05:30  INFO 3296 --- [CommunicationService] [ntainer#0-0-C-1] c.f.C.service.TemplateEngineService      : L1 CACHE MISS: Fetching and Compiling Template AUTH_LOGIN_OTP_V1 for EMAIL from Oracle DB.
+2026-06-19T14:42:32.881+05:30  INFO 3296 --- [CommunicationService] [ntainer#0-0-C-1] c.f.C.service.TemplateEngineService      : L1 CACHE MISS: Fetching and Compiling Template AUTH_LOGIN_OTP_V1 for EMAIL from Oracle DB.
+2026-06-19T14:42:33.519+05:30  INFO 3296 --- [CommunicationService] [ntainer#0-0-C-1] c.f.C.service.TemplateEngineService      : L1 CACHE MISS: Fetching and Compiling Template AUTH_LOGIN_OTP_V1 for EMAIL from Oracle DB.
+2026-06-19T14:42:34.152+05:30  INFO 3296 --- [CommunicationService] [ntainer#0-0-C-1] c.f.C.service.TemplateEngineService      : L1 CACHE MISS: Fetching and Compiling Template AUTH_LOGIN_OTP_V1 for EMAIL from Oracle DB.
+2026-06-19T14:42:34.791+05:30  INFO 3296 --- [CommunicationService] [ntainer#0-0-C-1] c.f.C.service.TemplateEngineService      : L1 CACHE MISS: Fetching and Compiling Template AUTH_LOGIN_OTP_V1 for EMAIL from Oracle DB.
+2026-06-19T14:42:35.418+05:30  INFO 3296 --- [CommunicationService] [ntainer#0-0-C-1] c.f.C.service.TemplateEngineService      : L1 CACHE MISS: Fetching and Compiling Template AUTH_LOGIN_OTP_V1 for EMAIL from Oracle DB.
+2026-06-19T14:42:35.547+05:30 ERROR 3296 --- [CommunicationService] [ntainer#0-0-C-1] c.f.C.service.EmailServiceImpl           : CRITICAL: Bank Email API is completely down or unreachable for s***s@sbi.co.in. Error: Template is disabled: AUTH_LOGIN_OTP_V1
+2026-06-19T14:42:36.048+05:30 ERROR 3296 --- [CommunicationService] [ntainer#0-0-C-1] c.f.C.service.EmailServiceImpl           : CRITICAL: Bank Email API is completely down or unreachable for s***s@sbi.co.in. Error: Template is disabled: AUTH_LOGIN_OTP_V1
+2026-06-19T14:42:36.549+05:30 ERROR 3296 --- [CommunicationService] [ntainer#0-0-C-1] c.f.C.service.EmailServiceImpl           : CRITICAL: Bank Email API is completely down or unreachable for s***s@sbi.co.in. Error: Template is disabled: AUTH_LOGIN_OTP_V1
+2026-06-19T14:42:36.551+05:30 ERROR 3296 --- [CommunicationService] [ntainer#0-0-C-1] c.f.C.service.EmailServiceImpl           : CRITICAL: Bank Email API is completely down or unreachable for s***s@sbi.co.in. Error: Total Bank API Infrastructure Failure
+2026-06-19T14:42:37.064+05:30 ERROR 3296 --- [CommunicationService] [ntainer#0-0-C-1] c.f.C.service.EmailServiceImpl           : CRITICAL: Bank Email API is completely down or unreachable for s***s@sbi.co.in. Error: Total Bank API Infrastructure Failure
+2026-06-19T14:42:37.566+05:30 ERROR 3296 --- [CommunicationService] [ntainer#0-0-C-1] c.f.C.service.EmailServiceImpl           : CRITICAL: Bank Email API is completely down or unreachable for s***s@sbi.co.in. Error: Total Bank API Infrastructure Failure
+2026-06-19T14:42:38.066+05:30  INFO 3296 --- [CommunicationService] [ntainer#0-0-C-1] c.f.C.service.EmailServiceImpl           : reached send Email service file
+2026-06-19T14:42:38.066+05:30  INFO 3296 --- [CommunicationService] [ntainer#0-0-C-1] c.f.C.service.TemplateEngineService      : L1 CACHE MISS: Fetching and Compiling Template AUTH_LOGIN_OTP_V1 for EMAIL from Oracle DB.
+2026-06-19T14:42:38.695+05:30  INFO 3296 --- [CommunicationService] [ntainer#0-0-C-1] c.f.C.service.TemplateEngineService      : L1 CACHE MISS: Fetching and Compiling Template AUTH_LOGIN_OTP_V1 for EMAIL from Oracle DB.
+2026-06-19T14:42:39.336+05:30  INFO 3296 --- [CommunicationService] [ntainer#0-0-C-1] c.f.C.service.TemplateEngineService      : L1 CACHE MISS: Fetching and Compiling Template AUTH_LOGIN_OTP_V1 for EMAIL from Oracle DB.
+2026-06-19T14:42:39.977+05:30  INFO 3296 --- [CommunicationService] [ntainer#0-0-C-1] c.f.C.service.TemplateEngineService      : L1 CACHE MISS: Fetching and Compiling Template AUTH_LOGIN_OTP_V1 for EMAIL from Oracle DB.
+2026-06-19T14:42:40.607+05:30  INFO 3296 --- [CommunicationService] [ntainer#0-0-C-1] c.f.C.service.TemplateEngineService      : L1 CACHE MISS: Fetching and Compiling Template AUTH_LOGIN_OTP_V1 for EMAIL from Oracle DB.
+2026-06-19T14:42:41.236+05:30  INFO 3296 --- [CommunicationService] [ntainer#0-0-C-1] c.f.C.service.TemplateEngineService      : L1 CACHE MISS: Fetching and Compiling Template AUTH_LOGIN_OTP_V1 for EMAIL from Oracle DB.
+2026-06-19T14:42:41.864+05:30  INFO 3296 --- [CommunicationService] [ntainer#0-0-C-1] c.f.C.service.TemplateEngineService      : L1 CACHE MISS: Fetching and Compiling Template AUTH_LOGIN_OTP_V1 for EMAIL from Oracle DB.
+2026-06-19T14:42:42.495+05:30  INFO 3296 --- [CommunicationService] [ntainer#0-0-C-1] c.f.C.service.TemplateEngineService      : L1 CACHE MISS: Fetching and Compiling Template AUTH_LOGIN_OTP_V1 for EMAIL from Oracle DB.
+2026-06-19T14:42:43.129+05:30  INFO 3296 --- [CommunicationService] [ntainer#0-0-C-1] c.f.C.service.TemplateEngineService      : L1 CACHE MISS: Fetching and Compiling Template AUTH_LOGIN_OTP_V1 for EMAIL from Oracle DB.
+2026-06-19T14:42:43.258+05:30 ERROR 3296 --- [CommunicationService] [ntainer#0-0-C-1] c.f.C.service.EmailServiceImpl           : CRITICAL: Bank Email API is completely down or unreachable for s***s@sbi.co.in. Error: Template is disabled: AUTH_LOGIN_OTP_V1
+2026-06-19T14:42:43.770+05:30 ERROR 3296 --- [CommunicationService] [ntainer#0-0-C-1] c.f.C.service.EmailServiceImpl           : CRITICAL: Bank Email API is completely down or unreachable for s***s@sbi.co.in. Error: Template is disabled: AUTH_LOGIN_OTP_V1
+2026-06-19T14:42:44.271+05:30 ERROR 3296 --- [CommunicationService] [ntainer#0-0-C-1] c.f.C.service.EmailServiceImpl           : CRITICAL: Bank Email API is completely down or unreachable for s***s@sbi.co.in. Error: Template is disabled: AUTH_LOGIN_OTP_V1
+2026-06-19T14:42:44.772+05:30  INFO 3296 --- [CommunicationService] [ntainer#0-0-C-1] c.f.C.service.EmailServiceImpl           : reached send Email service file
+2026-06-19T14:42:44.772+05:30  INFO 3296 --- [CommunicationService] [ntainer#0-0-C-1] c.f.C.service.TemplateEngineService      : L1 CACHE MISS: Fetching and Compiling Template AUTH_LOGIN_OTP_V1 for EMAIL from Oracle DB.
+2026-06-19T14:42:45.402+05:30  INFO 3296 --- [CommunicationService] [ntainer#0-0-C-1] c.f.C.service.TemplateEngineService      : L1 CACHE MISS: Fetching and Compiling Template AUTH_LOGIN_OTP_V1 for EMAIL from Oracle DB.
+2026-06-19T14:42:46.033+05:30  INFO 3296 --- [CommunicationService] [ntainer#0-0-C-1] c.f.C.service.TemplateEngineService      : L1 CACHE MISS: Fetching and Compiling Template AUTH_LOGIN_OTP_V1 for EMAIL from Oracle DB.
+2026-06-19T14:42:46.663+05:30  INFO 3296 --- [CommunicationService] [ntainer#0-0-C-1] c.f.C.service.TemplateEngineService      : L1 CACHE MISS: Fetching and Compiling Template AUTH_LOGIN_OTP_V1 for EMAIL from Oracle DB.
+2026-06-19T14:42:47.293+05:30  INFO 3296 --- [CommunicationService] [ntainer#0-0-C-1] c.f.C.service.TemplateEngineService      : L1 CACHE MISS: Fetching and Compiling Template AUTH_LOGIN_OTP_V1 for EMAIL from Oracle DB.
+2026-06-19T14:42:47.923+05:30  INFO 3296 --- [CommunicationService] [ntainer#0-0-C-1] c.f.C.service.TemplateEngineService      : L1 CACHE MISS: Fetching and Compiling Template AUTH_LOGIN_OTP_V1 for EMAIL from Oracle DB.
+2026-06-19T14:42:48.552+05:30  INFO 3296 --- [CommunicationService] [ntainer#0-0-C-1] c.f.C.service.TemplateEngineService      : L1 CACHE MISS: Fetching and Compiling Template AUTH_LOGIN_OTP_V1 for EMAIL from Oracle DB.
+2026-06-19T14:42:49.184+05:30  INFO 3296 --- [CommunicationService] [ntainer#0-0-C-1] c.f.C.service.TemplateEngineService      : L1 CACHE MISS: Fetching and Compiling Template AUTH_LOGIN_OTP_V1 for EMAIL from Oracle DB.
+2026-06-19T14:42:49.825+05:30  INFO 3296 --- [CommunicationService] [ntainer#0-0-C-1] c.f.C.service.TemplateEngineService      : L1 CACHE MISS: Fetching and Compiling Template AUTH_LOGIN_OTP_V1 for EMAIL from Oracle DB.
+2026-06-19T14:42:49.953+05:30 ERROR 3296 --- [CommunicationService] [ntainer#0-0-C-1] c.f.C.service.EmailServiceImpl           : CRITICAL: Bank Email API is completely down or unreachable for s***s@sbi.co.in. Error: Template is disabled: AUTH_LOGIN_OTP_V1
+2026-06-19T14:42:50.455+05:30 ERROR 3296 --- [CommunicationService] [ntainer#0-0-C-1] c.f.C.service.EmailServiceImpl           : CRITICAL: Bank Email API is completely down or unreachable for s***s@sbi.co.in. Error: Template is disabled: AUTH_LOGIN_OTP_V1
+2026-06-19T14:42:50.956+05:30 ERROR 3296 --- [CommunicationService] [ntainer#0-0-C-1] c.f.C.service.EmailServiceImpl           : CRITICAL: Bank Email API is completely down or unreachable for s***s@sbi.co.in. Error: Template is disabled: AUTH_LOGIN_OTP_V1
+2026-06-19T14:42:51.458+05:30  INFO 3296 --- [CommunicationService] [ntainer#0-0-C-1] c.f.C.service.EmailServiceImpl           : reached send Email service file
+2026-06-19T14:42:51.458+05:30  INFO 3296 --- [CommunicationService] [ntainer#0-0-C-1] c.f.C.service.TemplateEngineService      : L1 CACHE MISS: Fetching and Compiling Template AUTH_LOGIN_OTP_V1 for EMAIL from Oracle DB.
+2026-06-19T14:42:52.092+05:30  INFO 3296 --- [CommunicationService] [ntainer#0-0-C-1] c.f.C.service.TemplateEngineService      : L1 CACHE MISS: Fetching and Compiling Template AUTH_LOGIN_OTP_V1 for EMAIL from Oracle DB.
+2026-06-19T14:42:52.722+05:30  INFO 3296 --- [CommunicationService] [ntainer#0-0-C-1] c.f.C.service.TemplateEngineService      : L1 CACHE MISS: Fetching and Compiling Template AUTH_LOGIN_OTP_V1 for EMAIL from Oracle DB.
+2026-06-19T14:42:53.350+05:30  INFO 3296 --- [CommunicationService] [ntainer#0-0-C-1] c.f.C.service.TemplateEngineService      : L1 CACHE MISS: Fetching and Compiling Template AUTH_LOGIN_OTP_V1 for EMAIL from Oracle DB.
+2026-06-19T14:42:53.981+05:30  INFO 3296 --- [CommunicationService] [ntainer#0-0-C-1] c.f.C.service.TemplateEngineService      : L1 CACHE MISS: Fetching and Compiling Template AUTH_LOGIN_OTP_V1 for EMAIL from Oracle DB.
+2026-06-19T14:42:54.612+05:30  INFO 3296 --- [CommunicationService] [ntainer#0-0-C-1] c.f.C.service.TemplateEngineService      : L1 CACHE MISS: Fetching and Compiling Template AUTH_LOGIN_OTP_V1 for EMAIL from Oracle DB.
+2026-06-19T14:42:55.246+05:30  INFO 3296 --- [CommunicationService] [ntainer#0-0-C-1] c.f.C.service.TemplateEngineService      : L1 CACHE MISS: Fetching and Compiling Template AUTH_LOGIN_OTP_V1 for EMAIL from Oracle DB.
+2026-06-19T14:42:55.883+05:30  INFO 3296 --- [CommunicationService] [ntainer#0-0-C-1] c.f.C.service.TemplateEngineService      : L1 CACHE MISS: Fetching and Compiling Template AUTH_LOGIN_OTP_V1 for EMAIL from Oracle DB.
+2026-06-19T14:42:56.511+05:30  INFO 3296 --- [CommunicationService] [ntainer#0-0-C-1] c.f.C.service.TemplateEngineService      : L1 CACHE MISS: Fetching and Compiling Template AUTH_LOGIN_OTP_V1 for EMAIL from Oracle DB.
+2026-06-19T14:42:56.640+05:30 ERROR 3296 --- [CommunicationService] [ntainer#0-0-C-1] c.f.C.service.EmailServiceImpl           : CRITICAL: Bank Email API is completely down or unreachable for s***s@sbi.co.in. Error: Template is disabled: AUTH_LOGIN_OTP_V1
+2026-06-19T14:42:57.143+05:30 ERROR 3296 --- [CommunicationService] [ntainer#0-0-C-1] c.f.C.service.EmailServiceImpl           : CRITICAL: Bank Email API is completely down or unreachable for s***s@sbi.co.in. Error: Template is disabled: AUTH_LOGIN_OTP_V1
+2026-06-19T14:42:57.644+05:30 ERROR 3296 --- [CommunicationService] [ntainer#0-0-C-1] c.f.C.service.EmailServiceImpl           : CRITICAL: Bank Email API is completely down or unreachable for s***s@sbi.co.in. Error: Template is disabled: AUTH_LOGIN_OTP_V1
+2026-06-19T14:42:57.645+05:30 ERROR 3296 --- [CommunicationService] [ntainer#0-0-C-1] c.f.C.service.EmailServiceImpl           : CRITICAL: Bank Email API is completely down or unreachable for s***s@sbi.co.in. Error: Total Bank API Infrastructure Failure
+2026-06-19T14:42:58.146+05:30 ERROR 3296 --- [CommunicationService] [ntainer#0-0-C-1] c.f.C.service.EmailServiceImpl           : CRITICAL: Bank Email API is completely down or unreachable for s***s@sbi.co.in. Error: Total Bank API Infrastructure Failure
+2026-06-19T14:42:58.647+05:30 ERROR 3296 --- [CommunicationService] [ntainer#0-0-C-1] c.f.C.service.EmailServiceImpl           : CRITICAL: Bank Email API is completely down or unreachable for s***s@sbi.co.in. Error: Total Bank API Infrastructure Failure
+2026-06-19T14:42:59.148+05:30  INFO 3296 --- [CommunicationService] [ntainer#0-0-C-1] c.f.C.service.EmailServiceImpl           : reached send Email service file
+2026-06-19T14:42:59.148+05:30  INFO 3296 --- [CommunicationService] [ntainer#0-0-C-1] c.f.C.service.TemplateEngineService      : L1 CACHE MISS: Fetching and Compiling Template AUTH_LOGIN_OTP_V1 for EMAIL from Oracle DB.
+2026-06-19T14:42:59.777+05:30  INFO 3296 --- [CommunicationService] [ntainer#0-0-C-1] c.f.C.service.TemplateEngineService      : L1 CACHE MISS: Fetching and Compiling Template AUTH_LOGIN_OTP_V1 for EMAIL from Oracle DB.
+2026-06-19T14:43:00.383+05:30  INFO 3296 --- [CommunicationService] [ntainer#0-0-C-1] c.f.C.service.TemplateEngineService      : L1 CACHE MISS: Fetching and Compiling Template AUTH_LOGIN_OTP_V1 for EMAIL from Oracle DB.
+2026-06-19T14:43:01.012+05:30  INFO 3296 --- [CommunicationService] [ntainer#0-0-C-1] c.f.C.service.TemplateEngineService      : L1 CACHE MISS: Fetching and Compiling Template AUTH_LOGIN_OTP_V1 for EMAIL from Oracle DB.
+2026-06-19T14:43:01.641+05:30  INFO 3296 --- [CommunicationService] [ntainer#0-0-C-1] c.f.C.service.TemplateEngineService      : L1 CACHE MISS: Fetching and Compiling Template AUTH_LOGIN_OTP_V1 for EMAIL from Oracle DB.
+2026-06-19T14:43:02.285+05:30  INFO 3296 --- [CommunicationService] [ntainer#0-0-C-1] c.f.C.service.TemplateEngineService      : L1 CACHE MISS: Fetching and Compiling Template AUTH_LOGIN_OTP_V1 for EMAIL from Oracle DB.
+2026-06-19T14:43:02.918+05:30  INFO 3296 --- [CommunicationService] [ntainer#0-0-C-1] c.f.C.service.TemplateEngineService      : L1 CACHE MISS: Fetching and Compiling Template AUTH_LOGIN_OTP_V1 for EMAIL from Oracle DB.
+2026-06-19T14:43:03.548+05:30  INFO 3296 --- [CommunicationService] [ntainer#0-0-C-1] c.f.C.service.TemplateEngineService      : L1 CACHE MISS: Fetching and Compiling Template AUTH_LOGIN_OTP_V1 for EMAIL from Oracle DB.
+2026-06-19T14:43:04.179+05:30  INFO 3296 --- [CommunicationService] [ntainer#0-0-C-1] c.f.C.service.TemplateEngineService      : L1 CACHE MISS: Fetching and Compiling Template AUTH_LOGIN_OTP_V1 for EMAIL from Oracle DB.
+2026-06-19T14:43:04.309+05:30 ERROR 3296 --- [CommunicationService] [ntainer#0-0-C-1] c.f.C.service.EmailServiceImpl           : CRITICAL: Bank Email API is completely down or unreachable for s***s@sbi.co.in. Error: Template is disabled: AUTH_LOGIN_OTP_V1
+2026-06-19T14:43:04.810+05:30 ERROR 3296 --- [CommunicationService] [ntainer#0-0-C-1] c.f.C.service.EmailServiceImpl           : CRITICAL: Bank Email API is completely down or unreachable for s***s@sbi.co.in. Error: Template is disabled: AUTH_LOGIN_OTP_V1
+2026-06-19T14:43:05.312+05:30 ERROR 3296 --- [CommunicationService] [ntainer#0-0-C-1] c.f.C.service.EmailServiceImpl           : CRITICAL: Bank Email API is completely down or unreachable for s***s@sbi.co.in. Error: Template is disabled: AUTH_LOGIN_OTP_V1
+2026-06-19T14:43:05.822+05:30  INFO 3296 --- [CommunicationService] [ntainer#0-0-C-1] c.f.C.service.EmailServiceImpl           : reached send Email service file
+2026-06-19T14:43:05.823+05:30  INFO 3296 --- [CommunicationService] [ntainer#0-0-C-1] c.f.C.service.TemplateEngineService      : L1 CACHE MISS: Fetching and Compiling Template AUTH_LOGIN_OTP_V1 for EMAIL from Oracle DB.
+2026-06-19T14:43:06.452+05:30  INFO 3296 --- [CommunicationService] [ntainer#0-0-C-1] c.f.C.service.TemplateEngineService      : L1 CACHE MISS: Fetching and Compiling Template AUTH_LOGIN_OTP_V1 for EMAIL from Oracle DB.
+2026-06-19T14:43:07.081+05:30  INFO 3296 --- [CommunicationService] [ntainer#0-0-C-1] c.f.C.service.TemplateEngineService      : L1 CACHE MISS: Fetching and Compiling Template AUTH_LOGIN_OTP_V1 for EMAIL from Oracle DB.
+2026-06-19T14:43:07.688+05:30  INFO 3296 --- [CommunicationService] [ntainer#0-0-C-1] c.f.C.service.TemplateEngineService      : L1 CACHE MISS: Fetching and Compiling Template AUTH_LOGIN_OTP_V1 for EMAIL from Oracle DB.
+2026-06-19T14:43:08.316+05:30  INFO 3296 --- [CommunicationService] [ntainer#0-0-C-1] c.f.C.service.TemplateEngineService      : L1 CACHE MISS: Fetching and Compiling Template AUTH_LOGIN_OTP_V1 for EMAIL from Oracle DB.
+2026-06-19T14:43:08.944+05:30  INFO 3296 --- [CommunicationService] [ntainer#0-0-C-1] c.f.C.service.TemplateEngineService      : L1 CACHE MISS: Fetching and Compiling Template AUTH_LOGIN_OTP_V1 for EMAIL from Oracle DB.
+2026-06-19T14:43:09.574+05:30  INFO 3296 --- [CommunicationService] [ntainer#0-0-C-1] c.f.C.service.TemplateEngineService      : L1 CACHE MISS: Fetching and Compiling Template AUTH_LOGIN_OTP_V1 for EMAIL from Oracle DB.
+2026-06-19T14:43:10.204+05:30  INFO 3296 --- [CommunicationService] [ntainer#0-0-C-1] c.f.C.service.TemplateEngineService      : L1 CACHE MISS: Fetching and Compiling Template AUTH_LOGIN_OTP_V1 for EMAIL from Oracle DB.
+2026-06-19T14:43:10.833+05:30  INFO 3296 --- [CommunicationService] [ntainer#0-0-C-1] c.f.C.service.TemplateEngineService      : L1 CACHE MISS: Fetching and Compiling Template AUTH_LOGIN_OTP_V1 for EMAIL from Oracle DB.
+2026-06-19T14:43:10.963+05:30 ERROR 3296 --- [CommunicationService] [ntainer#0-0-C-1] c.f.C.service.EmailServiceImpl           : CRITICAL: Bank Email API is completely down or unreachable for s***s@sbi.co.in. Error: Template is disabled: AUTH_LOGIN_OTP_V1
+2026-06-19T14:43:11.465+05:30 ERROR 3296 --- [CommunicationService] [ntainer#0-0-C-1] c.f.C.service.EmailServiceImpl           : CRITICAL: Bank Email API is completely down or unreachable for s***s@sbi.co.in. Error: Template is disabled: AUTH_LOGIN_OTP_V1
+2026-06-19T14:43:11.980+05:30 ERROR 3296 --- [CommunicationService] [ntainer#0-0-C-1] c.f.C.service.EmailServiceImpl           : CRITICAL: Bank Email API is completely down or unreachable for s***s@sbi.co.in. Error: Template is disabled: AUTH_LOGIN_OTP_V1
+2026-06-19T14:43:12.482+05:30  INFO 3296 --- [CommunicationService] [ntainer#0-0-C-1] c.f.C.service.EmailServiceImpl           : reached send Email service file
+2026-06-19T14:43:12.482+05:30  INFO 3296 --- [CommunicationService] [ntainer#0-0-C-1] c.f.C.service.TemplateEngineService      : L1 CACHE MISS: Fetching and Compiling Template AUTH_LOGIN_OTP_V1 for EMAIL from Oracle DB.
+2026-06-19T14:43:13.112+05:30  INFO 3296 --- [CommunicationService] [ntainer#0-0-C-1] c.f.C.service.TemplateEngineService      : L1 CACHE MISS: Fetching and Compiling Template AUTH_LOGIN_OTP_V1 for EMAIL from Oracle DB.
+2026-06-19T14:43:13.739+05:30  INFO 3296 --- [CommunicationService] [ntainer#0-0-C-1] c.f.C.service.TemplateEngineService      : L1 CACHE MISS: Fetching and Compiling Template AUTH_LOGIN_OTP_V1 for EMAIL from Oracle DB.
+2026-06-19T14:43:14.358+05:30  INFO 3296 --- [CommunicationService] [ntainer#0-0-C-1] c.f.C.service.TemplateEngineService      : L1 CACHE MISS: Fetching and Compiling Template AUTH_LOGIN_OTP_V1 for EMAIL from Oracle DB.
+2026-06-19T14:43:15.000+05:30  INFO 3296 --- [CommunicationService] [ntainer#0-0-C-1] c.f.C.service.TemplateEngineService      : L1 CACHE MISS: Fetching and Compiling Template AUTH_LOGIN_OTP_V1 for EMAIL from Oracle DB.
+2026-06-19T14:43:15.628+05:30  INFO 3296 --- [CommunicationService] [ntainer#0-0-C-1] c.f.C.service.TemplateEngineService      : L1 CACHE MISS: Fetching and Compiling Template AUTH_LOGIN_OTP_V1 for EMAIL from Oracle DB.
+2026-06-19T14:43:16.258+05:30  INFO 3296 --- [CommunicationService] [ntainer#0-0-C-1] c.f.C.service.TemplateEngineService      : L1 CACHE MISS: Fetching and Compiling Template AUTH_LOGIN_OTP_V1 for EMAIL from Oracle DB.
+2026-06-19T14:43:16.899+05:30  INFO 3296 --- [CommunicationService] [ntainer#0-0-C-1] c.f.C.service.TemplateEngineService      : L1 CACHE MISS: Fetching and Compiling Template AUTH_LOGIN_OTP_V1 for EMAIL from Oracle DB.
+2026-06-19T14:43:17.527+05:30  INFO 3296 --- [CommunicationService] [ntainer#0-0-C-1] c.f.C.service.TemplateEngineService      : L1 CACHE MISS: Fetching and Compiling Template AUTH_LOGIN_OTP_V1 for EMAIL from Oracle DB.
+2026-06-19T14:43:17.631+05:30 ERROR 3296 --- [CommunicationService] [ntainer#0-0-C-1] c.f.C.service.EmailServiceImpl           : CRITICAL: Bank Email API is completely down or unreachable for s***s@sbi.co.in. Error: Template is disabled: AUTH_LOGIN_OTP_V1
+2026-06-19T14:43:18.147+05:30 ERROR 3296 --- [CommunicationService] [ntainer#0-0-C-1] c.f.C.service.EmailServiceImpl           : CRITICAL: Bank Email API is completely down or unreachable for s***s@sbi.co.in. Error: Template is disabled: AUTH_LOGIN_OTP_V1
+2026-06-19T14:43:18.656+05:30 ERROR 3296 --- [CommunicationService] [ntainer#0-0-C-1] c.f.C.service.EmailServiceImpl           : CRITICAL: Bank Email API is completely down or unreachable for s***s@sbi.co.in. Error: Template is disabled: AUTH_LOGIN_OTP_V1
+2026-06-19T14:43:18.656+05:30 ERROR 3296 --- [CommunicationService] [ntainer#0-0-C-1] c.f.C.service.EmailServiceImpl           : CRITICAL: Bank Email API is completely down or unreachable for s***s@sbi.co.in. Error: Total Bank API Infrastructure Failure
+2026-06-19T14:43:19.157+05:30 ERROR 3296 --- [CommunicationService] [ntainer#0-0-C-1] c.f.C.service.EmailServiceImpl           : CRITICAL: Bank Email API is completely down or unreachable for s***s@sbi.co.in. Error: Total Bank API Infrastructure Failure
+2026-06-19T14:43:19.658+05:30 ERROR 3296 --- [CommunicationService] [ntainer#0-0-C-1] c.f.C.service.EmailServiceImpl           : CRITICAL: Bank Email API is completely down or unreachable for s***s@sbi.co.in. Error: Total Bank API Infrastructure Failure
+2026-06-19T14:43:19.663+05:30 ERROR 3296 --- [CommunicationService] [ntainer#0-0-C-1] c.f.C.consumer.PriorityOtpConsumer       : Vendor dispatch failed for txId=0c23a863-9e2f-4633-971d-bc3c7403f968 channel=EMAIL. Exception: Total Bank API Infrastructure Failure
+2026-06-19T14:43:19.663+05:30 ERROR 3296 --- [CommunicationService] [ntainer#0-0-C-1] c.f.C.consumer.PriorityOtpConsumer       : Unexpected error processing Kafka message: One or more channels failed to deliver.
+
+com.fincore.CommunicationService.exception.CommunicationExceptions$VendorDeliveryException: One or more channels failed to deliver.
+	at com.fincore.CommunicationService.consumer.PriorityOtpConsumer.consumeOtpEvent(PriorityOtpConsumer.java:140) ~[classes/:na]
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:103) ~[na:na]
+	at java.base/java.lang.reflect.Method.invoke(Method.java:580) ~[na:na]
+	at org.springframework.messaging.handler.invocation.InvocableHandlerMethod.doInvoke(InvocableHandlerMethod.java:169) ~[spring-messaging-6.1.8.jar:6.1.8]
+	at org.springframework.kafka.listener.adapter.KotlinAwareInvocableHandlerMethod.doInvoke(KotlinAwareInvocableHandlerMethod.java:45) ~[spring-kafka-3.2.0.jar:3.2.0]
+	at org.springframework.messaging.handler.invocation.InvocableHandlerMethod.invoke(InvocableHandlerMethod.java:119) ~[spring-messaging-6.1.8.jar:6.1.8]
+	at org.springframework.kafka.listener.adapter.HandlerAdapter.invoke(HandlerAdapter.java:70) ~[spring-kafka-3.2.0.jar:3.2.0]
+	at org.springframework.kafka.listener.adapter.MessagingMessageListenerAdapter.invokeHandler(MessagingMessageListenerAdapter.java:420) ~[spring-kafka-3.2.0.jar:3.2.0]
+	at org.springframework.kafka.listener.adapter.MessagingMessageListenerAdapter.invoke(MessagingMessageListenerAdapter.java:384) ~[spring-kafka-3.2.0.jar:3.2.0]
+	at org.springframework.kafka.listener.adapter.RecordMessagingMessageListenerAdapter.onMessage(RecordMessagingMessageListenerAdapter.java:85) ~[spring-kafka-3.2.0.jar:3.2.0]
+	at org.springframework.kafka.listener.adapter.RecordMessagingMessageListenerAdapter.onMessage(RecordMessagingMessageListenerAdapter.java:50) ~[spring-kafka-3.2.0.jar:3.2.0]
+	at org.springframework.kafka.listener.adapter.KafkaBackoffAwareMessageListenerAdapter.invokeDelegateOnMessage(KafkaBackoffAwareMessageListenerAdapter.java:106) ~[spring-kafka-3.2.0.jar:3.2.0]
+	at org.springframework.kafka.listener.adapter.KafkaBackoffAwareMessageListenerAdapter.onMessage(KafkaBackoffAwareMessageListenerAdapter.java:97) ~[spring-kafka-3.2.0.jar:3.2.0]
+	at org.springframework.kafka.listener.adapter.KafkaBackoffAwareMessageListenerAdapter.onMessage(KafkaBackoffAwareMessageListenerAdapter.java:49) ~[spring-kafka-3.2.0.jar:3.2.0]
+	at org.springframework.kafka.listener.KafkaMessageListenerContainer$ListenerConsumer.doInvokeOnMessage(KafkaMessageListenerContainer.java:2800) ~[spring-kafka-3.2.0.jar:3.2.0]
+	at org.springframework.kafka.listener.KafkaMessageListenerContainer$ListenerConsumer.invokeOnMessage(KafkaMessageListenerContainer.java:2778) ~[spring-kafka-3.2.0.jar:3.2.0]
+	at org.springframework.kafka.listener.KafkaMessageListenerContainer$ListenerConsumer.lambda$doInvokeRecordListener$53(KafkaMessageListenerContainer.java:2701) ~[spring-kafka-3.2.0.jar:3.2.0]
+	at io.micrometer.observation.Observation.observe(Observation.java:565) ~[micrometer-observation-1.13.0.jar:1.13.0]
+	at org.springframework.kafka.listener.KafkaMessageListenerContainer$ListenerConsumer.doInvokeRecordListener(KafkaMessageListenerContainer.java:2699) ~[spring-kafka-3.2.0.jar:3.2.0]
+	at org.springframework.kafka.listener.KafkaMessageListenerContainer$ListenerConsumer.doInvokeWithRecords(KafkaMessageListenerContainer.java:2541) ~[spring-kafka-3.2.0.jar:3.2.0]
+	at org.springframework.kafka.listener.KafkaMessageListenerContainer$ListenerConsumer.invokeRecordListener(KafkaMessageListenerContainer.java:2430) ~[spring-kafka-3.2.0.jar:3.2.0]
+	at org.springframework.kafka.listener.KafkaMessageListenerContainer$ListenerConsumer.invokeListener(KafkaMessageListenerContainer.java:2085) ~[spring-kafka-3.2.0.jar:3.2.0]
+	at org.springframework.kafka.listener.KafkaMessageListenerContainer$ListenerConsumer.invokeIfHaveRecords(KafkaMessageListenerContainer.java:1461) ~[spring-kafka-3.2.0.jar:3.2.0]
+	at org.springframework.kafka.listener.KafkaMessageListenerContainer$ListenerConsumer.pollAndInvoke(KafkaMessageListenerContainer.java:1426) ~[spring-kafka-3.2.0.jar:3.2.0]
+	at org.springframework.kafka.listener.KafkaMessageListenerContainer$ListenerConsumer.run(KafkaMessageListenerContainer.java:1296) ~[spring-kafka-3.2.0.jar:3.2.0]
+	at java.base/java.util.concurrent.CompletableFuture$AsyncRun.run(CompletableFuture.java:1804) ~[na:na]
+	at java.base/java.lang.Thread.run(Thread.java:1570) ~[na:na]
+
+2026-06-19T14:43:19.691+05:30  INFO 3296 --- [CommunicationService] [ntainer#0-0-C-1] o.a.k.clients.producer.ProducerConfig    : ProducerConfig values: 
+	acks = -1
+	auto.include.jmx.reporter = true
+	batch.size = 16384
+	bootstrap.servers = [10.0.17.242:9092]
+	buffer.memory = 33554432
+	client.dns.lookup = use_all_dns_ips
+	client.id = CommunicationService-producer-1
+	compression.type = none
+	connections.max.idle.ms = 540000
+	delivery.timeout.ms = 120000
+	enable.idempotence = true
+	enable.metrics.push = true
+	interceptor.classes = []
+	key.serializer = class org.apache.kafka.common.serialization.StringSerializer
+	linger.ms = 0
+	max.block.ms = 60000
+	max.in.flight.requests.per.connection = 5
+	max.request.size = 1048576
+	metadata.max.age.ms = 300000
+	metadata.max.idle.ms = 300000
+	metric.reporters = []
+	metrics.num.samples = 2
+	metrics.recording.level = INFO
+	metrics.sample.window.ms = 30000
+	partitioner.adaptive.partitioning.enable = true
+	partitioner.availability.timeout.ms = 0
+	partitioner.class = null
+	partitioner.ignore.keys = false
+	receive.buffer.bytes = 32768
+	reconnect.backoff.max.ms = 1000
+	reconnect.backoff.ms = 50
+	request.timeout.ms = 30000
+	retries = 2147483647
+	retry.backoff.max.ms = 1000
+	retry.backoff.ms = 100
+	sasl.client.callback.handler.class = null
+	sasl.jaas.config = null
+	sasl.kerberos.kinit.cmd = /usr/bin/kinit
+	sasl.kerberos.min.time.before.relogin = 60000
+	sasl.kerberos.service.name = null
+	sasl.kerberos.ticket.renew.jitter = 0.05
+	sasl.kerberos.ticket.renew.window.factor = 0.8
+	sasl.login.callback.handler.class = null
+	sasl.login.class = null
+	sasl.login.connect.timeout.ms = null
+	sasl.login.read.timeout.ms = null
+	sasl.login.refresh.buffer.seconds = 300
+	sasl.login.refresh.min.period.seconds = 60
+	sasl.login.refresh.window.factor = 0.8
+	sasl.login.refresh.window.jitter = 0.05
+	sasl.login.retry.backoff.max.ms = 10000
+	sasl.login.retry.backoff.ms = 100
+	sasl.mechanism = GSSAPI
+	sasl.oauthbearer.clock.skew.seconds = 30
+	sasl.oauthbearer.expected.audience = null
+	sasl.oauthbearer.expected.issuer = null
+	sasl.oauthbearer.jwks.endpoint.refresh.ms = 3600000
+	sasl.oauthbearer.jwks.endpoint.retry.backoff.max.ms = 10000
+	sasl.oauthbearer.jwks.endpoint.retry.backoff.ms = 100
+	sasl.oauthbearer.jwks.endpoint.url = null
+	sasl.oauthbearer.scope.claim.name = scope
+	sasl.oauthbearer.sub.claim.name = sub
+	sasl.oauthbearer.token.endpoint.url = null
+	security.protocol = PLAINTEXT
+	security.providers = null
+	send.buffer.bytes = 131072
+	socket.connection.setup.timeout.max.ms = 30000
+	socket.connection.setup.timeout.ms = 10000
+	ssl.cipher.suites = null
+	ssl.enabled.protocols = [TLSv1.2, TLSv1.3]
+	ssl.endpoint.identification.algorithm = https
+	ssl.engine.factory.class = null
+	ssl.key.password = null
+	ssl.keymanager.algorithm = SunX509
+	ssl.keystore.certificate.chain = null
+	ssl.keystore.key = null
+	ssl.keystore.location = null
+	ssl.keystore.password = null
+	ssl.keystore.type = JKS
+	ssl.protocol = TLSv1.3
+	ssl.provider = null
+	ssl.secure.random.implementation = null
+	ssl.trustmanager.algorithm = PKIX
+	ssl.truststore.certificates = null
+	ssl.truststore.location = null
+	ssl.truststore.password = null
+	ssl.truststore.type = JKS
+	transaction.timeout.ms = 60000
+	transactional.id = null
+	value.serializer = class org.apache.kafka.common.serialization.StringSerializer
+
+2026-06-19T14:43:19.692+05:30  INFO 3296 --- [CommunicationService] [ntainer#0-0-C-1] o.a.k.c.t.i.KafkaMetricsCollector        : initializing Kafka metrics collector
+2026-06-19T14:43:19.702+05:30  INFO 3296 --- [CommunicationService] [ntainer#0-0-C-1] o.a.k.clients.producer.KafkaProducer     : [Producer clientId=CommunicationService-producer-1] Instantiated an idempotent producer.
+2026-06-19T14:43:19.728+05:30  INFO 3296 --- [CommunicationService] [ntainer#0-0-C-1] o.a.kafka.common.utils.AppInfoParser     : Kafka version: 3.7.0
+2026-06-19T14:43:19.728+05:30  INFO 3296 --- [CommunicationService] [ntainer#0-0-C-1] o.a.kafka.common.utils.AppInfoParser     : Kafka commitId: 2ae524ed625438c5
+2026-06-19T14:43:19.728+05:30  INFO 3296 --- [CommunicationService] [ntainer#0-0-C-1] o.a.kafka.common.utils.AppInfoParser     : Kafka startTimeMs: 1781860399728
+2026-06-19T14:43:19.741+05:30  INFO 3296 --- [CommunicationService] [vice-producer-1] org.apache.kafka.clients.Metadata        : [Producer clientId=CommunicationService-producer-1] Cluster ID: 
+2026-06-19T14:43:19.741+05:30  INFO 3296 --- [CommunicationService] [vice-producer-1] o.a.k.c.p.internals.TransactionManager   : [Producer clientId=CommunicationService-producer-1] ProducerId set to 1 with epoch 0
