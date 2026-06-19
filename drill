@@ -73,3 +73,20 @@ FROM "tb"
 | 2026-03-31T00:00:00.000Z | ACE      | 1222505001 |  1352 |  CA-NOSTRO MIRROR IN ACU        |       12196227.66 |
 | 2026-03-31T00:00:00.000Z | ACU      | 1222505001 |  1352 |  CA-NOSTRO MIRROR IN ACU        |         6707428.5 |
 
+
+
+
+
+
+
+
+
+
+Comb	Comp Code	CGL-Name	Dep	Adv	CT	BGL	CBS	TB	Diff
+INR2006070601	1036	SAVINGS BANK_P-PUB           	-1.31823E+13	0	0	0	-1.31823E+13	-1.31823E+13	-917772.5
+INR2028070602	1036	SB-DSP-Gold_P-PUB             	-7.07215E+11	0	0	0	-7.07215E+11	-7.07215E+11	-1509
+INR1006070601	20203	SAVINGS BANK OD_P-PUB         	320276424.2	0	0	0	320276424.2	320277604.2	1180
+INR1018500101	20176	CASH CREDIT_C&I               	-1.557E+12	0	0	0	-1.557E+12	1.557E+12	0
+INR1018500401	20176	CASH CREDIT_SBF               	-8.01148E+11	0	0	0	-8.01148E+11	8.01148E+11	0
+									
+			druid table - "bncs" groups in type columns				sum of previous groups	druid table - "tb"	diff between cbs and tb
