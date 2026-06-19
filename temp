@@ -1,7 +1,186 @@
-2026-06-19T17:06:27.971+05:30  INFO 15664 --- [CommunicationService] [ner#0-dlq-0-C-1] o.a.k.c.c.internals.LegacyKafkaConsumer  : [Consumer clientId=consumer-communication-login-otp-group-v3-dlq-1, groupId=communication-login-otp-group-v3-dlq] Seeking to offset 13 for partition fincore.auth.otp.priority-dlq-0
-2026-06-19T17:06:28.475+05:30 ERROR 15664 --- [CommunicationService] [ner#0-dlq-0-C-1] c.f.C.consumer.PriorityOtpConsumer       : =====================================================
-2026-06-19T17:06:28.475+05:30 ERROR 15664 --- [CommunicationService] [ner#0-dlq-0-C-1] c.f.C.consumer.PriorityOtpConsumer       : DLQ ALERT: OTP Delivery Permanently Failed!
-2026-06-19T17:06:28.475+05:30 ERROR 15664 --- [CommunicationService] [ner#0-dlq-0-C-1] c.f.C.consumer.PriorityOtpConsumer       : Original Topic: fincore.auth.otp.priority
-2026-06-19T17:06:28.475+05:30 ERROR 15664 --- [CommunicationService] [ner#0-dlq-0-C-1] c.f.C.consumer.PriorityOtpConsumer       : Failure Reason: Listener failed; Unexpected message parsing error
-2026-06-19T17:06:28.475+05:30 ERROR 15664 --- [CommunicationService] [ner#0-dlq-0-C-1] c.f.C.consumer.PriorityOtpConsumer       : Failed Message Payload: {"eventType":"LOGIN_OTP","eventId":"evt-e0e2baed-49b6-4058-930d-2c58b8877c0c","priority":"CRITICAL","payload":"UZINvelXn+iuRzZG:hbo/3aZbOQpZVNSEofvPa+h0qzx9Z2Qe5x8q2qd++NNK2TYjyzQHtU9rQwXnu7BfEHb5KA1iV/2weC+vEos4QHbTMVTNVRcq08LUCA==","templateId":"AUTH_LOGIN_OTP_V1","recipient":{"mobile":"9064632186","email":"shubhankar.das.cbstcs@sbi.co.in"},"txId":"030793ff-70e6-47db-8f0a-423b77fe9b8f","createdAt":"2026-06-19T11:36:12.691449400Z","channel":["SMS","EMAIL"]}
-2026-06-19T17:06:28.475+05:30 ERROR 15664 --- [CommunicationService] [ner#0-dlq-0-C-1] c.f.C.consumer.PriorityOtpConsumer       : =====================================================
+
+package com.fincore.CommunicationService.consumer;
+
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fincore.CommunicationService.dto.KafkaEvent;
+import com.fincore.CommunicationService.exception.CommunicationExceptions.DecryptionFailureException;
+import com.fincore.CommunicationService.exception.CommunicationExceptions.InvalidPayloadException;
+import com.fincore.CommunicationService.exception.CommunicationExceptions.TemplateNotFoundException;
+import com.fincore.CommunicationService.exception.CommunicationExceptions.VendorDeliveryException;
+import com.fincore.CommunicationService.service.EmailService;
+import com.fincore.CommunicationService.service.SmsService;
+import com.fincore.commonutilities.util.AesEncryptionUtil;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.kafka.annotation.DltHandler;
+import org.springframework.kafka.annotation.EnableKafka;
+import org.springframework.kafka.annotation.KafkaListener;
+import org.springframework.kafka.annotation.RetryableTopic;
+import org.springframework.kafka.retrytopic.TopicSuffixingStrategy;
+import org.springframework.kafka.support.Acknowledgment;
+import org.springframework.kafka.support.KafkaHeaders;
+import org.springframework.messaging.handler.annotation.Header;
+import org.springframework.messaging.handler.annotation.Payload;
+import org.springframework.retry.annotation.Backoff;
+import org.springframework.stereotype.Component;
+
+import javax.crypto.BadPaddingException;
+import javax.crypto.IllegalBlockSizeException;
+import java.security.GeneralSecurityException;
+import java.time.Duration;
+import java.util.Map;
+
+@Slf4j
+@Component
+@RequiredArgsConstructor
+@EnableKafka  // ← Required on a @Configuration class
+public class PriorityOtpConsumer {
+
+    private final ObjectMapper mapper;
+    private final AesEncryptionUtil aesUtil;
+    private final StringRedisTemplate redisTemplate;
+
+    private final SmsService smsService;
+    private final EmailService emailService;
+
+    @Value("${security.internal.kafka-aes-key}")
+    private String internalAesKey;
+
+    /**
+     * KAFKA RETRY ARCHITECTURE:
+     * - Attempts: 4 (1 Initial + 3 Retries)
+     * - Backoff: 2s, 4s, 8s (Exponential)
+     * - Excludes: DecryptionFailure, InvalidPayload, TemplateNotFound (Goes straight to DLQ)
+     * - Includes: VendorDeliveryException (API Timeouts)
+     */
+    @RetryableTopic(
+            attempts = "4",
+            backoff = @Backoff(delay = 2000, multiplier = 2.0),
+            topicSuffixingStrategy = TopicSuffixingStrategy.SUFFIX_WITH_INDEX_VALUE,
+            dltTopicSuffix = "-dlq",
+            exclude = {
+                    DecryptionFailureException.class,
+                    InvalidPayloadException.class,
+                    TemplateNotFoundException.class
+            }
+    )
+    @KafkaListener(
+            topics = "fincore.auth.otp.priority",
+            groupId = "communication-login-otp-group-v3",
+            containerFactory = "priorityOtpContainerFactory"
+    )
+    public void consumeOtpEvent(@Payload String message, Acknowledgment acknowledgment) {
+
+        log.info("Received raw Kafka message: {}", message);
+        String txId = "UNKNOWN";
+
+        try {
+            // 1. SAFE DESERIALIZATION
+            KafkaEvent event;
+            try {
+                event = mapper.readValue(message, KafkaEvent.class);
+                txId = event.getTxId();
+            } catch (Exception e) {
+                throw new InvalidPayloadException("Malformed JSON Payload: " + e.getMessage());
+            }
+
+            if (txId == null || event.getPayload() == null) {
+                throw new InvalidPayloadException("Missing txId or encrypted payload");
+            }
+
+            // 2. DECRYPTION of personal data using aes key synced with login service
+            String decryptedJson;
+            try {
+                decryptedJson = aesUtil.decrypt(event.getPayload(), internalAesKey);
+            }
+            catch (BadPaddingException | IllegalBlockSizeException e) {
+                log.error("SECURITY ALERT: Decryption failed for txId={}. Data tampered or key mismatch.", txId, e);
+                throw new DecryptionFailureException("AES Decryption Failed: Invalid Padding", e);
+            }
+            catch (GeneralSecurityException e) {
+                throw new DecryptionFailureException("AES Decryption Failed", e);
+            }
+
+            // Map decrypted JSON into a generic map to pass to FreeMarker/TemplateService
+            Map<String, Object> templateDataMap = mapper.readValue(decryptedJson, new TypeReference<>() {});
+
+            // Track partial failures to trigger Spring Kafka Retry
+            boolean requiresRetry = false;
+
+            // 3. CHANNEL ROUTING & IDEMPOTENCY (for sms and email - if one fail only that needs to be retried not the both)
+            for (String channel : event.getChannel()) {
+                // Idempotency Key: Prevents duplicate SMS if Email fails and triggers a retry
+                String idempotencyKey = "COMM_IDEMP:" + txId + ":" + channel.toUpperCase();
+
+                Boolean alreadyProcessed = redisTemplate.opsForValue().setIfAbsent(idempotencyKey, "PROCESSED", Duration.ofMinutes(15));
+                if (Boolean.FALSE.equals(alreadyProcessed)) {
+                    log.info("Idempotency hit: Already processed {} for txId={}. Skipping.", channel, txId);
+                    continue;
+                }
+
+                try {
+                    if ("SMS".equalsIgnoreCase(channel)) {
+//                        smsService.sendSms(event.getEnvironment(), event.getTemplateId(), event.getRecipient().getMobile(), templateDataMap);
+                    } else if ("EMAIL".equalsIgnoreCase(channel)) {
+                        emailService.sendEmail(event.getTemplateId(), event.getRecipient().getEmail(), templateDataMap);
+                    }
+                } catch (Exception e) {
+                    // If a channel fails, we must remove the idempotency key so it can be retried
+                    redisTemplate.delete(idempotencyKey);
+                    log.error("Vendor dispatch failed for txId={} channel={}. Exception: {}", txId, channel, e.getMessage());
+                    requiresRetry = true;
+                }
+            }
+
+            // 4. RESOLUTION
+            if (requiresRetry) {
+                // By throwing this, Spring Kafka routes the message to the Retry Topic
+                throw new VendorDeliveryException("One or more channels failed to deliver.", null);
+            }
+
+            // ONLY acknowledge if all channels succeeded or were skipped idempotently.
+            acknowledgment.acknowledge();
+            log.info("Successfully processed Tier-0 OTP Event for txId={}", txId);
+
+        } catch (DecryptionFailureException | InvalidPayloadException | TemplateNotFoundException e) {
+            log.error("Fatal deterministic error processing txId={}. Routing to DLQ. Reason: {}", txId, e.getMessage());
+            throw e;
+        } catch (Exception e) {
+            log.error("Unexpected error processing Kafka message: {}", e.getMessage(), e);
+            throw new RuntimeException(e.getMessage());
+        }
+    }
+
+
+    /**
+     * THE DEAD LETTER QUEUE (DLQ) HANDLER.
+     * This is automatically invoked by Spring Kafka when:
+     * 1. All 4 retries for VendorDeliveryException are exhausted.
+     * 2. A deterministic exception (e.g., DecryptionFailureException) is thrown.
+     * @param message The original KafkaEvent that failed.
+     * @param headerTopic The original topic.
+     * @param exceptionMessage The final exception that caused the DLQ routing.
+     */
+    @DltHandler
+    public void handleDltPayment(
+            String message,
+            @Header(KafkaHeaders.ORIGINAL_TOPIC) String headerTopic,
+            @Header(KafkaHeaders.EXCEPTION_MESSAGE) String exceptionMessage) {
+
+        log.error("=====================================================");
+        log.error("DLQ ALERT: OTP Delivery Permanently Failed!");
+        log.error("Original Topic: {}", headerTopic);
+        log.error("Failure Reason: {}", exceptionMessage);
+        log.error("Failed Message Payload: {}", message);
+        log.error("=====================================================");
+
+        // TODO: (Future Work)
+        // Inject your CommunicationAuditRepository here and update the DB row for this txId
+        // to "FAILED" with the exceptionMessage, so the Bank's Support Desk dashboard
+        // can see exactly why the user didn't get their OTP.
+    }
+
+}
