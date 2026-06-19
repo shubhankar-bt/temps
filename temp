@@ -1,3 +1,5 @@
+1st otp send while login commucincation logs :-  
+
 2026-06-19T18:09:27.299+05:30  INFO 29548 --- [CommunicationService] [ntainer#0-0-C-1] c.f.C.consumer.PriorityOtpConsumer       : Received raw Kafka message: {"payload":"E2ft5/WwVh+Enxfc:/mNYzMnsS0jPMvgl103F9Ea+sumO+dKoxqxrrquCZvA67xpz8x8LoE9XFdnAaK61RxfkG4DBvuHuv11Cnfn3BekagAV8/jZ3NCj8","templateId":"AUTH_LOGIN_OTP_V1","recipient":{"mobile":"**********","email":"ebms_uat_receiver@sbiuat.bank.in"},"txId":"4626fb2e-c59c-4220-8973-88428d8c45b8","createdAt":"2026-06-19T12:39:27.293718700Z","channel":["EMAIL"],"eventType":"LOGIN_OTP","eventId":"evt-76207fa1-c56c-4543-af1f-425ee5615dbf","priority":"CRITICAL"}
 2026-06-19T18:09:27.303+05:30  INFO 29548 --- [CommunicationService] [ntainer#0-0-C-1] c.f.C.service.EmailServiceImpl           : Reached send Email service file with template id : AUTH_LOGIN_OTP_V1, templateData : {userName=Test1, expiryMins=3, otpPlaintext=248567}
 2026-06-19T18:09:27.581+05:30  INFO 29548 --- [CommunicationService] [ntainer#0-0-C-1] c.f.C.service.EmailServiceImpl           : Dispatching Email via Primary Provider to e***r@sbiuat.bank.in
@@ -61,3 +63,164 @@ com.fincore.CommunicationService.exception.CommunicationExceptions$VendorDeliver
 2026-06-19T18:09:50.838+05:30 ERROR 29548 --- [CommunicationService] [ner#0-dlq-0-C-1] c.f.C.consumer.PriorityOtpConsumer       : Failure Reason: Listener failed; Unexpected message parsing error
 2026-06-19T18:09:50.838+05:30 ERROR 29548 --- [CommunicationService] [ner#0-dlq-0-C-1] c.f.C.consumer.PriorityOtpConsumer       : Failed Message Payload: {"payload":"E2ft5/WwVh+Enxfc:/mNYzMnsS0jPMvgl103F9Ea+sumO+dKoxqxrrquCZvA67xpz8x8LoE9XFdnAaK61RxfkG4DBvuHuv11Cnfn3BekagAV8/jZ3NCj8","templateId":"AUTH_LOGIN_OTP_V1","recipient":{"mobile":"**********","email":"ebms_uat_receiver@sbiuat.bank.in"},"txId":"4626fb2e-c59c-4220-8973-88428d8c45b8","createdAt":"2026-06-19T12:39:27.293718700Z","channel":["EMAIL"],"eventType":"LOGIN_OTP","eventId":"evt-76207fa1-c56c-4543-af1f-425ee5615dbf","priority":"CRITICAL"}
 2026-06-19T18:09:50.838+05:30 ERROR 29548 --- [CommunicationService] [ner#0-dlq-0-C-1] c.f.C.consumer.PriorityOtpConsumer       : =====================================================
+
+
+
+
+
+
+
+resend otp logs in communication serrvice :
+
+2026-06-19T18:13:31.770+05:30  INFO 29548 --- [CommunicationService] [ntainer#0-0-C-1] c.f.C.consumer.PriorityOtpConsumer       : Received raw Kafka message: {"payload":"HN4BiIzASJgH9db3:QGrjG5z6my6sG8nA0hl92Ii7Uw56PxMaZIOreXbvspXqCJJM1ZSp5gMd7fNZlZ5J2c/ttoo2gELUqU6NWBd9+c1tFjITfPKUX88W","templateId":"AUTH_LOGIN_OTP_V1","recipient":{"mobile":"**********","email":"ebms_uat_receiver@sbiuat.bank.in"},"txId":"4626fb2e-c59c-4220-8973-88428d8c45b8","createdAt":"2026-06-19T12:43:31.766613500Z","channel":["EMAIL"],"eventType":"LOGIN_OTP","eventId":"evt-0d738a98-bdf9-4a10-bf83-014815f7d203","priority":"CRITICAL"}
+2026-06-19T18:13:31.774+05:30  INFO 29548 --- [CommunicationService] [ntainer#0-0-C-1] c.f.C.consumer.PriorityOtpConsumer       : Idempotency hit: Already processed EMAIL for txId=4626fb2e-c59c-4220-8973-88428d8c45b8. Skipping.
+2026-06-19T18:13:31.783+05:30  INFO 29548 --- [CommunicationService] [ntainer#0-0-C-1] c.f.C.consumer.PriorityOtpConsumer       : Successfully processed Tier-0 OTP Event for txId=4626fb2e-c59c-4220-8973-88428d8c45b8
+2026-06-19T18:13:45.251+05:30  INFO 29548 --- [CommunicationService] [ner#0-dlq-0-C-1] o.a.k.c.c.internals.LegacyKafkaConsumer  : [Consumer clientId=consumer-communication-login-otp-group-v7-dlq-1, groupId=communication-login-otp-group-v7-dlq] Seeking to offset 532 for partition fincore.auth.otp.priority-dlq-0
+2026-06-19T18:13:45.755+05:30 ERROR 29548 --- [CommunicationService] [ner#0-dlq-0-C-1] c.f.C.consumer.PriorityOtpConsumer       : =====================================================
+2026-06-19T18:13:45.755+05:30 ERROR 29548 --- [CommunicationService] [ner#0-dlq-0-C-1] c.f.C.consumer.PriorityOtpConsumer       : DLQ ALERT: OTP Delivery Permanently Failed!
+2026-06-19T18:13:45.755+05:30 ERROR 29548 --- [CommunicationService] [ner#0-dlq-0-C-1] c.f.C.consumer.PriorityOtpConsumer       : Original Topic: fincore.auth.otp.priority
+2026-06-19T18:13:45.755+05:30 ERROR 29548 --- [CommunicationService] [ner#0-dlq-0-C-1] c.f.C.consumer.PriorityOtpConsumer       : Failure Reason: Listener failed; Unexpected message parsing error
+2026-06-19T18:13:45.755+05:30 ERROR 29548 --- [CommunicationService] [ner#0-dlq-0-C-1] c.f.C.consumer.PriorityOtpConsumer       : Failed Message Payload: {"payload":"HN4BiIzASJgH9db3:QGrjG5z6my6sG8nA0hl92Ii7Uw56PxMaZIOreXbvspXqCJJM1ZSp5gMd7fNZlZ5J2c/ttoo2gELUqU6NWBd9+c1tFjITfPKUX88W","templateId":"AUTH_LOGIN_OTP_V1","recipient":{"mobile":"**********","email":"ebms_uat_receiver@sbiuat.bank.in"},"txId":"4626fb2e-c59c-4220-8973-88428d8c45b8","createdAt":"2026-06-19T12:43:31.766613500Z","channel":["EMAIL"],"eventType":"LOGIN_OTP","eventId":"evt-0d738a98-bdf9-4a10-bf83-014815f7d203","priority":"CRITICAL"}
+2026-06-19T18:13:45.755+05:30 ERROR 29548 --- [CommunicationService] [ner#0-dlq-0-C-1] c.f.C.consumer.PriorityOtpConsumer       : =====================================================
+
+
+
+
+
+
+
+login service logs :
+
+2026-06-19 :: 18:03:32.351 || INFO :: LoginUtility.java: | 11 | :: X-Forwarded-For ip : ::ffff:10.0.17.242
+2026-06-19 :: 18:03:32.352 || INFO :: AuthController.java: | 107 | :: Check-User info user id: v1018405 , ip : 10.0.17.242
+2026-06-19 :: 18:03:47.895 || INFO :: LoginUtility.java: | 11 | :: X-Forwarded-For ip : ::ffff:10.0.17.242
+2026-06-19 :: 18:03:47.896 || INFO :: AuthController.java: | 107 | :: Check-User info user id: 2488766 , ip : 10.0.17.242
+2026-06-19 :: 18:04:01.660 || INFO :: LoginUtility.java: | 11 | :: X-Forwarded-For ip : ::ffff:10.0.17.242
+2026-06-19 :: 18:04:01.661 || INFO :: AuthController.java: | 147 | :: Login request for user: 2488766 from IP: 10.0.17.242
+2026-06-19 :: 18:04:01.916 || INFO :: LoginServiceImpl.java: | 388 | :: Password-based login for userId=2488766
+2026-06-19 :: 18:04:02.017 || INFO :: LoginServiceImpl.java: | 635 | :: Credentials validated. Issuing token for userId=2488766
+2026-06-19 :: 18:04:02.093 || INFO :: HmacJwtUtil.java: | 52 | :: Generated exp in Seconds=2026-06-19T12:49:02.093570700Z
+2026-06-19 :: 18:04:02.094 || INFO :: HmacJwtUtil.java: | 54 | :: Jti generated=6e59e396-2fa4-4ead-8e18-80039637bd9b
+2026-06-19 :: 18:04:02.332 || INFO :: AuthController.java: | 202 | :: Routing user 2488766 to OTP Phase.
+2026-06-19 :: 18:04:03.125 || INFO :: OtpSessionService.java: | 100 | :: Saved OTP State txId=f31af677-15f1-4b86-9780-f09381985ce6 for user=2488766 isResend=false
+2026-06-19 :: 18:04:03.175 || INFO :: AbstractConfig.java: | 371 | :: ProducerConfig values: 
+	acks = -1
+	auto.include.jmx.reporter = true
+	batch.size = 16384
+	bootstrap.servers = [10.0.17.242:9092]
+	buffer.memory = 33554432
+	client.dns.lookup = use_all_dns_ips
+	client.id = CommonUtilities-producer-1
+	compression.gzip.level = -1
+	compression.lz4.level = 9
+	compression.type = none
+	compression.zstd.level = 3
+	connections.max.idle.ms = 540000
+	delivery.timeout.ms = 120000
+	enable.idempotence = true
+	enable.metrics.push = true
+	interceptor.classes = []
+	key.serializer = class org.apache.kafka.common.serialization.StringSerializer
+	linger.ms = 0
+	max.block.ms = 60000
+	max.in.flight.requests.per.connection = 5
+	max.request.size = 1048576
+	metadata.max.age.ms = 300000
+	metadata.max.idle.ms = 300000
+	metadata.recovery.strategy = none
+	metric.reporters = []
+	metrics.num.samples = 2
+	metrics.recording.level = INFO
+	metrics.sample.window.ms = 30000
+	partitioner.adaptive.partitioning.enable = true
+	partitioner.availability.timeout.ms = 0
+	partitioner.class = null
+	partitioner.ignore.keys = false
+	receive.buffer.bytes = 32768
+	reconnect.backoff.max.ms = 1000
+	reconnect.backoff.ms = 50
+	request.timeout.ms = 5000
+	retries = 3
+	retry.backoff.max.ms = 1000
+	retry.backoff.ms = 100
+	sasl.client.callback.handler.class = null
+	sasl.jaas.config = null
+	sasl.kerberos.kinit.cmd = /usr/bin/kinit
+	sasl.kerberos.min.time.before.relogin = 60000
+	sasl.kerberos.service.name = null
+	sasl.kerberos.ticket.renew.jitter = 0.05
+	sasl.kerberos.ticket.renew.window.factor = 0.8
+	sasl.login.callback.handler.class = null
+	sasl.login.class = null
+	sasl.login.connect.timeout.ms = null
+	sasl.login.read.timeout.ms = null
+	sasl.login.refresh.buffer.seconds = 300
+	sasl.login.refresh.min.period.seconds = 60
+	sasl.login.refresh.window.factor = 0.8
+	sasl.login.refresh.window.jitter = 0.05
+	sasl.login.retry.backoff.max.ms = 10000
+	sasl.login.retry.backoff.ms = 100
+	sasl.mechanism = GSSAPI
+	sasl.oauthbearer.clock.skew.seconds = 30
+	sasl.oauthbearer.expected.audience = null
+	sasl.oauthbearer.expected.issuer = null
+	sasl.oauthbearer.header.urlencode = false
+	sasl.oauthbearer.jwks.endpoint.refresh.ms = 3600000
+	sasl.oauthbearer.jwks.endpoint.retry.backoff.max.ms = 10000
+	sasl.oauthbearer.jwks.endpoint.retry.backoff.ms = 100
+	sasl.oauthbearer.jwks.endpoint.url = null
+	sasl.oauthbearer.scope.claim.name = scope
+	sasl.oauthbearer.sub.claim.name = sub
+	sasl.oauthbearer.token.endpoint.url = null
+	security.protocol = PLAINTEXT
+	security.providers = null
+	send.buffer.bytes = 131072
+	socket.connection.setup.timeout.max.ms = 30000
+	socket.connection.setup.timeout.ms = 10000
+	ssl.cipher.suites = null
+	ssl.enabled.protocols = [TLSv1.2, TLSv1.3]
+	ssl.endpoint.identification.algorithm = https
+	ssl.engine.factory.class = null
+	ssl.key.password = null
+	ssl.keymanager.algorithm = SunX509
+	ssl.keystore.certificate.chain = null
+	ssl.keystore.key = null
+	ssl.keystore.location = null
+	ssl.keystore.password = null
+	ssl.keystore.type = JKS
+	ssl.protocol = TLSv1.3
+	ssl.provider = null
+	ssl.secure.random.implementation = null
+	ssl.trustmanager.algorithm = PKIX
+	ssl.truststore.certificates = null
+	ssl.truststore.location = null
+	ssl.truststore.password = null
+	ssl.truststore.type = JKS
+	transaction.timeout.ms = 60000
+	transactional.id = null
+	value.serializer = class org.apache.kafka.common.serialization.StringSerializer
+
+2026-06-19 :: 18:04:03.233 || INFO :: KafkaMetricsCollector.java: | 270 | :: initializing Kafka metrics collector
+2026-06-19 :: 18:04:03.262 || INFO :: KafkaProducer.java: | 623 | :: [Producer clientId=CommonUtilities-producer-1] Instantiated an idempotent producer.
+2026-06-19 :: 18:04:03.325 || INFO :: AppInfoParser.java: | 125 | :: Kafka version: 3.9.1
+2026-06-19 :: 18:04:03.325 || INFO :: AppInfoParser.java: | 126 | :: Kafka commitId: f745dfdcee2b9851
+2026-06-19 :: 18:04:03.325 || INFO :: AppInfoParser.java: | 127 | :: Kafka startTimeMs: 1781872443322
+2026-06-19 :: 18:04:03.902 || INFO :: Metadata.java: | 365 | :: [Producer clientId=CommonUtilities-producer-1] Cluster ID: 
+2026-06-19 :: 18:04:03.903 || INFO :: TransactionManager.java: | 503 | :: [Producer clientId=CommonUtilities-producer-1] ProducerId set to 8 with epoch 0
+2026-06-19 :: 18:04:03.964 || INFO :: OtpKafkaProducer.java: | 83 | :: Encrypted OTP event published to Kafka for txId=f31af677-15f1-4b86-9780-f09381985ce6
+2026-06-19 :: 18:09:22.404 || INFO :: LoginUtility.java: | 11 | :: X-Forwarded-For ip : ::ffff:10.0.17.242
+2026-06-19 :: 18:09:22.404 || INFO :: AuthController.java: | 107 | :: Check-User info user id: 2488766 , ip : 10.0.17.242
+2026-06-19 :: 18:09:26.949 || INFO :: LoginUtility.java: | 11 | :: X-Forwarded-For ip : ::ffff:10.0.17.242
+2026-06-19 :: 18:09:26.950 || INFO :: AuthController.java: | 147 | :: Login request for user: 2488766 from IP: 10.0.17.242
+2026-06-19 :: 18:09:27.049 || INFO :: LoginServiceImpl.java: | 388 | :: Password-based login for userId=2488766
+2026-06-19 :: 18:09:27.134 || INFO :: LoginServiceImpl.java: | 635 | :: Credentials validated. Issuing token for userId=2488766
+2026-06-19 :: 18:09:27.158 || INFO :: HmacJwtUtil.java: | 52 | :: Generated exp in Seconds=2026-06-19T12:54:27.158602500Z
+2026-06-19 :: 18:09:27.158 || INFO :: HmacJwtUtil.java: | 54 | :: Jti generated=201f00c0-4181-4ca4-b275-11cb4f8054d8
+2026-06-19 :: 18:09:27.227 || INFO :: AuthController.java: | 202 | :: Routing user 2488766 to OTP Phase.
+2026-06-19 :: 18:09:27.293 || INFO :: OtpSessionService.java: | 100 | :: Saved OTP State txId=4626fb2e-c59c-4220-8973-88428d8c45b8 for user=2488766 isResend=false
+2026-06-19 :: 18:09:27.298 || INFO :: OtpKafkaProducer.java: | 83 | :: Encrypted OTP event published to Kafka for txId=4626fb2e-c59c-4220-8973-88428d8c45b8
+2026-06-19 :: 18:13:31.473 || INFO :: AuthController.java: | 436 | :: OTP Resend for TxId: 4626fb2e-c59c-4220-8973-88428d8c45b8
+2026-06-19 :: 18:13:31.473 || INFO :: LoginUtility.java: | 11 | :: X-Forwarded-For ip : ::ffff:10.0.17.242
+2026-06-19 :: 18:13:31.568 || INFO :: OtpSessionService.java: | 100 | :: Saved OTP State txId=4626fb2e-c59c-4220-8973-88428d8c45b8 for user=2488766 isResend=true
+2026-06-19 :: 18:13:31.769 || INFO :: OtpKafkaProducer.java: | 83 | :: Encrypted OTP event published to Kafka for txId=4626fb2e-c59c-4220-8973-88428d8c45b8
+
