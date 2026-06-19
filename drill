@@ -13,10 +13,27 @@
   "type"
 FROM "bncs";
 
-
 | __time                   | currency |        cgl |  comp | name                            |               amt | type |
 | :----------------------- | :------- | ---------: | ----: | :------------------------------ | ----------------: | :--- |
 | 2026-03-31T00:00:00.000Z | ACD      | 1175505001 | 20531 |  CURRENCY CONTROL A/C (CR/DR)   |        2138896192 | bgl  |
 | 2026-03-31T00:00:00.000Z | ACD      | 1209505013 |  1352 |  ACD SBI DHAKA (ACD)            |          -1379746 | bgl  |
 | 2026-03-31T00:00:00.000Z | ACD      | 1209505014 |  1352 |  ACD SBI, COLOMBO (ACD) - SBCLA |          -1847368 | bgl  |
 | 2026-03-31T00:00:00.000Z | ACD      | 1209505015 |  1352 |  ACD SBI NEW YORK - SBNYA       |       -2135662667 | bgl  |
+| 2026-03-31T00:00:00.000Z | ACD      | 1258505001 | 20003 |  FC NOTES A/C                   |             -6410 | bgl  |
+| 2026-03-31T00:00:00.000Z | ACE      | 1222505001 |  1352 |  CA-NOSTRO MIRROR IN ACU        |         -12196228 | bgl  |
+| 2026-03-31T00:00:00.000Z | ACU      | 1222505001 |  1352 |  CA-NOSTRO MIRROR IN ACU        |          -6707429 | bgl  |
+| 2026-03-31T00:00:00.000Z | AED      | 1115505002 | 20026 |  AED National Bank of Abu Dhabi |          -9161057 | bgl  |
+| 2026-03-31T00:00:00.000Z | AED      | 1115505092 | 20026 |  NOST-MIR-SBIGMUK-ADCB-ABUDHABI |           -742162 | bgl  |
+| 2026-03-31T00:00:00.000Z | AED      | 1121505002 |  1305 |  Card Holder Pool ac Corporate  |            159607 | bgl  |
+| 2026-03-31T00:00:00.000Z | AED      | 1121505003 |  1305 |  Card Holder Pool ac Retail     |          34752416 | bgl  |
+| 2026-03-31T00:00:00.000Z | AED      | 1175505001 | 20531 |  CURRENCY CONTROL A/C (CR/DR)   |      -12930980636 | bgl  |
+| 2026-03-31T00:00:00.000Z | AED      | 1185505018 | 20026 |  SBT  MASHREQ BANK AED          |          -1895153 | bgl  |
+| 2026-03-31T00:00:00.000Z | AED      | 1258505001 | 20003 |  FC NOTES A/C                   |           -404015 | bgl  |
+| 2026-03-31T00:00:00.000Z | AUD      | 1115505006 | 20026 |  AUD Nat Australia Bank, Melbou |          -7127051 | bgl  |
+| 2026-03-31T00:00:00.000Z | AUD      | 1115505007 | 20026 |  AUD CommnwlthBk Of Austrl Sydn |           -174177 | bgl  |
+| 2026-03-31T00:00:00.000Z | AUD      | 1115505008 | 20026 |  BANK OF AMERICA SYDNEY AUD FTC |           -992072 | bgl  |
+| 2026-03-31T00:00:00.000Z | AUD      | 1121505002 |  1305 |  Card Holder Pool ac Corporate  |             87589 | bgl  |
+| 2026-03-31T00:00:00.000Z | AUD      | 1121505003 |  1305 |  Card Holder Pool ac Retail     |           4105756 | bgl  |
+| 2026-03-31T00:00:00.000Z | AUD      | 1175505001 | 20531 |  CURRENCY CONTROL A/C (CR/DR)   |       -3408195244 | bgl  |
+| 2026-03-31T00:00:00.000Z | AUD      | 1209505020 |  1352 |  AUD SBI Sydney (SBSY)          |           1261496 | bgl  |
+| 2026-03-31T00:00:00.000Z | AUD      | 1209505077 |  1352 |  SBI SYDNEY INTRBANK SETTLEMENT |          -1390065 | bgl  |
