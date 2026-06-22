@@ -1,363 +1,158 @@
-```java
-package com.fincore.analyticsservice.model;
-
-import jakarta.persistence.*;
-import lombok.Getter;
-import lombok.Setter;
-
-@Entity
-@Table(name = "DR_VIEW_METRIC")
-@Getter
-@Setter
-public class DrViewMetric {
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
-
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "VIEW_ID", nullable = false)
-    private DrReportView reportView;
-
-    @Column(name = "LOGICAL_NAME", nullable = false)
-    private String logicalName;
-
-    @Column(name = "DISPLAY_NAME", nullable = false)
-    private String displayName;
-
-    // UPGRADED: Now maps directly to the raw Apache Druid SQL string in Oracle
-    @Column(name = "SQL_EXPRESSION", nullable = false)
-    private String sqlExpression;
-}
-
-```
-
-
-
-
-
-
-
-
-```java
-package com.fincore.analyticsservice.service;
-
-import com.fincore.analyticsservice.dto.DimensionConfig;
-import com.fincore.analyticsservice.dto.ViewMetadataContext;
-import com.fincore.analyticsservice.model.DrReportView;
-import com.fincore.analyticsservice.model.DrViewDimension;
-import com.fincore.analyticsservice.model.DrViewMetric;
-import com.fincore.analyticsservice.repository.DrReportViewRepository;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.springframework.cache.annotation.Cacheable;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-
-import java.util.List;
-import java.util.Map;
-import java.util.stream.Collectors;
-
-@Service
-public class OracleMetadataProviderImpl implements ReportMetadataProvider {
-
-    private static final Logger log = LoggerFactory.getLogger(OracleMetadataProviderImpl.class);
-    private final DrReportViewRepository viewRepository;
-
-    public OracleMetadataProviderImpl(DrReportViewRepository viewRepository) {
-        this.viewRepository = viewRepository;
-    }
-
-    @Override
-    @Transactional(readOnly = true)
-    @Cacheable(value = "viewMetadataContextCache", key = "#viewCode")
-    public ViewMetadataContext getViewContext(String viewCode) {
-        log.debug("Cache miss. Loading mappings from Oracle for viewCode: [{}]", viewCode);
-
-        DrReportView viewEntity = viewRepository.findByViewCodeActive(viewCode)
-                .orElseThrow(() -> new IllegalArgumentException("Invalid or inactive viewCode: " + viewCode));
-
-        List<String> orderedHierarchy = viewEntity.getDimensions().stream()
-                .map(DrViewDimension::getLogicalName)
-                .toList();
-
-        Map<String, DimensionConfig> dimMap = viewEntity.getDimensions().stream()
-                .collect(Collectors.toMap(
-                        DrViewDimension::getLogicalName, 
-                        dim -> new DimensionConfig(dim.getPhysicalColumn(), dim.isExpression())
-                ));
-
-        // UPGRADED: Maps the Logical Name directly to the SQL_EXPRESSION string
-        Map<String, String> metricMap = viewEntity.getMetrics().stream()
-                .collect(Collectors.toMap(DrViewMetric::getLogicalName, DrViewMetric::getSqlExpression));
-
-        return new ViewMetadataContext(
-                viewEntity.getViewCode(),
-                viewEntity.getDatasource().getDruidTableName(),
-                viewEntity.getDatasource().getClusterUrl(), 
-                viewEntity.getRequiredRoleIds(),
-                orderedHierarchy,
-                dimMap,
-                metricMap
-        );
-    }
-}
-
-
-```
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-```java
-package com.fincore.analyticsservice.service;
-
-import com.fincore.analyticsservice.client.DruidRestClient;
-import com.fincore.analyticsservice.component.DruidQueryBuilder;
-import com.fincore.analyticsservice.dto.DimensionConfig;
-import com.fincore.analyticsservice.dto.DrillDownRequest;
-import com.fincore.analyticsservice.dto.DrillDownResponse;
-import com.fincore.analyticsservice.dto.Meta;
-import com.fincore.analyticsservice.dto.ViewMetadataContext;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.springframework.cache.annotation.Cacheable;
-import org.springframework.security.access.AccessDeniedException;
-import org.springframework.stereotype.Service;
-import org.springframework.util.CollectionUtils;
-
-import java.util.*;
-
-@Service
-public class SemanticDrillDownService {
-
-    private static final Logger log = LoggerFactory.getLogger(SemanticDrillDownService.class);
-    private static final Integer ROLE_ADMIN = 10;
-
-    private final DruidRestClient druidRestClient;
-    private final DruidQueryBuilder queryBuilder;
-    private final ReportMetadataProvider metadataProvider;
-
-    // UPGRADED: Notice the MetricStrategy lists and maps have been completely deleted!
-    public SemanticDrillDownService(
-            DruidRestClient druidRestClient,
-            DruidQueryBuilder queryBuilder,
-            ReportMetadataProvider metadataProvider) {
-        this.druidRestClient = druidRestClient;
-        this.queryBuilder = queryBuilder;
-        this.metadataProvider = metadataProvider;
-    }
-
-    @Cacheable(value = "drillDownData", key = "T(java.lang.String).valueOf(#request.hashCode())")
-    public DrillDownResponse executeDrillDown(DrillDownRequest request, Integer roleId) {
-        long startTime = System.currentTimeMillis();
-        String logicalTargetDim = request.dimensions().get(0);
-
-        log.info("Executing DrillDown for view: [{}], logicalDim: [{}]", request.viewCode(), logicalTargetDim);
-
-        ViewMetadataContext context = metadataProvider.getViewContext(request.viewCode());
-
-        validateAccess(context.requiredRoleIds(), roleId);
-
-        DimensionConfig targetDimConfig = translateDimension(logicalTargetDim, context.dimensionMap());
-        
-        // UPGRADED: We now just resolve a Map of pure SQL strings
-        Map<String, String> resolvedMetricsSql = resolveMetrics(request.metrics(), context.metricMap());
-
-        Map<String, Object> druidPayload = queryBuilder.buildSqlPayload(
-                context.physicalDruidTable(),
-                logicalTargetDim,
-                targetDimConfig,
-                request.metrics(),
-                resolvedMetricsSql,
-                request.filters(),
-                context.dimensionMap()
-        );
-
-        List<Map<String, Object>> rawDruidData = druidRestClient.executeQuery(context.clusterUrl(), druidPayload);
-
-        if (CollectionUtils.isEmpty(rawDruidData)) {
-            return new DrillDownResponse(new Meta("SUCCESS", logicalTargetDim, 0, System.currentTimeMillis() - startTime), Collections.emptyList());
-        }
-
-        boolean hasChildren = determineIfHasChildren(logicalTargetDim, context.logicalHierarchyOrdered());
-        List<Map<String, Object>> formattedData = formatResponseData(rawDruidData, logicalTargetDim, hasChildren);
-
-        long executionTime = System.currentTimeMillis() - startTime;
-        return new DrillDownResponse(new Meta("SUCCESS", logicalTargetDim, formattedData.size(), executionTime), formattedData);
-    }
-
-    private void validateAccess(String requiredRoleIds, Integer roleId) {
-        if (ROLE_ADMIN.equals(roleId)) return;
-        if (requiredRoleIds == null || requiredRoleIds.trim().isEmpty()) return;
-
-        List<String> allowedRoles = Arrays.asList(requiredRoleIds.split(","));
-        if (!allowedRoles.contains(String.valueOf(roleId))) {
-            throw new AccessDeniedException("Insufficient permissions to execute drill-down for this view.");
-        }
-    }
-
-    private DimensionConfig translateDimension(String logicalName, Map<String, DimensionConfig> dimMap) {
-        DimensionConfig config = dimMap.get(logicalName);
-        if (config == null) {
-            throw new IllegalArgumentException("Logical dimension '" + logicalName + "' is not supported in this view.");
-        }
-        return config;
-    }
-
-    // UPGRADED: Simplified logic to just fetch the raw SQL string from the database context
-    private Map<String, String> resolveMetrics(List<String> logicalMetrics, Map<String, String> metricMap) {
-        Map<String, String> resolved = new HashMap<>();
-        for (String logicalName : logicalMetrics) {
-            String sqlExpression = metricMap.get(logicalName);
-            if (sqlExpression == null || sqlExpression.isBlank()) {
-                throw new IllegalArgumentException("Logical metric '" + logicalName + "' is not supported in this view.");
-            }
-            resolved.put(logicalName, sqlExpression);
-        }
-        return resolved;
-    }
-
-    private boolean determineIfHasChildren(String currentDim, List<String> hierarchy) {
-        int index = hierarchy.indexOf(currentDim);
-        return index != -1 && index < hierarchy.size() - 1;
-    }
-
-    private List<Map<String, Object>> formatResponseData(List<Map<String, Object>> rawData, String logicalDim, boolean hasChildren) {
-        String idPrefix = logicalDim.toLowerCase() + "_";
-        List<Map<String, Object>> result = new ArrayList<>(rawData.size());
-
-        for (Map<String, Object> row : rawData) {
-            Map<String, Object> formattedRow = new LinkedHashMap<>();
-
-            Object nameObj = row.get(logicalDim);
-            String nameValue = (nameObj != null && !nameObj.toString().isBlank()) ? nameObj.toString() : "Unassigned";
-
-            formattedRow.put("id", idPrefix + nameValue.toLowerCase().replaceAll("[^a-z0-9]", "_"));
-            formattedRow.put("name", nameValue); 
-
-            for (Map.Entry<String, Object> entry : row.entrySet()) {
-                if (!entry.getKey().equals(logicalDim)) {
-                    formattedRow.put(entry.getKey(), entry.getValue() == null ? 0.0 : entry.getValue());
-                }
-            }
-            formattedRow.put("hasChildren", hasChildren);
-            result.add(formattedRow);
-        }
-        return result;
-    }
-}
-
-
-```
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-```java
-package com.fincore.analyticsservice.component;
-
-import com.fincore.analyticsservice.dto.DimensionConfig;
-import com.fincore.analyticsservice.dto.FilterDto;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.springframework.stereotype.Component;
-
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-
-@Component
-public class DruidQueryBuilder {
-
-    private static final Logger log = LoggerFactory.getLogger(DruidQueryBuilder.class);
-
-    public Map<String, Object> buildSqlPayload(
-            String physicalTable,
-            String logicalTargetDim,
-            DimensionConfig targetDimConfig, 
-            List<String> logicalMetrics,
-            Map<String, String> resolvedMetricsSql, // UPGRADED: Takes raw SQL map instead of Strategies
-            List<FilterDto> filters,
-            Map<String, DimensionConfig> dimensionTranslationMap) {
-
-        StringBuilder sql = new StringBuilder("SELECT ");
-        
-        // 1. Grouping Column (Dynamically formatted)
-        sql.append(formatDimension(targetDimConfig)).append(" AS \"").append(logicalTargetDim).append("\"");
-        
-        // 2. Metrics (UPGRADED: Simply appends the raw DB string!)
-        for (String logicalMetric : logicalMetrics) {
-            String rawMetricSql = resolvedMetricsSql.get(logicalMetric);
-            sql.append(", ").append(rawMetricSql).append(" AS \"").append(logicalMetric).append("\"");
-        }
-        
-        // 3. From physical datasource
-        sql.append(" FROM \"").append(physicalTable).append("\" WHERE 1=1 ");
-
-        // 4. Filters 
-        List<Map<String, String>> parameters = new ArrayList<>();
-        if (filters != null && !filters.isEmpty()) {
-            for (FilterDto filter : filters) {
-                DimensionConfig filterDimConfig = dimensionTranslationMap.get(filter.logicalField());
-                if (filterDimConfig == null) {
-                    throw new IllegalArgumentException("Filter dimension not mapped: " + filter.logicalField());
-                }
-                appendFilterCondition(sql, parameters, filterDimConfig, filter);
-            }
-        }
-        
-        // 5. Group By
-        sql.append(" GROUP BY ").append(formatDimension(targetDimConfig));
-
-        return Map.of(
-            "query", sql.toString(),
-            "parameters", parameters
-        );
-    }
-
-    private String formatDimension(DimensionConfig config) {
-        if (config.isExpression()) {
-            return "(" + config.physicalSql() + ")";
-        } else {
-            return "\"" + config.physicalSql() + "\"";
-        }
-    }
-
-    private void appendFilterCondition(StringBuilder sql, List<Map<String, String>> parameters, DimensionConfig config, FilterDto filter) {
-        if ("EQUALS".equalsIgnoreCase(filter.operator())) {
-            sql.append(" AND ").append(formatDimension(config)).append(" = ? ");
-            parameters.add(Map.of("type", "VARCHAR", "value", String.valueOf(filter.value())));
-        } else {
-            throw new IllegalArgumentException("Unsupported filter operator: " + filter.operator());
-        }
-    }
-}
-
-
-```
+2026-06-22T13:17:59.889+05:30 ERROR 36372 --- [AnalyticsService] [omcat-handler-1] c.f.a.exception.GlobalExceptionHandler   : Unhandled Exception occurred: 
+
+org.springframework.http.converter.HttpMessageNotReadableException: JSON parse error: Cannot construct instance of `com.fincore.analyticsservice.dto.DrillDownRequest` (although at least one Creator exists): no String-argument constructor/factory method to deserialize from String value ('8FRD59HgbFmACU5j:YTH8LqNGXfrikAlp5r9zFm5GwmMZH4sfcxqvS1y0uh09r8h2e3g86GB3wOdmEC2w1ib615cUAlKa7OCNx2QRc+AMxSY/yV8h8O9VmLfqG4V0+R5jYAVKecX5iWdWbgqlvBRUsqBLbJZm39pdiDEAUg==')
+	at org.springframework.http.converter.json.AbstractJackson2HttpMessageConverter.readJavaType(AbstractJackson2HttpMessageConverter.java:408) ~[spring-web-6.2.17.jar:6.2.17]
+	at org.springframework.http.converter.json.AbstractJackson2HttpMessageConverter.read(AbstractJackson2HttpMessageConverter.java:356) ~[spring-web-6.2.17.jar:6.2.17]
+	at org.springframework.web.servlet.mvc.method.annotation.AbstractMessageConverterMethodArgumentResolver.readWithMessageConverters(AbstractMessageConverterMethodArgumentResolver.java:204) ~[spring-webmvc-6.2.17.jar:6.2.17]
+	at org.springframework.web.servlet.mvc.method.annotation.RequestResponseBodyMethodProcessor.readWithMessageConverters(RequestResponseBodyMethodProcessor.java:176) ~[spring-webmvc-6.2.17.jar:6.2.17]
+	at org.springframework.web.servlet.mvc.method.annotation.RequestResponseBodyMethodProcessor.resolveArgument(RequestResponseBodyMethodProcessor.java:150) ~[spring-webmvc-6.2.17.jar:6.2.17]
+	at org.springframework.web.method.support.HandlerMethodArgumentResolverComposite.resolveArgument(HandlerMethodArgumentResolverComposite.java:122) ~[spring-web-6.2.17.jar:6.2.17]
+	at org.springframework.web.method.support.InvocableHandlerMethod.getMethodArgumentValues(InvocableHandlerMethod.java:227) ~[spring-web-6.2.17.jar:6.2.17]
+	at org.springframework.web.method.support.InvocableHandlerMethod.invokeForRequest(InvocableHandlerMethod.java:181) ~[spring-web-6.2.17.jar:6.2.17]
+	at org.springframework.web.servlet.mvc.method.annotation.ServletInvocableHandlerMethod.invokeAndHandle(ServletInvocableHandlerMethod.java:118) ~[spring-webmvc-6.2.17.jar:6.2.17]
+	at org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerAdapter.invokeHandlerMethod(RequestMappingHandlerAdapter.java:991) ~[spring-webmvc-6.2.17.jar:6.2.17]
+	at org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerAdapter.handleInternal(RequestMappingHandlerAdapter.java:896) ~[spring-webmvc-6.2.17.jar:6.2.17]
+	at org.springframework.web.servlet.mvc.method.AbstractHandlerMethodAdapter.handle(AbstractHandlerMethodAdapter.java:87) ~[spring-webmvc-6.2.17.jar:6.2.17]
+	at org.springframework.web.servlet.DispatcherServlet.doDispatch(DispatcherServlet.java:1089) ~[spring-webmvc-6.2.17.jar:6.2.17]
+	at org.springframework.web.servlet.DispatcherServlet.doService(DispatcherServlet.java:979) ~[spring-webmvc-6.2.17.jar:6.2.17]
+	at org.springframework.web.servlet.FrameworkServlet.processRequest(FrameworkServlet.java:1014) ~[spring-webmvc-6.2.17.jar:6.2.17]
+	at org.springframework.web.servlet.FrameworkServlet.doPost(FrameworkServlet.java:914) ~[spring-webmvc-6.2.17.jar:6.2.17]
+	at jakarta.servlet.http.HttpServlet.service(HttpServlet.java:590) ~[tomcat-embed-core-10.1.53.jar:6.0]
+	at org.springframework.web.servlet.FrameworkServlet.service(FrameworkServlet.java:885) ~[spring-webmvc-6.2.17.jar:6.2.17]
+	at jakarta.servlet.http.HttpServlet.service(HttpServlet.java:658) ~[tomcat-embed-core-10.1.53.jar:6.0]
+	at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:193) ~[tomcat-embed-core-10.1.53.jar:10.1.53]
+	at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:138) ~[tomcat-embed-core-10.1.53.jar:10.1.53]
+	at org.apache.tomcat.websocket.server.WsFilter.doFilter(WsFilter.java:51) ~[tomcat-embed-websocket-10.1.53.jar:10.1.53]
+	at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:162) ~[tomcat-embed-core-10.1.53.jar:10.1.53]
+	at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:138) ~[tomcat-embed-core-10.1.53.jar:10.1.53]
+	at org.springframework.web.filter.CompositeFilter$VirtualFilterChain.doFilter(CompositeFilter.java:108) ~[spring-web-6.2.17.jar:6.2.17]
+	at org.springframework.web.filter.CompositeFilter$VirtualFilterChain.doFilter(CompositeFilter.java:108) ~[spring-web-6.2.17.jar:6.2.17]
+	at org.springframework.security.web.FilterChainProxy.lambda$doFilterInternal$3(FilterChainProxy.java:231) ~[spring-security-web-6.5.9.jar:6.5.9]
+	at org.springframework.security.web.ObservationFilterChainDecorator$FilterObservation$SimpleFilterObservation.lambda$wrap$1(ObservationFilterChainDecorator.java:490) ~[spring-security-web-6.5.9.jar:6.5.9]
+	at org.springframework.security.web.ObservationFilterChainDecorator$AroundFilterObservation$SimpleAroundFilterObservation.lambda$wrap$1(ObservationFilterChainDecorator.java:351) ~[spring-security-web-6.5.9.jar:6.5.9]
+	at org.springframework.security.web.ObservationFilterChainDecorator.lambda$wrapSecured$0(ObservationFilterChainDecorator.java:83) ~[spring-security-web-6.5.9.jar:6.5.9]
+	at org.springframework.security.web.ObservationFilterChainDecorator$VirtualFilterChain.doFilter(ObservationFilterChainDecorator.java:129) ~[spring-security-web-6.5.9.jar:6.5.9]
+	at org.springframework.security.web.access.intercept.AuthorizationFilter.doFilter(AuthorizationFilter.java:101) ~[spring-security-web-6.5.9.jar:6.5.9]
+	at org.springframework.security.web.ObservationFilterChainDecorator$ObservationFilter.wrapFilter(ObservationFilterChainDecorator.java:241) ~[spring-security-web-6.5.9.jar:6.5.9]
+	at org.springframework.security.web.ObservationFilterChainDecorator$ObservationFilter.doFilter(ObservationFilterChainDecorator.java:228) ~[spring-security-web-6.5.9.jar:6.5.9]
+	at org.springframework.security.web.ObservationFilterChainDecorator$VirtualFilterChain.doFilter(ObservationFilterChainDecorator.java:138) ~[spring-security-web-6.5.9.jar:6.5.9]
+	at org.springframework.security.web.access.ExceptionTranslationFilter.doFilter(ExceptionTranslationFilter.java:125) ~[spring-security-web-6.5.9.jar:6.5.9]
+	at org.springframework.security.web.access.ExceptionTranslationFilter.doFilter(ExceptionTranslationFilter.java:119) ~[spring-security-web-6.5.9.jar:6.5.9]
+	at org.springframework.security.web.ObservationFilterChainDecorator$ObservationFilter.wrapFilter(ObservationFilterChainDecorator.java:241) ~[spring-security-web-6.5.9.jar:6.5.9]
+	at org.springframework.security.web.ObservationFilterChainDecorator$ObservationFilter.doFilter(ObservationFilterChainDecorator.java:228) ~[spring-security-web-6.5.9.jar:6.5.9]
+	at org.springframework.security.web.ObservationFilterChainDecorator$VirtualFilterChain.doFilter(ObservationFilterChainDecorator.java:138) ~[spring-security-web-6.5.9.jar:6.5.9]
+	at org.springframework.security.web.session.SessionManagementFilter.doFilter(SessionManagementFilter.java:131) ~[spring-security-web-6.5.9.jar:6.5.9]
+	at org.springframework.security.web.session.SessionManagementFilter.doFilter(SessionManagementFilter.java:85) ~[spring-security-web-6.5.9.jar:6.5.9]
+	at org.springframework.security.web.ObservationFilterChainDecorator$ObservationFilter.wrapFilter(ObservationFilterChainDecorator.java:241) ~[spring-security-web-6.5.9.jar:6.5.9]
+	at org.springframework.security.web.ObservationFilterChainDecorator$ObservationFilter.doFilter(ObservationFilterChainDecorator.java:228) ~[spring-security-web-6.5.9.jar:6.5.9]
+	at org.springframework.security.web.ObservationFilterChainDecorator$VirtualFilterChain.doFilter(ObservationFilterChainDecorator.java:138) ~[spring-security-web-6.5.9.jar:6.5.9]
+	at org.springframework.security.web.authentication.AnonymousAuthenticationFilter.doFilter(AnonymousAuthenticationFilter.java:100) ~[spring-security-web-6.5.9.jar:6.5.9]
+	at org.springframework.security.web.ObservationFilterChainDecorator$ObservationFilter.wrapFilter(ObservationFilterChainDecorator.java:241) ~[spring-security-web-6.5.9.jar:6.5.9]
+	at org.springframework.security.web.ObservationFilterChainDecorator$ObservationFilter.doFilter(ObservationFilterChainDecorator.java:228) ~[spring-security-web-6.5.9.jar:6.5.9]
+	at org.springframework.security.web.ObservationFilterChainDecorator$VirtualFilterChain.doFilter(ObservationFilterChainDecorator.java:138) ~[spring-security-web-6.5.9.jar:6.5.9]
+	at org.springframework.security.web.servletapi.SecurityContextHolderAwareRequestFilter.doFilter(SecurityContextHolderAwareRequestFilter.java:179) ~[spring-security-web-6.5.9.jar:6.5.9]
+	at org.springframework.security.web.ObservationFilterChainDecorator$ObservationFilter.wrapFilter(ObservationFilterChainDecorator.java:241) ~[spring-security-web-6.5.9.jar:6.5.9]
+	at org.springframework.security.web.ObservationFilterChainDecorator$ObservationFilter.doFilter(ObservationFilterChainDecorator.java:228) ~[spring-security-web-6.5.9.jar:6.5.9]
+	at org.springframework.security.web.ObservationFilterChainDecorator$VirtualFilterChain.doFilter(ObservationFilterChainDecorator.java:138) ~[spring-security-web-6.5.9.jar:6.5.9]
+	at org.springframework.security.web.savedrequest.RequestCacheAwareFilter.doFilter(RequestCacheAwareFilter.java:63) ~[spring-security-web-6.5.9.jar:6.5.9]
+	at org.springframework.security.web.ObservationFilterChainDecorator$ObservationFilter.wrapFilter(ObservationFilterChainDecorator.java:241) ~[spring-security-web-6.5.9.jar:6.5.9]
+	at org.springframework.security.web.ObservationFilterChainDecorator$ObservationFilter.doFilter(ObservationFilterChainDecorator.java:228) ~[spring-security-web-6.5.9.jar:6.5.9]
+	at org.springframework.security.web.ObservationFilterChainDecorator$VirtualFilterChain.doFilter(ObservationFilterChainDecorator.java:138) ~[spring-security-web-6.5.9.jar:6.5.9]
+	at com.fincore.commonutilities.security.ContextRbacFilter.doFilterInternal(ContextRbacFilter.java:161) ~[classes/:na]
+	at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:116) ~[spring-web-6.2.17.jar:6.2.17]
+	at org.springframework.security.web.ObservationFilterChainDecorator$ObservationFilter.wrapFilter(ObservationFilterChainDecorator.java:241) ~[spring-security-web-6.5.9.jar:6.5.9]
+	at org.springframework.security.web.ObservationFilterChainDecorator$ObservationFilter.doFilter(ObservationFilterChainDecorator.java:228) ~[spring-security-web-6.5.9.jar:6.5.9]
+	at org.springframework.security.web.ObservationFilterChainDecorator$VirtualFilterChain.doFilter(ObservationFilterChainDecorator.java:138) ~[spring-security-web-6.5.9.jar:6.5.9]
+	at org.springframework.security.web.authentication.logout.LogoutFilter.doFilter(LogoutFilter.java:107) ~[spring-security-web-6.5.9.jar:6.5.9]
+	at org.springframework.security.web.authentication.logout.LogoutFilter.doFilter(LogoutFilter.java:93) ~[spring-security-web-6.5.9.jar:6.5.9]
+	at org.springframework.security.web.ObservationFilterChainDecorator$ObservationFilter.wrapFilter(ObservationFilterChainDecorator.java:241) ~[spring-security-web-6.5.9.jar:6.5.9]
+	at org.springframework.security.web.ObservationFilterChainDecorator$ObservationFilter.doFilter(ObservationFilterChainDecorator.java:228) ~[spring-security-web-6.5.9.jar:6.5.9]
+	at org.springframework.security.web.ObservationFilterChainDecorator$VirtualFilterChain.doFilter(ObservationFilterChainDecorator.java:138) ~[spring-security-web-6.5.9.jar:6.5.9]
+	at org.springframework.web.filter.CorsFilter.doFilterInternal(CorsFilter.java:91) ~[spring-web-6.2.17.jar:6.2.17]
+	at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:116) ~[spring-web-6.2.17.jar:6.2.17]
+	at org.springframework.security.web.ObservationFilterChainDecorator$ObservationFilter.wrapFilter(ObservationFilterChainDecorator.java:241) ~[spring-security-web-6.5.9.jar:6.5.9]
+	at org.springframework.security.web.ObservationFilterChainDecorator$ObservationFilter.doFilter(ObservationFilterChainDecorator.java:228) ~[spring-security-web-6.5.9.jar:6.5.9]
+	at org.springframework.security.web.ObservationFilterChainDecorator$VirtualFilterChain.doFilter(ObservationFilterChainDecorator.java:138) ~[spring-security-web-6.5.9.jar:6.5.9]
+	at org.springframework.security.web.header.HeaderWriterFilter.doHeadersAfter(HeaderWriterFilter.java:90) ~[spring-security-web-6.5.9.jar:6.5.9]
+	at org.springframework.security.web.header.HeaderWriterFilter.doFilterInternal(HeaderWriterFilter.java:75) ~[spring-security-web-6.5.9.jar:6.5.9]
+	at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:116) ~[spring-web-6.2.17.jar:6.2.17]
+	at org.springframework.security.web.ObservationFilterChainDecorator$ObservationFilter.wrapFilter(ObservationFilterChainDecorator.java:241) ~[spring-security-web-6.5.9.jar:6.5.9]
+	at org.springframework.security.web.ObservationFilterChainDecorator$ObservationFilter.doFilter(ObservationFilterChainDecorator.java:228) ~[spring-security-web-6.5.9.jar:6.5.9]
+	at org.springframework.security.web.ObservationFilterChainDecorator$VirtualFilterChain.doFilter(ObservationFilterChainDecorator.java:138) ~[spring-security-web-6.5.9.jar:6.5.9]
+	at org.springframework.security.web.context.SecurityContextHolderFilter.doFilter(SecurityContextHolderFilter.java:82) ~[spring-security-web-6.5.9.jar:6.5.9]
+	at org.springframework.security.web.context.SecurityContextHolderFilter.doFilter(SecurityContextHolderFilter.java:69) ~[spring-security-web-6.5.9.jar:6.5.9]
+	at org.springframework.security.web.ObservationFilterChainDecorator$ObservationFilter.wrapFilter(ObservationFilterChainDecorator.java:241) ~[spring-security-web-6.5.9.jar:6.5.9]
+	at org.springframework.security.web.ObservationFilterChainDecorator$ObservationFilter.doFilter(ObservationFilterChainDecorator.java:228) ~[spring-security-web-6.5.9.jar:6.5.9]
+	at org.springframework.security.web.ObservationFilterChainDecorator$VirtualFilterChain.doFilter(ObservationFilterChainDecorator.java:138) ~[spring-security-web-6.5.9.jar:6.5.9]
+	at org.springframework.security.web.context.request.async.WebAsyncManagerIntegrationFilter.doFilterInternal(WebAsyncManagerIntegrationFilter.java:62) ~[spring-security-web-6.5.9.jar:6.5.9]
+	at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:116) ~[spring-web-6.2.17.jar:6.2.17]
+	at org.springframework.security.web.ObservationFilterChainDecorator$ObservationFilter.wrapFilter(ObservationFilterChainDecorator.java:241) ~[spring-security-web-6.5.9.jar:6.5.9]
+	at org.springframework.security.web.ObservationFilterChainDecorator$ObservationFilter.doFilter(ObservationFilterChainDecorator.java:228) ~[spring-security-web-6.5.9.jar:6.5.9]
+	at org.springframework.security.web.ObservationFilterChainDecorator$VirtualFilterChain.doFilter(ObservationFilterChainDecorator.java:138) ~[spring-security-web-6.5.9.jar:6.5.9]
+	at org.springframework.security.web.session.DisableEncodeUrlFilter.doFilterInternal(DisableEncodeUrlFilter.java:42) ~[spring-security-web-6.5.9.jar:6.5.9]
+	at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:116) ~[spring-web-6.2.17.jar:6.2.17]
+	at org.springframework.security.web.ObservationFilterChainDecorator$ObservationFilter.wrapFilter(ObservationFilterChainDecorator.java:241) ~[spring-security-web-6.5.9.jar:6.5.9]
+	at org.springframework.security.web.ObservationFilterChainDecorator$AroundFilterObservation$SimpleAroundFilterObservation.lambda$wrap$0(ObservationFilterChainDecorator.java:334) ~[spring-security-web-6.5.9.jar:6.5.9]
+	at org.springframework.security.web.ObservationFilterChainDecorator$ObservationFilter.doFilter(ObservationFilterChainDecorator.java:225) ~[spring-security-web-6.5.9.jar:6.5.9]
+	at org.springframework.security.web.ObservationFilterChainDecorator$VirtualFilterChain.doFilter(ObservationFilterChainDecorator.java:138) ~[spring-security-web-6.5.9.jar:6.5.9]
+	at org.springframework.security.web.FilterChainProxy.doFilterInternal(FilterChainProxy.java:233) ~[spring-security-web-6.5.9.jar:6.5.9]
+	at org.springframework.security.web.FilterChainProxy.doFilter(FilterChainProxy.java:191) ~[spring-security-web-6.5.9.jar:6.5.9]
+	at org.springframework.web.filter.CompositeFilter$VirtualFilterChain.doFilter(CompositeFilter.java:113) ~[spring-web-6.2.17.jar:6.2.17]
+	at org.springframework.web.filter.ServletRequestPathFilter.doFilter(ServletRequestPathFilter.java:52) ~[spring-web-6.2.17.jar:6.2.17]
+	at org.springframework.web.filter.CompositeFilter$VirtualFilterChain.doFilter(CompositeFilter.java:113) ~[spring-web-6.2.17.jar:6.2.17]
+	at org.springframework.web.filter.CompositeFilter.doFilter(CompositeFilter.java:74) ~[spring-web-6.2.17.jar:6.2.17]
+	at org.springframework.security.config.annotation.web.configuration.WebSecurityConfiguration$CompositeFilterChainProxy.doFilter(WebSecurityConfiguration.java:319) ~[spring-security-config-6.5.9.jar:6.5.9]
+	at org.springframework.web.filter.CompositeFilter$VirtualFilterChain.doFilter(CompositeFilter.java:113) ~[spring-web-6.2.17.jar:6.2.17]
+	at org.springframework.web.servlet.handler.HandlerMappingIntrospector.lambda$createCacheFilter$4(HandlerMappingIntrospector.java:267) ~[spring-webmvc-6.2.17.jar:6.2.17]
+	at org.springframework.web.filter.CompositeFilter$VirtualFilterChain.doFilter(CompositeFilter.java:113) ~[spring-web-6.2.17.jar:6.2.17]
+	at org.springframework.web.filter.CompositeFilter.doFilter(CompositeFilter.java:74) ~[spring-web-6.2.17.jar:6.2.17]
+	at org.springframework.security.config.annotation.web.configuration.WebMvcSecurityConfiguration$CompositeFilterChainProxy.doFilter(WebMvcSecurityConfiguration.java:240) ~[spring-security-config-6.5.9.jar:6.5.9]
+	at org.springframework.web.filter.DelegatingFilterProxy.invokeDelegate(DelegatingFilterProxy.java:362) ~[spring-web-6.2.17.jar:6.2.17]
+	at org.springframework.web.filter.DelegatingFilterProxy.doFilter(DelegatingFilterProxy.java:278) ~[spring-web-6.2.17.jar:6.2.17]
+	at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:162) ~[tomcat-embed-core-10.1.53.jar:10.1.53]
+	at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:138) ~[tomcat-embed-core-10.1.53.jar:10.1.53]
+	at org.springframework.web.filter.RequestContextFilter.doFilterInternal(RequestContextFilter.java:100) ~[spring-web-6.2.17.jar:6.2.17]
+	at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:116) ~[spring-web-6.2.17.jar:6.2.17]
+	at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:162) ~[tomcat-embed-core-10.1.53.jar:10.1.53]
+	at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:138) ~[tomcat-embed-core-10.1.53.jar:10.1.53]
+	at org.springframework.web.filter.FormContentFilter.doFilterInternal(FormContentFilter.java:93) ~[spring-web-6.2.17.jar:6.2.17]
+	at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:116) ~[spring-web-6.2.17.jar:6.2.17]
+	at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:162) ~[tomcat-embed-core-10.1.53.jar:10.1.53]
+	at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:138) ~[tomcat-embed-core-10.1.53.jar:10.1.53]
+	at org.springframework.web.filter.ServerHttpObservationFilter.doFilterInternal(ServerHttpObservationFilter.java:110) ~[spring-web-6.2.17.jar:6.2.17]
+	at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:116) ~[spring-web-6.2.17.jar:6.2.17]
+	at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:162) ~[tomcat-embed-core-10.1.53.jar:10.1.53]
+	at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:138) ~[tomcat-embed-core-10.1.53.jar:10.1.53]
+	at org.springframework.web.filter.CharacterEncodingFilter.doFilterInternal(CharacterEncodingFilter.java:201) ~[spring-web-6.2.17.jar:6.2.17]
+	at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:116) ~[spring-web-6.2.17.jar:6.2.17]
+	at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:162) ~[tomcat-embed-core-10.1.53.jar:10.1.53]
+	at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:138) ~[tomcat-embed-core-10.1.53.jar:10.1.53]
+	at org.apache.catalina.core.StandardWrapperValve.invoke(StandardWrapperValve.java:165) ~[tomcat-embed-core-10.1.53.jar:10.1.53]
+	at org.apache.catalina.core.StandardContextValve.invoke(StandardContextValve.java:88) ~[tomcat-embed-core-10.1.53.jar:10.1.53]
+	at org.apache.catalina.authenticator.AuthenticatorBase.invoke(AuthenticatorBase.java:492) ~[tomcat-embed-core-10.1.53.jar:10.1.53]
+	at org.apache.catalina.core.StandardHostValve.invoke(StandardHostValve.java:113) ~[tomcat-embed-core-10.1.53.jar:10.1.53]
+	at org.apache.catalina.valves.ErrorReportValve.invoke(ErrorReportValve.java:83) ~[tomcat-embed-core-10.1.53.jar:10.1.53]
+	at org.apache.catalina.core.StandardEngineValve.invoke(StandardEngineValve.java:72) ~[tomcat-embed-core-10.1.53.jar:10.1.53]
+	at org.apache.catalina.connector.CoyoteAdapter.service(CoyoteAdapter.java:342) ~[tomcat-embed-core-10.1.53.jar:10.1.53]
+	at org.apache.coyote.http11.Http11Processor.service(Http11Processor.java:399) ~[tomcat-embed-core-10.1.53.jar:10.1.53]
+	at org.apache.coyote.AbstractProcessorLight.process(AbstractProcessorLight.java:63) ~[tomcat-embed-core-10.1.53.jar:10.1.53]
+	at org.apache.coyote.AbstractProtocol$ConnectionHandler.process(AbstractProtocol.java:903) ~[tomcat-embed-core-10.1.53.jar:10.1.53]
+	at org.apache.tomcat.util.net.NioEndpoint$SocketProcessor.doRun(NioEndpoint.java:1775) ~[tomcat-embed-core-10.1.53.jar:10.1.53]
+	at org.apache.tomcat.util.net.SocketProcessorBase.run(SocketProcessorBase.java:52) ~[tomcat-embed-core-10.1.53.jar:10.1.53]
+	at java.base/java.lang.VirtualThread.run(VirtualThread.java:329) ~[na:na]
+Caused by: com.fasterxml.jackson.databind.exc.MismatchedInputException: Cannot construct instance of `com.fincore.analyticsservice.dto.DrillDownRequest` (although at least one Creator exists): no String-argument constructor/factory method to deserialize from String value ('8FRD59HgbFmACU5j:YTH8LqNGXfrikAlp5r9zFm5GwmMZH4sfcxqvS1y0uh09r8h2e3g86GB3wOdmEC2w1ib615cUAlKa7OCNx2QRc+AMxSY/yV8h8O9VmLfqG4V0+R5jYAVKecX5iWdWbgqlvBRUsqBLbJZm39pdiDEAUg==')
+ at [Source: REDACTED (`StreamReadFeature.INCLUDE_SOURCE_IN_LOCATION` disabled); line: 1, column: 1]
+	at com.fasterxml.jackson.databind.exc.MismatchedInputException.from(MismatchedInputException.java:76) ~[jackson-databind-2.21.2.jar:2.21.2]
+	at com.fasterxml.jackson.databind.DeserializationContext.reportInputMismatch(DeserializationContext.java:1801) ~[jackson-databind-2.21.2.jar:2.21.2]
+	at com.fasterxml.jackson.databind.DeserializationContext.handleMissingInstantiator(DeserializationContext.java:1426) ~[jackson-databind-2.21.2.jar:2.21.2]
+	at com.fasterxml.jackson.databind.deser.std.StdDeserializer._deserializeFromString(StdDeserializer.java:310) ~[jackson-databind-2.21.2.jar:2.21.2]
+	at com.fasterxml.jackson.databind.deser.BeanDeserializerBase.deserializeFromString(BeanDeserializerBase.java:1594) ~[jackson-databind-2.21.2.jar:2.21.2]
+	at com.fasterxml.jackson.databind.deser.BeanDeserializer._deserializeOther(BeanDeserializer.java:189) ~[jackson-databind-2.21.2.jar:2.21.2]
+	at com.fasterxml.jackson.databind.deser.BeanDeserializer.deserialize(BeanDeserializer.java:179) ~[jackson-databind-2.21.2.jar:2.21.2]
+	at com.fasterxml.jackson.databind.deser.DefaultDeserializationContext.readRootValue(DefaultDeserializationContext.java:342) ~[jackson-databind-2.21.2.jar:2.21.2]
+	at com.fasterxml.jackson.databind.ObjectReader._bindAndClose(ObjectReader.java:2148) ~[jackson-databind-2.21.2.jar:2.21.2]
+	at com.fasterxml.jackson.databind.ObjectReader.readValue(ObjectReader.java:1504) ~[jackson-databind-2.21.2.jar:2.21.2]
+	at org.springframework.http.converter.json.AbstractJackson2HttpMessageConverter.readJavaType(AbstractJackson2HttpMessageConverter.java:397) ~[spring-web-6.2.17.jar:6.2.17]
+	... 138 common frames omitted
+
+2026-06-22T13:17:59.926+05:30  WARN 36372 --- [AnalyticsService] [omcat-handler-1] .m.m.a.ExceptionHandlerExceptionResolver : Resolved [org.springframework.http.converter.HttpMessageNotReadableException: JSON parse error: Cannot construct instance of `com.fincore.analyticsservice.dto.DrillDownRequest` (although at least one Creator exists): no String-argument constructor/factory method to deserialize from String value ('8FRD59HgbFmACU5j:YTH8LqNGXfrikAlp5r9zFm5GwmMZH4sfcxqvS1y0uh09r8h2e3g86GB3wOdmEC2w1ib615cUAlKa7OCNx2QRc+AMxSY/yV8h8O9VmLfqG4V0+R5jYAVKecX5iWdWbgqlvBRUsqBLbJZm39pdiDEAUg==')]
