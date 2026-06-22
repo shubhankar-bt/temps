@@ -1,423 +1,200 @@
-```sql
--- ==============================================================================
--- TABLE: COMM_AUDIT_LOG
--- PURPOSE: Tracks the lifecycle of all outbound communications for compliance.
--- OPTIMIZATION: Interval partitioning by month guarantees fast inserts and 
---               easy archival of data older than 7 years (Banking standard).
--- ==============================================================================
-
-CREATE TABLE COMM_AUDIT_LOG (
-    EVENT_ID VARCHAR2(100) NOT NULL,
-    TX_ID VARCHAR2(100) NOT NULL,
-    TEMPLATE_ID VARCHAR2(50) NOT NULL,
-    CHANNELS VARCHAR2(50) NOT NULL,
-    MASKED_RECIPIENTS VARCHAR2(255) NOT NULL,
-    STATUS VARCHAR2(20) NOT NULL, -- Values: 'PROCESSING', 'SUCCESS', 'FAILED'
-    FAILURE_REASON CLOB,
-    CREATED_AT TIMESTAMP DEFAULT SYSTIMESTAMP NOT NULL,
-    UPDATED_AT TIMESTAMP DEFAULT SYSTIMESTAMP NOT NULL,
-    CONSTRAINT PK_COMM_AUDIT_LOG PRIMARY KEY (EVENT_ID)
-)
-PARTITION BY RANGE (CREATED_AT)
-INTERVAL(NUMTOYMINTERVAL(1, 'MONTH'))
-(
-    PARTITION p_initial VALUES LESS THAN (TO_DATE('2024-01-01', 'YYYY-MM-DD'))
-);
-
--- Index for searching audits by Transaction ID (Required for Customer Support UI)
-CREATE INDEX IDX_COMM_AUDIT_TX_ID ON COMM_AUDIT_LOG(TX_ID);
-
--- Add Professional Comments to Schema
-COMMENT ON TABLE COMM_AUDIT_LOG IS 'Enterprise audit table for all Fincore outbound communications.';
-COMMENT ON COLUMN COMM_AUDIT_LOG.EVENT_ID IS 'Unique Kafka Event ID. Primary Key.';
-COMMENT ON COLUMN COMM_AUDIT_LOG.TX_ID IS 'User Login Transaction ID. Links the communication to the auth session.';
-COMMENT ON COLUMN COMM_AUDIT_LOG.STATUS IS 'Current status of the dispatch: PROCESSING, SUCCESS, FAILED.';
-
-```
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-```java
-package com.fincore.CommunicationService.config;
-
-import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Configuration;
-import org.springframework.scheduling.annotation.EnableAsync;
-import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
-
-import java.util.concurrent.Executor;
-
-/**
- * Enterprise Asynchronous Configuration.
- * Creates dedicated threads for non-blocking I/O operations (like Database Auditing).
- */
-@Configuration
-@EnableAsync
-public class AsyncConfig {
-
-    @Bean(name = "auditThreadPool")
-    public Executor auditThreadPool() {
-        ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
-        executor.setCorePoolSize(5);
-        executor.setMaxPoolSize(20);
-        // Allows up to 1000 audit events to queue up during extreme traffic bursts
-        executor.setQueueCapacity(1000);
-        executor.setThreadNamePrefix("Audit-Async-");
-        // Rejects tasks if queue is full instead of crashing JVM memory
-        executor.setRejectedExecutionHandler(new java.util.concurrent.ThreadPoolExecutor.CallerRunsPolicy());
-        executor.initialize();
-        return executor;
-    }
-}
-
-```
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-```java
-package com.fincore.CommunicationService.model;
-
-import jakarta.persistence.*;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
-
-import java.time.LocalDateTime;
-
-@Entity
-@Table(name = "COMM_AUDIT_LOG")
-@Data
-@Builder
-@NoArgsConstructor
-@AllArgsConstructor
-public class CommAuditLog {
-
-    @Id
-    @Column(name = "EVENT_ID", length = 100, nullable = false)
-    private String eventId;
-
-    @Column(name = "TX_ID", length = 100, nullable = false)
-    private String txId;
-
-    @Column(name = "TEMPLATE_ID", length = 50, nullable = false)
-    private String templateId;
-
-    @Column(name = "CHANNELS", length = 50, nullable = false)
-    private String channels;
-
-    @Column(name = "MASKED_RECIPIENTS", length = 255, nullable = false)
-    private String maskedRecipients;
-
-    @Column(name = "STATUS", length = 20, nullable = false)
-    private String status;
-
-    @Lob
-    @Column(name = "FAILURE_REASON")
-    private String failureReason;
-
-    @Column(name = "CREATED_AT", nullable = false, updatable = false)
-    private LocalDateTime createdAt;
-
-    @Column(name = "UPDATED_AT", nullable = false)
-    private LocalDateTime updatedAt;
-
-    @PrePersist
-    protected void onCreate() {
-        this.createdAt = LocalDateTime.now();
-        this.updatedAt = LocalDateTime.now();
-    }
-
-    @PreUpdate
-    protected void onUpdate() {
-        this.updatedAt = LocalDateTime.now();
-    }
-}
-
-```
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-```java
-package com.fincore.CommunicationService.repository;
-
-import com.fincore.CommunicationService.model.CommAuditLog;
-import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.data.jpa.repository.Modifying;
-import org.springframework.data.jpa.repository.Query;
-import org.springframework.data.repository.query.Param;
-import org.springframework.stereotype.Repository;
-import org.springframework.transaction.annotation.Transactional;
-
-@Repository
-public interface CommAuditLogRepository extends JpaRepository<CommAuditLog, String> {
-
-    /**
-     * O(1) Time Complexity Update.
-     * Prevents the overhead of loading the Entity into Hibernate cache just to change the status.
-     * @return Number of rows updated.
-     */
-    @Modifying
-    @Transactional
-    @Query("UPDATE CommAuditLog c SET c.status = 'SUCCESS', c.updatedAt = CURRENT_TIMESTAMP WHERE c.eventId = :eventId")
-    int markAsSuccess(@Param("eventId") String eventId);
-
-    /**
-     * O(1) Time Complexity DLQ Failure Update.
-     */
-    @Modifying
-    @Transactional
-    @Query("UPDATE CommAuditLog c SET c.status = 'FAILED', c.failureReason = :reason, c.updatedAt = CURRENT_TIMESTAMP WHERE c.eventId = :eventId")
-    int markAsFailed(@Param("eventId") String eventId, @Param("reason") String reason);
-}
-
-```
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-```java
 package com.fincore.CommunicationService.service;
 
-import com.fincore.CommunicationService.dto.Recipients;
-import com.fincore.CommunicationService.model.CommAuditLog;
-import com.fincore.CommunicationService.repository.CommAuditLogRepository;
+import com.fincore.CommunicationService.exception.CommunicationExceptions;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.dao.DataAccessException;
-import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.CannotCreateTransactionException;
+import freemarker.template.Template;
+import freemarker.template.TemplateException;
 
-import java.util.List;
+import java.io.IOException;
+import java.io.StringWriter;
+import java.util.Map;
 
 /**
- * Highly Optimized, Asynchronous Auditing Engine.
+ * <p>A high-speed template rendering engine optimized for low-latency OTP delivery.</p>
+ *
+ * <p>This service delegates caching and compilation to {@link TemplateCacheService},
+ * ensuring strict separation of concerns and thread-safe proxy interception.</p>
+ *
+ * @author SHUBHANKAR (v1018405)
+ * @since 2026-06-22
+ * @see TemplateCacheService
  */
 @Slf4j
 @Service
 @RequiredArgsConstructor
-public class CommunicationAuditService {
+public class TemplateEngineService {
 
-    private final CommAuditLogRepository auditRepository;
+    private final TemplateCacheService templateCacheService;
 
-    @Async("auditThreadPool")
-    public void logAttempt(String eventId, String txId, String templateId, List<String> channels, Recipients recipients) {
+    /**
+     * <p>Renders the final output string by merging dynamic data into a pre-compiled template.</p>
+     *
+     * <p><strong>Security Note:</strong> This method is <em>not</em> cached. It processes dynamic 
+     * variables on every request to prevent cross-pollination data leaks.</p>
+     *
+     * @param templateCode The unique identifier for the template.
+     * @param channel The communication channel.
+     * @param language The locale language code.
+     * @param templateData A map of dynamic key-value pairs to bind to the template.
+     * @return The fully rendered string ready for delivery.
+     * @throws CommunicationExceptions.TemplateProcessingException if variable binding fails.
+     */
+    public String renderTemplate(String templateCode, String channel, String language, Map<String, Object> templateData) {
+        // 1. Fetch the cached, pre-compiled Template AST Object from the dedicated cache service
+        Template compiledTemplate = templateCacheService.getCompiledTemplate(templateCode, channel, language);
+
+        // 2. Merge dynamic data (OTP, Names) into the template
+        try (StringWriter writer = new StringWriter()) {
+            compiledTemplate.process(templateData, writer);
+            return writer.toString();
+        } catch (IOException | TemplateException e) {
+            log.error("Fatal error binding dynamic variables to template {}.", templateCode, e);
+            throw new CommunicationExceptions.TemplateProcessingException("Failed to bind dynamic variables to template: " + templateCode, e);
+        }
+    }
+
+    /**
+     * <p>Public API to retrieve a template subject.</p>
+     *
+     * @param templateCode The unique identifier for the template.
+     * @param channel The communication channel.
+     * @param language The locale language code.
+     * @return The subject line string.
+     */
+    public String getTemplateSubject(String templateCode, String channel, String language) {
+        return templateCacheService.getTemplateSubject(templateCode, channel, language);
+    }
+
+    /**
+     * <p>Emergency cache flush mechanism.</p>
+     *
+     * <p>Delegates to {@link TemplateCacheService} to evict all cached templates.</p>
+     */
+    public void flushTemplateCache() {
+        templateCacheService.flushCache();
+    }
+}   
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+package com.fincore.CommunicationService.service;
+
+import com.fincore.CommunicationService.exception.*;
+import com.fincore.CommunicationService.model.CommTemplateMaster;
+import com.fincore.CommunicationService.model.TemplateId;
+import com.fincore.CommunicationService.repository.TemplateRepository;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
+import org.springframework.stereotype.Service;
+import freemarker.template.Template;
+import freemarker.template.Configuration;
+import java.io.IOException;
+import java.io.StringReader;
+
+/**
+ * <p>Handles retrieval and caching of compiled FreeMarker templates.</p>
+ *
+ * <p>This service isolates caching logic from business logic, ensuring clean separation
+ * of concerns and proper Spring AOP proxy interception without self-invocation hacks.</p>
+ *
+ * @author SHUBHANKAR (v1018405)
+ * @since 2026-06-22
+ */
+@Slf4j
+@Service
+@RequiredArgsConstructor
+public class TemplateCacheService {
+
+    private final TemplateRepository templateRepository;
+    private final Configuration freeMarkerConfig;
+
+    /**
+     * <p>Fetches the template CLOB from Oracle and compiles it into a FreeMarker {@link Template} object.</p>
+     *
+     * <p><strong>Caching Strategy:</strong></p>
+     * <ul>
+     *   <li><strong>Key:</strong> Composite ({@code code:channel:language}).</li>
+     *   <li><strong>TTL:</strong> 12 hours (configured externally).</li>
+     *   <li><strong>Condition:</strong> Caches only if result is not {@code null}.</li>
+     * </ul>
+     *
+     * @param templateCode The unique template identifier.
+     * @param channel The communication channel.
+     * @param language The locale language code.
+     * @return The compiled FreeMarker {@link Template} object.
+     * @throws CommunicationExceptions.TemplateNotFoundException if the template is not found or inactive.
+     * @throws CommunicationExceptions.TemplateProcessingException if compilation fails.
+     */
+    @Cacheable(value = "templates", key = "#templateCode + ':' + #channel + ':' + #language", unless = "#result == null")
+    public Template getCompiledTemplate(String templateCode, String channel, String language) {
+        log.info("L1 CACHE MISS: Fetching and Compiling Template {} for {} from Oracle DB.", templateCode, channel);
+
+        // 1. Database Lookup
+        CommTemplateMaster tmpl = templateRepository.findById(new TemplateId(templateCode, channel, language))
+                .orElseThrow(() -> new CommunicationExceptions.TemplateNotFoundException("Template not found in Oracle: " + templateCode));
+
+        if (!"Y".equalsIgnoreCase(tmpl.getIsActive().trim())) {
+            throw new CommunicationExceptions.TemplateNotFoundException("Template is disabled: " + templateCode);
+        }
+
+        String rawClobContent = tmpl.getBodyContent();
+
+        // 2. Compile into Abstract Syntax Tree (AST)
         try {
-            String maskedData = maskRecipients(recipients);
-            String channelsJoined = channels != null ? String.join(",", channels) : "UNKNOWN";
-
-            CommAuditLog logEntry = CommAuditLog.builder()
-                    .eventId(eventId)
-                    .txId(txId != null ? txId : "UNKNOWN")
-                    .templateId(templateId)
-                    .channels(channelsJoined)
-                    .maskedRecipients(maskedData)
-                    .status("PROCESSING")
-                    .build();
-
-            auditRepository.save(logEntry);
-            log.debug("Async Audit: Initial processing logged for eventId={}", eventId);
-
-        } catch (DataAccessException | CannotCreateTransactionException e) {
-            // We catch specific DB exceptions, NOT generic Exception.
-            // We swallow the error so it doesn't crash the Kafka consumer if Oracle blips.
-            log.error("Database connection failed while logging audit attempt for eventId={}. Msg: {}", eventId, e.getMessage());
+            return new Template(templateCode, new StringReader(rawClobContent), freeMarkerConfig);
+        } catch (IOException e) {
+            log.error("Syntax error in FreeMarker template {}.", templateCode, e);
+            throw new CommunicationExceptions.TemplateProcessingException("Syntax error compiling template: " + templateCode, e);
         }
     }
 
-    @Async("auditThreadPool")
-    public void logSuccess(String eventId) {
-        try {
-            int updatedRows = auditRepository.markAsSuccess(eventId);
-            if (updatedRows == 0) {
-                log.warn("Async Audit: Tried to mark eventId={} as SUCCESS, but record was missing.", eventId);
-            } else {
-                log.debug("Async Audit: Successfully marked eventId={} as SUCCESS", eventId);
-            }
-        } catch (DataAccessException e) {
-            log.error("Database failure while marking audit success for eventId={}", eventId, e);
-        }
+    /**
+     * <p>Retrieves the cached subject line for a specific template.</p>
+     *
+     * @param templateCode The unique template identifier.
+     * @param channel The communication channel.
+     * @param language The locale language code.
+     * @return The subject line string.
+     * @throws CommunicationExceptions.TemplateNotFoundException if the template does not exist.
+     */
+    @Cacheable(value = "template_subjects", key = "#templateCode + ':' + #channel + ':' + #language")
+    public String getTemplateSubject(String templateCode, String channel, String language) {
+        CommTemplateMaster tmpl = templateRepository.findById(new TemplateId(templateCode, channel, language))
+                .orElseThrow(() -> new CommunicationExceptions.TemplateNotFoundException("Template not found in Oracle: " + templateCode));
+        return tmpl.getSubject();
     }
 
-    @Async("auditThreadPool")
-    public void logFailure(String eventId, String txId, String failureReason) {
-        try {
-            // 1. Attempt to update the existing row
-            int updatedRows = auditRepository.markAsFailed(eventId, truncateReason(failureReason));
-
-            // 2. Race Condition Protection:
-            // If the message crashed instantly (e.g., malformed JSON), the DLQ might run BEFORE 
-            // the initial logAttempt finished. If so, we hard-insert the failure.
-            if (updatedRows == 0) {
-                CommAuditLog fallbackLog = CommAuditLog.builder()
-                        .eventId(eventId)
-                        .txId(txId != null ? txId : "UNKNOWN")
-                        .templateId("UNKNOWN_OR_CRASHED")
-                        .channels("UNKNOWN")
-                        .maskedRecipients("UNKNOWN")
-                        .status("FAILED")
-                        .failureReason(truncateReason(failureReason))
-                        .build();
-                auditRepository.save(fallbackLog);
-                log.warn("Async Audit: Handled race condition. Hard-inserted FAILED status for eventId={}", eventId);
-            } else {
-                log.debug("Async Audit: Marked eventId={} as FAILED in DB", eventId);
-            }
-        } catch (DataAccessException e) {
-            log.error("Database failure while writing DLQ audit for eventId={}", eventId, e);
-        }
-    }
-
-    private String maskRecipients(Recipients rec) {
-        if (rec == null) return "NO_RECIPIENT_DATA";
-        
-        StringBuilder masked = new StringBuilder();
-        if (rec.getEmail() != null && rec.getEmail().contains("@")) {
-            String[] parts = rec.getEmail().split("@");
-            String maskedEmail = (parts[0].length() <= 2 ? "**" : parts[0].charAt(0) + "***" + parts[0].charAt(parts[0].length() - 1)) + "@" + parts[1];
-            masked.append("E:").append(maskedEmail).append(" ");
-        }
-        if (rec.getMobile() != null && rec.getMobile().length() >= 4) {
-            masked.append("M:******").append(rec.getMobile().substring(rec.getMobile().length() - 4));
-        }
-        return masked.toString().trim();
-    }
-
-    private String truncateReason(String reason) {
-        if (reason == null) return "Unknown Failure";
-        // Prevent DB clobbering if stack trace is massive
-        return reason.length() > 3900 ? reason.substring(0, 3900) + "..." : reason;
+    /**
+     * <p>Evicts all entries from the template caches.</p>
+     *
+     * @see TemplateEngineService#flushTemplateCache()
+     */
+    @CacheEvict(value = {"templates", "template_subjects"}, allEntries = true)
+    public void flushCache() {
+        log.warn("ADMIN ACTION: All communication templates evicted from L1/L2 Cache.");
     }
 }
-
-
-```
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-private final CommunicationAuditService auditService;
-
-**2. Inside `consumeOtpEvent`, right after AES Decryption (Line ~100):**
-```java
-// Map decrypted JSON into a generic map...
-Map<String, Object> templateDataMap = mapper.readValue(decryptedJson, new TypeReference<>() {});
-
-// >>> ADD THIS LINE <<<
-auditService.logAttempt(event.getEventId(), txId, event.getTemplateId(), event.getChannel(), event.getRecipient());
-
-**3. Inside `consumeOtpEvent`, right before Acknowledgment (Line ~138):**
-```java
-if (requiresRetry) {
-    throw new VendorDeliveryException("One or more channels failed to deliver.", null);
-}
-
-// >>> ADD THIS LINE <<<
-auditService.logSuccess(event.getEventId());
-
-acknowledgment.acknowledge();
-
-**4. Inside the `@DltHandler` method (Line ~160):**
-```java
-@DltHandler
-public void handleDltPayment(String message, ...) {
-    // ... your existing logs ...
-    
-    // Extract txId and eventId from the raw string manually for the audit
-    String txId = "UNKNOWN";
-    String eventId = "UNKNOWN";
-    try {
-        KafkaEvent failedEvent = mapper.readValue(message, KafkaEvent.class);
-        txId = failedEvent.getTxId();
-        eventId = failedEvent.getEventId();
-    } catch (Exception ignored) { }
-
-    // >>> ADD THIS LINE <<<
-    auditService.logFailure(eventId, txId, exceptionMessage);
-}
-
-### Why this implementation is mathematically bulletproof:
-* **Exceptions are scoped:** We catch `DataAccessException`, ensuring a transient DB timeout never drops a Kafka message.
-* **No `findById` Penalty:** The native `@Modifying` updates guarantee execution in less than 2 milliseconds.
-* **Race Condition Safe:** If Jackson mapping fails instantly (Step 2 above is skipped), the DLQ catches the `String` and correctly inserts the failure using the Fallback Race Condition mechanism built into the `logFailure` method.
-
