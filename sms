@@ -1,3 +1,11 @@
+
+{"@timestamp":"2026-06-24T12:39:00.163302478+05:30","level":"INFO","service":"LoginService","traceId":"3d02f4a06a2d4622a9fba0319bc1289f","userId":"","clientIp":"10.0.57.36","apiPath":"/api/auth/login","requestUrl":"https://fincore.sbi/api/auth/login","httpMethod":"POST","httpStatus":"403 FORBIDDEN","class":"c.fincore.gateway.logging.LoggingFilter","message":"API END | Latency: 10047ms","stack_trace":""}
+2026-06-24 07:09:07.750 INFO  [parallel-1] c.f.g.l.LoggingFilter: API END | Latency: 12ms
+{"@timestamp":"2026-06-24T12:39:07.750882231+05:30","level":"INFO","service":"LoginService","traceId":"bcc427cd2aa74f558907895d930de20c","userId":"","clientIp":"10.0.57.36","apiPath":"/api/auth/start-prod","requestUrl":"https://fincore.sbi/api/auth/start-prod","httpMethod":"GET","httpStatus":"200 OK","class":"c.fincore.gateway.logging.LoggingFilter","message":"API END | Latency: 12ms","stack_trace":""}
+2026-06-24 07:09:10.774 INFO  [parallel-1] c.f.g.u.LoginUtility: X-Forwarded-For ip : null
+
+
+
 Login request for user: v1013333 from IP: /10.0.57.36:26022
 {"@timestamp":"2026-06-24T12:39:26.364818928+05:30","level":"INFO","service":"LoginService","traceId":"9819a9d456ea4b17b2b3456b0c996855","userId":"","clientIp":"10.0.57.36","apiPath":"/api/auth/login","requestUrl":"https://fincore.sbi/api/auth/login","httpMethod":"POST","httpStatus":"","class":"c.f.gateway.Controller.AuthController","message":"Login request for user: v1013333 from IP: /10.0.57.36:26022","stack_trace":""}
 2026-06-24 07:09:26.381 INFO  [boundedElastic-6] c.f.g.S.LoginServiceImpl: Processing LDAP Login for user: v1013333
