@@ -13,3 +13,625 @@ javax.net.ssl|DEBUG|75|boundedElastic-6|2026-06-24 07:09:30.934 GMT|PreSharedKey
 javax.net.ssl|DEBUG|75|boundedElastic-6|2026-06-24 07:09:30.934 GMT|SSLExtensions.java:272|Ignore, context unavailable extension: pre_shared_key
 javax.net.ssl|DEBUG|75|boundedElastic-6|2026-06-24 07:09:30.935 GMT|ClientHello.java:640|Produced ClientHello handshake message (
 "ClientHello": {
+  "client version"      : "TLSv1.2",
+  "random"              : "73143008005A77236E303FB8682B24F9B6519019E104E237778BB370C04A9385",
+  "session id"          : "341900009A484115A2D6BF93307CD7D85AF33117C307D7BE7AF88A34132B803D",
+  "cipher suites"       : "[TLS_AES_256_GCM_SHA384(0x1302), TLS_AES_128_GCM_SHA256(0x1301), TLS_CHACHA20_POLY1305_SHA256(0x1303), TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384(0xC02C), TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256(0xC02B), TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256(0xCCA9), TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384(0xC030), TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256(0xCCA8), TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256(0xC02F), TLS_DHE_RSA_WITH_AES_256_GCM_SHA384(0x009F), TLS_DHE_RSA_WITH_CHACHA20_POLY1305_SHA256(0xCCAA), TLS_DHE_DSS_WITH_AES_256_GCM_SHA384(0x00A3), TLS_DHE_RSA_WITH_AES_128_GCM_SHA256(0x009E), TLS_DHE_DSS_WITH_AES_128_GCM_SHA256(0x00A2), TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA384(0xC024), TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384(0xC028), TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256(0xC023), TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256(0xC027), TLS_DHE_RSA_WITH_AES_256_CBC_SHA256(0x006B), TLS_DHE_DSS_WITH_AES_256_CBC_SHA256(0x006A), TLS_DHE_RSA_WITH_AES_128_CBC_SHA256(0x0067), TLS_DHE_DSS_WITH_AES_128_CBC_SHA256(0x0040), TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA(0xC00A), TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA(0xC014), TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA(0xC009), TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA(0xC013), TLS_DHE_RSA_WITH_AES_256_CBC_SHA(0x0039), TLS_DHE_DSS_WITH_AES_256_CBC_SHA(0x0038), TLS_DHE_RSA_WITH_AES_128_CBC_SHA(0x0033), TLS_DHE_DSS_WITH_AES_128_CBC_SHA(0x0032), TLS_RSA_WITH_AES_256_GCM_SHA384(0x009D), TLS_RSA_WITH_AES_128_GCM_SHA256(0x009C), TLS_RSA_WITH_AES_256_CBC_SHA256(0x003D), TLS_RSA_WITH_AES_128_CBC_SHA256(0x003C), TLS_RSA_WITH_AES_256_CBC_SHA(0x0035), TLS_RSA_WITH_AES_128_CBC_SHA(0x002F), TLS_EMPTY_RENEGOTIATION_INFO_SCSV(0x00FF)]",
+  "compression methods" : "00",
+  "extensions"          : [
+    "server_name (0)": {
+      type=host_name (0), value=corp.ad.sbi
+    },
+    "status_request (5)": {
+      "certificate status type": ocsp
+      "OCSP status request": {
+        "responder_id": <empty>
+        "request extensions": {
+          <empty>
+        }
+      }
+    },
+    "supported_groups (10)": {
+      "named groups": [x25519, secp256r1, secp384r1, secp521r1, x448, ffdhe2048, ffdhe3072, ffdhe4096, ffdhe6144, ffdhe8192]
+    },
+    "ec_point_formats (11)": {
+      "formats": [uncompressed]
+    },
+    "status_request_v2 (17)": {
+      "cert status request": {
+        "certificate status type": ocsp_multi
+        "OCSP status request": {
+          "responder_id": <empty>
+          "request extensions": {
+            <empty>
+          }
+        }
+      }
+    },
+    "extended_master_secret (23)": {
+      <empty>
+    },
+    "session_ticket (35)": {
+      <empty>
+    },
+    "signature_algorithms (13)": {
+      "signature schemes": [ecdsa_secp256r1_sha256, ecdsa_secp384r1_sha384, ecdsa_secp521r1_sha512, ed25519, ed448, rsa_pss_rsae_sha256, rsa_pss_rsae_sha384, rsa_pss_rsae_sha512, rsa_pss_pss_sha256, rsa_pss_pss_sha384, rsa_pss_pss_sha512, rsa_pkcs1_sha256, rsa_pkcs1_sha384, rsa_pkcs1_sha512, dsa_sha256, ecdsa_sha224, rsa_sha224, dsa_sha224, ecdsa_sha1, rsa_pkcs1_sha1, dsa_sha1]
+    },
+    "supported_versions (43)": {
+      "versions": [TLSv1.3, TLSv1.2]
+    },
+    "psk_key_exchange_modes (45)": {
+      "ke_modes": [psk_dhe_ke]
+    },
+    "signature_algorithms_cert (50)": {
+      "signature schemes": [ecdsa_secp256r1_sha256, ecdsa_secp384r1_sha384, ecdsa_secp521r1_sha512, ed25519, ed448, rsa_pss_rsae_sha256, rsa_pss_rsae_sha384, rsa_pss_rsae_sha512, rsa_pss_pss_sha256, rsa_pss_pss_sha384, rsa_pss_pss_sha512, rsa_pkcs1_sha256, rsa_pkcs1_sha384, rsa_pkcs1_sha512, dsa_sha256, ecdsa_sha224, rsa_sha224, dsa_sha224, ecdsa_sha1, rsa_pkcs1_sha1, dsa_sha1]
+    },
+    "key_share (51)": {
+      "client_shares": [
+        {
+          "named group": x25519
+          "key_exchange": {
+            0000: 41 BB 21 7E 87 86 68 B1   FB 4C 6E 07 A2 66 83 53  A.!...h..Ln..f.S
+            0010: 57 A7 07 32 29 10 1A 14   7D 3F 82 AF 5E D2 07 28  W..2)....?..^..(
+          }
+        },
+        {
+          "named group": secp256r1
+          "key_exchange": {
+            0000: 04 C2 C5 3A 43 B5 EA F2   35 09 20 C6 06 35 B5 CE  ...:C...5. ..5..
+            0010: 90 F5 8A 07 99 84 25 4A   45 14 D4 2F 0E 56 88 CF  ......%JE../.V..
+            0020: 77 F2 82 30 6F 8B 73 D4   36 36 44 D5 1A 18 33 2C  w..0o.s.66D...3,
+            0030: F6 26 02 EE E4 90 00 35   EC 6F 6F 81 6A E2 4B C6  .&.....5.oo.j.K.
+            0040: 77
+          }
+        },
+      ]
+    }
+  ]
+}
+)
+javax.net.ssl|DEBUG|75|boundedElastic-6|2026-06-24 07:09:30.958 GMT|ServerHello.java:892|Consuming ServerHello handshake message (
+"ServerHello": {
+  "server version"      : "TLSv1.2",
+  "random"              : "6A3B82AAEFC43A2B3FF018611B18AC08A1B0BB858EFD295CD6AF5A961D15C73B",
+  "session id"          : "A907000054B63581CC9357DEACE3C57BDD34F8647185882996894E13628E5F9E",
+  "cipher suite"        : "TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384(0xC030)",
+  "compression methods" : "00",
+  "extensions"          : [
+    "extended_master_secret (23)": {
+      <empty>
+    },
+    "renegotiation_info (65,281)": {
+      "renegotiated connection": [<no renegotiated connection>]
+    }
+  ]
+}
+)
+javax.net.ssl|DEBUG|75|boundedElastic-6|2026-06-24 07:09:30.958 GMT|SSLExtensions.java:185|Ignore unavailable extension: supported_versions
+javax.net.ssl|DEBUG|75|boundedElastic-6|2026-06-24 07:09:30.958 GMT|ServerHello.java:988|Negotiated protocol version: TLSv1.2
+javax.net.ssl|DEBUG|75|boundedElastic-6|2026-06-24 07:09:30.958 GMT|SSLExtensions.java:204|Consumed extension: renegotiation_info
+javax.net.ssl|DEBUG|75|boundedElastic-6|2026-06-24 07:09:30.958 GMT|SSLExtensions.java:185|Ignore unavailable extension: server_name
+javax.net.ssl|DEBUG|75|boundedElastic-6|2026-06-24 07:09:30.958 GMT|SSLExtensions.java:185|Ignore unavailable extension: max_fragment_length
+javax.net.ssl|DEBUG|75|boundedElastic-6|2026-06-24 07:09:30.958 GMT|SSLExtensions.java:185|Ignore unavailable extension: status_request
+javax.net.ssl|DEBUG|75|boundedElastic-6|2026-06-24 07:09:30.958 GMT|SSLExtensions.java:185|Ignore unavailable extension: ec_point_formats
+javax.net.ssl|DEBUG|75|boundedElastic-6|2026-06-24 07:09:30.958 GMT|SSLExtensions.java:185|Ignore unavailable extension: status_request_v2
+javax.net.ssl|DEBUG|75|boundedElastic-6|2026-06-24 07:09:30.958 GMT|SSLExtensions.java:204|Consumed extension: extended_master_secret
+javax.net.ssl|DEBUG|75|boundedElastic-6|2026-06-24 07:09:30.958 GMT|SSLExtensions.java:185|Ignore unavailable extension: session_ticket
+javax.net.ssl|DEBUG|75|boundedElastic-6|2026-06-24 07:09:30.958 GMT|SSLExtensions.java:175|Ignore unsupported extension: supported_versions
+javax.net.ssl|DEBUG|75|boundedElastic-6|2026-06-24 07:09:30.958 GMT|SSLExtensions.java:175|Ignore unsupported extension: key_share
+javax.net.ssl|DEBUG|75|boundedElastic-6|2026-06-24 07:09:30.958 GMT|SSLExtensions.java:204|Consumed extension: renegotiation_info
+javax.net.ssl|DEBUG|75|boundedElastic-6|2026-06-24 07:09:30.958 GMT|SSLExtensions.java:175|Ignore unsupported extension: pre_shared_key
+javax.net.ssl|DEBUG|75|boundedElastic-6|2026-06-24 07:09:30.958 GMT|SSLExtensions.java:219|Ignore unavailable extension: server_name
+javax.net.ssl|DEBUG|75|boundedElastic-6|2026-06-24 07:09:30.958 GMT|SSLExtensions.java:219|Ignore unavailable extension: max_fragment_length
+javax.net.ssl|DEBUG|75|boundedElastic-6|2026-06-24 07:09:30.958 GMT|SSLExtensions.java:219|Ignore unavailable extension: status_request
+javax.net.ssl|DEBUG|75|boundedElastic-6|2026-06-24 07:09:30.958 GMT|SSLExtensions.java:219|Ignore unavailable extension: ec_point_formats
+javax.net.ssl|DEBUG|75|boundedElastic-6|2026-06-24 07:09:30.958 GMT|SSLExtensions.java:219|Ignore unavailable extension: application_layer_protocol_negotiation
+javax.net.ssl|DEBUG|75|boundedElastic-6|2026-06-24 07:09:30.958 GMT|SSLExtensions.java:219|Ignore unavailable extension: status_request_v2
+javax.net.ssl|WARNING|75|boundedElastic-6|2026-06-24 07:09:30.958 GMT|SSLExtensions.java:227|Ignore impact of unsupported extension: extended_master_secret
+javax.net.ssl|DEBUG|75|boundedElastic-6|2026-06-24 07:09:30.958 GMT|SSLExtensions.java:219|Ignore unavailable extension: session_ticket
+javax.net.ssl|DEBUG|75|boundedElastic-6|2026-06-24 07:09:30.958 GMT|SSLExtensions.java:219|Ignore unavailable extension: supported_versions
+javax.net.ssl|DEBUG|75|boundedElastic-6|2026-06-24 07:09:30.958 GMT|SSLExtensions.java:219|Ignore unavailable extension: key_share
+javax.net.ssl|WARNING|75|boundedElastic-6|2026-06-24 07:09:30.958 GMT|SSLExtensions.java:227|Ignore impact of unsupported extension: renegotiation_info
+javax.net.ssl|DEBUG|75|boundedElastic-6|2026-06-24 07:09:30.958 GMT|SSLExtensions.java:219|Ignore unavailable extension: pre_shared_key
+javax.net.ssl|DEBUG|75|boundedElastic-6|2026-06-24 07:09:30.959 GMT|CertificateMessage.java:364|Consuming server Certificate handshake message (
+"Certificates": [
+  "certificate" : {
+    "version"            : "v3",
+    "serial number"      : "1A001F4A8B11D15BD239E7E12E0000001F4A8B",
+    "signature algorithm": "SHA256withRSA",
+    "issuer"             : "CN=SBI-PROD-RCA, DC=AD, DC=SBI",
+    "not before"         : "2025-11-25 13:40:30.000 GMT",
+    "not  after"         : "2026-11-25 13:40:30.000 GMT",
+    "subject"            : "",
+    "subject public key" : "RSA",
+    "extensions"         : [
+      {
+        ObjectId: 1.3.6.1.4.1.311.21.10 Criticality=false
+      },
+      {
+        ObjectId: 1.3.6.1.4.1.311.21.7 Criticality=false
+      },
+      {
+        ObjectId: 1.3.6.1.4.1.311.25.2 Criticality=false
+      },
+      {
+        ObjectId: 1.3.6.1.5.5.7.1.1 Criticality=false
+        AuthorityInfoAccess [
+          [
+           accessMethod: caIssuers
+           accessLocation: URIName: ldap:///CN=SBI-PROD-RCA,CN=AIA,CN=Public%20Key%20Services,CN=Services,CN=Configuration,DC=AD,DC=SBI?cACertificate?base?objectClass=certificationAuthority
+        ]
+        ]
+      },
+      {
+        ObjectId: 2.5.29.35 Criticality=false
+        AuthorityKeyIdentifier [
+        KeyIdentifier [
+        0000: 37 9A 20 74 30 5E 24 FD   1F E5 BF AE FF 00 F4 6B  7. t0^$........k
+        0010: 15 75 9F B0                                        .u..
+        ]
+        ]
+      },
+      {
+        ObjectId: 2.5.29.31 Criticality=false
+        CRLDistributionPoints [
+          [DistributionPoint:
+             [URIName: ldap:///CN=SBI-PROD-RCA,CN=SBIROOTCAPROD,CN=CDP,CN=Public%20Key%20Services,CN=Services,CN=Configuration,DC=AD,DC=SBI?certificateRevocationList?base?objectClass=cRLDistributionPoint]
+        ]]
+      },
+      {
+        ObjectId: 2.5.29.37 Criticality=false
+        ExtendedKeyUsages [
+          clientAuth
+          serverAuth
+          1.3.6.1.4.1.311.20.2.2
+          1.3.6.1.5.2.3.5
+        ]
+      },
+      {
+        ObjectId: 2.5.29.15 Criticality=true
+        KeyUsage [
+          DigitalSignature
+          Key_Encipherment
+        ]
+      },
+      {
+        ObjectId: 2.5.29.17 Criticality=true
+        SubjectAlternativeName [
+          DNSName: CORPDCMDGBL02.CORP.AD.SBI
+          DNSName: CORP.AD.SBI
+          DNSName: CORP
+        ]
+      },
+      {
+        ObjectId: 2.5.29.14 Criticality=false
+        SubjectKeyIdentifier [
+        KeyIdentifier [
+        0000: 88 85 D1 DE 9A 0A 89 61   5E E2 D5 29 EB D8 63 BB  .......a^..)..c.
+        0010: 50 78 2E C8                                        Px..
+        ]
+        ]
+      }
+    ]}
+]
+)
+javax.net.ssl|DEBUG|75|boundedElastic-6|2026-06-24 07:09:30.960 GMT|ECDHServerKeyExchange.java:526|Consuming ECDH ServerKeyExchange handshake message (
+"ECDH ServerKeyExchange": {
+  "parameters": {
+    "named group": "x25519"
+    "ecdh public": {
+      0000: C4 2B 06 44 49 74 A2 4E   AC 7C B7 74 42 F6 25 05  .+.DIt.N...tB.%.
+      0010: B9 DD 9E FF D8 21 9B C0   25 15 3A 53 B1 F1 FD 4B  .....!..%.:S...K
+    },
+  },
+  "digital signature":  {
+    "signature algorithm": "rsa_pkcs1_sha256"
+    "signature": {
+      0000: 6A 36 93 65 68 25 7F 48   2C D3 B3 CC E6 D0 DF CE  j6.eh%.H,.......
+      0010: D2 57 25 3F C3 43 92 8B   36 D7 31 3F 35 76 16 B7  .W%?.C..6.1?5v..
+      0020: 57 42 DB 0C 44 67 E9 60   F5 EE B1 79 42 DB 42 0C  WB..Dg.`...yB.B.
+      0030: 61 6A 40 42 13 B3 8C B3   93 C1 FE 86 AB 39 BA 59  aj@B.........9.Y
+      0040: 1B 52 C1 26 E9 31 7F 59   07 BF E1 3C AF F1 14 EF  .R.&.1.Y...<....
+      0050: D3 C8 84 EC 4B 50 63 6F   04 33 77 B4 DF 98 82 4D  ....KPco.3w....M
+      0060: 10 22 53 0B 2D A1 2B AE   FC 4B 7C A6 9E 92 6A 8D  ."S.-.+..K....j.
+      0070: 22 42 DC E8 F0 E5 C6 CA   FD 71 7A 82 EE E4 14 CB  "B.......qz.....
+      0080: 59 32 25 6F 42 46 E8 D5   E9 E9 3B D5 9F C4 A9 09  Y2%oBF....;.....
+      0090: 8C 42 C1 8E 30 7A C6 25   4F 6E 8A BE 64 76 CE 25  .B..0z.%On..dv.%
+      00A0: 07 DD BB 51 CC A7 3C B8   0F B2 23 64 8B 0F 76 1D  ...Q..<...#d..v.
+      00B0: DF DF A5 E1 70 D5 C3 F0   DA 86 D5 F3 79 EB 02 D8  ....p.......y...
+      00C0: 94 AB 5F B6 69 D1 0F 11   2C 19 B4 C4 65 DF 64 C3  .._.i...,...e.d.
+      00D0: 66 AD 7F 63 74 DC 72 A2   B7 B6 3C 50 26 7E 83 AD  f..ct.r...<P&...
+      00E0: F3 E5 8B C0 FF 49 75 7D   48 B6 DE 27 3F 21 EC 9D  .....Iu.H..'?!..
+      00F0: ED 72 62 3B D2 2F BD 94   50 E0 45 87 64 5C A9 84  .rb;./..P.E.d\..
+    },
+  }
+}
+)
+javax.net.ssl|DEBUG|75|boundedElastic-6|2026-06-24 07:09:30.960 GMT|CertificateRequest.java:716|Consuming CertificateRequest handshake message (
+"CertificateRequest": {
+  "certificate types": [rsa_sign, dss_sign, ecdsa_sign]
+  "supported signature algorithms": [rsa_pkcs1_sha256, rsa_pkcs1_sha384, rsa_pkcs1_sha1, ecdsa_secp256r1_sha256, ecdsa_secp384r1_sha384, ecdsa_sha1, dsa_sha1, rsa_pkcs1_sha512, ecdsa_secp521r1_sha512]
+  "certificate authorities": []
+}
+)
+javax.net.ssl|ALL|75|boundedElastic-6|2026-06-24 07:09:30.960 GMT|X509Authentication.java:205|X509KeyManager class: sun.security.ssl.SunX509KeyManagerImpl
+javax.net.ssl|ALL|75|boundedElastic-6|2026-06-24 07:09:30.960 GMT|X509Authentication.java:225|No X.509 cert selected for [RSA, EC, DSA]
+javax.net.ssl|WARNING|75|boundedElastic-6|2026-06-24 07:09:30.960 GMT|CertificateRequest.java:812|No available authentication scheme
+javax.net.ssl|DEBUG|75|boundedElastic-6|2026-06-24 07:09:30.960 GMT|ServerHelloDone.java:151|Consuming ServerHelloDone handshake message (
+<empty>
+)
+javax.net.ssl|DEBUG|75|boundedElastic-6|2026-06-24 07:09:30.960 GMT|CertificateMessage.java:297|No X.509 certificate for client authentication, use empty Certificate message instead
+javax.net.ssl|DEBUG|75|boundedElastic-6|2026-06-24 07:09:30.960 GMT|CertificateMessage.java:328|Produced client Certificate handshake message (
+"Certificates": <empty list>
+)
+javax.net.ssl|DEBUG|75|boundedElastic-6|2026-06-24 07:09:30.961 GMT|ECDHClientKeyExchange.java:403|Produced ECDHE ClientKeyExchange handshake message (
+"ECDH ClientKeyExchange": {
+  "ecdh public": {
+    0000: 43 35 0D FA 44 C7 AA 4B   D3 EE AD B0 FF CA 6B 01  C5..D..K......k.
+    0010: 3E E6 0A F9 CD 64 86 19   FF 55 79 A2 1C DD 13 5C  >....d...Uy....\
+  },
+}
+)
+javax.net.ssl|DEBUG|75|boundedElastic-6|2026-06-24 07:09:30.962 GMT|ChangeCipherSpec.java:114|Produced ChangeCipherSpec message
+javax.net.ssl|DEBUG|75|boundedElastic-6|2026-06-24 07:09:30.962 GMT|Finished.java:396|Produced client Finished handshake message (
+"Finished": {
+  "verify data": {
+    0000: 2B 04 C8 7A FE D5 5A 24   66 15 E7 9A
+  }
+}
+)
+javax.net.ssl|DEBUG|75|boundedElastic-6|2026-06-24 07:09:31.063 GMT|ChangeCipherSpec.java:148|Consuming ChangeCipherSpec message
+javax.net.ssl|DEBUG|75|boundedElastic-6|2026-06-24 07:09:31.064 GMT|Finished.java:548|Consuming server Finished handshake message (
+"Finished": {
+  "verify data": {
+    0000: 85 FF E1 AA 45 74 FF 22   F2 EA 4B 45
+  }
+}
+)
+javax.net.ssl|ALL|75|boundedElastic-6|2026-06-24 07:09:41.145 GMT|SSLSocketImpl.java:1332|Closing output stream
+javax.net.ssl|DEBUG|75|boundedElastic-6|2026-06-24 07:09:41.145 GMT|SSLSocketImpl.java:577|duplex close of SSLSocket
+javax.net.ssl|DEBUG|75|boundedElastic-6|2026-06-24 07:09:41.145 GMT|SSLSocketImpl.java:1750|close the underlying socket
+javax.net.ssl|DEBUG|75|boundedElastic-6|2026-06-24 07:09:41.145 GMT|SSLSocketImpl.java:1776|close the SSL connection (initiative)
+javax.net.ssl|DEBUG|75|boundedElastic-6|2026-06-24 07:09:41.145 GMT|SSLSocketImpl.java:836|close inbound of SSLSocket
+javax.net.ssl|WARNING|75|boundedElastic-6|2026-06-24 07:09:41.146 GMT|SSLSocketImpl.java:595|SSLSocket duplex close failed. Debug info only. Exception details: (
+"throwable" : {
+  java.net.SocketException: Socket is closed
+        at java.base/java.net.Socket.shutdownInput(Socket.java:1783)
+        at java.base/sun.security.ssl.BaseSSLSocketImpl.shutdownInput(BaseSSLSocketImpl.java:224)
+        at java.base/sun.security.ssl.SSLSocketImpl.shutdownInput(SSLSocketImpl.java:852)
+        at java.base/sun.security.ssl.SSLSocketImpl.bruteForceCloseInput(SSLSocketImpl.java:801)
+        at java.base/sun.security.ssl.SSLSocketImpl.duplexCloseOutput(SSLSocketImpl.java:666)
+        at java.base/sun.security.ssl.SSLSocketImpl.close(SSLSocketImpl.java:584)
+        at java.base/sun.security.ssl.SSLSocketImpl$AppOutputStream.close(SSLSocketImpl.java:1336)
+        at java.base/java.io.FilterOutputStream.close(FilterOutputStream.java:190)
+        at java.naming/com.sun.jndi.ldap.Connection.flushAndCloseOutputStream(Connection.java:739)
+        at java.naming/com.sun.jndi.ldap.Connection.cleanup(Connection.java:690)
+        at java.naming/com.sun.jndi.ldap.LdapClient.close(LdapClient.java:471)
+        at java.naming/com.sun.jndi.ldap.LdapCtx.closeConnection(LdapCtx.java:2976)
+        at java.naming/com.sun.jndi.ldap.LdapCtx.close(LdapCtx.java:2675)
+        at java.naming/javax.naming.InitialContext.close(InitialContext.java:592)
+        at org.springframework.ldap.core.LdapTemplate.closeContext(LdapTemplate.java:1177)
+        at org.springframework.ldap.core.LdapTemplate.closeContextAndNamingEnumeration(LdapTemplate.java:1166)
+        at org.springframework.ldap.core.LdapTemplate.search(LdapTemplate.java:420)
+        at org.springframework.ldap.core.LdapTemplate.search(LdapTemplate.java:321)
+        at org.springframework.ldap.core.LdapTemplate.search(LdapTemplate.java:649)
+        at org.springframework.ldap.core.LdapTemplate.search(LdapTemplate.java:585)
+        at org.springframework.ldap.core.LdapTemplate.authenticate(LdapTemplate.java:1363)
+        at org.springframework.ldap.core.LdapTemplate.authenticate(LdapTemplate.java:1355)
+        at org.springframework.ldap.core.LdapTemplate.authenticate(LdapTemplate.java:1297)
+        at com.fincore.gateway.Service.AdAuthenticationService.authenticate(AdAuthenticationService.java:48)
+        at com.fincore.gateway.Service.LoginServiceImpl.verifyUserCredentials(LoginServiceImpl.java:176)
+        at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:103)
+        at java.base/java.lang.reflect.Method.invoke(Method.java:580)
+        at org.springframework.aop.support.AopUtils.invokeJoinpointUsingReflection(AopUtils.java:360)
+        at org.springframework.aop.framework.ReflectiveMethodInvocation.invokeJoinpoint(ReflectiveMethodInvocation.java:196)
+        at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:163)
+        at org.springframework.transaction.interceptor.TransactionAspectSupport.invokeWithinTransaction(TransactionAspectSupport.java:380)
+        at org.springframework.transaction.interceptor.TransactionInterceptor.invoke(TransactionInterceptor.java:119)
+        at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:184)
+        at org.springframework.aop.framework.CglibAopProxy$DynamicAdvisedInterceptor.intercept(CglibAopProxy.java:728)
+        at com.fincore.gateway.Service.LoginServiceImpl$$SpringCGLIB$$0.verifyUserCredentials(<generated>)
+        at com.fincore.gateway.Controller.AuthController.lambda$login$2(AuthController.java:218)
+        at reactor.core.publisher.MonoCallable.call(MonoCallable.java:72)
+        at reactor.core.publisher.FluxSubscribeOnCallable$CallableSubscribeOnSubscription.run(FluxSubscribeOnCallable.java:228)
+        at io.micrometer.context.ContextSnapshot.lambda$wrap$0(ContextSnapshot.java:91)
+        at reactor.core.scheduler.SchedulerTask.call(SchedulerTask.java:68)
+        at reactor.core.scheduler.SchedulerTask.call(SchedulerTask.java:28)
+        at java.base/java.util.concurrent.FutureTask.run(FutureTask.java:317)
+        at java.base/java.util.concurrent.ScheduledThreadPoolExecutor$ScheduledFutureTask.run(ScheduledThreadPoolExecutor.java:304)
+        at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1144)
+        at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:642)
+        at java.base/java.lang.Thread.run(Thread.java:1570)}
+
+)
+javax.net.ssl|WARNING|95|Thread-22|2026-06-24 07:09:41.146 GMT|SSLSocketImpl.java:1673|handling exception (
+"throwable" : {
+  java.net.SocketException: Socket closed
+        at java.base/sun.nio.ch.NioSocketImpl.endRead(NioSocketImpl.java:243)
+        at java.base/sun.nio.ch.NioSocketImpl.implRead(NioSocketImpl.java:323)
+        at java.base/sun.nio.ch.NioSocketImpl.read(NioSocketImpl.java:346)
+        at java.base/sun.nio.ch.NioSocketImpl$1.read(NioSocketImpl.java:796)
+        at java.base/java.net.Socket$SocketInputStream.implRead(Socket.java:1108)
+        at java.base/java.net.Socket$SocketInputStream.read(Socket.java:1095)
+        at java.base/sun.security.ssl.SSLSocketInputRecord.read(SSLSocketInputRecord.java:489)
+        at java.base/sun.security.ssl.SSLSocketInputRecord.readHeader(SSLSocketInputRecord.java:483)
+        at java.base/sun.security.ssl.SSLSocketInputRecord.bytesInCompletePacket(SSLSocketInputRecord.java:70)
+        at java.base/sun.security.ssl.SSLSocketImpl.readApplicationRecord(SSLSocketImpl.java:1462)
+        at java.base/sun.security.ssl.SSLSocketImpl$AppInputStream.read(SSLSocketImpl.java:1068)
+        at java.base/java.io.BufferedInputStream.fill(BufferedInputStream.java:291)
+        at java.base/java.io.BufferedInputStream.read1(BufferedInputStream.java:347)
+        at java.base/java.io.BufferedInputStream.implRead(BufferedInputStream.java:420)
+        at java.base/java.io.BufferedInputStream.read(BufferedInputStream.java:399)
+        at java.naming/com.sun.jndi.ldap.Connection.run(Connection.java:965)
+        at java.base/java.lang.Thread.run(Thread.java:1570)}
+
+)
+javax.net.ssl|ERROR|95|Thread-22|2026-06-24 07:09:41.146 GMT|TransportContext.java:370|Fatal (UNEXPECTED_MESSAGE): Socket closed (
+"throwable" : {
+  java.net.SocketException: Socket closed
+        at java.base/sun.nio.ch.NioSocketImpl.endRead(NioSocketImpl.java:243)
+        at java.base/sun.nio.ch.NioSocketImpl.implRead(NioSocketImpl.java:323)
+        at java.base/sun.nio.ch.NioSocketImpl.read(NioSocketImpl.java:346)
+        at java.base/sun.nio.ch.NioSocketImpl$1.read(NioSocketImpl.java:796)
+        at java.base/java.net.Socket$SocketInputStream.implRead(Socket.java:1108)
+        at java.base/java.net.Socket$SocketInputStream.read(Socket.java:1095)
+        at java.base/sun.security.ssl.SSLSocketInputRecord.read(SSLSocketInputRecord.java:489)
+        at java.base/sun.security.ssl.SSLSocketInputRecord.readHeader(SSLSocketInputRecord.java:483)
+        at java.base/sun.security.ssl.SSLSocketInputRecord.bytesInCompletePacket(SSLSocketInputRecord.java:70)
+        at java.base/sun.security.ssl.SSLSocketImpl.readApplicationRecord(SSLSocketImpl.java:1462)
+        at java.base/sun.security.ssl.SSLSocketImpl$AppInputStream.read(SSLSocketImpl.java:1068)
+        at java.base/java.io.BufferedInputStream.fill(BufferedInputStream.java:291)
+        at java.base/java.io.BufferedInputStream.read1(BufferedInputStream.java:347)
+        at java.base/java.io.BufferedInputStream.implRead(BufferedInputStream.java:420)
+        at java.base/java.io.BufferedInputStream.read(BufferedInputStream.java:399)
+        at java.naming/com.sun.jndi.ldap.Connection.run(Connection.java:965)
+        at java.base/java.lang.Thread.run(Thread.java:1570)}
+
+)
+javax.net.ssl|INFO|75|boundedElastic-6|2026-06-24 07:09:41.168 GMT|AlpnExtension.java:179|No available application protocols
+javax.net.ssl|DEBUG|75|boundedElastic-6|2026-06-24 07:09:41.168 GMT|SSLExtensions.java:272|Ignore, context unavailable extension: application_layer_protocol_negotiation
+javax.net.ssl|DEBUG|75|boundedElastic-6|2026-06-24 07:09:41.168 GMT|SessionTicketExtension.java:352|Stateless resumption supported
+javax.net.ssl|DEBUG|75|boundedElastic-6|2026-06-24 07:09:41.168 GMT|SSLExtensions.java:272|Ignore, context unavailable extension: cookie
+javax.net.ssl|DEBUG|75|boundedElastic-6|2026-06-24 07:09:41.169 GMT|SSLExtensions.java:272|Ignore, context unavailable extension: renegotiation_info
+javax.net.ssl|DEBUG|75|boundedElastic-6|2026-06-24 07:09:41.169 GMT|PreSharedKeyExtension.java:679|Existing session has no PSK.
+javax.net.ssl|DEBUG|75|boundedElastic-6|2026-06-24 07:09:41.169 GMT|SSLExtensions.java:272|Ignore, context unavailable extension: pre_shared_key
+javax.net.ssl|DEBUG|75|boundedElastic-6|2026-06-24 07:09:41.170 GMT|ClientHello.java:640|Produced ClientHello handshake message (
+"ClientHello": {
+  "client version"      : "TLSv1.2",
+  "random"              : "82D38D5F2DF6A7C9F1142E1B755F78D1C0E71A33F38889C220C3EB2BAE69C163",
+  "session id"          : "A907000054B63581CC9357DEACE3C57BDD34F8647185882996894E13628E5F9E",
+  "cipher suites"       : "[TLS_AES_256_GCM_SHA384(0x1302), TLS_AES_128_GCM_SHA256(0x1301), TLS_CHACHA20_POLY1305_SHA256(0x1303), TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384(0xC02C), TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256(0xC02B), TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256(0xCCA9), TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384(0xC030), TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256(0xCCA8), TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256(0xC02F), TLS_DHE_RSA_WITH_AES_256_GCM_SHA384(0x009F), TLS_DHE_RSA_WITH_CHACHA20_POLY1305_SHA256(0xCCAA), TLS_DHE_DSS_WITH_AES_256_GCM_SHA384(0x00A3), TLS_DHE_RSA_WITH_AES_128_GCM_SHA256(0x009E), TLS_DHE_DSS_WITH_AES_128_GCM_SHA256(0x00A2), TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA384(0xC024), TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384(0xC028), TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256(0xC023), TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256(0xC027), TLS_DHE_RSA_WITH_AES_256_CBC_SHA256(0x006B), TLS_DHE_DSS_WITH_AES_256_CBC_SHA256(0x006A), TLS_DHE_RSA_WITH_AES_128_CBC_SHA256(0x0067), TLS_DHE_DSS_WITH_AES_128_CBC_SHA256(0x0040), TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA(0xC00A), TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA(0xC014), TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA(0xC009), TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA(0xC013), TLS_DHE_RSA_WITH_AES_256_CBC_SHA(0x0039), TLS_DHE_DSS_WITH_AES_256_CBC_SHA(0x0038), TLS_DHE_RSA_WITH_AES_128_CBC_SHA(0x0033), TLS_DHE_DSS_WITH_AES_128_CBC_SHA(0x0032), TLS_RSA_WITH_AES_256_GCM_SHA384(0x009D), TLS_RSA_WITH_AES_128_GCM_SHA256(0x009C), TLS_RSA_WITH_AES_256_CBC_SHA256(0x003D), TLS_RSA_WITH_AES_128_CBC_SHA256(0x003C), TLS_RSA_WITH_AES_256_CBC_SHA(0x0035), TLS_RSA_WITH_AES_128_CBC_SHA(0x002F), TLS_EMPTY_RENEGOTIATION_INFO_SCSV(0x00FF)]",
+  "compression methods" : "00",
+  "extensions"          : [
+    "server_name (0)": {
+      type=host_name (0), value=corp.ad.sbi
+    },
+    "status_request (5)": {
+      "certificate status type": ocsp
+      "OCSP status request": {
+        "responder_id": <empty>
+        "request extensions": {
+          <empty>
+        }
+      }
+    },
+    "supported_groups (10)": {
+      "named groups": [x25519, secp256r1, secp384r1, secp521r1, x448, ffdhe2048, ffdhe3072, ffdhe4096, ffdhe6144, ffdhe8192]
+    },
+    "ec_point_formats (11)": {
+      "formats": [uncompressed]
+    },
+    "status_request_v2 (17)": {
+      "cert status request": {
+        "certificate status type": ocsp_multi
+        "OCSP status request": {
+          "responder_id": <empty>
+          "request extensions": {
+            <empty>
+          }
+        }
+      }
+    },
+    "extended_master_secret (23)": {
+      <empty>
+    },
+    "session_ticket (35)": {
+      <empty>
+    },
+    "signature_algorithms (13)": {
+      "signature schemes": [ecdsa_secp256r1_sha256, ecdsa_secp384r1_sha384, ecdsa_secp521r1_sha512, ed25519, ed448, rsa_pss_rsae_sha256, rsa_pss_rsae_sha384, rsa_pss_rsae_sha512, rsa_pss_pss_sha256, rsa_pss_pss_sha384, rsa_pss_pss_sha512, rsa_pkcs1_sha256, rsa_pkcs1_sha384, rsa_pkcs1_sha512, dsa_sha256, ecdsa_sha224, rsa_sha224, dsa_sha224, ecdsa_sha1, rsa_pkcs1_sha1, dsa_sha1]
+    },
+    "supported_versions (43)": {
+      "versions": [TLSv1.3, TLSv1.2]
+    },
+    "psk_key_exchange_modes (45)": {
+      "ke_modes": [psk_dhe_ke]
+    },
+    "signature_algorithms_cert (50)": {
+      "signature schemes": [ecdsa_secp256r1_sha256, ecdsa_secp384r1_sha384, ecdsa_secp521r1_sha512, ed25519, ed448, rsa_pss_rsae_sha256, rsa_pss_rsae_sha384, rsa_pss_rsae_sha512, rsa_pss_pss_sha256, rsa_pss_pss_sha384, rsa_pss_pss_sha512, rsa_pkcs1_sha256, rsa_pkcs1_sha384, rsa_pkcs1_sha512, dsa_sha256, ecdsa_sha224, rsa_sha224, dsa_sha224, ecdsa_sha1, rsa_pkcs1_sha1, dsa_sha1]
+    },
+    "key_share (51)": {
+      "client_shares": [
+        {
+          "named group": x25519
+          "key_exchange": {
+            0000: DA 41 3D 10 D0 05 44 09   18 12 2A F5 66 4C 80 55  .A=...D...*.fL.U
+            0010: 83 D5 DA C2 1B F7 77 EE   15 F6 F0 3C 3F 51 55 4C  ......w....<?QUL
+          }
+        },
+        {
+          "named group": secp256r1
+          "key_exchange": {
+            0000: 04 7B 88 CC 4E 22 A0 E3   62 F5 BA 5E 45 9F 67 C0  ....N"..b..^E.g.
+            0010: B8 F0 12 57 83 65 76 6A   B8 07 98 5C E2 F9 97 AE  ...W.evj...\....
+            0020: F3 4D D4 C4 94 D9 2D 16   83 D1 73 2F 35 40 E8 C1  .M....-...s/5@..
+            0030: D1 A0 43 A5 0D 5B BA 06   E5 24 BA A1 84 47 85 C3  ..C..[...$...G..
+            0040: EE
+          }
+        },
+      ]
+    }
+  ]
+}
+)
+javax.net.ssl|DEBUG|75|boundedElastic-6|2026-06-24 07:09:41.193 GMT|ServerHello.java:892|Consuming ServerHello handshake message (
+"ServerHello": {
+  "server version"      : "TLSv1.2",
+  "random"              : "6A3B82B526EFDAE32F125015966AB0D289F68A0090E4304551C8CE3DD77207D1",
+  "session id"          : "A907000054B63581CC9357DEACE3C57BDD34F8647185882996894E13628E5F9E",
+  "cipher suite"        : "TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384(0xC030)",
+  "compression methods" : "00",
+  "extensions"          : [
+    "extended_master_secret (23)": {
+      <empty>
+    },
+    "renegotiation_info (65,281)": {
+      "renegotiated connection": [<no renegotiated connection>]
+    }
+  ]
+}
+)
+javax.net.ssl|DEBUG|75|boundedElastic-6|2026-06-24 07:09:41.193 GMT|SSLExtensions.java:185|Ignore unavailable extension: supported_versions
+javax.net.ssl|DEBUG|75|boundedElastic-6|2026-06-24 07:09:41.193 GMT|ServerHello.java:988|Negotiated protocol version: TLSv1.2
+javax.net.ssl|DEBUG|75|boundedElastic-6|2026-06-24 07:09:41.193 GMT|SSLExtensions.java:204|Consumed extension: renegotiation_info
+javax.net.ssl|DEBUG|75|boundedElastic-6|2026-06-24 07:09:41.193 GMT|SSLExtensions.java:185|Ignore unavailable extension: server_name
+javax.net.ssl|DEBUG|75|boundedElastic-6|2026-06-24 07:09:41.193 GMT|SSLExtensions.java:185|Ignore unavailable extension: max_fragment_length
+javax.net.ssl|DEBUG|75|boundedElastic-6|2026-06-24 07:09:41.194 GMT|SSLExtensions.java:185|Ignore unavailable extension: status_request
+javax.net.ssl|DEBUG|75|boundedElastic-6|2026-06-24 07:09:41.194 GMT|SSLExtensions.java:185|Ignore unavailable extension: ec_point_formats
+javax.net.ssl|DEBUG|75|boundedElastic-6|2026-06-24 07:09:41.194 GMT|SSLExtensions.java:185|Ignore unavailable extension: status_request_v2
+javax.net.ssl|DEBUG|75|boundedElastic-6|2026-06-24 07:09:41.194 GMT|SSLExtensions.java:204|Consumed extension: extended_master_secret
+javax.net.ssl|DEBUG|75|boundedElastic-6|2026-06-24 07:09:41.194 GMT|SSLExtensions.java:185|Ignore unavailable extension: session_ticket
+javax.net.ssl|DEBUG|75|boundedElastic-6|2026-06-24 07:09:41.194 GMT|SSLExtensions.java:175|Ignore unsupported extension: supported_versions
+javax.net.ssl|DEBUG|75|boundedElastic-6|2026-06-24 07:09:41.194 GMT|SSLExtensions.java:175|Ignore unsupported extension: key_share
+javax.net.ssl|DEBUG|75|boundedElastic-6|2026-06-24 07:09:41.194 GMT|SSLExtensions.java:204|Consumed extension: renegotiation_info
+javax.net.ssl|DEBUG|75|boundedElastic-6|2026-06-24 07:09:41.194 GMT|SSLExtensions.java:175|Ignore unsupported extension: pre_shared_key
+javax.net.ssl|DEBUG|75|boundedElastic-6|2026-06-24 07:09:41.194 GMT|SSLExtensions.java:219|Ignore unavailable extension: server_name
+javax.net.ssl|DEBUG|75|boundedElastic-6|2026-06-24 07:09:41.194 GMT|SSLExtensions.java:219|Ignore unavailable extension: max_fragment_length
+javax.net.ssl|DEBUG|75|boundedElastic-6|2026-06-24 07:09:41.194 GMT|SSLExtensions.java:219|Ignore unavailable extension: status_request
+javax.net.ssl|DEBUG|75|boundedElastic-6|2026-06-24 07:09:41.194 GMT|SSLExtensions.java:219|Ignore unavailable extension: ec_point_formats
+javax.net.ssl|DEBUG|75|boundedElastic-6|2026-06-24 07:09:41.194 GMT|SSLExtensions.java:219|Ignore unavailable extension: application_layer_protocol_negotiation
+javax.net.ssl|DEBUG|75|boundedElastic-6|2026-06-24 07:09:41.194 GMT|SSLExtensions.java:219|Ignore unavailable extension: status_request_v2
+javax.net.ssl|WARNING|75|boundedElastic-6|2026-06-24 07:09:41.194 GMT|SSLExtensions.java:227|Ignore impact of unsupported extension: extended_master_secret
+javax.net.ssl|DEBUG|75|boundedElastic-6|2026-06-24 07:09:41.194 GMT|SSLExtensions.java:219|Ignore unavailable extension: session_ticket
+javax.net.ssl|DEBUG|75|boundedElastic-6|2026-06-24 07:09:41.194 GMT|SSLExtensions.java:219|Ignore unavailable extension: supported_versions
+javax.net.ssl|DEBUG|75|boundedElastic-6|2026-06-24 07:09:41.194 GMT|SSLExtensions.java:219|Ignore unavailable extension: key_share
+javax.net.ssl|WARNING|75|boundedElastic-6|2026-06-24 07:09:41.194 GMT|SSLExtensions.java:227|Ignore impact of unsupported extension: renegotiation_info
+javax.net.ssl|DEBUG|75|boundedElastic-6|2026-06-24 07:09:41.194 GMT|SSLExtensions.java:219|Ignore unavailable extension: pre_shared_key
+javax.net.ssl|DEBUG|75|boundedElastic-6|2026-06-24 07:09:41.194 GMT|ChangeCipherSpec.java:148|Consuming ChangeCipherSpec message
+javax.net.ssl|DEBUG|75|boundedElastic-6|2026-06-24 07:09:41.194 GMT|Finished.java:548|Consuming server Finished handshake message (
+"Finished": {
+  "verify data": {
+    0000: FF 5F AC FC 71 BF 80 3E   1D 21 2C 69
+  }
+}
+)
+javax.net.ssl|DEBUG|75|boundedElastic-6|2026-06-24 07:09:41.194 GMT|ChangeCipherSpec.java:114|Produced ChangeCipherSpec message
+javax.net.ssl|DEBUG|75|boundedElastic-6|2026-06-24 07:09:41.194 GMT|Finished.java:396|Produced client Finished handshake message (
+"Finished": {
+  "verify data": {
+    0000: A9 F7 60 2C F0 9D 7A 9C   28 AA C9 D4
+  }
+}
+)
+javax.net.ssl|ALL|75|boundedElastic-6|2026-06-24 07:09:41.300 GMT|SSLSocketImpl.java:1332|Closing output stream
+javax.net.ssl|DEBUG|75|boundedElastic-6|2026-06-24 07:09:41.300 GMT|SSLSocketImpl.java:577|duplex close of SSLSocket
+javax.net.ssl|DEBUG|75|boundedElastic-6|2026-06-24 07:09:41.300 GMT|SSLSocketImpl.java:1750|close the underlying socket
+javax.net.ssl|DEBUG|75|boundedElastic-6|2026-06-24 07:09:41.300 GMT|SSLSocketImpl.java:1776|close the SSL connection (initiative)
+javax.net.ssl|DEBUG|75|boundedElastic-6|2026-06-24 07:09:41.300 GMT|SSLSocketImpl.java:836|close inbound of SSLSocket
+2026-06-24 07:09:41.301 INFO  [boundedElastic-6] c.f.g.S.AdAuthenticationService: LDAP Authentication SUCCESS for user: v1013333
+javax.net.ssl|WARNING|75|boundedElastic-6|2026-06-24 07:09:41.301 GMT|SSLSocketImpl.java:595|SSLSocket duplex close failed. Debug info only. Exception details: (
+"throwable" : {
+  java.net.SocketException: Socket is closed
+        at java.base/java.net.Socket.shutdownInput(Socket.java:1783)
+        at java.base/sun.security.ssl.BaseSSLSocketImpl.shutdownInput(BaseSSLSocketImpl.java:224)
+        at java.base/sun.security.ssl.SSLSocketImpl.shutdownInput(SSLSocketImpl.java:852)
+        at java.base/sun.security.ssl.SSLSocketImpl.bruteForceCloseInput(SSLSocketImpl.java:801)
+        at java.base/sun.security.ssl.SSLSocketImpl.duplexCloseOutput(SSLSocketImpl.java:666)
+        at java.base/sun.security.ssl.SSLSocketImpl.close(SSLSocketImpl.java:584)
+        at java.base/sun.security.ssl.SSLSocketImpl$AppOutputStream.close(SSLSocketImpl.java:1336)
+        at java.base/java.io.FilterOutputStream.close(FilterOutputStream.java:190)
+        at java.naming/com.sun.jndi.ldap.Connection.flushAndCloseOutputStream(Connection.java:739)
+        at java.naming/com.sun.jndi.ldap.Connection.cleanup(Connection.java:690)
+        at java.naming/com.sun.jndi.ldap.LdapClient.close(LdapClient.java:471)
+        at java.naming/com.sun.jndi.ldap.LdapCtx.closeConnection(LdapCtx.java:2976)
+        at java.naming/com.sun.jndi.ldap.LdapCtx.close(LdapCtx.java:2675)
+        at java.naming/javax.naming.InitialContext.close(InitialContext.java:592)
+        at org.springframework.ldap.core.LdapTemplate.closeContext(LdapTemplate.java:1177)
+        at org.springframework.ldap.core.LdapTemplate.executeWithContext(LdapTemplate.java:830)
+        at org.springframework.ldap.core.LdapTemplate.authenticate(LdapTemplate.java:1379)
+        at org.springframework.ldap.core.LdapTemplate.authenticate(LdapTemplate.java:1355)
+        at org.springframework.ldap.core.LdapTemplate.authenticate(LdapTemplate.java:1297)
+        at com.fincore.gateway.Service.AdAuthenticationService.authenticate(AdAuthenticationService.java:48)
+        at com.fincore.gateway.Service.LoginServiceImpl.verifyUserCredentials(LoginServiceImpl.java:176)
+        at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:103)
+        at java.base/java.lang.reflect.Method.invoke(Method.java:580)
+        at org.springframework.aop.support.AopUtils.invokeJoinpointUsingReflection(AopUtils.java:360)
+        at org.springframework.aop.framework.ReflectiveMethodInvocation.invokeJoinpoint(ReflectiveMethodInvocation.java:196)
+        at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:163)
+        at org.springframework.transaction.interceptor.TransactionAspectSupport.invokeWithinTransaction(TransactionAspectSupport.java:380)
+        at org.springframework.transaction.interceptor.TransactionInterceptor.invoke(TransactionInterceptor.java:119)
+{"@timestamp":"2026-06-24T12:39:41.301171947+05:30","level":"INFO","service":"LoginService","traceId":"9819a9d456ea4b17b2b3456b0c996855","userId":"","clientIp":"10.0.57.36","apiPath":"/api/auth/login","requestUrl":"https://fincore.sbi/api/auth/login","httpMethod":"POST","httpStatus":"","class":"c.f.g.Service.AdAuthenticationService","message":"LDAP Authentication SUCCESS for user: v1013333","stack_trace":""}
+2026-06-24 07:09:41.301 INFO  [boundedElastic-6] c.f.g.S.LoginServiceImpl: Credentials validated. Issuing token for userId=v1013333
+{"@timestamp":"2026-06-24T12:39:41.301442688+05:30","level":"INFO","service":"LoginService","traceId":"9819a9d456ea4b17b2b3456b0c996855","userId":"","clientIp":"10.0.57.36","apiPath":"/api/auth/login","requestUrl":"https://fincore.sbi/api/auth/login","httpMethod":"POST","httpStatus":"","class":"c.f.gateway.Service.LoginServiceImpl","message":"Credentials validated. Issuing token for userId=v1013333","stack_trace":""}
+        at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:184)
+        at org.springframework.aop.framework.CglibAopProxy$DynamicAdvisedInterceptor.intercept(CglibAopProxy.java:728)
+        at com.fincore.gateway.Service.LoginServiceImpl$$SpringCGLIB$$0.verifyUserCredentials(<generated>)
+        at com.fincore.gateway.Controller.AuthController.lambda$login$2(AuthController.java:218)
+        at reactor.core.publisher.MonoCallable.call(MonoCallable.java:72)
+        at reactor.core.publisher.FluxSubscribeOnCallable$CallableSubscribeOnSubscription.run(FluxSubscribeOnCallable.java:228)
+        at io.micrometer.context.ContextSnapshot.lambda$wrap$0(ContextSnapshot.java:91)
+        at reactor.core.scheduler.SchedulerTask.call(SchedulerTask.java:68)
+        at reactor.core.scheduler.SchedulerTask.call(SchedulerTask.java:28)
+        at java.base/java.util.concurrent.FutureTask.run(FutureTask.java:317)
+        at java.base/java.util.concurrent.ScheduledThreadPoolExecutor$ScheduledFutureTask.run(ScheduledThreadPoolExecutor.java:304)
+        at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1144)
+        at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:642)
+        at java.base/java.lang.Thread.run(Thread.java:1570)}
+
+)
+javax.net.ssl|WARNING|B5|Thread-23|2026-06-24 07:09:41.301 GMT|SSLSocketImpl.java:1673|handling exception (
+"throwable" : {
+  java.net.SocketException: Socket closed
+        at java.base/sun.nio.ch.NioSocketImpl.endRead(NioSocketImpl.java:243)
+        at java.base/sun.nio.ch.NioSocketImpl.implRead(NioSocketImpl.java:323)
+        at java.base/sun.nio.ch.NioSocketImpl.read(NioSocketImpl.java:346)
+        at java.base/sun.nio.ch.NioSocketImpl$1.read(NioSocketImpl.java:796)
+2026-06-24 07:09:41.301 INFO  [boundedElastic-6] c.f.g.J.HmacJwtUtil: Generated exp in Seconds=2026-06-24T07:24:41.301770415Z
+{"@timestamp":"2026-06-24T12:39:41.301774381+05:30","level":"INFO","service":"LoginService","traceId":"9819a9d456ea4b17b2b3456b0c996855","userId":"","clientIp":"10.0.57.36","apiPath":"/api/auth/login","requestUrl":"https://fincore.sbi/api/auth/login","httpMethod":"POST","httpStatus":"","class":"com.fincore.gateway.JwtUtil.HmacJwtUtil","message":"Generated exp in Seconds=2026-06-24T07:24:41.301770415Z","stack_trace":""}
+        at java.base/java.net.Socket$SocketInputStream.implRead(Socket.java:1108)
+        at java.base/java.net.Socket$SocketInputStream.read(Socket.java:1095)
+        at java.base/sun.security.ssl.SSLSocketInputRecord.read(SSLSocketInputRecord.java:489)
+        at java.base/sun.security.ssl.SSLSocketInputRecord.readHeader(SSLSocketInputRecord.java:483)
+        at java.base/sun.security.ssl.SSLSocketInputRecord.bytesInCompletePacket(SSLSocketInputRecord.java:70)
+        at java.base/sun.security.ssl.SSLSocketImpl.readApplicationRecord(SSLSocketImpl.java:1462)
+        at java.base/sun.security.ssl.SSLSocketImpl$AppInputStream.read(SSLSocketImpl.java:1068)
+        at java.base/java.io.BufferedInputStream.fill(BufferedInputStream.java:291)
+        at java.base/java.io.BufferedInputStream.read1(BufferedInputStream.java:347)
+        at java.base/java.io.BufferedInputStream.implRead(BufferedInputStream.java:420)
+        at java.base/java.io.BufferedInputStream.read(BufferedInputStream.java:399)
+        at java.naming/com.sun.jndi.ldap.Connection.run(Connection.java:965)
+        at java.base/java.lang.Thread.run(Thread.java:1570)}
+
+)
+javax.net.ssl|ERROR|B5|Thread-23|2026-06-24 07:09:41.301 GMT|TransportContext.java:370|Fatal (UNEXPECTED_MESSAGE): Socket closed (
+"throwable" : {
+  java.net.SocketException: Socket closed
+        at java.base/sun.nio.ch.NioSocketImpl.endRead(NioSocketImpl.java:243)
+        at java.base/sun.nio.ch.NioSocketImpl.implRead(NioSocketImpl.java:323)
+2026-06-24 07:09:41.301 INFO  [boundedElastic-6] c.f.g.J.HmacJwtUtil: Jti generated=1102bee5-b23f-4d6c-ae0f-a45f64ea7b87
+{"@timestamp":"2026-06-24T12:39:41.301908625+05:30","level":"INFO","service":"LoginService","traceId":"9819a9d456ea4b17b2b3456b0c996855","userId":"","clientIp":"10.0.57.36","apiPath":"/api/auth/login","requestUrl":"https://fincore.sbi/api/auth/login","httpMethod":"POST","httpStatus":"","class":"com.fincore.gateway.JwtUtil.HmacJwtUtil","message":"Jti generated=1102bee5-b23f-4d6c-ae0f-a45f64ea7b87","stack_trace":""}
+        at java.base/sun.nio.ch.NioSocketImpl.read(NioSocketImpl.java:346)
+        at java.base/sun.nio.ch.NioSocketImpl$1.read(NioSocketImpl.java:796)
+        at java.base/java.net.Socket$SocketInputStream.implRead(Socket.java:1108)
+        at java.base/java.net.Socket$SocketInputStream.read(Socket.java:1095)
+        at java.base/sun.security.ssl.SSLSocketInputRecord.read(SSLSocketInputRecord.java:489)
+        at java.base/sun.security.ssl.SSLSocketInputRecord.readHeader(SSLSocketInputRecord.java:483)
+        at java.base/sun.security.ssl.SSLSocketInputRecord.bytesInCompletePacket(SSLSocketInputRecord.java:70)
+        at java.base/sun.security.ssl.SSLSocketImpl.readApplicationRecord(SSLSocketImpl.java:1462)
+        at java.base/sun.security.ssl.SSLSocketImpl$AppInputStream.read(SSLSocketImpl.java:1068)
+        at java.base/java.io.BufferedInputStream.fill(BufferedInputStream.java:291)
+        at java.base/java.io.BufferedInputStream.read1(BufferedInputStream.java:347)
+        at java.base/java.io.BufferedInputStream.implRead(BufferedInputStream.java:420)
+        at java.base/java.io.BufferedInputStream.read(BufferedInputStream.java:399)
+        at java.naming/com.sun.jndi.ldap.Connection.run(Connection.java:965)
+        at java.base/java.lang.Thread.run(Thread.java:1570)}
