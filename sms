@@ -635,3 +635,6 @@ javax.net.ssl|ERROR|B5|Thread-23|2026-06-24 07:09:41.301 GMT|TransportContext.ja
         at java.base/java.io.BufferedInputStream.read(BufferedInputStream.java:399)
         at java.naming/com.sun.jndi.ldap.Connection.run(Connection.java:965)
         at java.base/java.lang.Thread.run(Thread.java:1570)}
+
+
+2026-06-24 07:10:41.346 INFO  [boundedElastic-6] c.f.g.S.LoginServiceImpl: Credentials validated. Issuing token for userId=
