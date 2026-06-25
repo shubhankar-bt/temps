@@ -1,5 +1,57 @@
-debezium.source.offset.storage.file.filename=/debezium/data/offsets.dat
-debezium.source.schema.history.internal.kafka.topic=schema-changes.oracle
+                                   FINCORE PLATFORM
+==================================================================================================
+
+                                +----------------------+
+                                |   Desktop Client     |
+                                +----------+-----------+
+                                           |
+                                           |
+                                    API Gateway
+                                           |
+        ------------------------------------------------------------------------------------------
+        |                 |                    |                     |                    |
+        |                 |                    |                     |                    |
+   Login Service    Process Service     Report Service      User Service        Any Future Service
+        |                 |                    |                     |                    |
+        |                 |                    |                     |                    |
+        |                 |                    |                     |                    |
+        |          Publish Generic            Publish Generic        |                    |
+        |                 |                    |                     |                    |
+        |                 |                    |                     |                    |
+Generate OTP              |                    |                     |                    |
+Save Redis Session         |                    |                     |                    |
+Publish Priority Event     |                    |                     |                    |
+        |                 |                    |                     |                    |
+        ------------------------------------------------------------------------------------------
+                                           |
+                                    Kafka Cluster
+                                           |
+                     ---------------------------------------------------
+                     |                                                 |
+                     |                                                 |
+         fincore.auth.otp.priority                 fincore.communication.generic
+                     |                                                 |
+                     |                                                 |
+          Priority Consumer Pool                          Generic Consumer Pool
+         (Dedicated Thread Pool)                       (Dedicated Thread Pool)
+                     |                                                 |
+                     |                                                 |
+         ------------------------                        ---------------------------------
+         |                      |                        |               |               |
+         |                      |                        |               |               |
+     OTP Processor         Retry/DLQ             Recipient Resolver  Attachment      Audit
+                                                  Deep Link Engine    Service       Service
+                     |                                                 |
+                     |                                                 |
+             --------------------                           --------------------------
+             |                  |                           |                        |
+             |                  |                           |                        |
+        Email Channel      SMS Channel                 Email Channel          SMS Channel
+             |                  |                           |                        |
+             |                  |                           |                        |
+      SBI Email API       SBI SMS API                SBI Email API          SBI SMS API
+
+==================================================================================================
 
 
 
@@ -8,14 +60,283 @@ debezium.source.schema.history.internal.kafka.topic=schema-changes.oracle
 
 
 
-# 1. Change offset filename so it forgets the old SCN and starts fresh
-debezium.source.offset.storage.file.filename=/debezium/data/offsets_fresh.dat
 
-# 2. Change the schema history topic so it doesn't conflict with the old one
-debezium.source.schema.history.internal.kafka.topic=schema-changes.oracle.fresh
 
-# 3. Explicitly force a new snapshot just to be 100% safe
-debezium.source.snapshot.mode=initial
+
+
+
+
+
+
+
+communication-service
+│
+├── consumers
+│      ├── PriorityOtpConsumer
+│      └── GenericCommunicationConsumer
+│
+├── orchestrator
+│      └── CommunicationOrchestrator
+│
+├── recipient
+│      └── RecipientResolver
+│
+├── template
+│      ├── TemplateEngine
+│      └── TemplateCache
+│
+├── channels
+│      ├── EmailChannel
+│      ├── SmsChannel
+│      └── ChannelFactory
+│
+├── attachment
+│      └── AttachmentService
+│
+├── deeplink
+│      └── DeepLinkGenerator
+│
+├── audit
+│      └── CommunicationAuditService
+│
+├── retry
+│      └── Retry/DLQ Handler
+│
+└── config
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Login
+
+↓
+
+Generate OTP
+
+↓
+
+Redis
+
+↓
+
+AES Encrypt
+
+↓
+
+Kafka Priority Topic
+
+↓
+
+Priority Consumer
+
+↓
+
+Decrypt
+
+↓
+
+Template Engine
+
+↓
+
+Email/SMS
+
+↓
+
+Provider
+
+↓
+
+ACK
+
+
+
+
+
+
+Generic Communication Path
+
+Everything else uses this path.
+
+Examples
+
+* Report Ready
+* Process Completed
+* Branch Announcement
+* Password Expiry
+* Approval Notification
+* Daily Summary
+* Maintenance Window
+
+
+
+Process Service
+
+↓
+
+Publish Generic Event
+
+↓
+
+Kafka Generic Topic
+
+↓
+
+Communication Consumer
+
+↓
+
+Recipient Resolver
+
+↓
+
+Template Engine
+
+↓
+
+Attachment Builder
+
+↓
+
+Deep Link Generator
+
+↓
+
+Channel Dispatcher
+
+↓
+
+Audit
+
+↓
+
+ACK
+
+
+
+
+
+
+
+
+
+
+roles
+
+users
+
+emails
+
+mobiles
+
+
+
+Attachments
+
+Never send PDFs through Kafka.
+
+
+
+attachments
+
+[
+   {
+      storage:HDFS,
+      path:/reports/journal.pdf,
+      fileName:Journal.pdf
+   }
+]
+
+
+Consumer
+
+↓
+
+Download
+
+↓
+
+Attach
+
+↓
+
+Delete temporary file
+
+Kafka remains lightweight.
+
+
+
+
+
+
+
+
+fincore.communication.generic
+
+fincore.communication.scheduled
+
+fincore.communication.bulk
+
+fincore.communication.audit
+
+
+
+COMMUNICATION_RECIPIENT
+
+eventId
+
+recipient
+
+channel
+
+status
+
+providerMessageId
+
+retryCount
+
+failureReason
+
+
+
+One Generic Event
+
+↓
+
+Resolve Recipients
+
+↓
+
+Chunk
+
+500
+
+↓
+
+500
+
+↓
+
+500
+
+↓
+
+Dispatch
+
+
 
 
 
