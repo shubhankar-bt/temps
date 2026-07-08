@@ -1,92 +1,45 @@
+seee i am getting the output like below but i need the output like 
+for example 1:
+
+ System.out.println("--- EXAMPLE 1 ---");
+        List<CglMapping> ex1 = List.of(
+                new CglMapping("1260505001", List.of("02060", "17400")),
+                new CglMapping("4600010700", List.of("02060", "17400")),
+                new CglMapping("511102200", List.of("02060"))
+        );
+        printResult(groupCgls(ex1));
+
+i want 02060, 17400  both but i am getting only one, so you got me wrong.
+
+--- EXAMPLE 1 ---
+Group: 02060
+ - 1260505001
+ - 4600010700
+ - 511102200
+
+--- EXAMPLE 2 ---
+Group: 17400
+ - 1260505001
+ - 4600010700
+ - 511102200
+
+--- EXAMPLE 3 ---
+Group: 17400
+ - 1260505001
+ - 511102200
+Group: 02060
+ - 1260505001
+ - 4600010700
+
+--- EXAMPLE 4 ---
+Group: 02060/17400
+ - 1260505001
+ - 4600010700
 
 
 
 
 
-  SELECT
-  "__time",
-  "currency",
-  "cgl",
-  "comp",
-  "name",
-  "amt",
-  "type"
-FROM "bncs";
+Also check the below queery:
 
-| __time                   | currency |        cgl |  comp | name                            |               amt | type |
-| :----------------------- | :------- | ---------: | ----: | :------------------------------ | ----------------: | :--- |
-| 2026-03-31T00:00:00.000Z | ACD      | 1175505001 | 20531 |  CURRENCY CONTROL A/C (CR/DR)   |        2138896192 | bgl  |
-| 2026-03-31T00:00:00.000Z | ACD      | 1209505013 |  1352 |  ACD SBI DHAKA (ACD)            |          -1379746 | bgl  |
-| 2026-03-31T00:00:00.000Z | ACD      | 1209505014 |  1352 |  ACD SBI, COLOMBO (ACD) - SBCLA |          -1847368 | bgl  |
-| 2026-03-31T00:00:00.000Z | ACD      | 1209505015 |  1352 |  ACD SBI NEW YORK - SBNYA       |       -2135662667 | bgl  |
-| 2026-03-31T00:00:00.000Z | ACD      | 1258505001 | 20003 |  FC NOTES A/C                   |             -6410 | bgl  |
-| 2026-03-31T00:00:00.000Z | ACE      | 1222505001 |  1352 |  CA-NOSTRO MIRROR IN ACU        |         -12196228 | bgl  |
-| 2026-03-31T00:00:00.000Z | ACU      | 1222505001 |  1352 |  CA-NOSTRO MIRROR IN ACU        |          -6707429 | bgl  |
-| 2026-03-31T00:00:00.000Z | AED      | 1115505002 | 20026 |  AED National Bank of Abu Dhabi |          -9161057 | bgl  |
-| 2026-03-31T00:00:00.000Z | AED      | 1115505092 | 20026 |  NOST-MIR-SBIGMUK-ADCB-ABUDHABI |           -742162 | bgl  |
-| 2026-03-31T00:00:00.000Z | AED      | 1121505002 |  1305 |  Card Holder Pool ac Corporate  |            159607 | bgl  |
-| 2026-03-31T00:00:00.000Z | AED      | 1121505003 |  1305 |  Card Holder Pool ac Retail     |          34752416 | bgl  |
-| 2026-03-31T00:00:00.000Z | AED      | 1175505001 | 20531 |  CURRENCY CONTROL A/C (CR/DR)   |      -12930980636 | bgl  |
-| 2026-03-31T00:00:00.000Z | AED      | 1185505018 | 20026 |  SBT  MASHREQ BANK AED          |          -1895153 | bgl  |
-| 2026-03-31T00:00:00.000Z | AED      | 1258505001 | 20003 |  FC NOTES A/C                   |           -404015 | bgl  |
-| 2026-03-31T00:00:00.000Z | AUD      | 1115505006 | 20026 |  AUD Nat Australia Bank, Melbou |          -7127051 | bgl  |
-| 2026-03-31T00:00:00.000Z | AUD      | 1115505007 | 20026 |  AUD CommnwlthBk Of Austrl Sydn |           -174177 | bgl  |
-| 2026-03-31T00:00:00.000Z | AUD      | 1115505008 | 20026 |  BANK OF AMERICA SYDNEY AUD FTC |           -992072 | bgl  |
-| 2026-03-31T00:00:00.000Z | AUD      | 1121505002 |  1305 |  Card Holder Pool ac Corporate  |             87589 | bgl  |
-| 2026-03-31T00:00:00.000Z | AUD      | 1121505003 |  1305 |  Card Holder Pool ac Retail     |           4105756 | bgl  |
-| 2026-03-31T00:00:00.000Z | AUD      | 1175505001 | 20531 |  CURRENCY CONTROL A/C (CR/DR)   |       -3408195244 | bgl  |
-| 2026-03-31T00:00:00.000Z | AUD      | 1209505020 |  1352 |  AUD SBI Sydney (SBSY)          |           1261496 | bgl  |
-| 2026-03-31T00:00:00.000Z | AUD      | 1209505077 |  1352 |  SBI SYDNEY INTRBANK SETTLEMENT |          -1390065 | bgl  |
-
-
-
-
-
-
-
-
-
-
-
-
-SELECT
-  "__time",
-  "currency",
-  "cgl",
-  "comp",
-  "name",
-  "amt"
-FROM "tb"
-
-
-
-
-
-
-| __time                   | currency |        cgl |  comp | name                            |               amt |
-| :----------------------- | :------- | ---------: | ----: | :------------------------------ | ----------------: |
-| 2026-03-31T00:00:00.000Z | ACD      | 1175505001 | 20531 |  CURRENCY CONTROL A/C (CR/DR)   |     -2138896191.6 |
-| 2026-03-31T00:00:00.000Z | ACD      | 1209505013 |  1352 |  ACD SBI DHAKA (ACD)            |        1379745.98 |
-| 2026-03-31T00:00:00.000Z | ACD      | 1209505014 |  1352 |  ACD SBI, COLOMBO (ACD) - SBCLA |        1847368.48 |
-| 2026-03-31T00:00:00.000Z | ACD      | 1209505015 |  1352 |  ACD SBI NEW YORK - SBNYA       |     2135662667.14 |
-| 2026-03-31T00:00:00.000Z | ACD      | 1258505001 | 20003 |  FC NOTES A/C                   |              6410 |
-| 2026-03-31T00:00:00.000Z | ACE      | 1222505001 |  1352 |  CA-NOSTRO MIRROR IN ACU        |       12196227.66 |
-| 2026-03-31T00:00:00.000Z | ACU      | 1222505001 |  1352 |  CA-NOSTRO MIRROR IN ACU        |         6707428.5 |
-
-
-
-
-
-
-
-
-
-
-Comb	Comp Code	CGL-Name	Dep	Adv	CT	BGL	CBS	TB	Diff
-INR2006070601	1036	SAVINGS BANK_P-PUB           	-1.31823E+13	0	0	0	-1.31823E+13	-1.31823E+13	-917772.5
-INR2028070602	1036	SB-DSP-Gold_P-PUB             	-7.07215E+11	0	0	0	-7.07215E+11	-7.07215E+11	-1509
-INR1006070601	20203	SAVINGS BANK OD_P-PUB         	320276424.2	0	0	0	320276424.2	320277604.2	1180
-INR1018500101	20176	CASH CREDIT_C&I               	-1.557E+12	0	0	0	-1.557E+12	1.557E+12	0
-INR1018500401	20176	CASH CREDIT_SBF               	-8.01148E+11	0	0	0	-8.01148E+11	8.01148E+11	0
-									
-			druid table - "bncs" groups in type columns				sum of previous groups	druid table - "tb"	diff between cbs and tb
+select nwsa_code,count(nwsa_code) from (select REGEXP_SUBSTR(nwsa_code,'[^/]+',1,1) nwsa_code from base union all select REGEXP_SUBSTR(nwsa_code,'[^/]+',1,2)  nwsa_code from base  WHERE INSTR(nwsa_code,'/') > 0) group by nwsa_code
