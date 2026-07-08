@@ -1,90 +1,54 @@
-List of Abbreviations:
-Abbreviation	      Expanded Form
-CGL	               Corporate General Ledger
-Currency	          INR and Other foreign currency used for transaction
-Branch	Entity of bank.  Refer as Branch code
+rb_parsed_template
+
+RUN_ID	VARCHAR2(50 BYTE)	No		1	All rows for one report run share the same RUN_ID 
+HEAD_CODE	VARCHAR2(100 BYTE)	Yes		2	Report line-item code extracted from the HEAD/FIELD column of a DATA row in the JSON template. Uniquely identifies a report heading
+HEAD_DESC	VARCHAR2(4000 BYTE)	Yes		3	Readable description of the report line item, extracted from the DESC column of the same DATA row. 
+VAR_NAME	VARCHAR2(100 BYTE)	Yes		4	Name of the formula variable from the JSON template (e.g., Swing_Neg, SP, DN, Reverse). Used to determine LOGIC_TYPE and IS_REVERSE via pattern matching in the parser. Also used as the PARTITION BY key in SWING_CALC to compute GROUP_TOTAL for swing-sign logic.
+LOGIC_TYPE	VARCHAR2(50 BYTE)	Yes		5	Controls which rows survive the final filter in the generation CTE. Valid values: NORMAL - Always included; CP - Credit-positive/negative variable, always included; DN - Debit-negative/positive variable, always included; SN - Swing-negative: row included only when GROUP_TOTAL < 0; SP     - Swing-positive: row included only when GROUP_TOTAL > 0.
+ROW_FILTER	VARCHAR2(20 BYTE)	Yes		6	Sign guard applied at the branch-level aggregation stage (HAVING clause in RAW_AGG CTE). Derived from the INR_BALANCE or BALANCE filter operator in the JSON variable filters block. Valid values: POS - Include only branches where SUM(INR_BALANCE) > 0; NEG - Include only branches where SUM(INR_BALANCE) < 0; NULL - No sign restriction, all non-zero balances are included.
+IS_REVERSE	CHAR(1 BYTE)	Yes		7	Flag indicating whether the display amount sign should be flipped. Y = multiply CGL_BAL by -1 before output (i.e., show the inverse); N = display the raw aggregated balance. Derived from VAR_NAME containing the substring "Reverse" or the alias "R".
+CGL	VARCHAR2(50 BYTE)	Yes		8	Flattened from the CGL filter array inside the JSON variable. 
+CURRENCY_FILTER	VARCHAR2(10 BYTE)	Yes	"NULL
+"	9	Extracted from the CURRENCY filter block in the JSON variable definition. NULL means no currency restriction is applied. 
+CREATED_AT	TIMESTAMP(6)	No	SYSTIMESTAMP 	10	
+UPDATED_AT	TIMESTAMP(6)	No	SYSTIMESTAMP 	11	
 
 
-2.3	Drill down Enquiry
-User to have following options in order to view drill down data.
-•	Date – User to choose the date for enquiry
-•	Report – User to select report either YSA, PNL or NWSA from the drop down.
-•	Code – User will enter the code of the for which the data is required.
-•	Scope – User to choose if the data required is for Bank Level, Circle Level or for a particular Branch.
-o	Bank Level – the data will be shown for the consolidated for bank level.
-o	Circle Level – the user needs to choose the circle for which the data is required. A drop down to be provided for selecting the circle.
-o	Branch Level– in case user want to view data for a particular branch only, an input will be provided in enter the branch code.
-•	Once the above required details are entered, user can fetch the data.
+sample data :
 
-
-
-
-2.4	Data [ images will be attahced seperately for this 3 type of sample data herewith] 
-The system will fetch the data for the selected parameters and display in following manner.
-•	Bank Level Enquiry – in case of bank level enquiry the drill down will be available in Geography>Circle > CGL> Product > Branch. Sample data will be as below
-
-Bank Level Enquiry – In case of bank level enquiry the drill down will be available in:
-Geography > Circle > CGL > Product > Branch
-
-+-------------+-----------+-------------+-----------+--------+-----------+
-| Geography   | Circle    | CGL         | Product   | Branch | Amount    |
-+-------------+-----------+-------------+-----------+--------+-----------+
-| - Domestic  |           |             |           |        | 177675966 |
-|             | - Kolkata |             |           |        | 172725689 |
-|             |           | +1260505001 |           |        |   4057156 |
-|             |           | -1204505001 |           |        |  84695032 |
-|             |           |             | +12609809 |        |   6680961 |
-|             |           |             | +12609810 |        |   6487122 |
-|             |           |             | +12609811 |        |  28516998 |
-|             |           |             | -12609812 |        |  43009951 |
-|             |           |             |           | 01111  |  12509891 |
-|             |           |             |           | 01112  |   9302775 |
-|             |           |             |           | 01113  |  21197285 |
-|             |           | +1204505002 |           |        |  22110781 |
-|             |           | +1204505003 |           |        |  29809734 |
-|             |           | +1204505004 |           |        |  32052986 |
-|             | + Mumbai  |             |           |        |   2629857 |
-|             | + Bhopal  |             |           |        |   2320420 |
-| + Foreign   |           |             |           |        |  20533430 |
-+-------------+-----------+-------------+-----------+--------+-----------+
-
-
-•	Circle Level Enquiry – in case of Circle level enquiry the drill down will be available in CGL> Product > Branch. Sample data will be as below.
-+-------------+-----------+--------+-----------+
-| CGL         | Product   | Branch | Amount    |
-+-------------+-----------+--------+-----------+
-| +1260505001 |           |        |   4057156 |
-| -1204505001 |           |        |  84695032 |
-|             | +12609809 |        |   6680961 |
-|             | +12609810 |        |   6487122 |
-|             | +12609811 |        |  28516998 |
-|             | -12609812 |        |  43009951 |
-|             |           | 01111  |  12509891 |
-|             |           | 01112  |   9302775 |
-|             |           | 01113  |  21197285 |
-| +1204505002 |           |        |  22110781 |
-| +1204505003 |           |        |  29809734 |
-| +1204505004 |           |        |  32052986 |
-+-------------+-----------+--------+-----------+
-
-•	Branch Level Enquiry – in case of Branch level enquiry the drill down will be available in CGL> Product. Sample data will be as below.
-+-------------+-----------+-----------+
-| CGL         | Product   | Amount    |
-+-------------+-----------+-----------+
-| +1260505001 |           |   4057156 |
-| -1204505001 |           |  84695032 |
-|             | 12609809  |   6680961 |
-|             | 12609810  |   6487122 |
-|             | 12609811  |  28516998 |
-|             | 12609812  |  43009951 |
-| +1204505002 |           |  22110781 |
-| +1204505003 |           |  29809734 |
-| +1204505004 |           |  32052986 |
-+-------------+-----------+-----------+
-
-
-3.	Proposed Flow::::
-	Below mentioned flow for Drill down data
-•	Bank Level - Geography>Circle > CGL> Product > Branch
-•	Circle Level - CGL> Product > Branch
-•	Branch Level - CGL> Product
+ysa_report	20501	BRANCH SYSTEM SUSPENSE ACCOUNT	SN	SN		N	2005505002		07-07-26 11:46:44.000183000 AM	07-07-26 11:46:44.000183000 AM
+ysa_report	20501	BRANCH SYSTEM SUSPENSE ACCOUNT	SN	SN		N	2006505001		07-07-26 11:46:44.000183000 AM	07-07-26 11:46:44.000183000 AM
+ysa_report	20501	BRANCH SYSTEM SUSPENSE ACCOUNT	SN	SN		N	2025505001		07-07-26 11:46:44.000183000 AM	07-07-26 11:46:44.000183000 AM
+ysa_report	20501	BRANCH SYSTEM SUSPENSE ACCOUNT	SN	SN		N	2042500199		07-07-26 11:46:44.000183000 AM	07-07-26 11:46:44.000183000 AM
+ysa_report	20501	BRANCH SYSTEM SUSPENSE ACCOUNT	SN	SN		N	2042500299		07-07-26 11:46:44.000183000 AM	07-07-26 11:46:44.000183000 AM
+ysa_report	20501	BRANCH SYSTEM SUSPENSE ACCOUNT	SN	SN		N	2042500499		07-07-26 11:46:44.000183000 AM	07-07-26 11:46:44.000183000 AM
+ysa_report	20501	BRANCH SYSTEM SUSPENSE ACCOUNT	SN	SN		N	2042500599		07-07-26 11:46:44.000183000 AM	07-07-26 11:46:44.000183000 AM
+ysa_report	20501	BRANCH SYSTEM SUSPENSE ACCOUNT	SN	SN		N	2042500799		07-07-26 11:46:44.000183000 AM	07-07-26 11:46:44.000183000 AM
+ysa_report	20501	BRANCH SYSTEM SUSPENSE ACCOUNT	SN	SN		N	2043030601		07-07-26 11:46:44.000183000 AM	07-07-26 11:46:44.000183000 AM
+ysa_report	20501	BRANCH SYSTEM SUSPENSE ACCOUNT	SN	SN		N	2043030699		07-07-26 11:46:44.000183000 AM	07-07-26 11:46:44.000183000 AM
+ysa_report	20501	BRANCH SYSTEM SUSPENSE ACCOUNT	SN	SN		N	1127505001		07-07-26 11:46:44.000183000 AM	07-07-26 11:46:44.000183000 AM
+ysa_report	20501	BRANCH SYSTEM SUSPENSE ACCOUNT	SN	SN		N	1127505004		07-07-26 11:46:44.000183000 AM	07-07-26 11:46:44.000183000 AM
+ysa_report	20501	BRANCH SYSTEM SUSPENSE ACCOUNT	SN	SN		N	1127505006		07-07-26 11:46:44.000183000 AM	07-07-26 11:46:44.000183000 AM
+ysa_report	20501	BRANCH SYSTEM SUSPENSE ACCOUNT	SN	SN		N	1127505007		07-07-26 11:46:44.000183000 AM	07-07-26 11:46:44.000183000 AM
+ysa_report	20501	BRANCH SYSTEM SUSPENSE ACCOUNT	SN	SN		N	1127505010		07-07-26 11:46:44.000183000 AM	07-07-26 11:46:44.000183000 AM
+ysa_report	20501	BRANCH SYSTEM SUSPENSE ACCOUNT	SN	SN		N	1127505011		07-07-26 11:46:44.000183000 AM	07-07-26 11:46:44.000183000 AM
+ysa_report	20501	BRANCH SYSTEM SUSPENSE ACCOUNT	SN	SN		N	1127505012		07-07-26 11:46:44.000183000 AM	07-07-26 11:46:44.000183000 AM
+ysa_report	20501	BRANCH SYSTEM SUSPENSE ACCOUNT	SN	SN		N	1127505013		07-07-26 11:46:44.000183000 AM	07-07-26 11:46:44.000183000 AM
+ysa_report	20501	BRANCH SYSTEM SUSPENSE ACCOUNT	SN	SN		N	1127505014		07-07-26 11:46:44.000183000 AM	07-07-26 11:46:44.000183000 AM
+ysa_report	20501	BRANCH SYSTEM SUSPENSE ACCOUNT	SN	SN		N	1127505015		07-07-26 11:46:44.000183000 AM	07-07-26 11:46:44.000183000 AM
+ysa_report	20501	BRANCH SYSTEM SUSPENSE ACCOUNT	SN	SN		N	1127505016		07-07-26 11:46:44.000183000 AM	07-07-26 11:46:44.000183000 AM
+ysa_report	20501	BRANCH SYSTEM SUSPENSE ACCOUNT	SN	SN		N	1127505018		07-07-26 11:46:44.000183000 AM	07-07-26 11:46:44.000183000 AM
+ysa_report	20501	BRANCH SYSTEM SUSPENSE ACCOUNT	SN	SN		N	1127505020		07-07-26 11:46:44.000183000 AM	07-07-26 11:46:44.000183000 AM
+ysa_report	20501	BRANCH SYSTEM SUSPENSE ACCOUNT	SN	SN		N	1127505023		07-07-26 11:46:44.000183000 AM	07-07-26 11:46:44.000183000 AM
+ysa_report	20501	BRANCH SYSTEM SUSPENSE ACCOUNT	SN	SN		N	1127505024		07-07-26 11:46:44.000183000 AM	07-07-26 11:46:44.000183000 AM
+ysa_report	20501	BRANCH SYSTEM SUSPENSE ACCOUNT	SN	SN		N	1127505025		07-07-26 11:46:44.000183000 AM	07-07-26 11:46:44.000183000 AM
+ysa_report	20501	BRANCH SYSTEM SUSPENSE ACCOUNT	SN	SN		N	1127505026		07-07-26 11:46:44.000183000 AM	07-07-26 11:46:44.000183000 AM
+ysa_report	20501	BRANCH SYSTEM SUSPENSE ACCOUNT	SN	SN		N	1127505027		07-07-26 11:46:44.000183000 AM	07-07-26 11:46:44.000183000 AM
+ysa_report	20501	BRANCH SYSTEM SUSPENSE ACCOUNT	SN	SN		N	1128505001		07-07-26 11:46:44.000183000 AM	07-07-26 11:46:44.000183000 AM
+ysa_report	20501	BRANCH SYSTEM SUSPENSE ACCOUNT	SN	SN		N	1129505001		07-07-26 11:46:44.000183000 AM	07-07-26 11:46:44.000183000 AM
+ysa_report	20242	FREEHOLD LAND & BUILDINGS	N	NORMAL		N	1245505002		07-07-26 11:46:44.000183000 AM	07-07-26 11:46:44.000183000 AM
+ysa_report	20242	FREEHOLD LAND & BUILDINGS	N	NORMAL		N	1999002601		07-07-26 11:46:44.000183000 AM	07-07-26 11:46:44.000183000 AM
+ysa_report	20242	FREEHOLD LAND & BUILDINGS	N	NORMAL		N	2357505003		07-07-26 11:46:44.000183000 AM	07-07-26 11:46:44.000183000 AM
+ysa_report	20243	PREMISES/PROJECTS UNDER CONSTRUCTION	N	NORMAL		N	1245505003		07-07-26 11:46:44.000183000 AM	07-07-26 11:46:44.000183000 AM
+ysa_report	20243	PREMISES/PROJECTS UNDER CONSTRUCTION	N	NORMAL		N	1999002602		07-07-26 11:46:44.000183000 AM	07-07-26 11:46:44.000183000 AM
+ysa_report	20244	LEASEHOLD LAND & BUILDINGS	N	NORMAL		N	1245505022		07-07-26 11:46:44.000183000 AM	07-07-26 11:46:44.000183000 AM
