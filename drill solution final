@@ -1,19 +1,8 @@
-    private String formatDimension(DimensionConfig config) {
-        if (config.isExpression()) {
-            // For complex SQL (e.g., CASE WHEN), wrap in parentheses
-            return "(" + config.physicalSql() + ")";
-        } else {
-            String physicalCol = config.physicalSql();
-            
-            // BACKEND RESILIENCE: Prevent "Double-Double Quote" syntax errors
-            // If the database mapping already includes quotes, use it as-is.
-            if (physicalCol.startsWith("\"") && physicalCol.endsWith("\"")) {
-                return physicalCol;
-            }
-            
-            // Otherwise, wrap it securely
-            return "\"" + physicalCol + "\"";
-        }
-    }
-
-
+2026-07-09T19:21:05.567+05:30  INFO 29992 --- [AnalyticsService] [omcat-handler-3] c.f.a.service.SemanticDrillDownService   : Executing DrillDown for view: [YSA_BANK], logicalDim: [Geography]
+2026-07-09T19:21:05.579+05:30  INFO 29992 --- [AnalyticsService] [omcat-handler-3] c.f.a.service.SemanticDrillDownService   : Final druid payload to be executed: {query=SELECT (CASE WHEN "BRANCH_TYPE" = 'D' THEN 'Domestic' ELSE 'Foreign' END) AS "Geography", ROUND(SUM("BALANCE"), 2) AS "TotalAmount" FROM "PRODUCT_WISE_11_MAY" WHERE 1=1  AND "DATE" = ?  AND "YSA_HEADCODE" = ?  GROUP BY (CASE WHEN "BRANCH_TYPE" = 'D' THEN 'Domestic' ELSE 'Foreign' END), parameters=[{type=VARCHAR, value=2026-07-05}, {type=VARCHAR, value=A02A}]}
+2026-07-09T19:21:06.539+05:30  INFO 29992 --- [AnalyticsService] [omcat-handler-3] c.f.a.service.SemanticDrillDownService   : Executing DrillDown for view: [YSA_BANK], logicalDim: [Geography]
+2026-07-09T19:21:06.542+05:30  INFO 29992 --- [AnalyticsService] [omcat-handler-3] c.f.a.service.SemanticDrillDownService   : Final druid payload to be executed: {query=SELECT (CASE WHEN "BRANCH_TYPE" = 'D' THEN 'Domestic' ELSE 'Foreign' END) AS "Geography", ROUND(SUM("BALANCE"), 2) AS "TotalAmount" FROM "PRODUCT_WISE_11_MAY" WHERE 1=1  AND "DATE" = ?  AND "YSA_HEADCODE" = ?  GROUP BY (CASE WHEN "BRANCH_TYPE" = 'D' THEN 'Domestic' ELSE 'Foreign' END), parameters=[{type=VARCHAR, value=2026-07-05}, {type=VARCHAR, value=A02A}]}
+2026-07-09T19:21:07.104+05:30  INFO 29992 --- [AnalyticsService] [omcat-handler-3] c.f.a.service.SemanticDrillDownService   : Executing DrillDown for view: [YSA_BANK], logicalDim: [Geography]
+2026-07-09T19:21:07.106+05:30  INFO 29992 --- [AnalyticsService] [omcat-handler-3] c.f.a.service.SemanticDrillDownService   : Final druid payload to be executed: {query=SELECT (CASE WHEN "BRANCH_TYPE" = 'D' THEN 'Domestic' ELSE 'Foreign' END) AS "Geography", ROUND(SUM("BALANCE"), 2) AS "TotalAmount" FROM "PRODUCT_WISE_11_MAY" WHERE 1=1  AND "DATE" = ?  AND "YSA_HEADCODE" = ?  GROUP BY (CASE WHEN "BRANCH_TYPE" = 'D' THEN 'Domestic' ELSE 'Foreign' END), parameters=[{type=VARCHAR, value=2026-07-05}, {type=VARCHAR, value=A02A}]}
+2026-07-09T19:21:07.142+05:30 ERROR 29992 --- [AnalyticsService] [omcat-handler-3] c.f.a.exception.GlobalExceptionHandler   : Druid API Error - Status: 400 BAD_REQUEST, Body: {"error":"druidException","errorCode":"invalidInput","persona":"USER","category":"INVALID_INPUT","errorMessage":"Cannot apply '=' to arguments of type '<VARCHAR ARRAY> = <CHAR(4)>'. Supported form(s): '<COMPARABLE_TYPE> = <COMPARABLE_TYPE>' (line [1], column [191])","context":{"sourceType":"sql","line":"1","column":"191","endLine":"1","endColumn":"208"}}
+2026-07-09T19:21:07.156+05:30  WARN 29992 --- [AnalyticsService] [omcat-handler-3] .m.m.a.ExceptionHandlerExceptionResolver : Resolved [org.springframework.web.client.HttpClientErrorException$BadRequest: 400 Bad Request: "{"error":"druidException","errorCode":"invalidInput","persona":"USER","category":"INVALID_INPUT","errorMessage":"Cannot apply '=' to arguments of type '<VARCHAR ARRAY> = <CHAR(4)>'. Supported form(s): '<COMPARABLE_TYPE> = <COMPARABLE_TYPE>' (line [1], column [191])","context":{"sourceType":"sql","line":"1","column":"191","endLine":"1","endColumn":"208"}}"]
