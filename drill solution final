@@ -1,88 +1,151 @@
-rb_parsed_template
+package com.fincore.analyticsservice.dto;
 
-RUN_ID	VARCHAR2(50 BYTE)	No		1	All rows for one report run share the same RUN_ID 
-HEAD_CODE	VARCHAR2(100 BYTE)	Yes		2	Report line-item code extracted from the HEAD/FIELD column of a DATA row in the JSON template. Uniquely identifies a report heading
-HEAD_DESC	VARCHAR2(4000 BYTE)	Yes		3	Readable description of the report line item, extracted from the DESC column of the same DATA row. 
-VAR_NAME	VARCHAR2(100 BYTE)	Yes		4	Name of the formula variable from the JSON template (e.g., Swing_Neg, SP, DN, Reverse). Used to determine LOGIC_TYPE and IS_REVERSE via pattern matching in the parser. Also used as the PARTITION BY key in SWING_CALC to compute GROUP_TOTAL for swing-sign logic.
-LOGIC_TYPE	VARCHAR2(50 BYTE)	Yes		5	Controls which rows survive the final filter in the generation CTE. Valid values: NORMAL - Always included; CP - Credit-positive/negative variable, always included; DN - Debit-negative/positive variable, always included; SN - Swing-negative: row included only when GROUP_TOTAL < 0; SP     - Swing-positive: row included only when GROUP_TOTAL > 0.
-ROW_FILTER	VARCHAR2(20 BYTE)	Yes		6	Sign guard applied at the branch-level aggregation stage (HAVING clause in RAW_AGG CTE). Derived from the INR_BALANCE or BALANCE filter operator in the JSON variable filters block. Valid values: POS - Include only branches where SUM(INR_BALANCE) > 0; NEG - Include only branches where SUM(INR_BALANCE) < 0; NULL - No sign restriction, all non-zero balances are included.
-IS_REVERSE	CHAR(1 BYTE)	Yes		7	Flag indicating whether the display amount sign should be flipped. Y = multiply CGL_BAL by -1 before output (i.e., show the inverse); N = display the raw aggregated balance. Derived from VAR_NAME containing the substring "Reverse" or the alias "R".
-CGL	VARCHAR2(50 BYTE)	Yes		8	Flattened from the CGL filter array inside the JSON variable. 
-CURRENCY_FILTER	VARCHAR2(10 BYTE)	Yes	"NULL
-"	9	Extracted from the CURRENCY filter block in the JSON variable definition. NULL means no currency restriction is applied. 
-CREATED_AT	TIMESTAMP(6)	No	SYSTIMESTAMP 	10	
-UPDATED_AT	TIMESTAMP(6)	No	SYSTIMESTAMP 	11	
-
-
-sample data :
-
-ysa_report	20501	BRANCH SYSTEM SUSPENSE ACCOUNT	SN	SN		N	2005505002		07-07-26 11:46:44.000183000 AM	07-07-26 11:46:44.000183000 AM
-ysa_report	20501	BRANCH SYSTEM SUSPENSE ACCOUNT	SN	SN		N	2006505001		07-07-26 11:46:44.000183000 AM	07-07-26 11:46:44.000183000 AM
-ysa_report	20501	BRANCH SYSTEM SUSPENSE ACCOUNT	SN	SN		N	2025505001		07-07-26 11:46:44.000183000 AM	07-07-26 11:46:44.000183000 AM
-ysa_report	20501	BRANCH SYSTEM SUSPENSE ACCOUNT	SN	SN		N	2042500199		07-07-26 11:46:44.000183000 AM	07-07-26 11:46:44.000183000 AM
-ysa_report	20501	BRANCH SYSTEM SUSPENSE ACCOUNT	SN	SN		N	2042500299		07-07-26 11:46:44.000183000 AM	07-07-26 11:46:44.000183000 AM
-ysa_report	20501	BRANCH SYSTEM SUSPENSE ACCOUNT	SN	SN		N	2042500499		07-07-26 11:46:44.000183000 AM	07-07-26 11:46:44.000183000 AM
-ysa_report	20501	BRANCH SYSTEM SUSPENSE ACCOUNT	SN	SN		N	2042500599		07-07-26 11:46:44.000183000 AM	07-07-26 11:46:44.000183000 AM
-ysa_report	20501	BRANCH SYSTEM SUSPENSE ACCOUNT	SN	SN		N	2042500799		07-07-26 11:46:44.000183000 AM	07-07-26 11:46:44.000183000 AM
-ysa_report	20501	BRANCH SYSTEM SUSPENSE ACCOUNT	SN	SN		N	2043030601		07-07-26 11:46:44.000183000 AM	07-07-26 11:46:44.000183000 AM
-ysa_report	20501	BRANCH SYSTEM SUSPENSE ACCOUNT	SN	SN		N	2043030699		07-07-26 11:46:44.000183000 AM	07-07-26 11:46:44.000183000 AM
-ysa_report	20501	BRANCH SYSTEM SUSPENSE ACCOUNT	SN	SN		N	1127505001		07-07-26 11:46:44.000183000 AM	07-07-26 11:46:44.000183000 AM
-ysa_report	20501	BRANCH SYSTEM SUSPENSE ACCOUNT	SN	SN		N	1127505004		07-07-26 11:46:44.000183000 AM	07-07-26 11:46:44.000183000 AM
-ysa_report	20501	BRANCH SYSTEM SUSPENSE ACCOUNT	SN	SN		N	1127505006		07-07-26 11:46:44.000183000 AM	07-07-26 11:46:44.000183000 AM
-ysa_report	20501	BRANCH SYSTEM SUSPENSE ACCOUNT	SN	SN		N	1127505007		07-07-26 11:46:44.000183000 AM	07-07-26 11:46:44.000183000 AM
-ysa_report	20501	BRANCH SYSTEM SUSPENSE ACCOUNT	SN	SN		N	1127505010		07-07-26 11:46:44.000183000 AM	07-07-26 11:46:44.000183000 AM
-ysa_report	20501	BRANCH SYSTEM SUSPENSE ACCOUNT	SN	SN		N	1127505011		07-07-26 11:46:44.000183000 AM	07-07-26 11:46:44.000183000 AM
-ysa_report	20501	BRANCH SYSTEM SUSPENSE ACCOUNT	SN	SN		N	1127505012		07-07-26 11:46:44.000183000 AM	07-07-26 11:46:44.000183000 AM
-ysa_report	20501	BRANCH SYSTEM SUSPENSE ACCOUNT	SN	SN		N	1127505013		07-07-26 11:46:44.000183000 AM	07-07-26 11:46:44.000183000 AM
-ysa_report	20501	BRANCH SYSTEM SUSPENSE ACCOUNT	SN	SN		N	1127505014		07-07-26 11:46:44.000183000 AM	07-07-26 11:46:44.000183000 AM
-ysa_report	20501	BRANCH SYSTEM SUSPENSE ACCOUNT	SN	SN		N	1127505015		07-07-26 11:46:44.000183000 AM	07-07-26 11:46:44.000183000 AM
-
-pnl_report	01001	INTEREST RECEIVED ON TERM LOANS	N	NORMAL		Y	7020030601		07-07-26 11:46:55.371078000 AM	07-07-26 11:46:55.371078000 AM
-
-
-ysa_report	20501	BRANCH SYSTEM SUSPENSE ACCOUNT	SN	SN		N	1127505016		07-07-26 11:46:44.000183000 AM	07-07-26 11:46:44.000183000 AM
-ysa_report	20501	BRANCH SYSTEM SUSPENSE ACCOUNT	SN	SN		N	1127505018		07-07-26 11:46:44.000183000 AM	07-07-26 11:46:44.000183000 AM
-ysa_report	20501	BRANCH SYSTEM SUSPENSE ACCOUNT	SN	SN		N	1127505020		07-07-26 11:46:44.000183000 AM	07-07-26 11:46:44.000183000 AM
-ysa_report	20501	BRANCH SYSTEM SUSPENSE ACCOUNT	SN	SN		N	1127505023		07-07-26 11:46:44.000183000 AM	07-07-26 11:46:44.000183000 AM
-ysa_report	20501	BRANCH SYSTEM SUSPENSE ACCOUNT	SN	SN		N	1127505024		07-07-26 11:46:44.000183000 AM	07-07-26 11:46:44.000183000 AM
-ysa_report	20501	BRANCH SYSTEM SUSPENSE ACCOUNT	SN	SN		N	1127505025		07-07-26 11:46:44.000183000 AM	07-07-26 11:46:44.000183000 AM
-ysa_report	20501	BRANCH SYSTEM SUSPENSE ACCOUNT	SN	SN		N	1127505026		07-07-26 11:46:44.000183000 AM	07-07-26 11:46:44.000183000 AM
-ysa_report	20501	BRANCH SYSTEM SUSPENSE ACCOUNT	SN	SN		N	1127505027		07-07-26 11:46:44.000183000 AM	07-07-26 11:46:44.000183000 AM
-ysa_report	20501	BRANCH SYSTEM SUSPENSE ACCOUNT	SN	SN		N	1128505001		07-07-26 11:46:44.000183000 AM	07-07-26 11:46:44.000183000 AM
-ysa_report	20501	BRANCH SYSTEM SUSPENSE ACCOUNT	SN	SN		N	1129505001		07-07-26 11:46:44.000183000 AM	07-07-26 11:46:44.000183000 AM
-ysa_report	20242	FREEHOLD LAND & BUILDINGS	N	NORMAL		N	1245505002		07-07-26 11:46:44.000183000 AM	07-07-26 11:46:44.000183000 AM
-ysa_report	20242	FREEHOLD LAND & BUILDINGS	N	NORMAL		N	1999002601		07-07-26 11:46:44.000183000 AM	07-07-26 11:46:44.000183000 AM
-ysa_report	20242	FREEHOLD LAND & BUILDINGS	N	NORMAL		N	2357505003		07-07-26 11:46:44.000183000 AM	07-07-26 11:46:44.000183000 AM
+public record HeadSearchResponse(
+    String headCode,
+    String headName
+) {}
 
 
 
-nwsa_report	S99	FOOD CREDIT REIMBURSEMENT RECEIVED	Normal	NORMAL		N	2322505001		07-07-26 11:47:11.730860000 AM	07-07-26 11:47:11.730860000 AM
-ysa_report	20243	PREMISES/PROJECTS UNDER CONSTRUCTION	N	NORMAL		N	1245505003		07-07-26 11:46:44.000183000 AM	07-07-26 11:46:44.000183000 AM
-ysa_report	20243	PREMISES/PROJECTS UNDER CONSTRUCTION	N	NORMAL		N	1999002602		07-07-26 11:46:44.000183000 AM	07-07-26 11:46:44.000183000 AM
-ysa_report	20244	LEASEHOLD LAND & BUILDINGS	N	NORMAL		N	1245505022		07-07-26 11:46:44.000183000 AM	07-07-26 11:46:44.000183000 AM
 
-nwsa_report	S98	FOOD ADVANCES	Normal	NORMAL		N	1018500203		07-07-26 11:47:11.730860000 AM	07-07-26 11:47:11.730860000 AM
-nwsa_report	S98	FOOD ADVANCES	Normal	NORMAL		N	1001500201		07-07-26 11:47:11.730860000 AM	07-07-26 11:47:11.730860000 AM
-nwsa_report	S98	FOOD ADVANCES	Normal	NORMAL		N	1636500201		07-07-26 11:47:11.730860000 AM	07-07-26 11:47:11.730860000 AM
-nwsa_report	S98	FOOD ADVANCES	Normal	NORMAL		N	1005500201		07-07-26 11:47:11.730860000 AM	07-07-26 11:47:11.730860000 AM
-nwsa_report	S98	FOOD ADVANCES	Normal	NORMAL		N	1004500201		07-07-26 11:47:11.730860000 AM	07-07-26 11:47:11.730860000 AM
-nwsa_report	S98	FOOD ADVANCES	Normal	NORMAL		N	1007500202		07-07-26 11:47:11.730860000 AM	07-07-26 11:47:11.730860000 AM
-nwsa_report	S98	FOOD ADVANCES	Normal	NORMAL		N	1047500201		07-07-26 11:47:11.730860000 AM	07-07-26 11:47:11.730860000 AM
-nwsa_report	S98	FOOD ADVANCES	Normal	NORMAL		N	1007500203		07-07-26 11:47:11.730860000 AM	07-07-26 11:47:11.730860000 AM
-nwsa_report	S98	FOOD ADVANCES	Normal	NORMAL		N	1001500202		07-07-26 11:47:11.730860000 AM	07-07-26 11:47:11.730860000 AM
-nwsa_report	S98	FOOD ADVANCES	Normal	NORMAL		N	1013500201		07-07-26 11:47:11.730860000 AM	07-07-26 11:47:11.730860000 AM
-nwsa_report	S98	FOOD ADVANCES	Normal	NORMAL		N	1018500201		07-07-26 11:47:11.730860000 AM	07-07-26 11:47:11.730860000 AM
-nwsa_report	S98	FOOD ADVANCES	Normal	NORMAL		N	1007500201		07-07-26 11:47:11.730860000 AM	07-07-26 11:47:11.730860000 AM
-nwsa_report	S98	FOOD ADVANCES	Normal	NORMAL		N	1047500203		07-07-26 11:47:11.730860000 AM	07-07-26 11:47:11.730860000 AM
-nwsa_report	S98	FOOD ADVANCES	Normal	NORMAL		N	1018500202		07-07-26 11:47:11.730860000 AM	07-07-26 11:47:11.730860000 AM
-nwsa_report	S98	FOOD ADVANCES	Normal	NORMAL		N	1011500201		07-07-26 11:47:11.730860000 AM	07-07-26 11:47:11.730860000 AM
-nwsa_report	S98	FOOD ADVANCES	Normal	NORMAL		N	1001500203		07-07-26 11:47:11.730860000 AM	07-07-26 11:47:11.730860000 AM
-nwsa_report	S98	FOOD ADVANCES	Normal	NORMAL		N	1635500201		07-07-26 11:47:11.730860000 AM	07-07-26 11:47:11.730860000 AM
-nwsa_report	S98	FOOD ADVANCES	Normal	NORMAL		N	1690500201		07-07-26 11:47:11.730860000 AM	07-07-26 11:47:11.730860000 AM
-nwsa_report	S98	FOOD ADVANCES	Normal	NORMAL		N	1006500201		07-07-26 11:47:11.730860000 AM	07-07-26 11:47:11.730860000 AM
-nwsa_report	S98	FOOD ADVANCES	Normal	NORMAL		N	1006500230		07-07-26 11:47:11.730860000 AM	07-07-26 11:47:11.730860000 AM
-nwsa_report	S97	DICGC CLAIMS RECEIVED	Normal	NORMAL		N	2242500501		07-07-26 11:47:11.730860000 AM	07-07-26 11:47:11.730860000 AM
-nwsa_report	S97	DICGC CLAIMS RECEIVED	Normal	NORMAL		N	2242500401		07-07-26 11:47:11.730860000 AM	07-07-26 11:47:11.730860000 AM
-nwsa_report	S96	SBI DDS & TTS PAID (CUMULATIVE WEF 1.4.05) (ONLY FOR ASSOCIATE BANKS)	Normal	NORMAL		N	5000003016		07-07-26 11:47:11.730860000 AM	07-07-26 11:47:11.730860000 AM
-nwsa_report	S96	SBI DDS & TTS PAID (CUMULATIVE WEF 1.4.05) (ONLY FOR ASSOCIATE BANKS)	Normal	NORMAL		N	5000003017		07-07-26 11:47:11.730860000 AM	07-07-26 11:47:11.730860000 AM
-nwsa_report	S90	FOREIGN CURRENCY NON-RESIDENT (BANKS) SCHEME (IN AUD)	Normal	NORMAL		N	2041501170	AUD	07-07-26 11:47:11.730860000 AM	07-07-26 11:47:11.730860000 AM
+package com.fincore.analyticsservice.repository;
+
+import com.fincore.analyticsservice.dto.HeadSearchResponse;
+import jakarta.persistence.*;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
+import org.springframework.stereotype.Repository;
+
+import java.util.List;
+
+// 1. The Entity Mapping
+@Entity
+@Table(name = "RB_PARSED_TEMPLATE")
+class RbParsedTemplate {
+    // We use a composite of runId + headCode + cgl as a logical ID for JPA
+    @Id 
+    @Column(name = "HEAD_CODE")
+    private String headCode;
+
+    @Column(name = "RUN_ID")
+    private String runId;
+
+    @Column(name = "HEAD_DESC")
+    private String headDesc;
+}
+
+// 2. The Repository Search Engine
+@Repository
+public interface RbParsedTemplateRepository extends JpaRepository<RbParsedTemplate, String> {
+
+    /**
+     * Executes a fast, case-insensitive search across both HEAD_CODE and HEAD_DESC.
+     * Returns a distinct list mapped directly to our DTO to avoid memory overhead.
+     */
+    @Query("""
+        SELECT DISTINCT new com.fincore.analyticsservice.dto.HeadSearchResponse(t.headCode, t.headDesc) 
+        FROM RbParsedTemplate t 
+        WHERE LOWER(t.runId) = LOWER(:reportName) 
+          AND (
+               LOWER(t.headCode) LIKE LOWER(CONCAT('%', :searchText, '%')) 
+               OR LOWER(t.headDesc) LIKE LOWER(CONCAT('%', :searchText, '%'))
+          )
+        ORDER BY t.headCode ASC
+    """)
+    List<HeadSearchResponse> searchHeads(
+            @Param("reportName") String reportName, 
+            @Param("searchText") String searchText
+    );
+}
+
+
+
+
+
+
+
+
+
+
+package com.fincore.analyticsservice.controller;
+
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fincore.analyticsservice.dto.DrillDownRequest;
+import com.fincore.analyticsservice.dto.DrillDownResponse;
+import com.fincore.analyticsservice.dto.HeadSearchResponse;
+import com.fincore.analyticsservice.dto.ReportConfigResponse;
+import com.fincore.analyticsservice.repository.RbParsedTemplateRepository;
+import com.fincore.analyticsservice.service.ReportConfigService;
+import com.fincore.analyticsservice.service.SemanticDrillDownService;
+import com.fincore.commonutilities.jwt.JwtUtil;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
+
+@Slf4j
+@RestController
+@RequestMapping("/api/v1/analytics")
+@CrossOrigin(origins = "*")
+public class AnalyticsController {
+
+    private final SemanticDrillDownService semanticDrillDownService;
+    private final JwtUtil jwtUtil;
+    private final ReportConfigService configService;
+    private final ObjectMapper objectMapper;
+    private final RbParsedTemplateRepository templateRepository; // <-- NEW
+
+    public AnalyticsController(
+            SemanticDrillDownService semanticDrillDownService, 
+            JwtUtil jwtUtil, 
+            ReportConfigService configService, 
+            ObjectMapper objectMapper,
+            RbParsedTemplateRepository templateRepository) { // <-- NEW
+        this.semanticDrillDownService = semanticDrillDownService;
+        this.jwtUtil = jwtUtil;
+        this.configService = configService;
+        this.objectMapper = objectMapper;
+        this.templateRepository = templateRepository;
+    }
+
+    // ... (Keep your existing executeDrillDown and getUIConfiguration methods here) ...
+
+    /**
+     * GET /api/v1/analytics/heads/search?reportName=ysa_report&search=100
+     * Autocomplete endpoint for the Frontend Code input field.
+     */
+    @GetMapping("/heads/search")
+    public ResponseEntity<List<HeadSearchResponse>> searchHeads(
+            @RequestParam("reportName") String reportName,
+            @RequestParam("search") String searchText,
+            @RequestHeader("Authorization") String token) {
+
+        log.debug("Executing autocomplete search for report: [{}], query: [{}]", reportName, searchText);
+
+        // Security check: validate token (throws exception if invalid)
+        jwtUtil.getUserRoleFromToken(token);
+
+        // Optional: limit search text to prevent heavy DB queries on 1 character
+        if (searchText == null || searchText.trim().length() < 2) {
+            return ResponseEntity.badRequest().build(); // Force user to type at least 2 chars
+        }
+
+        List<HeadSearchResponse> suggestions = templateRepository.searchHeads(reportName, searchText.trim());
+        
+        return ResponseEntity.ok(suggestions);
+    }
+}
+
+
+
+
+
+
+
+
+
+
+
+
