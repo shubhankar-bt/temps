@@ -1,8 +1,24 @@
-2026-07-09T19:21:05.567+05:30  INFO 29992 --- [AnalyticsService] [omcat-handler-3] c.f.a.service.SemanticDrillDownService   : Executing DrillDown for view: [YSA_BANK], logicalDim: [Geography]
-2026-07-09T19:21:05.579+05:30  INFO 29992 --- [AnalyticsService] [omcat-handler-3] c.f.a.service.SemanticDrillDownService   : Final druid payload to be executed: {query=SELECT (CASE WHEN "BRANCH_TYPE" = 'D' THEN 'Domestic' ELSE 'Foreign' END) AS "Geography", ROUND(SUM("BALANCE"), 2) AS "TotalAmount" FROM "PRODUCT_WISE_11_MAY" WHERE 1=1  AND "DATE" = ?  AND "YSA_HEADCODE" = ?  GROUP BY (CASE WHEN "BRANCH_TYPE" = 'D' THEN 'Domestic' ELSE 'Foreign' END), parameters=[{type=VARCHAR, value=2026-07-05}, {type=VARCHAR, value=A02A}]}
-2026-07-09T19:21:06.539+05:30  INFO 29992 --- [AnalyticsService] [omcat-handler-3] c.f.a.service.SemanticDrillDownService   : Executing DrillDown for view: [YSA_BANK], logicalDim: [Geography]
-2026-07-09T19:21:06.542+05:30  INFO 29992 --- [AnalyticsService] [omcat-handler-3] c.f.a.service.SemanticDrillDownService   : Final druid payload to be executed: {query=SELECT (CASE WHEN "BRANCH_TYPE" = 'D' THEN 'Domestic' ELSE 'Foreign' END) AS "Geography", ROUND(SUM("BALANCE"), 2) AS "TotalAmount" FROM "PRODUCT_WISE_11_MAY" WHERE 1=1  AND "DATE" = ?  AND "YSA_HEADCODE" = ?  GROUP BY (CASE WHEN "BRANCH_TYPE" = 'D' THEN 'Domestic' ELSE 'Foreign' END), parameters=[{type=VARCHAR, value=2026-07-05}, {type=VARCHAR, value=A02A}]}
-2026-07-09T19:21:07.104+05:30  INFO 29992 --- [AnalyticsService] [omcat-handler-3] c.f.a.service.SemanticDrillDownService   : Executing DrillDown for view: [YSA_BANK], logicalDim: [Geography]
-2026-07-09T19:21:07.106+05:30  INFO 29992 --- [AnalyticsService] [omcat-handler-3] c.f.a.service.SemanticDrillDownService   : Final druid payload to be executed: {query=SELECT (CASE WHEN "BRANCH_TYPE" = 'D' THEN 'Domestic' ELSE 'Foreign' END) AS "Geography", ROUND(SUM("BALANCE"), 2) AS "TotalAmount" FROM "PRODUCT_WISE_11_MAY" WHERE 1=1  AND "DATE" = ?  AND "YSA_HEADCODE" = ?  GROUP BY (CASE WHEN "BRANCH_TYPE" = 'D' THEN 'Domestic' ELSE 'Foreign' END), parameters=[{type=VARCHAR, value=2026-07-05}, {type=VARCHAR, value=A02A}]}
-2026-07-09T19:21:07.142+05:30 ERROR 29992 --- [AnalyticsService] [omcat-handler-3] c.f.a.exception.GlobalExceptionHandler   : Druid API Error - Status: 400 BAD_REQUEST, Body: {"error":"druidException","errorCode":"invalidInput","persona":"USER","category":"INVALID_INPUT","errorMessage":"Cannot apply '=' to arguments of type '<VARCHAR ARRAY> = <CHAR(4)>'. Supported form(s): '<COMPARABLE_TYPE> = <COMPARABLE_TYPE>' (line [1], column [191])","context":{"sourceType":"sql","line":"1","column":"191","endLine":"1","endColumn":"208"}}
-2026-07-09T19:21:07.156+05:30  WARN 29992 --- [AnalyticsService] [omcat-handler-3] .m.m.a.ExceptionHandlerExceptionResolver : Resolved [org.springframework.web.client.HttpClientErrorException$BadRequest: 400 Bad Request: "{"error":"druidException","errorCode":"invalidInput","persona":"USER","category":"INVALID_INPUT","errorMessage":"Cannot apply '=' to arguments of type '<VARCHAR ARRAY> = <CHAR(4)>'. Supported form(s): '<COMPARABLE_TYPE> = <COMPARABLE_TYPE>' (line [1], column [191])","context":{"sourceType":"sql","line":"1","column":"191","endLine":"1","endColumn":"208"}}"]
+    private void appendFilterCondition(StringBuilder sql, List<Map<String, String>> parameters, DimensionConfig config, FilterDto filter) {
+        String formattedDim = formatDimension(config);
+
+        if ("EQUALS".equalsIgnoreCase(filter.operator())) {
+            
+            // 🚀 SMART ARRAY DETECTION: 
+            // If the UI is filtering on a known Array column (HeadCode), 
+            // we must use Druid's native ARRAY_CONTAINS function instead of '='
+            if ("HeadCode".equalsIgnoreCase(filter.logicalField())) {
+                sql.append(" AND ARRAY_CONTAINS(").append(formattedDim).append(", ?) ");
+            } 
+            // Standard string/number comparison for everything else (Date, Circle, etc.)
+            else {
+                sql.append(" AND ").append(formattedDim).append(" = ? ");
+            }
+            
+            parameters.add(Map.of("type", "VARCHAR", "value", String.valueOf(filter.value())));
+            
+        } else {
+            throw new IllegalArgumentException("Unsupported filter operator: " + filter.operator());
+        }
+    }
+
+
