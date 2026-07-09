@@ -1,44 +1,32 @@
--- ==============================================================================
--- 1. WIPE PREVIOUS DIMENSION MAPPINGS (Clean Slate)
--- ==============================================================================
-DELETE FROM DR_VIEW_DIMENSION WHERE VIEW_ID IN (SELECT ID FROM DR_REPORT_VIEW);
+SELECT
+  "__time",
+  "CURRENCY",
+  "CIRCLE_CODE",
+  "CIRCLE_NAME",
+  "CGL",
+  "BALANCE",
+  "BRANCH_TYPE",
+  "DATE",
+  "NWSA_HEADCODE",
+  "YSA_HEADCODE",
+  "PNL_HEADCODE",
+  "PRODUCT",
+  "BSA_AVAILABLE",
+  "BRANCH_CODE",
+  "TYPE"
+FROM "PRODUCT_WISE_MAY_11"
 
--- ==============================================================================
--- 2. NEW BANK LEVEL HIERARCHY (Geography > Cgl > Product > Branch) - 4 Levels
--- ==============================================================================
-INSERT INTO DR_VIEW_DIMENSION (VIEW_ID, LOGICAL_NAME, PHYSICAL_COLUMN, DRILL_LEVEL, IS_EXPRESSION)
-SELECT ID, 'Geography', '"GEOGRAPHY"', 1, 0 FROM DR_REPORT_VIEW WHERE VIEW_CODE LIKE '%_BANK' UNION ALL
-SELECT ID, 'Cgl', '"CGL"', 2, 0 FROM DR_REPORT_VIEW WHERE VIEW_CODE LIKE '%_BANK' UNION ALL
-SELECT ID, 'Product', '"PRODUCT_CODE"', 3, 0 FROM DR_REPORT_VIEW WHERE VIEW_CODE LIKE '%_BANK' UNION ALL
-SELECT ID, 'Branch', '"BRANCH_CIRCLE_COMBINED"', 4, 0 FROM DR_REPORT_VIEW WHERE VIEW_CODE LIKE '%_BANK' UNION ALL
--- Unique Hidden Filters
-SELECT ID, 'ReportDate', '"__time"', 97, 0 FROM DR_REPORT_VIEW WHERE VIEW_CODE LIKE '%_BANK' UNION ALL
-SELECT ID, 'CompCode', '"comp"', 98, 0 FROM DR_REPORT_VIEW WHERE VIEW_CODE LIKE '%_BANK' UNION ALL
-SELECT ID, 'HeadCode', 'COALESCE("BSA_HEADCODE", "NWSA_HEADCODE")', 99, 1 FROM DR_REPORT_VIEW WHERE VIEW_CODE LIKE '%_BANK';
 
--- ==============================================================================
--- 3. NEW CIRCLE LEVEL HIERARCHY (Cgl > Product > Branch) - 3 Levels
--- ==============================================================================
-INSERT INTO DR_VIEW_DIMENSION (VIEW_ID, LOGICAL_NAME, PHYSICAL_COLUMN, DRILL_LEVEL, IS_EXPRESSION)
-SELECT ID, 'Cgl', '"CGL"', 1, 0 FROM DR_REPORT_VIEW WHERE VIEW_CODE LIKE '%_CIRCLE' UNION ALL
-SELECT ID, 'Product', '"PRODUCT_CODE"', 2, 0 FROM DR_REPORT_VIEW WHERE VIEW_CODE LIKE '%_CIRCLE' UNION ALL
-SELECT ID, 'Branch', '"BRANCH_CIRCLE_COMBINED"', 3, 0 FROM DR_REPORT_VIEW WHERE VIEW_CODE LIKE '%_CIRCLE' UNION ALL
--- Unique Hidden Filters
-SELECT ID, 'Circle', '"CIRCLE"', 96, 0 FROM DR_REPORT_VIEW WHERE VIEW_CODE LIKE '%_CIRCLE' UNION ALL
-SELECT ID, 'ReportDate', '"__time"', 97, 0 FROM DR_REPORT_VIEW WHERE VIEW_CODE LIKE '%_CIRCLE' UNION ALL
-SELECT ID, 'CompCode', '"comp"', 98, 0 FROM DR_REPORT_VIEW WHERE VIEW_CODE LIKE '%_CIRCLE' UNION ALL
-SELECT ID, 'HeadCode', 'COALESCE("BSA_HEADCODE", "NWSA_HEADCODE")', 99, 1 FROM DR_REPORT_VIEW WHERE VIEW_CODE LIKE '%_CIRCLE';
 
--- ==============================================================================
--- 4. NEW BRANCH LEVEL HIERARCHY (Cgl > Product) - 2 Levels
--- ==============================================================================
-INSERT INTO DR_VIEW_DIMENSION (VIEW_ID, LOGICAL_NAME, PHYSICAL_COLUMN, DRILL_LEVEL, IS_EXPRESSION)
-SELECT ID, 'Cgl', '"CGL"', 1, 0 FROM DR_REPORT_VIEW WHERE VIEW_CODE LIKE '%_BRANCH' UNION ALL
-SELECT ID, 'Product', '"PRODUCT_CODE"', 2, 0 FROM DR_REPORT_VIEW WHERE VIEW_CODE LIKE '%_BRANCH' UNION ALL
--- Unique Hidden Filters 
-SELECT ID, 'BranchCode', '"BRANCH_CODE"', 96, 0 FROM DR_REPORT_VIEW WHERE VIEW_CODE LIKE '%_BRANCH' UNION ALL
-SELECT ID, 'ReportDate', '"__time"', 97, 0 FROM DR_REPORT_VIEW WHERE VIEW_CODE LIKE '%_BRANCH' UNION ALL
-SELECT ID, 'CompCode', '"comp"', 98, 0 FROM DR_REPORT_VIEW WHERE VIEW_CODE LIKE '%_BRANCH' UNION ALL
-SELECT ID, 'HeadCode', 'COALESCE("BSA_HEADCODE", "NWSA_HEADCODE")', 99, 1 FROM DR_REPORT_VIEW WHERE VIEW_CODE LIKE '%_BRANCH';
+THIS ARE THE COLUMN NAMES AND TABLE NAME 
 
-COMMIT;
+SAMPLE DATA, NOTE THERE ARE SOME CHANGES IN THE DATA, THE QUERY I PROVIDED WILL BE THE FINAL QUERY BUT THE DATA IS LITTLE OLD, IN THE DATA THERE ARE ONE COLUMN BSA_HEADCODE WHICH IS COMBINATION OF YSA HEADCODE AND PNL HEAD CODE AND THERE IS CONDITION IN ANOTHER COLUMN ,
+BSA_AVALAIBLE WHICH DECIDES IF THAT IS YSA OR PNL, I TOLD THEM TO SPLIT IT DIRECTLY IN THE ABOVE QUERY FORMAT.
+
+| __time                   | CURRENCY | CIRCLE_CODE | CIRCLE_NAME        | CGL        |     BALANCE | BRANCH_TYPE | DATE       | NWSA_HEADCODE | BSA_HEADCODE | PRODUCT  | BSA_AVAILABLE | BRANCH_CODE | TYPE |
+| :----------------------- | :------- | :---------- | :----------------- | :--------- | ----------: | :---------- | :--------- | :------------ | :----------- | :------- | :------------ | :---------- | :--- |
+| 2026-05-11T00:00:00.000Z | AUD      | 001         | KOLKATA            | 2051080670 |     5353270 | D           | 11-05-2026 | ["L02N"]      | ["01160"]    | 25261153 | y             | 00150       | INV  |
+| 2026-05-11T00:00:00.000Z | AUD      | 001         | KOLKATA            | 2051080670 |    14847820 | D           | 11-05-2026 | ["L02N"]      | ["01160"]    | 25261153 | y             | 14523       | INV  |
+| 2026-05-11T00:00:00.000Z | AUD      | 003         | CHENNAI            | 2051080670 |           0 | D           | 11-05-2026 | ["L02N"]      | ["01160"]    | 25261153 | y             | 00827       | INV  |
+| 2026-05-11T00:00:00.000Z | AUD      | 003         | CHENNAI            | 2051080670 |           0 | D           | 11-05-2026 | ["L02N"]      | ["01160"]    | 25261153 | y             | 00837       | INV  |
+| 2026-05-11T00:00:00.000Z | AUD      | 003         | CHENNAI            | 2051080670 |           0 | D           | 11-05-2026 | ["L02N"]      | ["01160"]    | 25261333 | y             | 11654       | INV  |
