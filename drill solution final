@@ -1,151 +1,68 @@
-package com.fincore.analyticsservice.dto;
+-- ==============================================================================
+-- 1. DEFINE THE DATASOURCE (The Single Druid Table containing YSA, PNL, NWSA)
+-- ==============================================================================
+INSERT INTO DR_DATASOURCE (DATASOURCE_CODE, DRUID_TABLE_NAME, CLUSTER_URL, IS_ACTIVE) 
+VALUES ('CONSOLIDATED_DB', 'CONSOLIDATED_FIN_FACT', 'https://10.177.103.194:8282', 1);
 
-public record HeadSearchResponse(
-    String headCode,
-    String headName
-) {}
+-- ==============================================================================
+-- 2. CREATE THE 3 SCOPES (VIEWS) & APPLY RBAC
+-- User 11 is granted access to BANK and BRANCH, but not CIRCLE.
+-- ==============================================================================
+INSERT INTO DR_REPORT_VIEW (VIEW_CODE, DISPLAY_NAME, DATASOURCE_ID, REQUIRED_ROLE_IDS, IS_ACTIVE)
+VALUES ('SCOPE_BANK', 'Bank Level', (SELECT ID FROM DR_DATASOURCE WHERE DATASOURCE_CODE = 'CONSOLIDATED_DB'), '10,11', 1);
 
+INSERT INTO DR_REPORT_VIEW (VIEW_CODE, DISPLAY_NAME, DATASOURCE_ID, REQUIRED_ROLE_IDS, IS_ACTIVE)
+VALUES ('SCOPE_CIRCLE', 'Circle Level', (SELECT ID FROM DR_DATASOURCE WHERE DATASOURCE_CODE = 'CONSOLIDATED_DB'), '10,12', 1);
 
+INSERT INTO DR_REPORT_VIEW (VIEW_CODE, DISPLAY_NAME, DATASOURCE_ID, REQUIRED_ROLE_IDS, IS_ACTIVE)
+VALUES ('SCOPE_BRANCH', 'Branch Level', (SELECT ID FROM DR_DATASOURCE WHERE DATASOURCE_CODE = 'CONSOLIDATED_DB'), '10,11,12', 1);
 
+-- ==============================================================================
+-- 3. MAP THE DIMENSIONS & HIERARCHIES FOR 'SCOPE_BANK'
+-- Hierarchy: Geography(1) > Circle(2) > Cgl(3) > Product(4) > Branch(5)
+-- ==============================================================================
+INSERT INTO DR_VIEW_DIMENSION (VIEW_ID, LOGICAL_NAME, PHYSICAL_COLUMN, DRILL_LEVEL, IS_EXPRESSION) 
+SELECT ID, 'Geography', '"GEOGRAPHY"', 1, 0 FROM DR_REPORT_VIEW WHERE VIEW_CODE = 'SCOPE_BANK' UNION ALL
+SELECT ID, 'Circle', '"CIRCLE"', 2, 0 FROM DR_REPORT_VIEW WHERE VIEW_CODE = 'SCOPE_BANK' UNION ALL
+SELECT ID, 'Cgl', '"CGL"', 3, 0 FROM DR_REPORT_VIEW WHERE VIEW_CODE = 'SCOPE_BANK' UNION ALL
+SELECT ID, 'Product', '"PRODUCT_CODE"', 4, 0 FROM DR_REPORT_VIEW WHERE VIEW_CODE = 'SCOPE_BANK' UNION ALL
+SELECT ID, 'Branch', '"BRANCH_CODE"', 5, 0 FROM DR_REPORT_VIEW WHERE VIEW_CODE = 'SCOPE_BANK' UNION ALL
+-- Filter-only Dimensions (Used in WHERE clause, Level 99 hides them from UI Hierarchy arrays)
+SELECT ID, 'ReportType', '"RUN_ID"', 99, 0 FROM DR_REPORT_VIEW WHERE VIEW_CODE = 'SCOPE_BANK' UNION ALL
+SELECT ID, 'HeadCode', '"BSA_HEADCODE"', 99, 0 FROM DR_REPORT_VIEW WHERE VIEW_CODE = 'SCOPE_BANK' UNION ALL
+SELECT ID, 'ReportDate', '"__time"', 99, 0 FROM DR_REPORT_VIEW WHERE VIEW_CODE = 'SCOPE_BANK';
 
-package com.fincore.analyticsservice.repository;
+-- ==============================================================================
+-- 4. MAP THE DIMENSIONS & HIERARCHIES FOR 'SCOPE_CIRCLE'
+-- Hierarchy: Cgl(1) > Product(2) > Branch(3)
+-- ==============================================================================
+INSERT INTO DR_VIEW_DIMENSION (VIEW_ID, LOGICAL_NAME, PHYSICAL_COLUMN, DRILL_LEVEL, IS_EXPRESSION) 
+SELECT ID, 'Cgl', '"CGL"', 1, 0 FROM DR_REPORT_VIEW WHERE VIEW_CODE = 'SCOPE_CIRCLE' UNION ALL
+SELECT ID, 'Product', '"PRODUCT_CODE"', 2, 0 FROM DR_REPORT_VIEW WHERE VIEW_CODE = 'SCOPE_CIRCLE' UNION ALL
+SELECT ID, 'Branch', '"BRANCH_CODE"', 3, 0 FROM DR_REPORT_VIEW WHERE VIEW_CODE = 'SCOPE_CIRCLE' UNION ALL
+-- Filter-only Dimensions (Circle is now a filter!)
+SELECT ID, 'Circle', '"CIRCLE"', 99, 0 FROM DR_REPORT_VIEW WHERE VIEW_CODE = 'SCOPE_CIRCLE' UNION ALL
+SELECT ID, 'ReportType', '"RUN_ID"', 99, 0 FROM DR_REPORT_VIEW WHERE VIEW_CODE = 'SCOPE_CIRCLE' UNION ALL
+SELECT ID, 'HeadCode', '"BSA_HEADCODE"', 99, 0 FROM DR_REPORT_VIEW WHERE VIEW_CODE = 'SCOPE_CIRCLE' UNION ALL
+SELECT ID, 'ReportDate', '"__time"', 99, 0 FROM DR_REPORT_VIEW WHERE VIEW_CODE = 'SCOPE_CIRCLE';
 
-import com.fincore.analyticsservice.dto.HeadSearchResponse;
-import jakarta.persistence.*;
-import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.data.jpa.repository.Query;
-import org.springframework.data.repository.query.Param;
-import org.springframework.stereotype.Repository;
+-- ==============================================================================
+-- 5. MAP THE DIMENSIONS & HIERARCHIES FOR 'SCOPE_BRANCH'
+-- Hierarchy: Cgl(1) > Product(2)
+-- ==============================================================================
+INSERT INTO DR_VIEW_DIMENSION (VIEW_ID, LOGICAL_NAME, PHYSICAL_COLUMN, DRILL_LEVEL, IS_EXPRESSION) 
+SELECT ID, 'Cgl', '"CGL"', 1, 0 FROM DR_REPORT_VIEW WHERE VIEW_CODE = 'SCOPE_BRANCH' UNION ALL
+SELECT ID, 'Product', '"PRODUCT_CODE"', 2, 0 FROM DR_REPORT_VIEW WHERE VIEW_CODE = 'SCOPE_BRANCH' UNION ALL
+-- Filter-only Dimensions (Branch is now a filter!)
+SELECT ID, 'Branch', '"BRANCH_CODE"', 99, 0 FROM DR_REPORT_VIEW WHERE VIEW_CODE = 'SCOPE_BRANCH' UNION ALL
+SELECT ID, 'ReportType', '"RUN_ID"', 99, 0 FROM DR_REPORT_VIEW WHERE VIEW_CODE = 'SCOPE_BRANCH' UNION ALL
+SELECT ID, 'HeadCode', '"BSA_HEADCODE"', 99, 0 FROM DR_REPORT_VIEW WHERE VIEW_CODE = 'SCOPE_BRANCH' UNION ALL
+SELECT ID, 'ReportDate', '"__time"', 99, 0 FROM DR_REPORT_VIEW WHERE VIEW_CODE = 'SCOPE_BRANCH';
 
-import java.util.List;
+-- ==============================================================================
+-- 6. MAP THE METRIC FOR ALL SCOPES
+-- ==============================================================================
+INSERT INTO DR_VIEW_METRIC (VIEW_ID, LOGICAL_NAME, DISPLAY_NAME, SQL_EXPRESSION) 
+SELECT ID, 'TotalAmount', 'Amount', 'ROUND(SUM("amt"), 2)' FROM DR_REPORT_VIEW WHERE VIEW_CODE IN ('SCOPE_BANK', 'SCOPE_CIRCLE', 'SCOPE_BRANCH');
 
-// 1. The Entity Mapping
-@Entity
-@Table(name = "RB_PARSED_TEMPLATE")
-class RbParsedTemplate {
-    // We use a composite of runId + headCode + cgl as a logical ID for JPA
-    @Id 
-    @Column(name = "HEAD_CODE")
-    private String headCode;
-
-    @Column(name = "RUN_ID")
-    private String runId;
-
-    @Column(name = "HEAD_DESC")
-    private String headDesc;
-}
-
-// 2. The Repository Search Engine
-@Repository
-public interface RbParsedTemplateRepository extends JpaRepository<RbParsedTemplate, String> {
-
-    /**
-     * Executes a fast, case-insensitive search across both HEAD_CODE and HEAD_DESC.
-     * Returns a distinct list mapped directly to our DTO to avoid memory overhead.
-     */
-    @Query("""
-        SELECT DISTINCT new com.fincore.analyticsservice.dto.HeadSearchResponse(t.headCode, t.headDesc) 
-        FROM RbParsedTemplate t 
-        WHERE LOWER(t.runId) = LOWER(:reportName) 
-          AND (
-               LOWER(t.headCode) LIKE LOWER(CONCAT('%', :searchText, '%')) 
-               OR LOWER(t.headDesc) LIKE LOWER(CONCAT('%', :searchText, '%'))
-          )
-        ORDER BY t.headCode ASC
-    """)
-    List<HeadSearchResponse> searchHeads(
-            @Param("reportName") String reportName, 
-            @Param("searchText") String searchText
-    );
-}
-
-
-
-
-
-
-
-
-
-
-package com.fincore.analyticsservice.controller;
-
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fincore.analyticsservice.dto.DrillDownRequest;
-import com.fincore.analyticsservice.dto.DrillDownResponse;
-import com.fincore.analyticsservice.dto.HeadSearchResponse;
-import com.fincore.analyticsservice.dto.ReportConfigResponse;
-import com.fincore.analyticsservice.repository.RbParsedTemplateRepository;
-import com.fincore.analyticsservice.service.ReportConfigService;
-import com.fincore.analyticsservice.service.SemanticDrillDownService;
-import com.fincore.commonutilities.jwt.JwtUtil;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
-
-import java.util.List;
-
-@Slf4j
-@RestController
-@RequestMapping("/api/v1/analytics")
-@CrossOrigin(origins = "*")
-public class AnalyticsController {
-
-    private final SemanticDrillDownService semanticDrillDownService;
-    private final JwtUtil jwtUtil;
-    private final ReportConfigService configService;
-    private final ObjectMapper objectMapper;
-    private final RbParsedTemplateRepository templateRepository; // <-- NEW
-
-    public AnalyticsController(
-            SemanticDrillDownService semanticDrillDownService, 
-            JwtUtil jwtUtil, 
-            ReportConfigService configService, 
-            ObjectMapper objectMapper,
-            RbParsedTemplateRepository templateRepository) { // <-- NEW
-        this.semanticDrillDownService = semanticDrillDownService;
-        this.jwtUtil = jwtUtil;
-        this.configService = configService;
-        this.objectMapper = objectMapper;
-        this.templateRepository = templateRepository;
-    }
-
-    // ... (Keep your existing executeDrillDown and getUIConfiguration methods here) ...
-
-    /**
-     * GET /api/v1/analytics/heads/search?reportName=ysa_report&search=100
-     * Autocomplete endpoint for the Frontend Code input field.
-     */
-    @GetMapping("/heads/search")
-    public ResponseEntity<List<HeadSearchResponse>> searchHeads(
-            @RequestParam("reportName") String reportName,
-            @RequestParam("search") String searchText,
-            @RequestHeader("Authorization") String token) {
-
-        log.debug("Executing autocomplete search for report: [{}], query: [{}]", reportName, searchText);
-
-        // Security check: validate token (throws exception if invalid)
-        jwtUtil.getUserRoleFromToken(token);
-
-        // Optional: limit search text to prevent heavy DB queries on 1 character
-        if (searchText == null || searchText.trim().length() < 2) {
-            return ResponseEntity.badRequest().build(); // Force user to type at least 2 chars
-        }
-
-        List<HeadSearchResponse> suggestions = templateRepository.searchHeads(reportName, searchText.trim());
-        
-        return ResponseEntity.ok(suggestions);
-    }
-}
-
-
-
-
-
-
-
-
-
-
-
-
+COMMIT;
