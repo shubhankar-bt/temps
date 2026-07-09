@@ -1,55 +1,746 @@
--- ==============================================================================
--- 1. CLEAN UP PREVIOUS FAILED RUN (Prevents Duplicate Key Errors)
--- ==============================================================================
-DELETE FROM DR_VIEW_METRIC WHERE VIEW_ID IN (SELECT ID FROM DR_REPORT_VIEW);
-DELETE FROM DR_VIEW_DIMENSION WHERE VIEW_ID IN (SELECT ID FROM DR_REPORT_VIEW);
+package com.fincore.analyticsservice.controller;
 
--- ==============================================================================
--- 2. MAP BANK LEVEL VIEWS (Geography > Circle > Cgl > Product > Branch)
--- Filter Drill Levels: 97, 98, 99 (Strictly Unique)
--- ==============================================================================
-INSERT INTO DR_VIEW_DIMENSION (VIEW_ID, LOGICAL_NAME, PHYSICAL_COLUMN, DRILL_LEVEL, IS_EXPRESSION)
-SELECT ID, 'Geography', '"GEOGRAPHY"', 1, 0 FROM DR_REPORT_VIEW WHERE VIEW_CODE LIKE '%_BANK' UNION ALL
-SELECT ID, 'Circle', '"CIRCLE"', 2, 0 FROM DR_REPORT_VIEW WHERE VIEW_CODE LIKE '%_BANK' UNION ALL
-SELECT ID, 'Cgl', '"CGL"', 3, 0 FROM DR_REPORT_VIEW WHERE VIEW_CODE LIKE '%_BANK' UNION ALL
-SELECT ID, 'Product', '"PRODUCT_CODE"', 4, 0 FROM DR_REPORT_VIEW WHERE VIEW_CODE LIKE '%_BANK' UNION ALL
-SELECT ID, 'Branch', '"BRANCH_CODE"', 5, 0 FROM DR_REPORT_VIEW WHERE VIEW_CODE LIKE '%_BANK' UNION ALL
--- Unique Filter Levels
-SELECT ID, 'ReportDate', '"__time"', 97, 0 FROM DR_REPORT_VIEW WHERE VIEW_CODE LIKE '%_BANK' UNION ALL
-SELECT ID, 'CompCode', '"comp"', 98, 0 FROM DR_REPORT_VIEW WHERE VIEW_CODE LIKE '%_BANK' UNION ALL
-SELECT ID, 'HeadCode', 'COALESCE("BSA_HEADCODE", "NWSA_HEADCODE")', 99, 1 FROM DR_REPORT_VIEW WHERE VIEW_CODE LIKE '%_BANK';
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fincore.analyticsservice.dto.DrillDownRequest;
+import com.fincore.analyticsservice.dto.DrillDownResponse;
+import com.fincore.analyticsservice.dto.HeadSearchResponse;
+import com.fincore.analyticsservice.dto.ReportConfigResponse;
+import com.fincore.analyticsservice.repository.RbParsedTemplateRepository;
+import com.fincore.analyticsservice.service.ReportConfigService;
+import com.fincore.analyticsservice.service.SemanticDrillDownService;
+import com.fincore.commonutilities.jwt.JwtUtil;
+import jakarta.validation.Valid;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
+import java.util.List;
 
--- ==============================================================================
--- 3. MAP CIRCLE LEVEL VIEWS (Cgl > Product > Branch)
--- Filter Drill Levels: 96, 97, 98, 99 (Strictly Unique)
--- ==============================================================================
-INSERT INTO DR_VIEW_DIMENSION (VIEW_ID, LOGICAL_NAME, PHYSICAL_COLUMN, DRILL_LEVEL, IS_EXPRESSION)
-SELECT ID, 'Cgl', '"CGL"', 1, 0 FROM DR_REPORT_VIEW WHERE VIEW_CODE LIKE '%_CIRCLE' UNION ALL
-SELECT ID, 'Product', '"PRODUCT_CODE"', 2, 0 FROM DR_REPORT_VIEW WHERE VIEW_CODE LIKE '%_CIRCLE' UNION ALL
-SELECT ID, 'Branch', '"BRANCH_CODE"', 3, 0 FROM DR_REPORT_VIEW WHERE VIEW_CODE LIKE '%_CIRCLE' UNION ALL
--- Unique Filter Levels (Notice Circle is at 96 now because it's a hidden filter here)
-SELECT ID, 'Circle', '"CIRCLE"', 96, 0 FROM DR_REPORT_VIEW WHERE VIEW_CODE LIKE '%_CIRCLE' UNION ALL
-SELECT ID, 'ReportDate', '"__time"', 97, 0 FROM DR_REPORT_VIEW WHERE VIEW_CODE LIKE '%_CIRCLE' UNION ALL
-SELECT ID, 'CompCode', '"comp"', 98, 0 FROM DR_REPORT_VIEW WHERE VIEW_CODE LIKE '%_CIRCLE' UNION ALL
-SELECT ID, 'HeadCode', 'COALESCE("BSA_HEADCODE", "NWSA_HEADCODE")', 99, 1 FROM DR_REPORT_VIEW WHERE VIEW_CODE LIKE '%_CIRCLE';
+/**
+ * Enterprise REST Controller for the Analytics Drill-Down Engine.
+ * Follows clean architecture: the controller solely handles HTTP routing,
+ * token extraction, and delegates core business logic to the service layer.
+ *
+ *  <a href="mailto:shubhankar.das.cbstcs@sbi.co.in">shubhankar.das.cbstcs@sbi.co.in</a>
+ *  @version 1.0.0
+ *  @since 2026-06-09
+ */
+@Slf4j
+@RestController
+@RequestMapping("/api/analytics")
+public class AnalyticsController {
 
--- ==============================================================================
--- 4. MAP BRANCH LEVEL VIEWS (Cgl > Product)
--- Filter Drill Levels: 96, 97, 98, 99 (Strictly Unique)
--- ==============================================================================
-INSERT INTO DR_VIEW_DIMENSION (VIEW_ID, LOGICAL_NAME, PHYSICAL_COLUMN, DRILL_LEVEL, IS_EXPRESSION)
-SELECT ID, 'Cgl', '"CGL"', 1, 0 FROM DR_REPORT_VIEW WHERE VIEW_CODE LIKE '%_BRANCH' UNION ALL
-SELECT ID, 'Product', '"PRODUCT_CODE"', 2, 0 FROM DR_REPORT_VIEW WHERE VIEW_CODE LIKE '%_BRANCH' UNION ALL
--- Unique Filter Levels (Notice Branch is at 96 now because it's a hidden filter here)
-SELECT ID, 'Branch', '"BRANCH_CODE"', 96, 0 FROM DR_REPORT_VIEW WHERE VIEW_CODE LIKE '%_BRANCH' UNION ALL
-SELECT ID, 'ReportDate', '"__time"', 97, 0 FROM DR_REPORT_VIEW WHERE VIEW_CODE LIKE '%_BRANCH' UNION ALL
-SELECT ID, 'CompCode', '"comp"', 98, 0 FROM DR_REPORT_VIEW WHERE VIEW_CODE LIKE '%_BRANCH' UNION ALL
-SELECT ID, 'HeadCode', 'COALESCE("BSA_HEADCODE", "NWSA_HEADCODE")', 99, 1 FROM DR_REPORT_VIEW WHERE VIEW_CODE LIKE '%_BRANCH';
+    private final SemanticDrillDownService semanticDrillDownService;
+    private final JwtUtil jwtUtil;
+    private final ReportConfigService configService;
 
--- ==============================================================================
--- 5. MAP THE METRIC FOR ALL 9 VIEWS
--- ==============================================================================
-INSERT INTO DR_VIEW_METRIC (VIEW_ID, LOGICAL_NAME, DISPLAY_NAME, SQL_EXPRESSION) 
-SELECT ID, 'TotalAmount', 'Amount', 'ROUND(SUM("amt"), 2)' FROM DR_REPORT_VIEW;
+    public AnalyticsController(SemanticDrillDownService semanticDrillDownService, JwtUtil jwtUtil,
+                               ReportConfigService configService, ObjectMapper objectMapper,
+                               RbParsedTemplateRepository templateRepository) {
+        this.semanticDrillDownService = semanticDrillDownService;
+        this.jwtUtil = jwtUtil;
+        this.configService = configService;
+    }
 
-COMMIT;
+    /**
+     * POST /api/analytics/drill-down
+     * Executes the dynamic drill-down query against Apache Druid.
+     * * @param request The logical JSON payload from the React frontend.
+     * @param token The JWT authorization token.
+     * @return DrillDownResponse containing aggregated data and metadata.
+     */
+    @PostMapping("/drill-down")
+    public ResponseEntity<DrillDownResponse> executeDrillDown(
+            @Valid @RequestBody DrillDownRequest request,
+            @RequestHeader("Authorization") String token) {
+
+        Integer roleId = jwtUtil.getUserRoleFromToken(token);
+        DrillDownResponse response = semanticDrillDownService.executeDrillDown(request, roleId);
+
+        return ResponseEntity.ok(response);
+    }
+
+    /**
+     * GET /api/analytics/config
+     * UI calls this immediately on application load to figure out which reports
+     * and dropdowns this specific user is allowed to see.
+     */
+    @GetMapping("/config")
+    public ResponseEntity<List<ReportConfigResponse>> getUIConfiguration(
+            @RequestHeader("Authorization") String token) {
+
+        Integer roleId = jwtUtil.getUserRoleFromToken(token);
+
+        // Fetch only configurations permitted for this Role ID
+        List<ReportConfigResponse> config = configService.getPermittedConfigurations(roleId);
+
+        return ResponseEntity.ok(config);
+    }
+
+
+    /**
+     * GET /api/analytics/heads/search?reportName=ysa_report&search=100
+     * Autocomplete endpoint for the Frontend Code input field.
+     */
+    @GetMapping("/heads/search")
+    public ResponseEntity<List<HeadSearchResponse>> searchHeads(
+            @RequestParam("reportName") String reportName,
+            @RequestParam("search") String searchText,
+            @RequestHeader("Authorization") String token) {
+
+        log.debug("Executing autocomplete search for report: [{}], query: [{}]", reportName, searchText);
+
+        // Security check: validate token (throws exception if invalid)
+        jwtUtil.getUserRoleFromToken(token);
+
+        // Optional: limit search text to prevent heavy DB queries on 1 character
+        if (searchText == null || searchText.trim().length() < 2) {
+            return ResponseEntity.badRequest().build(); // Force user to type at least 2 chars
+        }
+
+        List<HeadSearchResponse> suggestions = configService.searchHeads(reportName, searchText.trim());
+
+        return ResponseEntity.ok(suggestions);
+    }
+}
+
+
+
+
+
+
+
+
+
+package com.fincore.analyticsservice.dto;
+
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotEmpty;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Pattern;
+
+import java.util.List;
+
+public record DrillDownRequest(
+        @NotBlank(message = "viewCode is required to route the request securely")
+        @Pattern(regexp = "^[a-zA-Z0-9_]+$", message = "Invalid viewCode format")
+        String viewCode,
+
+        @NotEmpty(message = "At least one logical dimension is required")
+        List<@Pattern(regexp = "^[a-zA-Z0-9_]+$") String> dimensions,
+
+        @NotEmpty(message = "At least one logical metric is required")
+        List<@Pattern(regexp = "^[a-zA-Z0-9_]+$") String> metrics,
+
+        @NotBlank(message="reportDate is required")
+        String reportDate,
+
+        @NotNull(message = "Filters array cannot be null")
+        List<FilterDto> filters
+
+) {}
+
+
+
+
+
+
+
+package com.fincore.analyticsservice.service;
+
+import com.fincore.analyticsservice.client.DruidRestClient;
+import com.fincore.analyticsservice.component.DruidQueryBuilder;
+import com.fincore.analyticsservice.dto.*;
+import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.cache.annotation.Cacheable;
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.stereotype.Service;
+import org.springframework.util.CollectionUtils;
+
+import java.util.*;
+import java.util.function.Function;
+import java.util.stream.Collectors;
+/**
+ * The "Brain" of the Semantic Layer.
+ * This service takes a "Logical" request from the frontend (e.g., "Give me the Total Balance for Branches"),
+ * looks up the physical rules in Oracle, translates the request, enforces RBAC, and executes it.
+ */
+@Slf4j
+@Service
+public class SemanticDrillDownService {
+    private static final Integer ROLE_ADMIN = 10;
+
+    private final DruidRestClient druidRestClient;
+    private final DruidQueryBuilder queryBuilder;
+    private final ReportMetadataProvider metadataProvider;
+
+    public SemanticDrillDownService(
+            DruidRestClient druidRestClient,
+            DruidQueryBuilder queryBuilder,
+            ReportMetadataProvider metadataProvider) {
+        this.druidRestClient = druidRestClient;
+        this.queryBuilder = queryBuilder;
+        this.metadataProvider = metadataProvider;
+    }
+
+    /**
+     * Executes the Drill-Down operation. Cached to ensure identical clicks return instantly.
+     */
+    @Cacheable(value = "drillDownData", key = "T(java.lang.String).valueOf(#request.hashCode())")
+    public DrillDownResponse executeDrillDown(DrillDownRequest request, Integer roleId) {
+        long startTime = System.currentTimeMillis();
+        String logicalTargetDim = request.dimensions().getFirst();
+
+        log.info("Executing DrillDown for view: [{}], logicalDim: [{}]", request.viewCode(), logicalTargetDim);
+
+        // 1. Fetch Metadata context for this view from Oracle
+        ViewMetadataContext context = metadataProvider.getViewContext(request.viewCode());
+
+        // 2. Perform RBAC validation (Are they allowed to see this specific view?)
+        validateAccess(context.requiredRoleIds(), roleId);
+
+        // 3. Translate Logical to DimensionConfig (e.g., "Branch" -> "BRANCH_CODE")
+        DimensionConfig targetDimConfig = translateDimension(logicalTargetDim, context.dimensionMap());
+        Map<String, String> resolvedMetricsSql = resolveMetrics(request.metrics(), context.metricMap());
+
+        // 4. Build the SQL Query string
+        Map<String, Object> druidPayload = queryBuilder.buildSqlPayload(
+                context.physicalDruidTable(),
+                logicalTargetDim,
+                targetDimConfig,
+                request.metrics(),
+                resolvedMetricsSql,
+                request.reportDate(),
+                request.filters(),
+                context.dimensionMap()
+        );
+
+        log.info("Final druid payload to be executed: {}", druidPayload);
+
+        // 5. Execute against Druid
+        List<Map<String, Object>> rawDruidData = druidRestClient.executeQuery(druidPayload);
+
+        if (CollectionUtils.isEmpty(rawDruidData)) {
+            return new DrillDownResponse(new Meta("SUCCESS", logicalTargetDim, 0, System.currentTimeMillis() - startTime), Collections.emptyList());
+        }
+
+        // 6. Determine UI Hierarchy State ([+] button logic)
+        boolean hasChildren = determineIfHasChildren(logicalTargetDim, context.logicalHierarchyOrdered());
+
+        // 7. Format Final UI Response with unique IDs
+        List<Map<String, Object>> formattedData = formatResponseData(rawDruidData, logicalTargetDim, hasChildren);
+
+        long executionTime = System.currentTimeMillis() - startTime;
+        return new DrillDownResponse(new Meta("SUCCESS", logicalTargetDim, formattedData.size(), executionTime), formattedData);
+    }
+
+    /**
+     * Validates if the user's integer role ID is permitted to view this report.
+     * * @param requiredRoleIds A comma-separated string from DB (e.g., "54,56"). Null means public.
+     *
+     * @param roleId The user's actual role ID from JWT.
+     */
+    private void validateAccess(String requiredRoleIds, Integer roleId) {
+
+        // Admin always has access to everything
+        if (ROLE_ADMIN.equals(roleId)) {
+            return;
+        }
+
+        // If DB has no restrictions, allow access
+        // Allow access to all the roles
+        if (requiredRoleIds == null || requiredRoleIds.trim().isEmpty() || "NULL".equalsIgnoreCase(requiredRoleIds.trim())) {
+            return;
+        }
+
+        // Parse comma-separated list and check for match
+        List<String> allowedRoles = Arrays.asList(requiredRoleIds.split(","));
+
+        if (!allowedRoles.contains(String.valueOf(roleId))) {
+            log.warn("Security Alert: User with Role ID [{}] attempted to access restricted view requiring roles [{}]", roleId, requiredRoleIds);
+            throw new AccessDeniedException("Insufficient permissions to execute drill-down for this view.");
+        }
+    }
+
+    private DimensionConfig translateDimension(String logicalName, Map<String, DimensionConfig> dimMap) {
+        DimensionConfig config = dimMap.get(logicalName);
+        if (config == null) {
+            throw new IllegalArgumentException("Logical dimension '" + logicalName + "' is not supported in this view.");
+        }
+        return config;
+    }
+
+    private Map<String, String> resolveMetrics(List<String> logicalMetrics, Map<String, String> metricMap) {
+        Map<String, String> resolved = new HashMap<>();
+        for (String logicalName : logicalMetrics) {
+            String sqlExpression = metricMap.get(logicalName);
+            if (sqlExpression == null || sqlExpression.isBlank()) {
+                throw new IllegalArgumentException("Logical metric '" + logicalName + "' is not supported in this view.");
+            }
+            resolved.put(logicalName, sqlExpression);
+        }
+        return resolved;
+    }
+
+    private boolean determineIfHasChildren(String currentDim, List<String> hierarchy) {
+        int index = hierarchy.indexOf(currentDim);
+        return index != -1 && index < hierarchy.size() - 1;
+    }
+
+    private List<Map<String, Object>> formatResponseData(List<Map<String, Object>> rawData, String logicalDim, boolean hasChildren) {
+        String idPrefix = logicalDim.toLowerCase() + "_";
+        List<Map<String, Object>> result = new ArrayList<>(rawData.size());
+
+        for (Map<String, Object> row : rawData) {
+            Map<String, Object> formattedRow = new LinkedHashMap<>();
+
+            // Safe extraction because the QueryBuilder AS aliased the complex expression back to the simple logicalDim string
+            Object nameObj = row.get(logicalDim);
+            String nameValue = (nameObj != null && !nameObj.toString().isBlank()) ? nameObj.toString() : "Unassigned";
+
+            formattedRow.put("id", idPrefix + nameValue.toLowerCase().replaceAll("[^a-z0-9]", "_"));
+            formattedRow.put("name", nameValue);
+
+            for (Map.Entry<String, Object> entry : row.entrySet()) {
+                if (!entry.getKey().equals(logicalDim)) {
+                    formattedRow.put(entry.getKey(), entry.getValue() == null ? 0.0 : entry.getValue());
+                }
+            }
+            formattedRow.put("hasChildren", hasChildren);
+            result.add(formattedRow);
+        }
+        return result;
+    }
+}
+
+
+
+
+
+
+
+package com.fincore.analyticsservice.client;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.ParameterizedTypeReference;
+import org.springframework.http.MediaType;
+import org.springframework.http.client.JdkClientHttpRequestFactory;
+import org.springframework.stereotype.Component;
+import org.springframework.web.client.RestClient;
+
+import javax.net.ssl.SSLContext;
+import javax.net.ssl.TrustManager;
+import javax.net.ssl.X509TrustManager;
+import java.net.http.HttpClient;
+import java.security.KeyManagementException;
+import java.security.NoSuchAlgorithmException;
+import java.security.SecureRandom;
+import java.security.cert.X509Certificate;
+import java.util.List;
+import java.util.Map;
+
+/**
+ * Enterprise Apache Druid Rest Client upgraded with SSL capabilities.
+ * Configured using Java 21 Native HTTP client to gracefully handle
+ * secure HTTPS and self-signed certificates on internal developer subnets.
+ */
+@Component
+public class DruidRestClient {
+
+    private static final Logger log = LoggerFactory.getLogger(DruidRestClient.class);
+    private final RestClient restClient;
+
+    public DruidRestClient(
+            RestClient.Builder restClientBuilder,
+            @Value("${druid.router.url:https://10.177.103.194:8282}") String druidUrl) {
+
+        log.info("Initializing Druid REST Client targeting secure endpoint: [{}]", druidUrl);
+
+        // Build a secure Java 21 request factory that accepts internal corporate self-signed SSL certificates
+        JdkClientHttpRequestFactory requestFactory = new JdkClientHttpRequestFactory(createSslConfiguredHttpClient());
+
+        this.restClient = restClientBuilder
+                .requestFactory(requestFactory)
+                .baseUrl(druidUrl)
+                .defaultHeader("Content-Type", MediaType.APPLICATION_JSON_VALUE)
+                .defaultHeader("Accept", MediaType.APPLICATION_JSON_VALUE)
+                .build();
+    }
+
+    /**
+     * Executes the compiled SQL payload securely against Druid via HTTPS.
+     */
+    public List<Map<String, Object>> executeQuery(Map<String, Object> druidSqlPayload) {
+        log.debug("Executing SSL Druid Query: {}", druidSqlPayload);
+
+        return restClient.post()
+                .uri("/druid/v2/sql")
+                .body(druidSqlPayload)
+                .retrieve()
+                .body(new ParameterizedTypeReference<List<Map<String, Object>>>() {});
+    }
+
+    /**
+     * Creates an HttpClient instance bypassing standard public CA certification paths.
+     * Perfect for internal dev boxes (10.x.x.x) using self-signed certs.
+     */
+    private HttpClient createSslConfiguredHttpClient() {
+        try {
+            // Create a trust manager that does not validate certificate chains
+            TrustManager[] trustAllCerts = new TrustManager[]{
+                    new X509TrustManager() {
+                        public X509Certificate[] getAcceptedIssuers() {
+                            return new X509Certificate[0];
+                        }
+                        public void checkClientTrusted(X509Certificate[] certs, String authType) {}
+                        public void checkServerTrusted(X509Certificate[] certs, String authType) {}
+                    }
+            };
+
+            // Install the all-trusting trust manager
+            SSLContext sslContext = SSLContext.getInstance("TLS");
+            sslContext.init(null, trustAllCerts, new SecureRandom());
+
+            return HttpClient.newBuilder()
+                    .sslContext(sslContext)
+                    .build();
+
+        } catch (NoSuchAlgorithmException | KeyManagementException e) {
+            log.error("Fatal Error initializing Druid REST Client SSL Context", e);
+            throw new IllegalStateException("Failed to configure secure transport layer for Druid client.", e);
+        }
+    }
+}
+
+
+
+
+package com.fincore.analyticsservice.component;
+
+import com.fincore.analyticsservice.dto.DimensionConfig;
+import com.fincore.analyticsservice.dto.FilterDto;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.stereotype.Component;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+
+@Slf4j
+@Component
+public class DruidQueryBuilder {
+
+    public Map<String, Object> buildSqlPayload(
+            String physicalTable,
+            String logicalTargetDim,
+            DimensionConfig targetDimConfig,
+            List<String> logicalMetrics,
+            Map<String, String> resolvedMetricsSql,
+            String reportDate,
+            List<FilterDto> filters,
+            Map<String, DimensionConfig> dimensionTranslationMap) {
+
+        StringBuilder sql = new StringBuilder("SELECT ");
+
+        // 1. Grouping Column (dynamically formatted)
+        sql.append(formatDimension(targetDimConfig)).append(" AS \"").append(logicalTargetDim).append("\"");
+
+        // 2. Metrics (simply appends the raw DB string)
+        for (String logicalMetric : logicalMetrics) {
+            String rawMetricSql = resolvedMetricsSql.get(logicalMetric);
+            sql.append(", ").append(rawMetricSql).append(" AS \"").append(logicalMetric).append("\"");
+        }
+
+        // 3. From physical datasource
+        sql.append(" FROM \"").append(physicalTable).append("\" WHERE 1=1 ");
+
+
+        // 4. Filters
+        // Append the date filter to the sql query
+        List<Map<String, String>> parameters = new ArrayList<>();
+        sql.append("AND \"REPORT_DATE\"=?");
+        parameters.add(Map.of("type","VARCHAR",
+        "value",reportDate));
+        
+        if (filters != null && !filters.isEmpty()) {
+            for (FilterDto filter : filters) {
+                DimensionConfig filterDimConfig = dimensionTranslationMap.get(filter.logicalField());
+                if (filterDimConfig == null) {
+                    throw new IllegalArgumentException("Filter dimension not mapped: " + filter.logicalField());
+                }
+                appendFilterCondition(sql, parameters, filterDimConfig, filter);
+            }
+        }
+
+        // 5. Group By (Must perfectly match the SELECT expression)
+        sql.append(" GROUP BY ").append(formatDimension(targetDimConfig));
+
+        return Map.of(
+                "query", sql.toString(),
+                "parameters", parameters
+        );
+    }
+
+    /**
+     * If it's an expression (like CASE WHEN), wrap it in parentheses safely.
+     * If it's a standard column (like BRANCH_CODE), wrap it in double quotes.
+     */
+    private String formatDimension(DimensionConfig config) {
+        if (config.isExpression()) {
+            return "(" + config.physicalSql() + ")";
+        } else {
+            return "\"" + config.physicalSql() + "\"";
+        }
+    }
+
+    private void appendFilterCondition(StringBuilder sql, List<Map<String, String>> parameters, DimensionConfig config, FilterDto filter) {
+        if ("EQUALS".equalsIgnoreCase(filter.operator())) {
+            sql.append(" AND ").append(formatDimension(config)).append(" = ? ");
+            parameters.add(Map.of("type", "VARCHAR", "value", String.valueOf(filter.value())));
+        } else {
+            throw new IllegalArgumentException("Unsupported filter operator: " + filter.operator());
+        }
+    }
+}
+
+
+
+package com.fincore.analyticsservice.service;
+
+import com.fincore.analyticsservice.dto.HeadSearchResponse;
+import com.fincore.analyticsservice.dto.MetricConfig;
+import com.fincore.analyticsservice.dto.ReportConfigResponse;
+import com.fincore.analyticsservice.dto.ViewConfig;
+import com.fincore.analyticsservice.model.DrReport;
+import com.fincore.analyticsservice.model.DrReportView;
+import com.fincore.analyticsservice.model.DrViewDimension;
+import com.fincore.analyticsservice.repository.DrReportRepository;
+import com.fincore.analyticsservice.repository.RbParsedTemplateRepository;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.cache.annotation.Cacheable;
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+
+import java.util.*;
+
+@Service
+public class ReportConfigService {
+
+    private static final Integer ROLE_ADMIN = 10;
+    private static final Logger log = LoggerFactory.getLogger(ReportConfigService.class);
+    private final DrReportRepository reportRepository;
+    private final RbParsedTemplateRepository templateRepository; // <-- NEW
+
+
+    public ReportConfigService(DrReportRepository reportRepository, RbParsedTemplateRepository templateRepository) {
+        this.reportRepository = reportRepository;
+        this.templateRepository = templateRepository;
+    }
+
+    /**
+     * Fetches UI metadata.
+     * Caches the response by User Roles to ensure users only see their permitted views.
+     */
+    @Transactional(readOnly = true)
+    @Cacheable(value = "uiReportConfig", key = "#roleId")
+    public List<ReportConfigResponse> getPermittedConfigurations(Integer roleId) {
+        log.info("Fetching Oracle UI configurations for roles: {}", roleId);
+
+        List<DrReport> allActiveReports = reportRepository.findAllActiveReportsWithViews();
+        List<ReportConfigResponse> permittedReports = new ArrayList<>();
+
+        for (DrReport report : allActiveReports) {
+            List<ViewConfig> permittedViews = processViews(report.getViews(), roleId);
+           
+            // Only return the report if the user has access to at least one view inside it
+            if (!permittedViews.isEmpty()) {
+                permittedReports.add(new ReportConfigResponse(
+                        report.getReportCode(),
+                        report.getDisplayName(),
+                        permittedViews
+                ));
+            }
+        }
+
+        if (permittedReports.isEmpty()) {
+            log.warn("User with role {} requested config but has zero report permissions.", roleId);
+            throw new AccessDeniedException("You do not have permission to view any reports.");
+        }
+
+        return permittedReports;
+    }
+
+    private List<ViewConfig> processViews(Set<DrReportView> views, Integer roleId) {
+
+        List<ViewConfig> permittedViews = new ArrayList<>();
+
+        for (DrReportView view : views) {
+            if (hasAccess(roleId, view.getRequiredRoleIds())) {
+
+                // 1. Map Hierarchy (Must be strictly ordered by drillLevel)
+                List<String> logicalHierarchy = view.getDimensions().stream()
+                        .sorted(Comparator.comparing(DrViewDimension::getDrillLevel))
+                        .map(DrViewDimension::getLogicalName)
+                        .toList();
+
+                // 2. Map Metrics
+                List<MetricConfig> logicalMetrics = view.getMetrics().stream()
+                        .map(m -> new MetricConfig(m.getLogicalName(), m.getDisplayName()))//Cannot resolve method 'getDisplayName' in 'DrViewMetric'
+                        .toList();
+
+                permittedViews.add(new ViewConfig(
+                        view.getViewCode(),
+                        // Assuming you have a displayName in DrReportView, otherwise use viewCode
+                        view.getViewCode(),
+                        logicalHierarchy,
+                        logicalMetrics
+                ));
+            }
+        }
+        return permittedViews;
+    }
+
+    private boolean hasAccess(Integer roleId, String requiredRoleIds) {
+
+        // admin has access of everything
+        if (ROLE_ADMIN.equals(roleId)) {
+            return true;
+        }
+
+        // If no role is required, it's public. Otherwise, check user roles.
+        // Allow access to all the roles
+        if (requiredRoleIds == null || requiredRoleIds.isBlank() || "NULL".equalsIgnoreCase(requiredRoleIds.trim())) {
+            return true;
+        }
+
+        List<String> allowedRoles = Arrays.asList(requiredRoleIds.split(","));
+
+        // return true if allowed roles contains the role id
+        return allowedRoles.contains(String.valueOf(roleId));
+    }
+
+    public List<HeadSearchResponse> searchHeads(String reportName, String searchText) {
+        return templateRepository.searchHeads(reportName, searchText.trim());
+    }
+}
+
+
+
+
+
+
+package com.fincore.analyticsservice.service;
+
+import com.fincore.analyticsservice.dto.DimensionConfig;
+import com.fincore.analyticsservice.dto.ViewMetadataContext;
+import com.fincore.analyticsservice.model.DrReportView;
+import com.fincore.analyticsservice.model.DrViewDimension;
+import com.fincore.analyticsservice.model.DrViewMetric;
+import com.fincore.analyticsservice.repository.DrReportViewRepository;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.cache.annotation.Cacheable;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
+
+@Service
+public class OracleMetadataProviderImpl implements ReportMetadataProvider {
+
+    private static final Logger log = LoggerFactory.getLogger(OracleMetadataProviderImpl.class);
+    private final DrReportViewRepository viewRepository;
+
+    public OracleMetadataProviderImpl(DrReportViewRepository viewRepository) {
+        this.viewRepository = viewRepository;
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    @Cacheable(value = "viewMetadataContextCache", key = "#viewCode")
+    public ViewMetadataContext getViewContext(String viewCode) {
+        log.debug("Cache miss. Fetching physical mapping for viewCode: [{}] from Oracle DB", viewCode);
+
+        DrReportView viewEntity = viewRepository.findByViewCodeActive(viewCode)
+                .orElseThrow(() -> new IllegalArgumentException("Invalid or inactive viewCode requested: " + viewCode));
+
+        // Hibernate triggers Query #2 here securely inside the transaction boundary
+        List<String> orderedHierarchy = viewEntity.getDimensions().stream()
+                .map(DrViewDimension::getLogicalName)
+                .toList();
+
+        // 2. Build Translation Maps (Logical -> Physical)
+        // maps the Logical Name to the new DimensionConfig object
+        Map<String, DimensionConfig> dimMap = viewEntity.getDimensions().stream()
+                .collect(Collectors.toMap(
+                        DrViewDimension::getLogicalName,
+                        dim -> new DimensionConfig(dim.getPhysicalColumn(), dim.isExpression())
+                ));
+
+        // Hibernate triggers Query #3 here securely inside the transaction boundary
+        Map<String, String> metricMap = viewEntity.getMetrics().stream()
+                .collect(Collectors.toMap(DrViewMetric::getLogicalName, DrViewMetric::getSqlExpression));
+
+        // 3. Construct and return immutable context
+        return new ViewMetadataContext(
+                viewEntity.getViewCode(),
+                viewEntity.getDatasource().getDruidTableName(),
+                viewEntity.getRequiredRoleIds(),
+                orderedHierarchy,
+                dimMap,
+                metricMap
+        );
+    }
+}
+
+
+
+
+
+
+package com.fincore.analyticsservice.service;
+
+import com.fincore.analyticsservice.dto.ViewMetadataContext;
+
+/**
+ * Enterprise boundary interface for fetching Report Metadata.
+ * Allows switching from Oracle to another metadata store in the future without changing business logic.
+ */
+public interface ReportMetadataProvider {
+
+    /**
+     * Fetches the physical mapping context for a given logical view code.
+     * @param viewCode The logical identifier from the UI (e.g., 'YSA_BRANCH_VIEW')
+     * @return Immutable context containing physical table names and column mappings.
+     */
+    ViewMetadataContext getViewContext(String viewCode);
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+{
+  "viewCode": "PNL_MAIN_VIEW",
+  "reportDate": "2026-03-30",
+  "dimensions": ["PnlCategory"],
+  "metrics": ["TotalAmount"],
+  "filters": []
+}
