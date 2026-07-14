@@ -1,348 +1,254 @@
-                                   FINCORE PLATFORM
-==================================================================================================
-
-                                +----------------------+
-                                |   Desktop Client     |
-                                +----------+-----------+
-                                           |
-                                           |
-                                    API Gateway
-                                           |
-        ------------------------------------------------------------------------------------------
-        |                 |                    |                     |                    |
-        |                 |                    |                     |                    |
-   Login Service    Process Service     Report Service      User Service        Any Future Service
-        |                 |                    |                     |                    |
-        |                 |                    |                     |                    |
-        |                 |                    |                     |                    |
-        |          Publish Generic            Publish Generic        |                    |
-        |                 |                    |                     |                    |
-        |                 |                    |                     |                    |
-Generate OTP              |                    |                     |                    |
-Save Redis Session         |                    |                     |                    |
-Publish Priority Event     |                    |                     |                    |
-        |                 |                    |                     |                    |
-        ------------------------------------------------------------------------------------------
-                                           |
-                                    Kafka Cluster
-                                           |
-                     ---------------------------------------------------
-                     |                                                 |
-                     |                                                 |
-         fincore.auth.otp.priority                 fincore.communication.generic
-                     |                                                 |
-                     |                                                 |
-          Priority Consumer Pool                          Generic Consumer Pool
-         (Dedicated Thread Pool)                       (Dedicated Thread Pool)
-                     |                                                 |
-                     |                                                 |
-         ------------------------                        ---------------------------------
-         |                      |                        |               |               |
-         |                      |                        |               |               |
-     OTP Processor         Retry/DLQ             Recipient Resolver  Attachment      Audit
-                                                  Deep Link Engine    Service       Service
-                     |                                                 |
-                     |                                                 |
-             --------------------                           --------------------------
-             |                  |                           |                        |
-             |                  |                           |                        |
-        Email Channel      SMS Channel                 Email Channel          SMS Channel
-             |                  |                           |                        |
-             |                  |                           |                        |
-      SBI Email API       SBI SMS API                SBI Email API          SBI SMS API
-
-==================================================================================================
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-communication-service
-│
-├── consumers
-│      ├── PriorityOtpConsumer
-│      └── GenericCommunicationConsumer
-│
-├── orchestrator
-│      └── CommunicationOrchestrator
-│
-├── recipient
-│      └── RecipientResolver
-│
-├── template
-│      ├── TemplateEngine
-│      └── TemplateCache
-│
-├── channels
-│      ├── EmailChannel
-│      ├── SmsChannel
-│      └── ChannelFactory
-│
-├── attachment
-│      └── AttachmentService
-│
-├── deeplink
-│      └── DeepLinkGenerator
-│
-├── audit
-│      └── CommunicationAuditService
-│
-├── retry
-│      └── Retry/DLQ Handler
-│
-└── config
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-Login
-
-↓
-
-Generate OTP
-
-↓
-
-Redis
-
-↓
-
-AES Encrypt
-
-↓
-
-Kafka Priority Topic
-
-↓
-
-Priority Consumer
-
-↓
-
-Decrypt
-
-↓
-
-Template Engine
-
-↓
-
-Email/SMS
-
-↓
-
-Provider
-
-↓
-
-ACK
-
-
-
-
-
-
-Generic Communication Path
-
-Everything else uses this path.
-
-Examples
-
-* Report Ready
-* Process Completed
-* Branch Announcement
-* Password Expiry
-* Approval Notification
-* Daily Summary
-* Maintenance Window
-
-
-
-Process Service
-
-↓
-
-Publish Generic Event
-
-↓
-
-Kafka Generic Topic
-
-↓
-
-Communication Consumer
-
-↓
-
-Recipient Resolver
-
-↓
-
-Template Engine
-
-↓
-
-Attachment Builder
-
-↓
-
-Deep Link Generator
-
-↓
-
-Channel Dispatcher
-
-↓
-
-Audit
-
-↓
-
-ACK
-
-
-
-
-
-
-
-
-
-
-roles
-
-users
-
-emails
-
-mobiles
-
-
-
-Attachments
-
-Never send PDFs through Kafka.
-
-
-
-attachments
-
-[
-   {
-      storage:HDFS,
-      path:/reports/journal.pdf,
-      fileName:Journal.pdf
-   }
-]
-
-
-Consumer
-
-↓
-
-Download
-
-↓
-
-Attach
-
-↓
-
-Delete temporary file
-
-Kafka remains lightweight.
-
-
-
-
-
-
-
-
-fincore.communication.generic
-
-fincore.communication.scheduled
-
-fincore.communication.bulk
-
-fincore.communication.audit
-
-
-
-COMMUNICATION_RECIPIENT
-
-eventId
-
-recipient
-
-channel
-
-status
-
-providerMessageId
-
-retryCount
-
-failureReason
-
-
-
-One Generic Event
-
-↓
-
-Resolve Recipients
-
-↓
-
-Chunk
-
-500
-
-↓
-
-500
-
-↓
-
-500
-
-↓
-
-Dispatch
-
-
-
-
-
-
-
-
-
-
-
+package com.fincore.CommunicationService.orchestrator;
+
+import com.fincore.CommunicationService.dto.GenericCommunicationEvent;
+import com.fincore.CommunicationService.dto.ResolvedRecipient;
+import com.fincore.CommunicationService.exception.CommunicationExceptions.VendorDeliveryException;
+import com.fincore.CommunicationService.recipient.RecipientResolver;
+import com.fincore.CommunicationService.service.CommunicationAuditService;
+import com.fincore.CommunicationService.service.EmailService;
+import com.fincore.CommunicationService.service.SmsService;
+import com.fincore.CommunicationService.service.TemplateEngineService;
+// import com.fincore.CommunicationService.attachment.AttachmentPreparationService; // Dev 3's future service
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.stereotype.Service;
+
+import java.time.Duration;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.atomic.AtomicInteger;
+
+/**
+ * <p>The Central Nervous System for all Generic Communications.</p>
+ *
+ * <p>Responsibilities:</p>
+ * <ol>
+ * <li>Resolve recipients via {@link RecipientResolver}.</li>
+ * <li>Chunk large recipient lists to protect JVM memory and external APIs.</li>
+ * <li>Execute dispatches concurrently using Java 21 Virtual Threads.</li>
+ * <li>Enforce idempotency via Redis to prevent duplicate blasts on retry.</li>
+ * <li>Aggregate partial failures and trigger Kafka retries safely.</li>
+ * </ol>
+ *
+ * @author Tech Lead
+ * @since 2026-07
+ */
+@Slf4j
+@Service
+@RequiredArgsConstructor
+public class CommunicationOrchestrator {
+
+    private final RecipientResolver recipientResolver;
+    private final CommunicationAuditService auditService;
+    private final EmailService emailService;
+    private final SmsService smsService;
+    private final StringRedisTemplate redisTemplate;
+    
+    // Future integration for Dev 3
+    // private final AttachmentPreparationService attachmentService; 
+
+    @Value("${communication.chunk.size:500}")
+    private int chunkSize;
+
+    /**
+     * The main entry point called by the GenericCommunicationConsumer.
+     */
+    public void process(GenericCommunicationEvent event) {
+        String eventId = event.getEventId();
+        log.info("Orchestrator started processing Event: {}", eventId);
+
+        // 1. Resolve Recipients (Dev 2's code)
+        List<ResolvedRecipient> recipients = recipientResolver.resolveRecipients(event.getRecipients());
+        if (recipients.isEmpty()) {
+            log.warn("No active recipients resolved for Event: {}. Terminating process gracefully.", eventId);
+            return;
+        }
+
+        // 2. Prepare Attachments (Stub for Dev 3)
+        // Object preparedAttachments = attachmentService.prepare(event.getAttachments());
+        
+        // 3. Chunk the recipients to avoid massive JVM memory spikes
+        List<List<ResolvedRecipient>> chunks = partitionList(recipients, chunkSize);
+        log.info("Partitioned {} total recipients into {} chunks of max size {}", recipients.size(), chunks.size(), chunkSize);
+
+        AtomicInteger failureCount = new AtomicInteger(0);
+
+        // 4. Process Chunks Concurrently using Java 21 Virtual Threads
+        try (ExecutorService virtualExecutor = Executors.newVirtualThreadPerTaskExecutor()) {
+            List<Callable<Void>> tasks = new ArrayList<>();
+
+            for (List<ResolvedRecipient> chunk : chunks) {
+                tasks.add(() -> {
+                    processChunk(chunk, event, failureCount);
+                    return null;
+                });
+            }
+
+            // invokeAll blocks until ALL virtual threads (all chunks) finish execution
+            List<Future<Void>> futures = virtualExecutor.invokeAll(tasks);
+            
+            // Check for critical thread interruptions
+            for (Future<Void> future : futures) {
+                future.get();
+            }
+
+        } catch (InterruptedException | ExecutionException e) {
+            log.error("Critical threading error during bulk dispatch for Event: {}", eventId, e);
+            throw new VendorDeliveryException("Threading error during parallel chunk dispatch", e);
+        }
+
+        // 5. Aggregate Failures and trigger Kafka Retry if needed
+        if (failureCount.get() > 0) {
+            log.error("Event {} completed with {} failed dispatches. Throwing exception to trigger Kafka Retry.", eventId, failureCount.get());
+            // Throwing this exception causes the Consumer to NACK the message, routing it to the retry topic.
+            // On retry, the Idempotency checks will skip the successful ones.
+            throw new VendorDeliveryException(failureCount.get() + " recipients failed delivery. Check logs.", null);
+        }
+
+        log.info("Orchestrator successfully processed Event: {} for all {} recipients.", eventId, recipients.size());
+    }
+
+    /**
+     * Processes a single chunk of recipients concurrently.
+     */
+    private void processChunk(List<ResolvedRecipient> chunk, GenericCommunicationEvent event, AtomicInteger failureCount) {
+        
+        // Even within a chunk, we fire a Virtual Thread per recipient to maximize HTTP I/O throughput
+        try (ExecutorService ioExecutor = Executors.newVirtualThreadPerTaskExecutor()) {
+            List<Callable<Void>> dispatchTasks = new ArrayList<>();
+
+            for (ResolvedRecipient recipient : chunk) {
+                for (String channel : event.getChannels()) {
+                    dispatchTasks.add(() -> {
+                        dispatchToChannel(recipient, channel, event, failureCount);
+                        return null;
+                    });
+                }
+            }
+            // Execute all HTTP I/O concurrently
+            ioExecutor.invokeAll(dispatchTasks);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            log.error("Chunk processing interrupted", e);
+        }
+    }
+
+    /**
+     * Handles Idempotency, Auditing, and Vendor Dispatch for a single recipient + channel combination.
+     */
+    private void dispatchToChannel(ResolvedRecipient recipient, String channel, GenericCommunicationEvent event, AtomicInteger failureCount) {
+        
+        // E.g., evt-123_EMAIL_abc@sbi.com
+        String recipientIdentifier = "EMAIL".equalsIgnoreCase(channel) ? recipient.getEmail() : recipient.getMobile();
+        
+        // Defensive check: If they requested SMS but the user has no mobile, skip silently.
+        if (recipientIdentifier == null || recipientIdentifier.isBlank()) {
+            log.debug("Skipping {} for User {} (No contact info)", channel, recipient.getUserId());
+            return;
+        }
+
+        String auditId = event.getEventId() + "_" + channel + "_" + Math.abs(recipientIdentifier.hashCode());
+        String idempotencyKey = "COMM_IDEMP:" + eventId + ":" + channel + ":" + recipientIdentifier;
+
+        // 1. Check Idempotency (Atomic Redis Operation)
+        // Set TTL to 24 hours for generic events to prevent accidental blasts from severe Kafka resets
+        Boolean isNew = redisTemplate.opsForValue().setIfAbsent(idempotencyKey, "PROCESSING", Duration.ofHours(24));
+        if (Boolean.FALSE.equals(isNew)) {
+            log.debug("Idempotency Hit: Already processed {} for {}. Skipping.", channel, recipientIdentifier);
+            return;
+        }
+
+        // 2. Audit Initialization (Single Table Strategy)
+        auditService.logAttempt(auditId, event.getEventId(), event.getTraceId(), event.getTemplateId(), channel, recipientIdentifier);
+
+        try {
+            // 3. Dispatch
+            if ("EMAIL".equalsIgnoreCase(channel)) {
+                emailService.sendEmail(event.getTemplateId(), recipient.getEmail(), event.getPayload());
+                // Dev 3 Note: Once AttachmentService is ready, pass prepared attachments here!
+                // emailService.sendEmail(event.getTemplateId(), recipient.getEmail(), event.getPayload(), preparedAttachments);
+            } else if ("SMS".equalsIgnoreCase(channel)) {
+                smsService.sendSms(event.getTemplateId(), recipient.getMobile(), event.getPayload());
+            }
+
+            // 4. Audit Success
+            auditService.logSuccess(auditId);
+            
+            // Mark idempotency as permanently successful
+            redisTemplate.opsForValue().set(idempotencyKey, "SUCCESS", Duration.ofHours(24));
+
+        } catch (Exception e) {
+            log.error("Failed to send {} to {} for Event {}", channel, recipientIdentifier, event.getEventId(), e);
+            
+            // 5. Audit Failure
+            auditService.logFailure(auditId, e.getMessage());
+            
+            // CRITICAL: Delete idempotency key so Kafka can retry this specific user
+            redisTemplate.delete(idempotencyKey);
+            
+            // Increment partial failure tracker
+            failureCount.incrementAndGet();
+        }
+    }
+
+    /**
+     * Utility method to safely partition a large list into smaller chunks.
+     * Replaces the need for massive external libraries like Guava.
+     */
+    private <T> List<List<T>> partitionList(List<T> list, int size) {
+        List<List<T>> partitions = new ArrayList<>();
+        if (list == null || list.isEmpty()) return partitions;
+        
+        for (int i = 0; i < list.size(); i += size) {
+            partitions.add(new ArrayList<>(
+                list.subList(i, Math.min(i + size, list.size())))
+            );
+        }
+        return partitions;
+    }
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// Create a Semaphore limiting max concurrent HTTP/DB calls to 50
+private final Semaphore vendorRateLimiter = new Semaphore(50);
+
+private void dispatchToChannel(...) {
+    try {
+        // Virtual thread pauses here if 50 threads are already processing. 
+        // This flattens the curve, protecting the DB and Vendor API!
+        vendorRateLimiter.acquire(); 
+        
+        // ... (Idempotency, Audit, Dispatch logic) ...
+        
+    } catch (InterruptedException e) {
+        Thread.currentThread().interrupt();
+    } finally {
+        vendorRateLimiter.release(); // Free up the slot for the next virtual thread
+    }
+}
