@@ -1,5 +1,133 @@
 
 
+
+
+
+
+
+
+
+{
+    "viewCode": "PNL_BANK",
+    "dimensions": [
+        "Branch-Circle"
+    ],
+    "metrics": [
+        "AMOUNT"
+    ],
+    "filters": [
+        {
+            "logicalField": "ReportDate",
+            "operator": "EQUALS",
+            "value": "29-06-2026"
+        },
+        {
+            "logicalField": "HeadCode",
+            "operator": "EQUALS",
+            "value": "01001"
+        },
+        {
+            "logicalField": "Geography",
+            "operator": "EQUALS",
+            "value": "Domestic"
+        },
+        {
+            "logicalField": "CGL",
+            "operator": "EQUALS",
+            "value": "7041500701"
+        },
+        {
+            "logicalField": "Product",
+            "operator": "EQUALS",
+            "value": "4698573"
+        }
+    ]
+}
+
+
+
+
+
+response :
+{
+    "meta": {
+        "status": "SUCCESS",
+        "level": "Branch-Circle",
+        "rowCount": 11,
+        "executionTimeMs": 82
+    },
+    "data": [
+        {
+            "AMOUNT": 680575702.40,
+            "hasChildren": true,
+            "name": "04585 - AHMEDABAD",
+            "id": "branch-circle_04585AHMEDABAD"
+        },
+        {
+            "AMOUNT": 198127117.50,
+            "hasChildren": true,
+            "name": "02406 - AMARAVATI",
+            "id": "branch-circle_02406AMARAVATI"
+        },
+        {
+            "AMOUNT": 531163710.10,
+            "hasChildren": true,
+            "name": "03297 - BHOPAL",
+            "id": "branch-circle_03297BHOPAL"
+        },
+        {
+            "AMOUNT": 184553014.10,
+            "hasChildren": true,
+            "name": "00653 - BHUBANESHWAR",
+            "id": "branch-circle_00653BHUBANESHWAR"
+        },
+        {
+            "AMOUNT": 327906035.20,
+            "hasChildren": true,
+            "name": "06896 - CHANDIGARH",
+            "id": "branch-circle_06896CHANDIGARH"
+        },
+        {
+            "AMOUNT": 499263166.20,
+            "hasChildren": true,
+            "name": "00081 - CHENNAI",
+            "id": "branch-circle_00081CHENNAI"
+        },
+        {
+            "AMOUNT": 77608329.47,
+            "hasChildren": true,
+            "name": "00556 - HYDERABAD",
+            "id": "branch-circle_00556HYDERABAD"
+        },
+        {
+            "AMOUNT": 151595939.90,
+            "hasChildren": true,
+            "name": "00056 - KOLKATA",
+            "id": "branch-circle_00056KOLKATA"
+        },
+        {
+            "AMOUNT": 529824755.80,
+            "hasChildren": true,
+            "name": "05105 - LUCKNOW",
+            "id": "branch-circle_05105LUCKNOW"
+        },
+        {
+            "AMOUNT": 513856734.00,
+            "hasChildren": true,
+            "name": "07433 - PATNA",
+            "id": "branch-circle_07433PATNA"
+        },
+        {
+            "AMOUNT": 350355857.70,
+            "hasChildren": true,
+            "name": "01934 - THIRUVANANTHAPURAM",
+            "id": "branch-circle_01934THIRUVANANTHAPURAM"
+        }
+    ]
+}
+
+
+
 branch level:
 
 {
