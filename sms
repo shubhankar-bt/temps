@@ -1,4 +1,88 @@
+in st:
+
+{
+    "viewCode": "PNL_CIRCLE",
+    "dimensions": [
+        "CGL"
+    ],
+    "metrics": [
+        "AMOUNT"
+    ],
+    "filters": [
+        {
+            "logicalField": "ReportDate",
+            "operator": "EQUALS",
+            "value": "29-06-2026"
+        },
+        {
+            "logicalField": "HeadCode",
+            "operator": "EQUALS",
+            "value": "01003"
+        },
+        {
+            "logicalField": "Circle",
+            "operator": "EQUALS",
+            "value": "001"
+        }
+    ]
+}
 
 
-added pnl data like mthis :>
-"CGL": "7018500101", "BRANCH_CODE": "00056", "CURRENCY": "INR", "PRODUCT": "97867", "TYPE": "BGL", "BALANCE": 9447248.19, "DATE": "29-06-2026", "CIRCLE_CODE": "001", "CIRCLE_NAME": "KOLKATA", "NMR_CODE": "101002003", "BRANCH_TYPE": "D", "NWSA_HEADCODE": null, "YSA_HEADCODE": null, "PNL_HEADCODE": ["01003"], "_TIME": "2026-06-29T00:00:00.000Z"},
+{
+    "meta": {
+        "status": "SUCCESS",
+        "level": "CGL",
+        "rowCount": 0,
+        "executionTimeMs": 79
+    },
+    "data": []
+}
+
+
+
+in local:
+{
+    "viewCode": "PNL_CIRCLE",
+    "dimensions": [
+        "CGL"
+    ],
+    "metrics": [
+        "AMOUNT"
+    ],
+    "filters": [
+        {
+            "logicalField": "ReportDate",
+            "operator": "EQUALS",
+            "value": "29-06-2026"
+        },
+        {
+            "logicalField": "HeadCode",
+            "operator": "EQUALS",
+            "value": "01003"
+        },
+        {
+            "logicalField": "Circle",
+            "operator": "EQUALS",
+            "value": "001"
+        }
+    ]
+}
+
+
+
+{
+    "meta": {
+        "status": "SUCCESS",
+        "level": "CGL",
+        "rowCount": 15,
+        "executionTimeMs": 203
+    },
+    "data": [
+        {
+            "AMOUNT": 1227973716.00,
+            "hasChildren": true,
+            "name": "7016500702",
+            "id": "cgl_7016500702"
+        },
+          ]
+}
