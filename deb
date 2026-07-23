@@ -1,218 +1,487 @@
-package com.fincore.CommunicationService.orchestrator;
+package com.fincore.CommunicationService.dto;
 
-import com.fincore.CommunicationService.dto.GenericCommunicationEvent;
-import com.fincore.CommunicationService.dto.ResolvedRecipient;
-import com.fincore.CommunicationService.exception.CommunicationExceptions.VendorDeliveryException;
-import com.fincore.CommunicationService.recipient.RecipientResolver;
-import com.fincore.CommunicationService.service.CommunicationAuditService;
-import com.fincore.CommunicationService.service.EmailService;
-import com.fincore.CommunicationService.service.SmsService;
-import com.fincore.CommunicationService.service.TemplateEngineService;
-// import com.fincore.CommunicationService.attachment.AttachmentPreparationService; // Dev 3's future service
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.data.redis.core.StringRedisTemplate;
-import org.springframework.stereotype.Service;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.annotation.JsonProperty;
+import lombok.Data;
 
-import java.time.Duration;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.Callable;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
-import java.util.concurrent.atomic.AtomicInteger;
 
 /**
- * <p>The Central Nervous System for all Generic Communications.</p>
+ * <p>The central Data Transfer Object (DTO) for all generic communication requests.</p>
  *
- * <p>Responsibilities:</p>
- * <ol>
- * <li>Resolve recipients via {@link RecipientResolver}.</li>
- * <li>Chunk large recipient lists to protect JVM memory and external APIs.</li>
- * <li>Execute dispatches concurrently using Java 21 Virtual Threads.</li>
- * <li>Enforce idempotency via Redis to prevent duplicate blasts on retry.</li>
- * <li>Aggregate partial failures and trigger Kafka retries safely.</li>
- * </ol>
+ * <p>Producers (e.g., Process Status Service, Core Banking) push this payload to the
+ * <code>fincore.communication.generic</code> Kafka topic. This DTO strips away all
+ * communication-specific business logic from the producers, centralizing it here.</p>
  *
- * @author Tech Lead
+ * @author Principal Engineer
+ * @since 2026-07
+ */
+@Data
+@JsonIgnoreProperties(ignoreUnknown = true)
+public class GenericCommunicationEvent {
+
+    /**
+     * Unique identifier for this specific event instance.
+     * Used as the primary correlation key across Kafka, Redis, and Oracle.
+     */
+    private String eventId;
+    
+    /**
+     * Distributed tracing ID (e.g., from Jaeger/Zipkin).
+     * Vital for cross-microservice observability.
+     */
+    private String traceId;
+    
+    /**
+     * The business context of the event (e.g., 'EOD_REPORT', 'BALANCE_ALERT').
+     */
+    private String eventType;
+
+    /**
+     * ARCHITECTURAL FLAG: Determines the routing pipeline.
+     * If true, routes via Virtual Threads for 1-by-1 personalized vendor dispatch.
+     * If false, routes via Redis Pipelining and Vendor BCC arrays for massive scale.
+     * Defaults to true to ensure backward compatibility for legacy producers.
+     */
+    @JsonProperty("isPersonalized")
+    private boolean isPersonalized = true;
+
+    /**
+     * The communication channels requested (e.g., ["EMAIL", "SMS"]).
+     */
+    @JsonProperty("channels")
+    private List<String> channels;
+
+    /**
+     * Defines SLA priority. E.g., 'HIGH', 'NORMAL'.
+     */
+    private String priority;
+    
+    /**
+     * The exact template ID to fetch from the L1 Caffeine Cache / Oracle COMM_TEMPLATE_MASTER.
+     */
+    private String templateId;
+
+    /**
+     * Dynamic recipient resolution matrix. Producers can supply Roles, UserIds, or raw Emails/Mobiles.
+     */
+    @JsonProperty("recipients")
+    private Recipients recipients;
+
+    /**
+     * The dynamic FreeMarker variable bindings (e.g., Names, Account Balances).
+     */
+    private Map<String, Object> payload;
+    
+    /**
+     * Timestamp of event creation at the producer side.
+     */
+    private String createdAt;
+
+    /**
+     * List of attachments required (HDFS paths).
+     * Parsed by the AttachmentPreparationService in Phase 5.
+     */
+    @JsonProperty("attachments")
+    private List<String> attachments;
+
+    /**
+     * Nested class representing the diverse ways a producer can target users.
+     */
+    @Data
+    public static class Recipients {
+        private List<String> userIds;
+        private List<String> roles;
+        private List<String> emails;
+        private List<String> mobiles;
+    }
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+package com.fincore.CommunicationService.repository;
+
+import com.fincore.CommunicationService.model.CommAuditLog;
+import java.util.List;
+
+/**
+ * <p>Custom interface defining pure JDBC batch operations for the Audit Log.</p>
+ *
+ * <p>Bypassing JPA/Hibernate for bulk operations is critical to prevent
+ * JVM OutOfMemory errors and HikariCP connection starvation during EOD bursts.</p>
+ *
+ * @author Principal Engineer
+ * @since 2026-07
+ */
+public interface CommAuditLogBatchRepository {
+    
+    /**
+     * Performs a single JDBC batch insert for a large list of audit logs.
+     * @param logs The list of unpersisted audit logs.
+     */
+    void batchInsert(List<CommAuditLog> logs);
+    
+    /**
+     * Performs a single JDBC batch update to modify statuses (e.g., to 'SUCCESS').
+     * @param auditIds The primary keys of the logs to update.
+     * @param status The new status string.
+     */
+    void batchUpdateStatus(List<String> auditIds, String status);
+    
+    /**
+     * Performs a single JDBC batch update for failures, including the stack trace/reason.
+     * @param auditIds The primary keys of the logs to update.
+     * @param reason The truncated failure reason.
+     */
+    void batchUpdateFailure(List<String> auditIds, String reason);
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+package com.fincore.CommunicationService.repository;
+
+import com.fincore.CommunicationService.model.CommAuditLog;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.stereotype.Repository;
+
+import java.sql.PreparedStatement;
+import java.sql.Timestamp;
+import java.time.LocalDateTime;
+import java.util.List;
+
+/**
+ * <p>Native JDBC implementation for bulk audit operations.</p>
+ *
+ * <p>This utilizes Spring's {@link JdbcTemplate#batchUpdate} to compile a single
+ * SQL statement and send the parameter matrix as a single network packet to Oracle.</p>
+ *
+ * @author Principal Engineer
+ * @since 2026-07
+ */
+@Slf4j
+@Repository
+@RequiredArgsConstructor
+public class CommAuditLogBatchRepositoryImpl implements CommAuditLogBatchRepository {
+
+    private final JdbcTemplate jdbcTemplate;
+    
+    // Standardizing chunk size for network optimization
+    private static final int BATCH_SIZE = 500;
+
+    @Override
+    public void batchInsert(List<CommAuditLog> logs) {
+        log.debug("Executing native JDBC batch INSERT for {} audit records.", logs.size());
+        
+        String sql = "INSERT INTO COMM_AUDIT_LOG " +
+                "(AUDIT_ID, EVENT_ID, TRACE_ID, PRODUCER_SERVICE, EVENT_TYPE, TEMPLATE_ID, CHANNEL, MASKED_RECIPIENT, STATUS, CREATED_AT, UPDATED_AT) " +
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+        
+        jdbcTemplate.batchUpdate(sql, logs, BATCH_SIZE, (PreparedStatement ps, CommAuditLog logEntry) -> {
+            ps.setString(1, logEntry.getAuditId());
+            ps.setString(2, logEntry.getEventId());
+            ps.setString(3, logEntry.getTraceId());
+            ps.setString(4, logEntry.getProducerService());
+            ps.setString(5, logEntry.getEventType());
+            ps.setString(6, logEntry.getTemplateId());
+            ps.setString(7, logEntry.getChannel());
+            ps.setString(8, logEntry.getMaskedRecipient());
+            ps.setString(9, logEntry.getStatus());
+            ps.setTimestamp(10, Timestamp.valueOf(LocalDateTime.now()));
+            ps.setTimestamp(11, Timestamp.valueOf(LocalDateTime.now()));
+        });
+    }
+
+    @Override
+    public void batchUpdateStatus(List<String> auditIds, String status) {
+        log.debug("Executing native JDBC batch UPDATE (Status: {}) for {} audit records.", status, auditIds.size());
+        
+        String sql = "UPDATE COMM_AUDIT_LOG SET STATUS = ?, UPDATED_AT = ? WHERE AUDIT_ID = ?";
+        
+        jdbcTemplate.batchUpdate(sql, auditIds, BATCH_SIZE, (PreparedStatement ps, String auditId) -> {
+            ps.setString(1, status);
+            ps.setTimestamp(2, Timestamp.valueOf(LocalDateTime.now()));
+            ps.setString(3, auditId);
+        });
+    }
+
+    @Override
+    public void batchUpdateFailure(List<String> auditIds, String reason) {
+        log.debug("Executing native JDBC batch UPDATE (FAILURE) for {} audit records.", auditIds.size());
+        
+        String sql = "UPDATE COMM_AUDIT_LOG SET STATUS = 'FAILED', FAILURE_REASON = ?, UPDATED_AT = ? WHERE AUDIT_ID = ?";
+        
+        jdbcTemplate.batchUpdate(sql, auditIds, BATCH_SIZE, (PreparedStatement ps, String auditId) -> {
+            ps.setString(1, reason);
+            ps.setTimestamp(2, Timestamp.valueOf(LocalDateTime.now()));
+            ps.setString(3, auditId);
+        });
+    }
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+package com.fincore.CommunicationService.repository;
+
+import com.fincore.CommunicationService.model.CommAuditLog;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
+import org.springframework.stereotype.Repository;
+import org.springframework.transaction.annotation.Transactional;
+
+/**
+ * <p>The primary repository interface for the Communication Audit Log.</p>
+ *
+ * <p>Combines standard JPA functionality, O(1) single-update native queries,
+ * and our custom JDBC batching capabilities by extending {@link CommAuditLogBatchRepository}.</p>
+ *
+ * @author Principal Engineer
+ * @since 2026-07
+ */
+@Repository
+public interface CommAuditLogRepository extends JpaRepository<CommAuditLog, String>, CommAuditLogBatchRepository {
+
+    /**
+     * O(1) Time Complexity Status Update for single, personalized dispatches.
+     * Bypasses the Hibernate Persistence Context (L1 cache) entirely for maximum speed.
+     */
+    @Modifying
+    @Transactional
+    @Query("UPDATE CommAuditLog a SET a.status = :status, a.updatedAt = CURRENT_TIMESTAMP WHERE a.auditId = :auditId")
+    int updateStatusO1(@Param("auditId") String auditId, @Param("status") String status);
+
+    /**
+     * O(1) Time Complexity Failure Update for single, personalized dispatches.
+     */
+    @Modifying
+    @Transactional
+    @Query("UPDATE CommAuditLog a SET a.status = 'FAILED', a.failureReason = :reason, a.updatedAt = CURRENT_TIMESTAMP WHERE a.auditId = :auditId")
+    int updateFailureO1(@Param("auditId") String auditId, @Param("reason") String reason);
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+package com.fincore.CommunicationService.service;
+
+import com.fincore.CommunicationService.model.CommAuditLog;
+import com.fincore.CommunicationService.repository.CommAuditLogRepository;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.dao.DataAccessException;
+import org.springframework.scheduling.annotation.Async;
+import org.springframework.stereotype.Service;
+
+import java.util.List;
+
+/**
+ * <p>A highly concurrent, non-blocking auditing service.</p>
+ *
+ * <p>Delegates database I/O to Java 21 Virtual Threads to ensure the main Kafka
+ * Consumer threads are never blocked by database latency or network jitter.</p>
+ *
+ * @author Principal Engineer
  * @since 2026-07
  */
 @Slf4j
 @Service
 @RequiredArgsConstructor
-public class CommunicationOrchestrator {
+public class CommunicationAuditService {
 
-    private final RecipientResolver recipientResolver;
-    private final CommunicationAuditService auditService;
-    private final EmailService emailService;
-    private final SmsService smsService;
-    private final StringRedisTemplate redisTemplate;
-    
-    // Future integration for Dev 3
-    // private final AttachmentPreparationService attachmentService; 
+    private final CommAuditLogRepository auditRepository;
 
-    @Value("${communication.chunk.size:500}")
-    private int chunkSize;
+    // ========================================================================
+    // SINGLE / PERSONALIZED DISPATCH METHODS
+    // ========================================================================
 
-    /**
-     * The main entry point called by the GenericCommunicationConsumer.
-     */
-    public void process(GenericCommunicationEvent event) {
-        String eventId = event.getEventId();
-        log.info("Orchestrator started processing Event: {}", eventId);
-
-        // 1. Resolve Recipients (Dev 2's code)
-        List<ResolvedRecipient> recipients = recipientResolver.resolveRecipients(event.getRecipients());
-        if (recipients.isEmpty()) {
-            log.warn("No active recipients resolved for Event: {}. Terminating process gracefully.", eventId);
-            return;
-        }
-
-        // 2. Prepare Attachments (Stub for Dev 3)
-        // Object preparedAttachments = attachmentService.prepare(event.getAttachments());
-        
-        // 3. Chunk the recipients to avoid massive JVM memory spikes
-        List<List<ResolvedRecipient>> chunks = partitionList(recipients, chunkSize);
-        log.info("Partitioned {} total recipients into {} chunks of max size {}", recipients.size(), chunks.size(), chunkSize);
-
-        AtomicInteger failureCount = new AtomicInteger(0);
-
-        // 4. Process Chunks Concurrently using Java 21 Virtual Threads
-        try (ExecutorService virtualExecutor = Executors.newVirtualThreadPerTaskExecutor()) {
-            List<Callable<Void>> tasks = new ArrayList<>();
-
-            for (List<ResolvedRecipient> chunk : chunks) {
-                tasks.add(() -> {
-                    processChunk(chunk, event, failureCount);
-                    return null;
-                });
-            }
-
-            // invokeAll blocks until ALL virtual threads (all chunks) finish execution
-            List<Future<Void>> futures = virtualExecutor.invokeAll(tasks);
-            
-            // Check for critical thread interruptions
-            for (Future<Void> future : futures) {
-                future.get();
-            }
-
-        } catch (InterruptedException | ExecutionException e) {
-            log.error("Critical threading error during bulk dispatch for Event: {}", eventId, e);
-            throw new VendorDeliveryException("Threading error during parallel chunk dispatch", e);
-        }
-
-        // 5. Aggregate Failures and trigger Kafka Retry if needed
-        if (failureCount.get() > 0) {
-            log.error("Event {} completed with {} failed dispatches. Throwing exception to trigger Kafka Retry.", eventId, failureCount.get());
-            // Throwing this exception causes the Consumer to NACK the message, routing it to the retry topic.
-            // On retry, the Idempotency checks will skip the successful ones.
-            throw new VendorDeliveryException(failureCount.get() + " recipients failed delivery. Check logs.", null);
-        }
-
-        log.info("Orchestrator successfully processed Event: {} for all {} recipients.", eventId, recipients.size());
-    }
-
-    /**
-     * Processes a single chunk of recipients concurrently.
-     */
-    private void processChunk(List<ResolvedRecipient> chunk, GenericCommunicationEvent event, AtomicInteger failureCount) {
-        
-        // Even within a chunk, we fire a Virtual Thread per recipient to maximize HTTP I/O throughput
-        try (ExecutorService ioExecutor = Executors.newVirtualThreadPerTaskExecutor()) {
-            List<Callable<Void>> dispatchTasks = new ArrayList<>();
-
-            for (ResolvedRecipient recipient : chunk) {
-                for (String channel : event.getChannels()) {
-                    dispatchTasks.add(() -> {
-                        dispatchToChannel(recipient, channel, event, failureCount);
-                        return null;
-                    });
-                }
-            }
-            // Execute all HTTP I/O concurrently
-            ioExecutor.invokeAll(dispatchTasks);
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            log.error("Chunk processing interrupted", e);
-        }
-    }
-
-    /**
-     * Handles Idempotency, Auditing, and Vendor Dispatch for a single recipient + channel combination.
-     */
-    private void dispatchToChannel(ResolvedRecipient recipient, String channel, GenericCommunicationEvent event, AtomicInteger failureCount) {
-        
-        // E.g., evt-123_EMAIL_abc@sbi.com
-        String recipientIdentifier = "EMAIL".equalsIgnoreCase(channel) ? recipient.getEmail() : recipient.getMobile();
-        
-        // Defensive check: If they requested SMS but the user has no mobile, skip silently.
-        if (recipientIdentifier == null || recipientIdentifier.isBlank()) {
-            log.debug("Skipping {} for User {} (No contact info)", channel, recipient.getUserId());
-            return;
-        }
-
-        String auditId = event.getEventId() + "_" + channel + "_" + Math.abs(recipientIdentifier.hashCode());
-        String idempotencyKey = "COMM_IDEMP:" + eventId + ":" + channel + ":" + recipientIdentifier;
-
-        // 1. Check Idempotency (Atomic Redis Operation)
-        // Set TTL to 24 hours for generic events to prevent accidental blasts from severe Kafka resets
-        Boolean isNew = redisTemplate.opsForValue().setIfAbsent(idempotencyKey, "PROCESSING", Duration.ofHours(24));
-        if (Boolean.FALSE.equals(isNew)) {
-            log.debug("Idempotency Hit: Already processed {} for {}. Skipping.", channel, recipientIdentifier);
-            return;
-        }
-
-        // 2. Audit Initialization (Single Table Strategy)
-        auditService.logAttempt(auditId, event.getEventId(), event.getTraceId(), event.getTemplateId(), channel, recipientIdentifier);
-
+    @Async("virtualThreadAuditExecutor")
+    public void logAttempt(String auditId, String eventId, String traceId, String templateId,
+                           String channel, String rawRecipient) {
         try {
-            // 3. Dispatch
-            if ("EMAIL".equalsIgnoreCase(channel)) {
-                emailService.sendEmail(event.getTemplateId(), recipient.getEmail(), event.getPayload());
-                // Dev 3 Note: Once AttachmentService is ready, pass prepared attachments here!
-                // emailService.sendEmail(event.getTemplateId(), recipient.getEmail(), event.getPayload(), preparedAttachments);
-            } else if ("SMS".equalsIgnoreCase(channel)) {
-                smsService.sendSms(event.getTemplateId(), recipient.getMobile(), event.getPayload());
+            CommAuditLog logEntry = CommAuditLog.builder()
+                    .auditId(auditId)
+                    .eventId(eventId)
+                    .traceId(traceId)
+                    .producerService("GENERIC_EVENT") // Defaulted, usually extracted dynamically if needed
+                    .eventType("COMMUNICATION")
+                    .templateId(templateId)
+                    .channel(channel)
+                    .maskedRecipient(maskSensitiveData(rawRecipient, channel))
+                    .status("PROCESSING")
+                    .build();
+
+            auditRepository.save(logEntry);
+            log.trace("Async Audit: PROCESSING logged for auditId={}", auditId);
+            
+        } catch (DataAccessException e) {
+            log.error("CRITICAL: Failed to log audit attempt for eventId={}. Reason: {}", eventId, e.getMessage(), e);
+        }
+    }
+
+    @Async("virtualThreadAuditExecutor")
+    public void logSuccess(String auditId) {
+        try {
+            int updated = auditRepository.updateStatusO1(auditId, "SUCCESS");
+            if (updated == 0) {
+                log.warn("Audit Inconsistency: Tried to mark auditId={} as SUCCESS, but record was missing in DB.", auditId);
             }
+        } catch (DataAccessException e) {
+            log.error("Database failure while marking audit success for auditId={}", auditId, e);
+        }
+    }
 
-            // 4. Audit Success
-            auditService.logSuccess(auditId);
-            
-            // Mark idempotency as permanently successful
-            redisTemplate.opsForValue().set(idempotencyKey, "SUCCESS", Duration.ofHours(24));
+    @Async("virtualThreadAuditExecutor")
+    public void logFailure(String auditId, String failureReason) {
+        try {
+            int updatedRows = auditRepository.updateFailureO1(auditId, truncateReason(failureReason));
+            if (updatedRows == 0) {
+                log.warn("Audit Inconsistency: Tried to mark auditId={} as FAILED, but record was missing in DB.", auditId);
+            }
+        } catch (DataAccessException e) {
+            log.error("Database failure while writing DLQ audit for auditId={}", auditId, e);
+        }
+    }
 
-        } catch (Exception e) {
-            log.error("Failed to send {} to {} for Event {}", channel, recipientIdentifier, event.getEventId(), e);
-            
-            // 5. Audit Failure
-            auditService.logFailure(auditId, e.getMessage());
-            
-            // CRITICAL: Delete idempotency key so Kafka can retry this specific user
-            redisTemplate.delete(idempotencyKey);
-            
-            // Increment partial failure tracker
-            failureCount.incrementAndGet();
+    // ========================================================================
+    // BULK DISPATCH METHODS (Leveraging Phase 1 Batch JDBC)
+    // ========================================================================
+
+    /**
+     * Non-blocking batch insert for bulk communications (e.g., EOD Reports).
+     * @param logs List of pre-constructed CommAuditLog entities.
+     */
+    @Async("virtualThreadAuditExecutor")
+    public void logBulkAttempt(List<CommAuditLog> logs) {
+        if (logs == null || logs.isEmpty()) return;
+        try {
+            auditRepository.batchInsert(logs);
+            log.debug("Async Audit: Successfully batch-inserted {} 'PROCESSING' records.", logs.size());
+        } catch (DataAccessException e) {
+            log.error("CRITICAL: Failed to execute bulk insert for {} records.", logs.size(), e);
         }
     }
 
     /**
-     * Utility method to safely partition a large list into smaller chunks.
-     * Replaces the need for massive external libraries like Guava.
+     * Non-blocking batch update for successful bulk vendor dispatches.
+     * @param auditIds List of primary keys.
      */
-    private <T> List<List<T>> partitionList(List<T> list, int size) {
-        List<List<T>> partitions = new ArrayList<>();
-        if (list == null || list.isEmpty()) return partitions;
-        
-        for (int i = 0; i < list.size(); i += size) {
-            partitions.add(new ArrayList<>(
-                list.subList(i, Math.min(i + size, list.size())))
-            );
+    @Async("virtualThreadAuditExecutor")
+    public void logBulkSuccess(List<String> auditIds) {
+        if (auditIds == null || auditIds.isEmpty()) return;
+        try {
+            auditRepository.batchUpdateStatus(auditIds, "SUCCESS");
+            log.debug("Async Audit: Successfully batch-updated {} records to 'SUCCESS'.", auditIds.size());
+        } catch (DataAccessException e) {
+            log.error("Database failure while executing bulk success update for {} records.", auditIds.size(), e);
         }
-        return partitions;
+    }
+
+    /**
+     * Non-blocking batch update for failed bulk vendor dispatches.
+     * @param auditIds List of primary keys.
+     * @param failureReason Error message from the vendor API or HTTP client.
+     */
+    @Async("virtualThreadAuditExecutor")
+    public void logBulkFailure(List<String> auditIds, String failureReason) {
+        if (auditIds == null || auditIds.isEmpty()) return;
+        try {
+            auditRepository.batchUpdateFailure(auditIds, truncateReason(failureReason));
+            log.debug("Async Audit: Successfully batch-updated {} records to 'FAILED'.", auditIds.size());
+        } catch (DataAccessException e) {
+            log.error("Database failure while executing bulk failure update for {} records.", auditIds.size(), e);
+        }
+    }
+
+    // ========================================================================
+    // UTILITY / SECURITY METHODS
+    // ========================================================================
+
+    /**
+     * Secures PII by masking raw contact information before it hits the database.
+     * Ensures compliance with Enterprise Data Security standards.
+     */
+    public String maskSensitiveData(String data, String channel) {
+        if (data == null || data.isBlank()) return "UNKNOWN";
+        
+        if ("EMAIL".equalsIgnoreCase(channel) && data.contains("@")) {
+            String[] p = data.split("@");
+            return (p[0].length() <= 2 ? "**" : p[0].charAt(0) + "***" + p[0].charAt(p[0].length() - 1)) + "@" + p[1];
+        } else if ("SMS".equalsIgnoreCase(channel) && data.length() >= 4) {
+            return "******" + data.substring(data.length() - 4);
+        }
+        
+        return "***MASKED***"; // Fallback for unrecognized channels or malformed data
+    }
+
+    /**
+     * Truncates exception messages to prevent Oracle ORA-12899 (Value too large for column).
+     */
+    private String truncateReason(String reason) {
+        if (reason == null) return "Unknown Failure";
+        // Assuming VARCHAR2(4000) for FAILURE_REASON column. Leaving buffer.
+        return reason.length() > 3900 ? reason.substring(0, 3900) + "..." : reason;
     }
 }
 
@@ -227,28 +496,3 @@ public class CommunicationOrchestrator {
 
 
 
-
-
-
-
-
-
-
-
-// Create a Semaphore limiting max concurrent HTTP/DB calls to 50
-private final Semaphore vendorRateLimiter = new Semaphore(50);
-
-private void dispatchToChannel(...) {
-    try {
-        // Virtual thread pauses here if 50 threads are already processing. 
-        // This flattens the curve, protecting the DB and Vendor API!
-        vendorRateLimiter.acquire(); 
-        
-        // ... (Idempotency, Audit, Dispatch logic) ...
-        
-    } catch (InterruptedException e) {
-        Thread.currentThread().interrupt();
-    } finally {
-        vendorRateLimiter.release(); // Free up the slot for the next virtual thread
-    }
-}
