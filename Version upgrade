@@ -1,0 +1,70 @@
+common utiltiies : 
+
+1. Path Matching Migration
+
+Spring Framework 7 and Spring Security 7 completely deprecate and remove ⁠AntPathMatcher⁠ to unify path matching logic across the framework.
+The Fix: You must replace ⁠AntPathMatcher⁠ with ⁠PathPatternParser⁠.
+
+
+
+// Remove:
+import org.springframework.util.AntPathMatcher;
+private final AntPathMatcher pathMatcher = new AntPathMatcher();
+
+// Add:
+import org.springframework.web.util.pattern.PathPatternParser;
+import org.springframework.http.server.PathContainer;
+private final PathPatternParser pathParser = new PathPatternParser();
+
+// Update matching logic:
+boolean isMatch = pathParser.parse(pattern).matches(PathContainer.parsePath(uri));
+
+
+
+2. Jackson 3 Default (⁠EncryptResponseBodyAdvice.java⁠ & ⁠MaskingUtil.java⁠)
+Spring Boot 4 makes Jackson 3 the default JSON serialization library and removes auto-configuration support for Jackson 2.
+
+
+The Fix: Update your Jackson imports to point to the new namespace. This is critical for ⁠EncryptResponseBodyAdvice⁠ so Spring can correctly inject the auto-configured ⁠ObjectMapper⁠
+
+// Remove:
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.core.JsonProcessingException;
+
+// Add:
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.core.JsonProcessingException;
+
+
+
+// Remove:
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.core.JsonProcessingException;
+
+// Add:
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.core.JsonProcessingException;
+
+
+
+
+Nullability Annotations (⁠ContextRbacFilter.java⁠)
+Spring Boot 4 adopts the Google-led JSpecify standard for null safety enforcement across the ecosystem, dropping support for its own internal nullability annotations.
+
+
+
+The Fix: Swap the Spring-specific ⁠@NonNull⁠ annotations for the standard JSpecify annotation
+
+
+
+// Remove:
+import org.springframework.lang.NonNull;
+
+// Add:
+import org.jspecify.annotations.NonNull;
+
+
+
+
+
+
