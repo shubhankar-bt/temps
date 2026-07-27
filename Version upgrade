@@ -1,348 +1,237 @@
-2026-07-27T09:51:23.487935Z 00O [0KRunning with gitlab-runner 19.0.2 (02fcb2d7)[0;m
-2026-07-27T09:51:23.487954Z 00O [0K  on dc_runner_80 KtJCK3d-w, system ID: s_37748334dac5[0;m
-2026-07-27T09:51:23.487985Z 00O [0K[36;1mResolving secrets[0;m[0;m
-2026-07-27T09:51:23.488156Z 00O section_start:1785145883:prepare_executor
-2026-07-27T09:51:23.488157Z 00O+[0K[0K[36;1mPreparing the "docker" executor[0;m[0;m
-2026-07-27T09:51:23.548311Z 00O [0KUsing Docker executor with image artifactory.jfrog.sbi:443/dso-base-image/java-maven-images/rhel-jdk-21-maven3.8.9:0.0.1 ...[0;m
-2026-07-27T09:51:23.548387Z 00O [0KUsing helper image:  artifactory.jfrog.sbi:443/dso-base-image/gitlab/gitlab-runner-helper:x86_64-v19.0.2  (overridden, default would be  registry.gitlab.com/gitlab-org/gitlab-runner/gitlab-runner-helper:x86_64-v19.0.2 )[0;m
-2026-07-27T09:51:23.548400Z 00O [0KUsing effective pull policy of [if-not-present] for container artifactory.jfrog.sbi:443/dso-base-image/gitlab/gitlab-runner-helper:x86_64-v19.0.2[0;m
-2026-07-27T09:51:23.564358Z 00O [0KUsing locally found image version due to "if-not-present" pull policy[0;m
-2026-07-27T09:51:23.564380Z 00O [0KUsing docker image sha256:660e3634504b66e0ae3ad165131d9fc3fd05b2ac31ebf332b7fa8d93f4ed9682 for artifactory.jfrog.sbi:443/dso-base-image/gitlab/gitlab-runner-helper:x86_64-v19.0.2 with digest artifactory.jfrog.sbi:443/dso-base-image/gitlab/gitlab-runner-helper@sha256:660e3634504b66e0ae3ad165131d9fc3fd05b2ac31ebf332b7fa8d93f4ed9682 ...[0;m
-2026-07-27T09:51:24.077093Z 00O [0KUsing helper image:  artifactory.jfrog.sbi:443/dso-base-image/gitlab/gitlab-runner-helper:x86_64-v19.0.2  (overridden, default would be  registry.gitlab.com/gitlab-org/gitlab-runner/gitlab-runner-helper:x86_64-v19.0.2 )[0;m
-2026-07-27T09:51:24.077120Z 00O [0KUsing effective pull policy of [if-not-present] for container artifactory.jfrog.sbi:443/dso-base-image/gitlab/gitlab-runner-helper:x86_64-v19.0.2[0;m
-2026-07-27T09:51:24.090471Z 00O [0KUsing docker image sha256:660e3634504b66e0ae3ad165131d9fc3fd05b2ac31ebf332b7fa8d93f4ed9682 for artifactory.jfrog.sbi:443/dso-base-image/gitlab/gitlab-runner-helper:x86_64-v19.0.2 with digest artifactory.jfrog.sbi:443/dso-base-image/gitlab/gitlab-runner-helper@sha256:660e3634504b66e0ae3ad165131d9fc3fd05b2ac31ebf332b7fa8d93f4ed9682 ...[0;m
-2026-07-27T09:51:24.090504Z 00O [0KUsing effective pull policy of [if-not-present] for container artifactory.jfrog.sbi:443/dso-base-image/java-maven-images/rhel-jdk-21-maven3.8.9:0.0.1[0;m
-2026-07-27T09:51:24.114217Z 00O [0KUsing locally found image version due to "if-not-present" pull policy[0;m
-2026-07-27T09:51:24.114239Z 00O [0KUsing docker image sha256:26834e2b7839f7d5d440948c8d561124b44bd5305be9669b455ccff74eade7ed for artifactory.jfrog.sbi:443/dso-base-image/java-maven-images/rhel-jdk-21-maven3.8.9:0.0.1 with digest artifactory.jfrog.sbi:443/dso-base-image/java-maven-images/rhel-jdk-21-maven3.8.9@sha256:26834e2b7839f7d5d440948c8d561124b44bd5305be9669b455ccff74eade7ed ...[0;m
-2026-07-27T09:51:24.114258Z 00O section_end:1785145884:prepare_executor
-2026-07-27T09:51:24.114260Z 00O+[0Ksection_start:1785145884:prepare_script
-2026-07-27T09:51:24.114420Z 00O+[0K[0K[36;1mPreparing environment[0;m[0;m
-2026-07-27T09:51:24.114438Z 00O [0KUsing helper image:  artifactory.jfrog.sbi:443/dso-base-image/gitlab/gitlab-runner-helper:x86_64-v19.0.2  (overridden, default would be  registry.gitlab.com/gitlab-org/gitlab-runner/gitlab-runner-helper:x86_64-v19.0.2 )[0;m
-2026-07-27T09:51:24.114449Z 00O [0KUsing effective pull policy of [if-not-present] for container artifactory.jfrog.sbi:443/dso-base-image/gitlab/gitlab-runner-helper:x86_64-v19.0.2[0;m
-2026-07-27T09:51:24.127153Z 00O [0KUsing docker image sha256:660e3634504b66e0ae3ad165131d9fc3fd05b2ac31ebf332b7fa8d93f4ed9682 for artifactory.jfrog.sbi:443/dso-base-image/gitlab/gitlab-runner-helper:x86_64-v19.0.2 with digest artifactory.jfrog.sbi:443/dso-base-image/gitlab/gitlab-runner-helper@sha256:660e3634504b66e0ae3ad165131d9fc3fd05b2ac31ebf332b7fa8d93f4ed9682 ...[0;m
-2026-07-27T09:51:24.127182Z 00O [0KUsing effective pull policy of [if-not-present] for container sha256:660e3634504b66e0ae3ad165131d9fc3fd05b2ac31ebf332b7fa8d93f4ed9682[0;m
-2026-07-27T09:51:24.602958Z 01O Running on runner-ktjck3d-w-project-1764-concurrent-0 via PE3DSOPGRUNNERS6...
-2026-07-27T09:51:24.730856Z 00O section_end:1785145884:prepare_script
-2026-07-27T09:51:24.730871Z 00O+[0Ksection_start:1785145884:get_sources
-2026-07-27T09:51:24.731701Z 00O+[0K[0K[36;1mGetting source from Git repository[0;m[0;m
-2026-07-27T09:51:25.236542Z 01O [32;1mGitaly correlation ID: 01KYHFRYDYG48KP0CWHZ6H2DG8[0;m
-2026-07-27T09:51:25.250319Z 01O [32;1mFetching changes with git depth set to 20...[0;m
-2026-07-27T09:51:25.262290Z 01O Reinitialized existing Git repository in /builds/cb-ops/fincore/fincorebackend/fincore_login_service/.git/
-2026-07-27T09:51:25.266551Z 01O [32;1mCreated fresh repository.[0;m
-2026-07-27T09:51:27.049498Z 01O [32;1mChecking out 3ed32fc7 as detached HEAD (ref is feature_springboot_version_upgrade)...[0;m
-2026-07-27T09:51:27.061852Z 01O Removing cb-ops-fincore-fincorebackend-fincore-login-service.fpr
-2026-07-27T09:51:27.076086Z 01O Removing cb-ops-fincore-fincorebackend-fincore-login-service_report.pdf
-2026-07-27T09:51:27.076096Z 01O Removing sca_gate.txt
-2026-07-27T09:51:27.076097Z 01O Removing target/
-2026-07-27T09:51:27.126141Z 01O 
-2026-07-27T09:51:27.126155Z 01O [32;1mSkipping Git submodules setup[0;m
-2026-07-27T09:51:27.294023Z 00O section_end:1785145887:get_sources
-2026-07-27T09:51:27.294038Z 00O+[0Ksection_start:1785145887:download_artifacts
-2026-07-27T09:51:27.295396Z 00O+[0K[0K[36;1mDownloading artifacts[0;m[0;m
-2026-07-27T09:51:27.855210Z 01O [32;1mDownloading artifacts for build_job (1304548)...[0;m
-2026-07-27T09:51:29.873968Z 01E Downloading artifacts from coordinator... ok      [0;m  correlation_id[0;m=01KYHFS3CWCTJCBT9RDH2P0ZX2 id[0;m=1304548 status[0;m=200 token[0;m=eyJraWQiO
-2026-07-27T09:51:31.517472Z 00O section_end:1785145891:download_artifacts
-2026-07-27T09:51:31.517489Z 00O+[0Ksection_start:1785145891:step_script
-2026-07-27T09:51:31.518289Z 00O+[0K[0K[36;1mExecuting "step_script" stage of the job script[0;m[0;m
-2026-07-27T09:51:31.518323Z 00O [0KUsing effective pull policy of [if-not-present] for container artifactory.jfrog.sbi:443/dso-base-image/java-maven-images/rhel-jdk-21-maven3.8.9:0.0.1[0;m
-2026-07-27T09:51:31.546150Z 00O [0KUsing docker image sha256:26834e2b7839f7d5d440948c8d561124b44bd5305be9669b455ccff74eade7ed for artifactory.jfrog.sbi:443/dso-base-image/java-maven-images/rhel-jdk-21-maven3.8.9:0.0.1 with digest artifactory.jfrog.sbi:443/dso-base-image/java-maven-images/rhel-jdk-21-maven3.8.9@sha256:26834e2b7839f7d5d440948c8d561124b44bd5305be9669b455ccff74eade7ed ...[0;m
-2026-07-27T09:51:32.056277Z 01O [32;1m$ jf config add \--url="$JF_URL" \--xray-url="$JF_XRAY_URL" \--user="$JF_USER" \--access-token="$JF_TOKEN" \--interactive=false[0;m
-2026-07-27T09:51:32.113757Z 01O [32;1m$ ls target[0;m
-2026-07-27T09:51:32.116647Z 01O LoginService.jar
-2026-07-27T09:51:32.116874Z 01O [32;1m$ jf scan target/*.jar --watches=CB-OPS --fail=true[0;m
-2026-07-27T09:51:37.612411Z 01E 09:51:37 [Info] JFrog Xray Indexer 3.124.21 is not cached locally. Downloading it now...
-2026-07-27T09:51:38.814803Z 01E 2026/07/27 09:51:38 maxprocs: Leaving GOMAXPROCS=32: CPU quota undefined
-2026-07-27T09:51:38.939588Z 01E 09:51:38 [Info] The downloaded Xray Indexer version is 3.124.21
-2026-07-27T09:51:38.940868Z 01E 09:51:38 [Info] [Thread 2] Indexing file: target/LoginService.jar
-2026-07-27T09:51:55.565572Z 01E 09:51:55 [Info] 2026/07/27 09:51:39 maxprocs: Leaving GOMAXPROCS=32: CPU quota undefined
-2026-07-27T09:51:55.565594Z 01E 2026-07-27T09:51:46.666Z [33m[jfxia][0m [31m[WARN ][0m [] [maven_extractor:97            ] [UnnamedContext                  ] skipping adding org.slf4j:slf4j-api to :logback-classic: dependency again as already in list
-2026-07-27T09:51:55.565597Z 01E 2026-07-27T09:51:46.666Z [33m[jfxia][0m [31m[WARN ][0m [] [maven_extractor:97            ] [UnnamedContext                  ] skipping adding ch.qos.logback:logback-core to :logback-classic: dependency again as already in list
-2026-07-27T09:51:55.565599Z 01E 2026-07-27T09:51:46.724Z [33m[jfxia][0m [31m[WARN ][0m [] [maven_extractor:97            ] [UnnamedContext                  ] skipping adding ch.qos.logback:logback-core to :log4j-to-slf4j:2.25.3 dependency again as already in list
-2026-07-27T09:51:55.565602Z 01E 2026-07-27T09:51:47.567Z [33m[jfxia][0m [31m[WARN ][0m [] [maven_extractor:97            ] [UnnamedContext                  ] skipping adding ${project.groupId}:netty-transport to :netty-codec-http: dependency again as already in list
-2026-07-27T09:51:55.565603Z 01E 2026-07-27T09:51:47.606Z [33m[jfxia][0m [31m[WARN ][0m [] [maven_extractor:97            ] [UnnamedContext                  ] skipping adding ${project.groupId}:netty-transport to :netty-codec-compression: dependency again as already in list
-2026-07-27T09:51:55.565647Z 01E 2026-07-27T09:51:47.651Z [33m[jfxia][0m [31m[WARN ][0m [] [maven_extractor:97            ] [UnnamedContext                  ] skipping adding ${project.groupId}:netty-transport to :netty-codec-http2: dependency again as already in list
-2026-07-27T09:51:55.565649Z 01E 2026-07-27T09:51:47.674Z [33m[jfxia][0m [31m[WARN ][0m [] [maven_extractor:97            ] [UnnamedContext                  ] skipping adding io.netty:netty-codec-native-quic to io.netty:netty-codec-http3:4.2.9.Final dependency again as already in list
-2026-07-27T09:51:55.565651Z 01E 2026-07-27T09:51:47.674Z [33m[jfxia][0m [31m[WARN ][0m [] [maven_extractor:97            ] [UnnamedContext                  ] skipping adding io.netty:netty-codec-native-quic to io.netty:netty-codec-http3:4.2.9.Final dependency again as already in list
-2026-07-27T09:51:55.565653Z 01E 2026-07-27T09:51:47.674Z [33m[jfxia][0m [31m[WARN ][0m [] [maven_extractor:97            ] [UnnamedContext                  ] skipping adding io.netty:netty-codec-native-quic to io.netty:netty-codec-http3:4.2.9.Final dependency again as already in list
-2026-07-27T09:51:55.565655Z 01E 2026-07-27T09:51:47.674Z [33m[jfxia][0m [31m[WARN ][0m [] [maven_extractor:97            ] [UnnamedContext                  ] skipping adding io.netty:netty-codec-native-quic to io.netty:netty-codec-http3:4.2.9.Final dependency again as already in list
-2026-07-27T09:51:55.565657Z 01E 2026-07-27T09:51:47.674Z [33m[jfxia][0m [31m[WARN ][0m [] [maven_extractor:97            ] [UnnamedContext                  ] skipping adding io.netty:netty-codec-native-quic to io.netty:netty-codec-http3:4.2.9.Final dependency again as already in list
-2026-07-27T09:51:55.565659Z 01E 2026-07-27T09:51:47.674Z [33m[jfxia][0m [31m[WARN ][0m [] [maven_extractor:97            ] [UnnamedContext                  ] skipping adding io.netty:netty-codec-native-quic to io.netty:netty-codec-http3:4.2.9.Final dependency again as already in list
-2026-07-27T09:51:55.565661Z 01E 2026-07-27T09:51:47.674Z [33m[jfxia][0m [31m[WARN ][0m [] [maven_extractor:97            ] [UnnamedContext                  ] skipping adding io.netty:netty-codec-native-quic to io.netty:netty-codec-http3:4.2.9.Final dependency again as already in list
-2026-07-27T09:51:55.565663Z 01E 2026-07-27T09:51:47.674Z [33m[jfxia][0m [31m[WARN ][0m [] [maven_extractor:97            ] [UnnamedContext                  ] skipping adding io.netty:netty-codec-native-quic to io.netty:netty-codec-http3:4.2.9.Final dependency again as already in list
-2026-07-27T09:51:55.565664Z 01E 2026-07-27T09:51:47.674Z [33m[jfxia][0m [31m[WARN ][0m [] [maven_extractor:97            ] [UnnamedContext                  ] skipping adding io.netty:netty-codec-native-quic to io.netty:netty-codec-http3:4.2.9.Final dependency again as already in list
-2026-07-27T09:51:55.565666Z 01E 2026-07-27T09:51:48.628Z [33m[jfxia][0m [31m[WARN ][0m [] [archive_mgr:1143              ] [UnnamedContext                  ] large metadata file, skip scanning, file: libnetty_quiche42_linux_x86_64.so, size: 6562936, limit: 5242880
-2026-07-27T09:51:55.565668Z 01E 2026-07-27T09:51:48.891Z [33m[jfxia][0m [31m[WARN ][0m [] [archive_mgr:1143              ] [UnnamedContext                  ] large metadata file, skip scanning, file: libnetty_quiche42_linux_aarch_64.so, size: 6576304, limit: 5242880
-2026-07-27T09:51:55.565669Z 01E 2026-07-27T09:51:48.936Z [33m[jfxia][0m [31m[WARN ][0m [] [archive_mgr:1143              ] [UnnamedContext                  ] large metadata file, skip scanning, file: libnetty_quiche42_osx_x86_64.jnilib, size: 6597392, limit: 5242880
-2026-07-27T09:51:55.565671Z 01E 2026-07-27T09:51:48.970Z [33m[jfxia][0m [31m[WARN ][0m [] [archive_mgr:1143              ] [UnnamedContext                  ] large metadata file, skip scanning, file: libnetty_quiche42_osx_aarch_64.jnilib, size: 6477120, limit: 5242880
-2026-07-27T09:51:55.565673Z 01E 2026-07-27T09:51:49.197Z [33m[jfxia][0m [31m[WARN ][0m [] [maven_extractor:97            ] [UnnamedContext                  ] skipping adding ${project.groupId}:netty-transport to :netty-handler-proxy: dependency again as already in list
-2026-07-27T09:51:55.565682Z 01E 2026-07-27T09:51:49.211Z [33m[jfxia][0m [31m[WARN ][0m [] [maven_extractor:97            ] [UnnamedContext                  ] skipping adding ${project.groupId}:netty-transport to :netty-codec-socks: dependency again as already in list
-2026-07-27T09:51:55.565684Z 01E 2026-07-27T09:51:51.683Z [33m[jfxia][0m [31m[WARN ][0m [] [maven_extractor:97            ] [UnnamedContext                  ] skipping adding ${project.groupId}:netty-transport to :netty-handler: dependency again as already in list
-2026-07-27T09:51:55.565685Z 01E 2026-07-27T09:51:51.759Z [33m[jfxia][0m [31m[WARN ][0m [] [maven_extractor:97            ] [UnnamedContext                  ] skipping adding ${project.groupId}:netty-transport to :netty-codec-base: dependency again as already in list
-2026-07-27T09:51:55.565687Z 01E 2026-07-27T09:51:51.804Z [33m[jfxia][0m [31m[WARN ][0m [] [maven_extractor:97            ] [UnnamedContext                  ] skipping adding ${project.groupId}:netty-transport to :netty-resolver-dns: dependency again as already in list
-2026-07-27T09:51:55.565689Z 01E 2026-07-27T09:51:51.821Z [33m[jfxia][0m [31m[WARN ][0m [] [maven_extractor:97            ] [UnnamedContext                  ] skipping adding ${project.groupId}:netty-transport to :netty-codec-dns: dependency again as already in list
-2026-07-27T09:51:55.565691Z 01E 2026-07-27T09:51:53.872Z [33m[jfxia][0m [31m[WARN ][0m [] [maven_extractor:97            ] [UnnamedContext                  ] skipping adding ch.qos.logback:logback-core to commons-logging:commons-logging:1.3.5 dependency again as already in list
-2026-07-27T09:51:55.565692Z 01E 
-2026-07-27T09:51:55.643213Z 01E 09:51:55 [Info] Waiting for scan to complete on JFrog Xray...
-2026-07-27T09:52:00.783904Z 01O 
-2026-07-27T09:52:00.783923Z 01O Security Violations
-2026-07-27T09:52:00.785484Z 01E 09:52:00 [Info] Trace ID for JFrog Platform logs: 07c26068ea637696
-2026-07-27T09:52:00.785486Z 01E 09:52:00 [Error] One or more of the detected violations are configured to fail the build that including them
-2026-07-27T09:52:00.785590Z 01O +----------------+------------+---------------------------+-------------+---------------------------+-------------+-----------------+-------+
-2026-07-27T09:52:00.785592Z 01O | CVE            | SEVERITY   | DIRECT                    | DIRECT      | AFFECTED                  | AFFECTED    | FIXED           | TYPE  |
-2026-07-27T09:52:00.785593Z 01O |                |            | PACKAGE                   | PACKAGE     | COMPONENT                 | COMPONENT   | VERSIONS        |       |
-2026-07-27T09:52:00.785595Z 01O |                |            |                           | VERSION     | NAME                      | VERSION     |                 |       |
-2026-07-27T09:52:00.785596Z 01O +----------------+------------+---------------------------+-------------+---------------------------+-------------+-----------------+-------+
-2026-07-27T09:52:00.785597Z 01O | CVE-2026-43515 | 💀Critical | org.apache.tomcat.embed:t | 11.0.15     | org.apache.tomcat.embed:t | 11.0.15     | [10.1.55]       | Maven |
-2026-07-27T09:52:00.785599Z 01O |                |            | omcat-embed-core          |             | omcat-embed-core          |             | [11.0.22]       |       |
-2026-07-27T09:52:00.785599Z 01O |                |            |                           |             |                           |             | [9.0.118]       |       |
-2026-07-27T09:52:00.785600Z 01O +----------------+------------+---------------------------+-------------+---------------------------+-------------+-----------------+-------+
-2026-07-27T09:52:00.785600Z 01O | CVE-2026-43512 | 💀Critical | org.apache.tomcat.embed:t | 11.0.15     | org.apache.tomcat.embed:t | 11.0.15     | [10.1.55]       | Maven |
-2026-07-27T09:52:00.785601Z 01O |                |            | omcat-embed-core          |             | omcat-embed-core          |             | [11.0.22]       |       |
-2026-07-27T09:52:00.785626Z 01O |                |            |                           |             |                           |             | [9.0.118]       |       |
-2026-07-27T09:52:00.785626Z 01O +----------------+------------+---------------------------+-------------+---------------------------+-------------+-----------------+-------+
-2026-07-27T09:52:00.785627Z 01O | CVE-2026-41293 | 💀Critical | org.apache.tomcat.embed:t | 11.0.15     | org.apache.tomcat.embed:t | 11.0.15     | [10.1.55]       | Maven |
-2026-07-27T09:52:00.785628Z 01O |                |            | omcat-embed-core          |             | omcat-embed-core          |             | [11.0.22]       |       |
-2026-07-27T09:52:00.785628Z 01O |                |            |                           |             |                           |             | [9.0.118]       |       |
-2026-07-27T09:52:00.785629Z 01O +----------------+------------+---------------------------+-------------+---------------------------+-------------+-----------------+-------+
-2026-07-27T09:52:00.785630Z 01O | CVE-2026-42584 | 💀Critical | io.netty:netty-codec-http | 4.2.9.Final | io.netty:netty-codec-http | 4.2.9.Final | [4.1.133.Final] | Maven |
-2026-07-27T09:52:00.785630Z 01O |                |            |                           |             |                           |             | [4.2.13.Final]  |       |
-2026-07-27T09:52:00.785631Z 01O +----------------+------------+---------------------------+-------------+---------------------------+-------------+-----------------+-------+
-2026-07-27T09:52:00.785631Z 01O | CVE-2026-42581 | 💀Critical | io.netty:netty-codec-http | 4.2.9.Final | io.netty:netty-codec-http | 4.2.9.Final | [4.1.133.Final] | Maven |
-2026-07-27T09:52:00.785632Z 01O |                |            |                           |             |                           |             | [4.2.13.Final]  |       |
-2026-07-27T09:52:00.785632Z 01O +----------------+------------+---------------------------+-------------+---------------------------+-------------+-----------------+-------+
-2026-07-27T09:52:00.785633Z 01O | CVE-2026-42579 | 💀Critical | io.netty:netty-codec-dns  | 4.2.9.Final | io.netty:netty-codec-dns  | 4.2.9.Final | [4.1.133.Final] | Maven |
-2026-07-27T09:52:00.785633Z 01O |                |            |                           |             |                           |             | [4.2.13.Final]  |       |
-2026-07-27T09:52:00.785634Z 01O +----------------+------------+---------------------------+-------------+---------------------------+-------------+-----------------+-------+
-2026-07-27T09:52:00.785635Z 01O | CVE-2026-40976 | 💀Critical | org.springframework.boot: | 4.0.1       | org.springframework.boot: | 4.0.1       | [4.0.6]         | Maven |
-2026-07-27T09:52:00.785635Z 01O |                |            | spring-boot-security      |             | spring-boot-security      |             |                 |       |
-2026-07-27T09:52:00.785636Z 01O +----------------+------------+---------------------------+-------------+---------------------------+-------------+-----------------+-------+
-2026-07-27T09:52:00.785636Z 01O | CVE-2026-33557 | 💀Critical | org.apache.kafka:kafka-cl | 4.1.1       | org.apache.kafka:kafka-cl | 4.1.1       | [4.1.2]         | Maven |
-2026-07-27T09:52:00.785637Z 01O |                |            | ients                     |             | ients                     |             |                 |       |
-2026-07-27T09:52:00.785637Z 01O +----------------+------------+---------------------------+-------------+---------------------------+-------------+-----------------+-------+
-2026-07-27T09:52:00.785638Z 01O | CVE-2026-55276 | 💀Critical | org.apache.tomcat.embed:t | 11.0.15     | org.apache.tomcat.embed:t | 11.0.15     | [10.1.56]       | Maven |
-2026-07-27T09:52:00.785638Z 01O |                |            | omcat-embed-core          |             | omcat-embed-core          |             | [11.0.23]       |       |
-2026-07-27T09:52:00.785643Z 01O |                |            |                           |             |                           |             | [9.0.119]       |       |
-2026-07-27T09:52:00.785644Z 01O +----------------+------------+---------------------------+-------------+---------------------------+-------------+-----------------+-------+
-2026-07-27T09:52:00.785645Z 01O | CVE-2026-53434 | 💀Critical | org.apache.tomcat.embed:t | 11.0.15     | org.apache.tomcat.embed:t | 11.0.15     | [10.1.56]       | Maven |
-2026-07-27T09:52:00.785645Z 01O |                |            | omcat-embed-core          |             | omcat-embed-core          |             | [11.0.23]       |       |
-2026-07-27T09:52:00.785646Z 01O |                |            |                           |             |                           |             | [9.0.119]       |       |
-2026-07-27T09:52:00.785646Z 01O +----------------+------------+---------------------------+-------------+---------------------------+-------------+-----------------+-------+
-2026-07-27T09:52:00.785647Z 01O | CVE-2026-47691 | 💀Critical | io.netty:netty-resolver-d | 4.2.9.Final | io.netty:netty-resolver-d | 4.2.9.Final | [4.1.135.Final] | Maven |
-2026-07-27T09:52:00.785647Z 01O |                |            | ns                        |             | ns                        |             | [4.2.15.Final]  |       |
-2026-07-27T09:52:00.785648Z 01O +----------------+------------+---------------------------+-------------+---------------------------+-------------+-----------------+-------+
-2026-07-27T09:52:00.785649Z 01O | CVE-2026-45674 | 💀Critical | io.netty:netty-resolver-d | 4.2.9.Final | io.netty:netty-resolver-d | 4.2.9.Final | [4.1.135.Final] | Maven |
-2026-07-27T09:52:00.785649Z 01O |                |            | ns                        |             | ns                        |             | [4.2.15.Final]  |       |
-2026-07-27T09:52:00.785650Z 01O +----------------+------------+---------------------------+-------------+---------------------------+-------------+-----------------+-------+
-2026-07-27T09:52:00.785650Z 01O | CVE-2026-22732 | 💀Critical | org.springframework.secur | 7.0.2       | org.springframework.secur | 7.0.2       | [5.7.22]        | Maven |
-2026-07-27T09:52:00.785651Z 01O |                |            | ity:spring-security-web   |             | ity:spring-security-web   |             | [5.8.24]        |       |
-2026-07-27T09:52:00.785651Z 01O |                |            |                           |             |                           |             | [6.3.15]        |       |
-2026-07-27T09:52:00.785652Z 01O |                |            |                           |             |                           |             | [6.4.15]        |       |
-2026-07-27T09:52:00.785653Z 01O |                |            |                           |             |                           |             | [6.5.9]         |       |
-2026-07-27T09:52:00.785653Z 01O |                |            |                           |             |                           |             | [7.0.4]         |       |
-2026-07-27T09:52:00.785654Z 01O +----------------+------------+---------------------------+-------------+---------------------------+-------------+-----------------+-------+
-2026-07-27T09:52:00.785654Z 01O | CVE-2026-44894 | 🔥High     | io.netty:netty-codec-clas | 4.2.9.Final | io.netty:netty-codec-clas | 4.2.9.Final | [4.2.15.Final]  | Maven |
-2026-07-27T09:52:00.785655Z 01O |                |            | ses-quic                  |             | ses-quic                  |             |                 |       |
-2026-07-27T09:52:00.785655Z 01O +----------------+------------+---------------------------+-------------+---------------------------+-------------+-----------------+-------+
-2026-07-27T09:52:00.785656Z 01O | CVE-2026-44892 | 🔥High     | io.netty:netty-codec-http | 4.2.9.Final | io.netty:netty-codec-http | 4.2.9.Final | [4.2.15.Final]  | Maven |
-2026-07-27T09:52:00.785656Z 01O |                |            | 3                         |             | 3                         |             |                 |       |
-2026-07-27T09:52:00.785660Z 01O +----------------+------------+---------------------------+-------------+---------------------------+-------------+-----------------+-------+
-2026-07-27T09:52:00.785661Z 01O | CVE-2026-43513 | 🔥High     | org.apache.tomcat.embed:t | 11.0.15     | org.apache.tomcat.embed:t | 11.0.15     | [10.1.55]       | Maven |
-2026-07-27T09:52:00.785661Z 01O |                |            | omcat-embed-core          |             | omcat-embed-core          |             | [11.0.22]       |       |
-2026-07-27T09:52:00.785662Z 01O |                |            |                           |             |                           |             | [9.0.118]       |       |
-2026-07-27T09:52:00.785662Z 01O +----------------+------------+---------------------------+-------------+---------------------------+-------------+-----------------+-------+
-2026-07-27T09:52:00.785663Z 01O | CVE-2026-41284 | 🔥High     | org.apache.tomcat.embed:t | 11.0.15     | org.apache.tomcat.embed:t | 11.0.15     | [10.1.55]       | Maven |
-2026-07-27T09:52:00.785664Z 01O |                |            | omcat-embed-core          |             | omcat-embed-core          |             | [11.0.22]       |       |
-2026-07-27T09:52:00.785664Z 01O |                |            |                           |             |                           |             | [9.0.118]       |       |
-2026-07-27T09:52:00.785665Z 01O +----------------+------------+---------------------------+-------------+---------------------------+-------------+-----------------+-------+
-2026-07-27T09:52:00.785665Z 01O | CVE-2026-42587 | 🔥High     | io.netty:netty-codec-http | 4.2.9.Final | io.netty:netty-codec-http | 4.2.9.Final | [4.1.133.Final] | Maven |
-2026-07-27T09:52:00.785666Z 01O |                |            |                           |             |                           |             | [4.2.13.Final]  |       |
-2026-07-27T09:52:00.785666Z 01O +----------------+------------+---------------------------+-------------+---------------------------+-------------+-----------------+-------+
-2026-07-27T09:52:00.785667Z 01O | CVE-2026-42587 | 🔥High     | io.netty:netty-codec-http | 4.2.9.Final | io.netty:netty-codec-http | 4.2.9.Final | [4.1.133.Final] | Maven |
-2026-07-27T09:52:00.785667Z 01O |                |            | 2                         |             | 2                         |             | [4.2.13.Final]  |       |
-2026-07-27T09:52:00.785668Z 01O +----------------+------------+---------------------------+-------------+---------------------------+-------------+-----------------+-------+
-2026-07-27T09:52:00.785668Z 01O | CVE-2026-42585 | 🔥High     | io.netty:netty-codec-http | 4.2.9.Final | io.netty:netty-codec-http | 4.2.9.Final | [4.1.133.Final] | Maven |
-2026-07-27T09:52:00.785669Z 01O |                |            |                           |             |                           |             | [4.2.13.Final]  |       |
-2026-07-27T09:52:00.785670Z 01O +----------------+------------+---------------------------+-------------+---------------------------+-------------+-----------------+-------+
-2026-07-27T09:52:00.785670Z 01O | CVE-2026-42583 | 🔥High     | io.netty:netty-codec-comp | 4.2.9.Final | io.netty:netty-codec-comp | 4.2.9.Final | [4.2.13.Final]  | Maven |
-2026-07-27T09:52:00.785671Z 01O |                |            | ression                   |             | ression                   |             |                 |       |
-2026-07-27T09:52:00.785671Z 01O +----------------+------------+---------------------------+-------------+---------------------------+-------------+-----------------+-------+
-2026-07-27T09:52:00.785672Z 01O | CVE-2026-42582 | 🔥High     | io.netty:netty-codec-http | 4.2.9.Final | io.netty:netty-codec-http | 4.2.9.Final | [4.2.13.Final]  | Maven |
-2026-07-27T09:52:00.785672Z 01O |                |            | 3                         |             | 3                         |             |                 |       |
-2026-07-27T09:52:00.785676Z 01O +----------------+------------+---------------------------+-------------+---------------------------+-------------+-----------------+-------+
-2026-07-27T09:52:00.785676Z 01O | CVE-2026-42578 | 🔥High     | io.netty:netty-handler-pr | 4.2.9.Final | io.netty:netty-handler-pr | 4.2.9.Final | [4.1.133.Final] | Maven |
-2026-07-27T09:52:00.785677Z 01O |                |            | oxy                       |             | oxy                       |             | [4.2.13.Final]  |       |
-2026-07-27T09:52:00.785677Z 01O +----------------+------------+---------------------------+-------------+---------------------------+-------------+-----------------+-------+
-2026-07-27T09:52:00.785678Z 01O | CVE-2026-42577 | 🔥High     | io.netty:netty-transport- | 4.2.9.Final | io.netty:netty-transport- | 4.2.9.Final | [4.2.13.Final]  | Maven |
-2026-07-27T09:52:00.785678Z 01O |                |            | native-epoll              |             | native-epoll              |             |                 |       |
-2026-07-27T09:52:00.785679Z 01O +----------------+------------+---------------------------+-------------+---------------------------+-------------+-----------------+-------+
-2026-07-27T09:52:00.785679Z 01O | CVE-2026-40973 | 🔥High     | org.springframework.boot: | 4.0.1       | org.springframework.boot: | 4.0.1       | [2.7.33]        | Maven |
-2026-07-27T09:52:00.785680Z 01O |                |            | spring-boot               |             | spring-boot               |             | [3.3.19]        |       |
-2026-07-27T09:52:00.785681Z 01O |                |            |                           |             |                           |             | [3.4.16]        |       |
-2026-07-27T09:52:00.785681Z 01O |                |            |                           |             |                           |             | [3.5.14]        |       |
-2026-07-27T09:52:00.785682Z 01O |                |            |                           |             |                           |             | [4.0.6]         |       |
-2026-07-27T09:52:00.785682Z 01O +----------------+------------+---------------------------+-------------+---------------------------+-------------+-----------------+-------+
-2026-07-27T09:52:00.785683Z 01O | CVE-2026-22753 | 🔥High     | org.springframework.secur | 7.0.2       | org.springframework.secur | 7.0.2       | [7.0.5]         | Maven |
-2026-07-27T09:52:00.785683Z 01O |                |            | ity:spring-security-confi |             | ity:spring-security-confi |             |                 |       |
-2026-07-27T09:52:00.785684Z 01O |                |            | g                         |             | g                         |             |                 |       |
-2026-07-27T09:52:00.785684Z 01O +----------------+------------+---------------------------+-------------+---------------------------+-------------+-----------------+-------+
-2026-07-27T09:52:00.785685Z 01O | CVE-2026-22747 | 🔥High     | org.springframework.secur | 7.0.2       | org.springframework.secur | 7.0.2       | [7.0.5]         | Maven |
-2026-07-27T09:52:00.785686Z 01O |                |            | ity:spring-security-web   |             | ity:spring-security-web   |             |                 |       |
-2026-07-27T09:52:00.785686Z 01O +----------------+------------+---------------------------+-------------+---------------------------+-------------+-----------------+-------+
-2026-07-27T09:52:00.785687Z 01O | CVE-2026-22754 | 🔥High     | org.springframework.secur | 7.0.2       | org.springframework.secur | 7.0.2       | [7.0.5]         | Maven |
-2026-07-27T09:52:00.785687Z 01O |                |            | ity:spring-security-confi |             | ity:spring-security-confi |             |                 |       |
-2026-07-27T09:52:00.785688Z 01O |                |            | g                         |             | g                         |             |                 |       |
-2026-07-27T09:52:00.785688Z 01O +----------------+------------+---------------------------+-------------+---------------------------+-------------+-----------------+-------+
-2026-07-27T09:52:00.785692Z 01O | CVE-2026-35554 | 🔥High     | org.apache.kafka:kafka-cl | 4.1.1       | org.apache.kafka:kafka-cl | 4.1.1       | [3.9.2]         | Maven |
-2026-07-27T09:52:00.785692Z 01O |                |            | ients                     |             | ients                     |             | [4.0.2]         |       |
-2026-07-27T09:52:00.785693Z 01O |                |            |                           |             |                           |             | [4.1.2]         |       |
-2026-07-27T09:52:00.785693Z 01O +----------------+------------+---------------------------+-------------+---------------------------+-------------+-----------------+-------+
-2026-07-27T09:52:00.785694Z 01O | CVE-2026-34483 | 🔥High     | org.apache.tomcat.embed:t | 11.0.15     | org.apache.tomcat.embed:t | 11.0.15     | [10.1.54]       | Maven |
-2026-07-27T09:52:00.785694Z 01O |                |            | omcat-embed-core          |             | omcat-embed-core          |             | [11.0.21]       |       |
-2026-07-27T09:52:00.785695Z 01O |                |            |                           |             |                           |             | [9.0.116]       |       |
-2026-07-27T09:52:00.785696Z 01O +----------------+------------+---------------------------+-------------+---------------------------+-------------+-----------------+-------+
-2026-07-27T09:52:00.785696Z 01O | CVE-2026-24880 | 🔥High     | org.apache.tomcat.embed:t | 11.0.15     | org.apache.tomcat.embed:t | 11.0.15     | [10.1.52]       | Maven |
-2026-07-27T09:52:00.785697Z 01O |                |            | omcat-embed-core          |             | omcat-embed-core          |             | [11.0.20]       |       |
-2026-07-27T09:52:00.785697Z 01O |                |            |                           |             |                           |             | [9.0.116]       |       |
-2026-07-27T09:52:00.785698Z 01O +----------------+------------+---------------------------+-------------+---------------------------+-------------+-----------------+-------+
-2026-07-27T09:52:00.785698Z 01O |                | 🔥High     | tools.jackson.core:jackso | 3.0.3       | tools.jackson.core:jackso | 3.0.3       | [3.1.1]         | Maven |
-2026-07-27T09:52:00.785699Z 01O |                |            | n-core                    |             | n-core                    |             |                 |       |
-2026-07-27T09:52:00.785699Z 01O +----------------+------------+---------------------------+-------------+---------------------------+-------------+-----------------+-------+
-2026-07-27T09:52:00.785700Z 01O | CVE-2026-33871 | 🔥High     | io.netty:netty-codec-http | 4.2.9.Final | io.netty:netty-codec-http | 4.2.9.Final | [4.1.132.Final] | Maven |
-2026-07-27T09:52:00.785701Z 01O |                |            | 2                         |             | 2                         |             | [4.2.11.Final]  |       |
-2026-07-27T09:52:00.785701Z 01O +----------------+------------+---------------------------+-------------+---------------------------+-------------+-----------------+-------+
-2026-07-27T09:52:00.785702Z 01O | CVE-2026-33870 | 🔥High     | io.netty:netty-codec-http | 4.2.9.Final | io.netty:netty-codec-http | 4.2.9.Final | [4.1.132.Final] | Maven |
-2026-07-27T09:52:00.785702Z 01O |                |            |                           |             |                           |             | [4.2.10.Final]  |       |
-2026-07-27T09:52:00.785703Z 01O +----------------+------------+---------------------------+-------------+---------------------------+-------------+-----------------+-------+
-2026-07-27T09:52:00.785703Z 01O | CVE-2026-24734 | 🔥High     | org.apache.tomcat.embed:t | 11.0.15     | org.apache.tomcat.embed:t | 11.0.15     | [10.1.52]       | Maven |
-2026-07-27T09:52:00.785704Z 01O |                |            | omcat-embed-core          |             | omcat-embed-core          |             | [11.0.18]       |       |
-2026-07-27T09:52:00.785707Z 01O |                |            |                           |             |                           |             | [9.0.115]       |       |
-2026-07-27T09:52:00.785708Z 01O +----------------+------------+---------------------------+-------------+---------------------------+-------------+-----------------+-------+
-2026-07-27T09:52:00.785709Z 01O | CVE-2026-59901 | 🔥High     | io.netty:netty-codec-comp | 4.2.9.Final | io.netty:netty-codec-comp | 4.2.9.Final | [4.2.16.Final]  | Maven |
-2026-07-27T09:52:00.785709Z 01O |                |            | ression                   |             | ression                   |             |                 |       |
-2026-07-27T09:52:00.785710Z 01O +----------------+------------+---------------------------+-------------+---------------------------+-------------+-----------------+-------+
-2026-07-27T09:52:00.785710Z 01O | CVE-2026-56819 | 🔥High     | io.netty:netty-codec-http | 4.2.9.Final | io.netty:netty-codec-http | 4.2.9.Final | [4.1.136.Final] | Maven |
-2026-07-27T09:52:00.785711Z 01O |                |            | 2                         |             | 2                         |             | [4.2.16.Final]  |       |
-2026-07-27T09:52:00.785711Z 01O +----------------+------------+---------------------------+-------------+---------------------------+-------------+-----------------+-------+
-2026-07-27T09:52:00.785712Z 01O | CVE-2026-56816 | 🔥High     | io.netty:netty-codec-http | 4.2.9.Final | io.netty:netty-codec-http | 4.2.9.Final | [4.2.16.Final]  | Maven |
-2026-07-27T09:52:00.785712Z 01O |                |            | 3                         |             | 3                         |             |                 |       |
-2026-07-27T09:52:00.785713Z 01O +----------------+------------+---------------------------+-------------+---------------------------+-------------+-----------------+-------+
-2026-07-27T09:52:00.785713Z 01O | CVE-2026-56745 | 🔥High     | io.netty:netty-codec-http | 4.2.9.Final | io.netty:netty-codec-http | 4.2.9.Final | [4.1.136.Final] | Maven |
-2026-07-27T09:52:00.785714Z 01O |                |            |                           |             |                           |             | [4.2.16.Final]  |       |
-2026-07-27T09:52:00.785715Z 01O +----------------+------------+---------------------------+-------------+---------------------------+-------------+-----------------+-------+
-2026-07-27T09:52:00.785715Z 01O |                | 🔥High     | tools.jackson.core:jackso | 3.0.3       | tools.jackson.core:jackso | 3.0.3       | [3.1.4]         | Maven |
-2026-07-27T09:52:00.785716Z 01O |                |            | n-core                    |             | n-core                    |             | [3.2.1]         |       |
-2026-07-27T09:52:00.785716Z 01O +----------------+------------+---------------------------+-------------+---------------------------+-------------+-----------------+-------+
-2026-07-27T09:52:00.785717Z 01O |                | 🔥High     | com.fasterxml.jackson.cor | 2.20.1      | com.fasterxml.jackson.cor | 2.20.1      | [2.18.8]        | Maven |
-2026-07-27T09:52:00.785717Z 01O |                |            | e:jackson-core            |             | e:jackson-core            |             | [2.21.4]        |       |
-2026-07-27T09:52:00.785718Z 01O |                |            |                           |             |                           |             | [2.22.1]        |       |
-2026-07-27T09:52:00.785718Z 01O +----------------+------------+---------------------------+-------------+---------------------------+-------------+-----------------+-------+
-2026-07-27T09:52:00.785719Z 01O | CVE-2026-53404 | 🔥High     | org.apache.tomcat.embed:t | 11.0.15     | org.apache.tomcat.embed:t | 11.0.15     | [10.1.56]       | Maven |
-2026-07-27T09:52:00.785719Z 01O |                |            | omcat-embed-core          |             | omcat-embed-core          |             | [11.0.23]       |       |
-2026-07-27T09:52:00.785720Z 01O |                |            |                           |             |                           |             | [9.0.119]       |       |
-2026-07-27T09:52:00.785724Z 01O +----------------+------------+---------------------------+-------------+---------------------------+-------------+-----------------+-------+
-2026-07-27T09:52:00.785724Z 01O | CVE-2026-54513 | 🔥High     | com.fasterxml.jackson.cor | 2.20.1      | com.fasterxml.jackson.cor | 2.20.1      | [2.18.8]        | Maven |
-2026-07-27T09:52:00.785725Z 01O |                |            | e:jackson-databind        |             | e:jackson-databind        |             | [2.21.4]        |       |
-2026-07-27T09:52:00.785725Z 01O |                |            |                           |             |                           |             | [3.1.4]         |       |
-2026-07-27T09:52:00.785726Z 01O +----------------+------------+---------------------------+-------------+---------------------------+-------------+-----------------+-------+
-2026-07-27T09:52:00.785727Z 01O | CVE-2026-54513 | 🔥High     | tools.jackson.core:jackso | 3.0.3       | tools.jackson.core:jackso | 3.0.3       | [3.1.4]         | Maven |
-2026-07-27T09:52:00.785727Z 01O |                |            | n-databind                |             | n-databind                |             |                 |       |
-2026-07-27T09:52:00.785728Z 01O +----------------+------------+---------------------------+-------------+---------------------------+-------------+-----------------+-------+
-2026-07-27T09:52:00.785728Z 01O | CVE-2026-54512 | 🔥High     | com.fasterxml.jackson.cor | 2.20.1      | com.fasterxml.jackson.cor | 2.20.1      | [2.18.8]        | Maven |
-2026-07-27T09:52:00.785729Z 01O |                |            | e:jackson-databind        |             | e:jackson-databind        |             | [2.21.4]        |       |
-2026-07-27T09:52:00.785729Z 01O |                |            |                           |             |                           |             | [3.1.4]         |       |
-2026-07-27T09:52:00.785730Z 01O +----------------+------------+---------------------------+-------------+---------------------------+-------------+-----------------+-------+
-2026-07-27T09:52:00.785730Z 01O | CVE-2026-54512 | 🔥High     | tools.jackson.core:jackso | 3.0.3       | tools.jackson.core:jackso | 3.0.3       | [3.1.4]         | Maven |
-2026-07-27T09:52:00.785731Z 01O |                |            | n-databind                |             | n-databind                |             |                 |       |
-2026-07-27T09:52:00.785732Z 01O +----------------+------------+---------------------------+-------------+---------------------------+-------------+-----------------+-------+
-2026-07-27T09:52:00.785732Z 01O | CVE-2026-50010 | 🔥High     | io.netty:netty-handler    | 4.2.9.Final | io.netty:netty-handler    | 4.2.9.Final | [4.1.135.Final] | Maven |
-2026-07-27T09:52:00.785733Z 01O |                |            |                           |             |                           |             | [4.2.15.Final]  |       |
-2026-07-27T09:52:00.785733Z 01O +----------------+------------+---------------------------+-------------+---------------------------+-------------+-----------------+-------+
-2026-07-27T09:52:00.785734Z 01O | CVE-2026-48748 | 🔥High     | io.netty:netty-codec-http | 4.2.9.Final | io.netty:netty-codec-http | 4.2.9.Final | [4.2.15.Final]  | Maven |
-2026-07-27T09:52:00.785734Z 01O |                |            | 3                         |             | 3                         |             |                 |       |
-2026-07-27T09:52:00.785735Z 01O +----------------+------------+---------------------------+-------------+---------------------------+-------------+-----------------+-------+
-2026-07-27T09:52:00.785735Z 01O | CVE-2026-41848 | 🔥High     | org.springframework:sprin | 7.0.2       | org.springframework:sprin | 7.0.2       | [5.3.49]        | Maven |
-2026-07-27T09:52:00.785736Z 01O |                |            | g-core                    |             | g-core                    |             | [6.1.28]        |       |
-2026-07-27T09:52:00.785740Z 01O |                |            |                           |             |                           |             | [6.2.19]        |       |
-2026-07-27T09:52:00.785740Z 01O |                |            |                           |             |                           |             | [7.0.8]         |       |
-2026-07-27T09:52:00.785741Z 01O +----------------+------------+---------------------------+-------------+---------------------------+-------------+-----------------+-------+
-2026-07-27T09:52:00.785742Z 01O | CVE-2026-41731 | 🔥High     | org.springframework.kafka | 4.0.1       | org.springframework.kafka | 4.0.1       | [3.3.16]        | Maven |
-2026-07-27T09:52:00.785742Z 01O |                |            | :spring-kafka             |             | :spring-kafka             |             | [4.0.6]         |       |
-2026-07-27T09:52:00.785743Z 01O +----------------+------------+---------------------------+-------------+---------------------------+-------------+-----------------+-------+
-2026-07-27T09:52:00.785743Z 01O | CVE-2026-48043 | 🔥High     | io.netty:netty-codec-http | 4.2.9.Final | io.netty:netty-codec-http | 4.2.9.Final | [4.1.135.Final] | Maven |
-2026-07-27T09:52:00.785744Z 01O |                |            | 2                         |             | 2                         |             | [4.2.15.Final]  |       |
-2026-07-27T09:52:00.785744Z 01O +----------------+------------+---------------------------+-------------+---------------------------+-------------+-----------------+-------+
-2026-07-27T09:52:00.785745Z 01O | CVE-2026-41851 | 🔥High     | org.springframework:sprin | 7.0.2       | org.springframework:sprin | 7.0.2       | [5.3.49]        | Maven |
-2026-07-27T09:52:00.785746Z 01O |                |            | g-expression              |             | g-expression              |             | [6.1.28]        |       |
-2026-07-27T09:52:00.785746Z 01O |                |            |                           |             |                           |             | [6.2.19]        |       |
-2026-07-27T09:52:00.785747Z 01O |                |            |                           |             |                           |             | [7.0.8]         |       |
-2026-07-27T09:52:00.785747Z 01O +----------------+------------+---------------------------+-------------+---------------------------+-------------+-----------------+-------+
-2026-07-27T09:52:00.785748Z 01O | CVE-2026-41716 | 🔥High     | org.springframework.data: | 4.0.1       | org.springframework.data: | 4.0.1       | [2.7.20]        | Maven |
-2026-07-27T09:52:00.785748Z 01O |                |            | spring-data-commons       |             | spring-data-commons       |             | [3.3.17]        |       |
-2026-07-27T09:52:00.785749Z 01O |                |            |                           |             |                           |             | [3.4.15]        |       |
-2026-07-27T09:52:00.785749Z 01O |                |            |                           |             |                           |             | [3.5.12]        |       |
-2026-07-27T09:52:00.785750Z 01O |                |            |                           |             |                           |             | [4.0.6]         |       |
-2026-07-27T09:52:00.785751Z 01O +----------------+------------+---------------------------+-------------+---------------------------+-------------+-----------------+-------+
-2026-07-27T09:52:00.785751Z 01O | CVE-2026-41695 | 🔥High     | org.springframework.data: | 4.0.1       | org.springframework.data: | 4.0.1       | [3.4.15]        | Maven |
-2026-07-27T09:52:00.785752Z 01O |                |            | spring-data-commons       |             | spring-data-commons       |             | [3.5.12]        |       |
-2026-07-27T09:52:00.785752Z 01O |                |            |                           |             |                           |             | [4.0.6]         |       |
-2026-07-27T09:52:00.785753Z 01O +----------------+------------+---------------------------+-------------+---------------------------+-------------+-----------------+-------+
-2026-07-27T09:52:00.785757Z 01O | CVE-2026-41842 | 🔥High     | org.springframework:sprin | 7.0.2       | org.springframework:sprin | 7.0.2       | [5.3.49]        | Maven |
-2026-07-27T09:52:00.785757Z 01O |                |            | g-webmvc                  |             | g-webmvc                  |             | [6.1.28]        |       |
-2026-07-27T09:52:00.785758Z 01O |                |            |                           |             |                           |             | [6.2.19]        |       |
-2026-07-27T09:52:00.785758Z 01O |                |            |                           |             |                           |             | [7.0.8]         |       |
-2026-07-27T09:52:00.785759Z 01O +----------------+------------+---------------------------+-------------+---------------------------+-------------+-----------------+-------+
-2026-07-27T09:52:00.785759Z 01O | CVE-2026-41842 | 🔥High     | org.springframework:sprin | 7.0.2       | org.springframework:sprin | 7.0.2       | [5.3.49]        | Maven |
-2026-07-27T09:52:00.785760Z 01O |                |            | g-webflux                 |             | g-webflux                 |             | [6.1.28]        |       |
-2026-07-27T09:52:00.785760Z 01O |                |            |                           |             |                           |             | [6.2.19]        |       |
-2026-07-27T09:52:00.785761Z 01O |                |            |                           |             |                           |             | [7.0.8]         |       |
-2026-07-27T09:52:00.785762Z 01O +----------------+------------+---------------------------+-------------+---------------------------+-------------+-----------------+-------+
-2026-07-27T09:52:00.785762Z 01O | CVE-2026-45416 | 🔥High     | io.netty:netty-handler    | 4.2.9.Final | io.netty:netty-handler    | 4.2.9.Final | [4.1.135.Final] | Maven |
-2026-07-27T09:52:00.785763Z 01O |                |            |                           |             |                           |             | [4.2.15.Final]  |       |
-2026-07-27T09:52:00.785763Z 01O +----------------+------------+---------------------------+-------------+---------------------------+-------------+-----------------+-------+
-2026-07-27T09:52:00.785764Z 01O | CVE-2026-44249 | 🔥High     | io.netty:netty-handler    | 4.2.9.Final | io.netty:netty-handler    | 4.2.9.Final | [4.1.135.Final] | Maven |
-2026-07-27T09:52:00.785764Z 01O |                |            |                           |             |                           |             | [4.2.15.Final]  |       |
-2026-07-27T09:52:00.785765Z 01O +----------------+------------+---------------------------+-------------+---------------------------+-------------+-----------------+-------+
-2026-07-27T09:52:00.785765Z 01O | CVE-2026-40984 | 🔥High     | io.micrometer:micrometer- | 1.16.1      | io.micrometer:micrometer- | 1.16.1      | [1.13.19]       | Maven |
-2026-07-27T09:52:00.785766Z 01O |                |            | core                      |             | core                      |             | [1.14.16]       |       |
-2026-07-27T09:52:00.785766Z 01O |                |            |                           |             |                           |             | [1.15.12]       |       |
-2026-07-27T09:52:00.785767Z 01O |                |            |                           |             |                           |             | [1.16.6]        |       |
-2026-07-27T09:52:00.785767Z 01O |                |            |                           |             |                           |             | [1.9.18]        |       |
-2026-07-27T09:52:00.785768Z 01O +----------------+------------+---------------------------+-------------+---------------------------+-------------+-----------------+-------+
-2026-07-27T09:52:00.785768Z 01O | CVE-2026-40983 | 🔥High     | io.micrometer:micrometer- | 1.16.1      | io.micrometer:micrometer- | 1.16.1      | [1.15.12]       | Maven |
-2026-07-27T09:52:00.785774Z 01O |                |            | core                      |             | core                      |             | [1.16.6]        |       |
-2026-07-27T09:52:00.785775Z 01O +----------------+------------+---------------------------+-------------+---------------------------+-------------+-----------------+-------+
-2026-07-27T09:52:00.785775Z 01O | CVE-2026-29062 | 🔥High     | tools.jackson.core:jackso | 3.0.3       | tools.jackson.core:jackso | 3.0.3       | [3.1.0]         | Maven |
-2026-07-27T09:52:00.785776Z 01O |                |            | n-core                    |             | n-core                    |             |                 |       |
-2026-07-27T09:52:00.785776Z 01O +----------------+------------+---------------------------+-------------+---------------------------+-------------+-----------------+-------+
-2026-07-27T09:52:00.785777Z 01O | CVE-2025-12183 | 🔥High     | org.lz4:lz4-java          | 1.8.0       | org.lz4:lz4-java          | 1.8.0       | [1.8.1]         | Maven |
-2026-07-27T09:52:00.785778Z 01O +----------------+------------+---------------------------+-------------+---------------------------+-------------+-----------------+-------+
-2026-07-27T09:52:00.785778Z 01O | CVE-2026-55831 | 🔥High     | io.netty:netty-codec-http | 4.2.9.Final | io.netty:netty-codec-http | 4.2.9.Final | [4.1.136.Final] | Maven |
-2026-07-27T09:52:00.785794Z 01O |                |            |                           |             |                           |             | [4.2.16.Final]  |       |
-2026-07-27T09:52:00.785795Z 01O +----------------+------------+---------------------------+-------------+---------------------------+-------------+-----------------+-------+
-2026-07-27T09:52:00.785795Z 01O | CVE-2026-55833 | 🔥High     | io.netty:netty-codec-http | 4.2.9.Final | io.netty:netty-codec-http | 4.2.9.Final | [4.1.136.Final] | Maven |
-2026-07-27T09:52:00.785796Z 01O |                |            |                           |             |                           |             | [4.2.16.Final]  |       |
-2026-07-27T09:52:00.785797Z 01O +----------------+------------+---------------------------+-------------+---------------------------+-------------+-----------------+-------+
-2026-07-27T09:52:00.785797Z 01O | CVE-2026-41850 | 🔥High     | org.springframework:sprin | 7.0.2       | org.springframework:sprin | 7.0.2       | [5.3.49]        | Maven |
-2026-07-27T09:52:00.785798Z 01O |                |            | g-expression              |             | g-expression              |             | [6.1.28]        |       |
-2026-07-27T09:52:00.785798Z 01O |                |            |                           |             |                           |             | [6.2.19]        |       |
-2026-07-27T09:52:00.785799Z 01O |                |            |                           |             |                           |             | [7.0.8]         |       |
-2026-07-27T09:52:00.785799Z 01O +----------------+------------+---------------------------+-------------+---------------------------+-------------+-----------------+-------+
-2026-07-27T09:52:00.785800Z 01O | CVE-2026-41720 | 🔥High     | org.springframework.ldap: | 4.0.1       | org.springframework.ldap: | 4.0.1       | [2.4.5]         | Maven |
-2026-07-27T09:52:00.785800Z 01O |                |            | spring-ldap-core          |             | spring-ldap-core          |             | [3.2.18]        |       |
-2026-07-27T09:52:00.785801Z 01O |                |            |                           |             |                           |             | [3.3.8]         |       |
-2026-07-27T09:52:00.785801Z 01O |                |            |                           |             |                           |             | [4.0.4]         |       |
-2026-07-27T09:52:00.785802Z 01O +----------------+------------+---------------------------+-------------+---------------------------+-------------+-----------------+-------+
-2026-07-27T09:52:00.785802Z 01O License Compliance Violations
-2026-07-27T09:52:00.785808Z 01O +---------------------------------------------+
-2026-07-27T09:52:00.785808Z 01O | No license compliance violations were found |
-2026-07-27T09:52:00.785808Z 01O +---------------------------------------------+
-2026-07-27T09:52:00.785809Z 01O Operational Risk Violations
-2026-07-27T09:52:00.785809Z 01O +-------------------------------------------+
-2026-07-27T09:52:00.785809Z 01O | No operational risk violations were found |
-2026-07-27T09:52:00.785810Z 01O +-------------------------------------------+
-2026-07-27T09:52:01.033038Z 00O section_end:1785145921:step_script
-2026-07-27T09:52:01.033054Z 00O+[0Ksection_start:1785145921:cleanup_file_variables
-2026-07-27T09:52:01.035313Z 00O+[0K[0K[36;1mCleaning up project directory and file based variables[0;m[0;m
-2026-07-27T09:52:01.736944Z 00O section_end:1785145921:cleanup_file_variables
-2026-07-27T09:52:01.736954Z 00O+[0K
-2026-07-27T09:52:01.796728Z 00O [31;1mERROR: Job failed: exit code 3[0;m
+<project xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xmlns="http://maven.apache.org/POM/4.0.0"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <!-- 1. BUMP SPRING BOOT PARENT TO 4.0.6 -->
+    <parent>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-starter-parent</artifactId>
+        <version>4.0.6</version>
+        <relativePath/>
+    </parent>
+
+    <groupId>com.fincore</groupId>
+    <artifactId>LoginService</artifactId>
+    <version>0.0.1-SNAPSHOT</version>
+    <name>login-service</name>
+
+    <properties>
+        <java.version>21</java.version>
+        <spring-cloud.version>2025.0.0</spring-cloud.version>
+        <jjwt.version>0.12.6</jjwt.version>
+        
+        <!-- 2. EXPLICIT PROPERTY OVERRIDES FOR SCA COMPLIANCE -->
+        <tomcat.version>11.0.23</tomcat.version>
+        <netty.version>4.2.16.Final</netty.version>
+        <kafka.version>4.1.2</kafka.version>
+        <lz4.version>1.8.1</lz4.version>
+    </properties>
+
+    <dependencyManagement>
+        <dependencies>
+            <dependency>
+                <groupId>org.springframework.cloud</groupId>
+                <artifactId>spring-cloud-dependencies</artifactId>
+                <version>${spring-cloud.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+
+            <!-- Enforce secure Netty version across all reactive dependencies -->
+            <dependency>
+                <groupId>io.netty</groupId>
+                <artifactId>netty-bom</artifactId>
+                <version>${netty.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+
+            <!-- Override Tomcat Embed Core to patched version -->
+            <dependency>
+                <groupId>org.apache.tomcat.embed</groupId>
+                <artifactId>tomcat-embed-core</artifactId>
+                <version>${tomcat.version}</version>
+            </dependency>
+
+            <!-- Override Kafka Clients to patched version -->
+            <dependency>
+                <groupId>org.apache.kafka</groupId>
+                <artifactId>kafka-clients</artifactId>
+                <version>${kafka.version}</version>
+            </dependency>
+
+            <!-- Override LZ4 Java -->
+            <dependency>
+                <groupId>org.lz4</groupId>
+                <artifactId>lz4-java</artifactId>
+                <version>${lz4.version}</version>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
+
+    <dependencies>
+        <!-- Web & Reactive -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-web</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-webflux</artifactId>
+        </dependency>
+
+        <!-- Security & OAuth2 -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-security</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-oauth2-resource-server</artifactId>
+        </dependency>
+
+        <!-- Data & Persistence -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-data-jpa</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-data-redis-reactive</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-data-ldap</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.oracle.database.jdbc</groupId>
+            <artifactId>ojdbc11</artifactId>
+            <scope>runtime</scope>
+        </dependency>
+
+        <!-- JWT Processing -->
+        <dependency>
+            <groupId>io.jsonwebtoken</groupId>
+            <artifactId>jjwt-api</artifactId>
+            <version>${jjwt.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>io.jsonwebtoken</groupId>
+            <artifactId>jjwt-impl</artifactId>
+            <version>${jjwt.version}</version>
+            <scope>runtime</scope>
+        </dependency>
+        <dependency>
+            <groupId>io.jsonwebtoken</groupId>
+            <artifactId>jjwt-jackson</artifactId>
+            <version>${jjwt.version}</version>
+            <scope>runtime</scope>
+        </dependency>
+
+        <!-- Validation -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-validation</artifactId>
+        </dependency>
+
+        <!-- Messaging & Kafka -->
+        <dependency>
+            <groupId>org.springframework.kafka</groupId>
+            <artifactId>spring-kafka</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework</groupId>
+            <artifactId>spring-messaging</artifactId>
+        </dependency>
+
+        <!-- Observability & Logging -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-actuator</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>io.micrometer</groupId>
+            <artifactId>micrometer-registry-prometheus</artifactId>
+        </dependency>
+
+        <!-- Utilities -->
+        <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+            <optional>true</optional>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.commons</groupId>
+            <artifactId>commons-pool2</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>com.fincore</groupId>
+            <artifactId>common-utilities</artifactId>
+            <version>1.0.0</version>
+        </dependency>
+
+        <!-- Jakarta-compliant SAAJ Implementation -->
+        <dependency>
+            <groupId>com.sun.xml.messaging.saaj</groupId>
+            <artifactId>saaj-impl</artifactId>
+            <version>3.0.3</version>
+        </dependency>
+
+        <!-- Testing -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.kafka</groupId>
+            <artifactId>spring-kafka-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <finalName>${project.artifactId}</finalName>
+        <plugins>
+            <plugin>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-maven-plugin</artifactId>
+                <configuration>
+                    <excludes>
+                        <exclude>
+                            <groupId>org.projectlombok</groupId>
+                            <artifactId>lombok</artifactId>
+                        </exclude>
+                    </excludes>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
+</project>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+mvn dependency:tree | grep -E "netty|tomcat|kafka|spring-boot"
+
+
+
+
+
+git add pom.xml
+git commit -m "fix(deps): bump Spring Boot and transitive dependencies to resolve JFrog Xray SCA violations"
+git push origin feature_springboot_version_upgrade
