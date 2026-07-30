@@ -1,409 +1,52 @@
-package com.fincore.CommunicationService.attachment;
+package com.fincore.CommunicationService.config;
 
-import com.fincore.CommunicationService.client.ReportServiceClient;
-import com.fincore.CommunicationService.dto.GenericCommunicationEvent.AttachmentRef;
-import com.fincore.CommunicationService.dto.attachment.AttachmentDownloadRequest;
-import com.fincore.CommunicationService.dto.attachment.AttachmentDownloadResponse;
-import com.fincore.CommunicationService.dto.attachment.DownloadedAttachment;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.core.io.FileSystemResource;
-import org.springframework.core.io.Resource;
-import org.springframework.stereotype.Service;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.core.task.AsyncTaskExecutor;
+import org.springframework.core.task.support.TaskExecutorAdapter;
+import org.springframework.scheduling.annotation.EnableAsync;
 
-import java.io.File;
-import java.io.FileOutputStream;
-import java.io.IOException;
-import java.io.OutputStream;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.util.ArrayList;
-import java.util.Base64;
-import java.util.List;
+import java.util.concurrent.Executors;
 
 /**
- * <p>Enterprise Attachment Preparation Service.</p>
+ * <p>Enterprise Asynchronous Execution Configuration utilizing Java 21 Virtual Threads.</p>
  *
- * <p><b>Memory Safety Guarantee:</b>
- * This service explicitly avoids loading entire files into the JVM heap.
- * It decodes Base64 streams chunk-by-chunk and writes directly to ephemeral disk storage.
- * The resulting payload is returned as a Spring {@link Resource} to allow downstream
- * REST clients to stream the bytes directly over the socket.</p>
+ * <p><b>Architectural Context:</b>
+ * The Communication Service relies heavily on database I/O for auditing every single
+ * notification attempt, success, and failure. If we were to use standard platform (OS) threads
+ * for this, a massive EOD (End of Day) bulk blast could quickly exhaust the application's
+ * thread pool or lead to severe CPU context-switching overhead.</p>
+ *
+ * <p>By delegating all {@code @Async("virtualThreadAuditExecutor")} tasks to Java 21
+ * Virtual Threads, the JVM can "park" the thread during the database network I/O wait time
+ * at a cost of mere kilobytes of RAM, allowing the OS carrier thread to serve other requests.
+ * This ensures our Kafka consumer threads are never blocked by slow database responses.</p>
  *
  * @author Principal Engineer
  * @since 2026-07
  */
 @Slf4j
-@Service
-@RequiredArgsConstructor
-public class AttachmentPreparationServiceImpl implements AttachmentPreparationService {
-
-    private final ReportServiceClient reportServiceClient;
-    private final ZipService zipService;
-
-    @Value("${attachment.max.count:10}")
-    private int maxAttachmentCount;
-
-    @Value("${attachment.max.size.mb:20}")
-    private long maxAttachmentSizeMb;
-
-    @Override
-    public Resource prepareAttachments(List<AttachmentRef> attachments, String token) throws IOException {
-        log.debug("Initiating attachment preparation for {} items.", attachments.size());
-
-        if (attachments == null || attachments.isEmpty()) {
-            return null;
-        }
-
-        AttachmentDownloadRequest request = AttachmentDownloadRequest.builder()
-                .attachments(attachments)
-                .build();
-
-        // Warning: If ReportService returns massive JSON Base64 arrays, consider migrating to a true multipart streaming API upstream.
-        AttachmentDownloadResponse response = reportServiceClient.downloadAttachments(request, token);
-
-        if (response == null || response.getAttachments() == null || response.getAttachments().isEmpty()) {
-            log.warn("Report Service returned empty attachment array.");
-            return null;
-        }
-
-        long totalSizeBytes = response.getAttachments().stream()
-                .mapToLong(DownloadedAttachment::getFileSize)
-                .sum();
-
-        boolean zipRequired = response.getAttachments().size() > maxAttachmentCount || 
-                              totalSizeBytes > (maxAttachmentSizeMb * 1024 * 1024);
-
-        // Track files to ensure guaranteed cleanup
-        List<Path> tempFiles = new ArrayList<>();
-
-        try {
-            for (DownloadedAttachment attachment : response.getAttachments()) {
-                Path tempFile = Files.createTempFile("fincore_attach_", "_" + attachment.getFileName());
-                tempFiles.add(tempFile);
-
-                // Stream decode to disk instead of full heap allocation
-                try (OutputStream os = Files.newOutputStream(tempFile)) {
-                    byte[] decodedBytes = Base64.getDecoder().decode(attachment.getBase64());
-                    os.write(decodedBytes);
-                }
-            }
-
-            if (zipRequired) {
-                log.info("ZIP required. Compressing {} files (Total Size: {} bytes).", tempFiles.size(), totalSizeBytes);
-                Path zipFile = zipService.createZip(tempFiles);
-                
-                // Once zipped, immediately delete the raw temp files to free disk space
-                deleteTemporaryFiles(tempFiles); 
-                
-                return new AutoDeletingResource(zipFile.toFile());
-            } else {
-                log.debug("ZIP not required. Returning single file resource.");
-                // Return the single file. AutoDeletingResource guarantees deletion after HTTP dispatch.
-                return new AutoDeletingResource(tempFiles.get(0).toFile());
-            }
-
-        } catch (IllegalArgumentException e) {
-            // Thrown by Base64.Decoder if string is malformed
-            log.error("Corrupted Base64 payload received from Report Service.", e);
-            deleteTemporaryFiles(tempFiles);
-            throw new IOException("Corrupted Base64 attachment payload", e);
-        } catch (IOException e) {
-            log.error("Disk I/O failure during attachment preparation.", e);
-            deleteTemporaryFiles(tempFiles);
-            throw e; 
-        }
-    }
-
-    private void deleteTemporaryFiles(List<Path> paths) {
-        if (paths == null) return;
-        for (Path path : paths) {
-            try {
-                Files.deleteIfExists(path);
-                log.trace("Deleted ephemeral file: {}", path);
-            } catch (IOException | SecurityException e) {
-                log.error("MEMORY LEAK WARNING: Failed to delete ephemeral file at {}", path, e);
-            }
-        }
-    }
-}
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-package com.fincore.CommunicationService.attachment;
-
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.stereotype.Service;
-
-import java.io.BufferedInputStream;
-import java.io.BufferedOutputStream;
-import java.io.IOException;
-import java.io.InputStream;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.util.List;
-import java.util.zip.ZipEntry;
-import java.util.zip.ZipOutputStream;
-
-/**
- * <p>A high-performance compression service.</p>
- *
- * <p>Utilizes {@link BufferedOutputStream} and {@link BufferedInputStream} to maximize 
- * disk throughput without pinning Virtual Threads for excessive durations.</p>
- *
- * @author Principal Engineer
- * @since 2026-07
- */
-@Slf4j
-@Service
-public class ZipService {
+@Configuration
+@EnableAsync
+public class AsyncAuditConfig {
 
     /**
-     * Compresses a list of ephemeral files into a single ZIP archive.
+     * <p>Defines the custom executor specifically for Audit logging tasks.</p>
      *
-     * @param files List of paths to compress.
-     * @return Path to the generated ZIP file.
-     * @throws IOException if disk exhaustion or permission issues occur.
+     * <p>Note: We wrap {@code Executors.newVirtualThreadPerTaskExecutor()} in a
+     * {@link TaskExecutorAdapter} to ensure Spring's internal routing and
+     * context propagation (like SLF4J MDC contexts) behave correctly across
+     * asynchronous boundaries.</p>
+     *
+     * @return AsyncTaskExecutor backed by a Virtual Thread Per Task Executor.
      */
-    public Path createZip(List<Path> files) throws IOException {
-        Path zipFile = Files.createTempFile("fincore_bulk_", ".zip");
-
-        // Buffering is critical to avoid massive context-switching overhead in Virtual Threads during file I/O
-        try (ZipOutputStream zos = new ZipOutputStream(new BufferedOutputStream(Files.newOutputStream(zipFile)))) {
-
-            for (Path file : files) {
-                if (file == null || !Files.exists(file)) {
-                    log.warn("Skipping missing file during ZIP creation: {}", file);
-                    continue;
-                }
-
-                try (InputStream fis = new BufferedInputStream(Files.newInputStream(file))) {
-                    ZipEntry entry = new ZipEntry(file.getFileName().toString());
-                    zos.putNextEntry(entry);
-                    
-                    // Native transferTo is highly optimized in Java 21 (often zero-copy at the OS level)
-                    fis.transferTo(zos);
-                    zos.closeEntry();
-                }
-            }
-        } catch (IOException e) {
-            log.error("Failed to construct ZIP archive. Cleaning up partial file {}", zipFile);
-            Files.deleteIfExists(zipFile);
-            throw e;
-        }
-
-        log.debug("ZIP archive created successfully at {}", zipFile);
-        return zipFile;
+    @Bean(name = "virtualThreadAuditExecutor")
+    public AsyncTaskExecutor virtualThreadAuditExecutor() {
+        log.info("Initializing Java 21 Virtual Thread Executor for the Audit Engine. " +
+                 "I/O blocking overhead neutralized.");
+        
+        return new TaskExecutorAdapter(Executors.newVirtualThreadPerTaskExecutor());
     }
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-package com.fincore.CommunicationService.attachment;
-
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.core.io.FileSystemResource;
-
-import java.io.File;
-import java.io.FilterInputStream;
-import java.io.IOException;
-import java.io.InputStream;
-import java.nio.file.Files;
-
-/**
- * <p>A self-cleaning Spring Resource extension.</p>
- *
- * <p>When Spring's {@link org.springframework.web.client.RestClient} finishes transmitting
- * the multipart/form-data payload over the socket, it automatically calls {@code .close()}
- * on the Resource's InputStream. This wrapper hooks into that event to instantly delete
- * the ephemeral file from disk, guaranteeing zero file descriptor/storage leaks.</p>
- *
- * @author Principal Engineer
- * @since 2026-07
- */
-@Slf4j
-public class AutoDeletingResource extends FileSystemResource {
-
-    public AutoDeletingResource(File file) {
-        super(file);
-    }
-
-    @Override
-    public InputStream getInputStream() throws IOException {
-        return new FilterInputStream(super.getInputStream()) {
-            @Override
-            public void close() throws IOException {
-                try {
-                    super.close();
-                } finally {
-                    try {
-                        Files.deleteIfExists(getFile().toPath());
-                        log.trace("Auto-deleted ephemeral file post-transmission: {}", getFile().getName());
-                    } catch (IOException | SecurityException e) {
-                        log.error("LEAK WARNING: Could not auto-delete file: {}", getFile().getName(), e);
-                    }
-                }
-            }
-        };
-    }
-}
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-package com.fincore.CommunicationService.client;
-
-import com.fincore.CommunicationService.dto.ApiResponse;
-import com.fincore.CommunicationService.dto.attachment.AttachmentDownloadRequest;
-import com.fincore.CommunicationService.dto.attachment.AttachmentDownloadResponse;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.core.ParameterizedTypeReference;
-import org.springframework.stereotype.Component;
-import org.springframework.web.client.RestClient;
-import org.springframework.web.client.RestClientException;
-
-/**
- * <p>HTTP Client for upstream Report Service interactions.</p>
- *
- * <p>AppSec Note: Specific exceptions (RestClientException) are caught or propagated
- * rather than swallowing standard Exception.</p>
- *
- * @author Principal Engineer
- * @since 2026-07
- */
-@Slf4j
-@Component
-@RequiredArgsConstructor
-public class ReportServiceClient {
-
-    private final RestClient restClient;
-
-    @Value("${report.service.url}")
-    private String reportServiceUrl;
-
-    public AttachmentDownloadResponse downloadAttachments(AttachmentDownloadRequest request, String token) {
-        String endpoint = reportServiceUrl + "/api/reports/attachment/download";
-        log.debug("Initiating upstream request to Report Service: {}", endpoint);
-
-        try {
-            ApiResponse<AttachmentDownloadResponse> response = restClient.post()
-                    .uri(endpoint)
-                    .header("Authorization", token)
-                    .body(request)
-                    .retrieve()
-                    .body(new ParameterizedTypeReference<ApiResponse<AttachmentDownloadResponse>>() {});
-
-            if (response == null || !response.isSuccess()) {
-                String errorMsg = (response != null && response.getMessage() != null) ? response.getMessage() : "Unknown upstream error";
-                throw new RestClientException("Report Service rejected request: " + errorMsg);
-            }
-
-            return response.getData();
-
-        } catch (RestClientException ex) {
-            log.error("Upstream HTTP failure communicating with Report Service.", ex);
-            throw ex;
-        }
-    }
-}
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-// Replace step 2 in your orchestrator with this precise implementation:
-
-        Resource attachment = null;
-        try {
-            // 2. Prepare Attachments (Fetch HDFS, Zip, and wrap in AutoDeletingResource)
-            if (event.getAttachments() != null && !event.getAttachments().isEmpty()) {
-                log.info("Delegating {} attachments to AttachmentPreparationService.", event.getAttachments().size());
-                
-                // The service now safely streams to disk and returns an AutoDeletingResource
-                attachment = attachmentPreparationService.prepareAttachments(event.getAttachments(), token);
-            }
-            
-            // ... (Continue to Chunking logic) ...
-
-        } catch (IOException e) { // Catch specific I/O exceptions
-            log.error("Fatal I/O error preparing attachments for Event: {}", eventId, e);
-            throw new VendorDeliveryException("Attachment processing failed", e);
-        } catch (Exception e) {
-            log.error("Fatal orchestrator failure for Event: {}", eventId, e);
-            throw new VendorDeliveryException("Orchestrator execution halted", e);
-        } finally {
-            // 6. ZERO-LEAK GUARANTEE
-            // Closes S3/HDFS InputStream connections and triggers the AutoDeletingResource file deletion hook.
-            if (attachment != null) {
-                try {
-                    attachment.getInputStream().close();
-                    log.debug("Successfully triggered attachment I/O cleanup for Event: {}", eventId);
-                } catch (IOException e) {
-                    log.error("MEMORY LEAK ALERT: Failed to close attachment resource for Event: {}", eventId, e);
-                }
-            }
-        }
-
-
-
-
-
-
 
