@@ -1,52 +1,117 @@
 package com.fincore.CommunicationService.config;
 
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.core.task.AsyncTaskExecutor;
-import org.springframework.core.task.support.TaskExecutorAdapter;
-import org.springframework.scheduling.annotation.EnableAsync;
+import org.springframework.data.redis.connection.RedisConnectionFactory;
+import org.springframework.data.redis.listener.ChannelTopic;
+import org.springframework.data.redis.listener.RedisMessageListenerContainer;
+import org.springframework.data.redis.listener.adapter.MessageListenerAdapter;
 
-import java.util.concurrent.Executors;
-
-/**
- * <p>Enterprise Asynchronous Execution Configuration utilizing Java 21 Virtual Threads.</p>
- *
- * <p><b>Architectural Context:</b>
- * The Communication Service relies heavily on database I/O for auditing every single
- * notification attempt, success, and failure. If we were to use standard platform (OS) threads
- * for this, a massive EOD (End of Day) bulk blast could quickly exhaust the application's
- * thread pool or lead to severe CPU context-switching overhead.</p>
- *
- * <p>By delegating all {@code @Async("virtualThreadAuditExecutor")} tasks to Java 21
- * Virtual Threads, the JVM can "park" the thread during the database network I/O wait time
- * at a cost of mere kilobytes of RAM, allowing the OS carrier thread to serve other requests.
- * This ensures our Kafka consumer threads are never blocked by slow database responses.</p>
- *
- * @author Principal Engineer
- * @since 2026-07
- */
-@Slf4j
 @Configuration
-@EnableAsync
-public class AsyncAuditConfig {
+public class CacheSyncConfig {
+
+    public static final String CACHE_EVICT_TOPIC = "fincore_cache_evict_topic";
+
+    @Bean
+    public ChannelTopic cacheEvictTopic() {
+        return new ChannelTopic(CACHE_EVICT_TOPIC);
+    }
+
+    @Bean
+    public RedisMessageListenerContainer redisContainer(
+            RedisConnectionFactory connectionFactory,
+            MessageListenerAdapter listenerAdapter) {
+            
+        RedisMessageListenerContainer container = new RedisMessageListenerContainer();
+        container.setConnectionFactory(connectionFactory);
+        // Subscribe all pods to this specific topic
+        container.addMessageListener(listenerAdapter, cacheEvictTopic());
+        return container;
+    }
+
+    @Bean
+    public MessageListenerAdapter listenerAdapter(CacheSyncSubscriber subscriber) {
+        // When a message arrives, invoke the 'onMessage' method
+        return new MessageListenerAdapter(subscriber, "onMessage");
+    }
+}
+
+
+
+
+
+
+
+m
+
+
+
+
+package com.fincore.CommunicationService.config;
+
+import com.fincore.CommunicationService.service.TemplateCacheService;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.CacheManager;
+import org.springframework.stereotype.Component;
+
+@Slf4j
+@Component
+@RequiredArgsConstructor
+public class CacheSyncSubscriber {
+
+    private final TemplateCacheService templateCacheService;
+    private final CacheManager cacheManager;
 
     /**
-     * <p>Defines the custom executor specifically for Audit logging tasks.</p>
-     *
-     * <p>Note: We wrap {@code Executors.newVirtualThreadPerTaskExecutor()} in a
-     * {@link TaskExecutorAdapter} to ensure Spring's internal routing and
-     * context propagation (like SLF4J MDC contexts) behave correctly across
-     * asynchronous boundaries.</p>
-     *
-     * @return AsyncTaskExecutor backed by a Virtual Thread Per Task Executor.
+     * Triggered by Redis Pub/Sub whenever ANY service publishes to the eviction topic.
      */
-    @Bean(name = "virtualThreadAuditExecutor")
-    public AsyncTaskExecutor virtualThreadAuditExecutor() {
-        log.info("Initializing Java 21 Virtual Thread Executor for the Audit Engine. " +
-                 "I/O blocking overhead neutralized.");
+    public void onMessage(String message, String channel) {
+        log.warn("CLUSTER EVENT RECEIVED: Cache Eviction broadcast detected on topic: {}", channel);
         
-        return new TaskExecutorAdapter(Executors.newVirtualThreadPerTaskExecutor());
+        if ("FLUSH_ALL".equals(message)) {
+            // Option 1: Clear everything managed by the Caffeine CacheManager
+            cacheManager.getCacheNames().forEach(cacheName -> {
+                cacheManager.getCache(cacheName).clear();
+                log.info("Evicted local L1 cache: {}", cacheName);
+            });
+        } else if ("FLUSH_TEMPLATES".equals(message)) {
+            // Option 2: Clear specific caches using the existing @CacheEvict methods
+            templateCacheService.flushCache();
+            log.info("Evicted local L1 Template caches.");
+        }
+    }
+}
+
+
+
+
+
+
+
+
+
+
+
+
+import org.springframework.data.redis.core.StringRedisTemplate;
+
+// Inside your existing controller or cron job:
+@RestController
+@RequiredArgsConstructor
+public class AdminCacheController {
+
+    private final StringRedisTemplate redisTemplate;
+
+    @PostMapping("/api/admin/syncronizedAllCaches")
+    public ResponseEntity<String> syncronizedAllCaches() {
+        log.info("Admin triggered global cache eviction.");
+        
+        // This fires a message into Redis. 
+        // Redis instantly duplicates and pushes it to all listening pods.
+        redisTemplate.convertAndSend(CacheSyncConfig.CACHE_EVICT_TOPIC, "FLUSH_ALL");
+        
+        return ResponseEntity.ok("Cache eviction command broadcasted to cluster.");
     }
 }
 
