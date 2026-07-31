@@ -1,128 +1,85 @@
-package com.fincore.CommunicationService.service;
+package com.fincore.CommunicationService.config;
 
-import com.fincore.CommunicationService.exception.CommunicationExceptions.*;
-import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
-import io.github.resilience4j.retry.annotation.Retry;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.stereotype.Service;
-import com.fincore.CommunicationService.cache.ExternalApiConfigProvider;
-import com.fincore.CommunicationService.client.EmailGatewayClient;
-import com.fincore.CommunicationService.dto.EmailResponse;
-import com.fincore.CommunicationService.model.FincoreSettings;
-import java.util.HashMap;
-import java.util.Map;
-
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.http.client.JdkClientHttpRequestFactory;
+import org.springframework.web.client.RestClient;
+
+import javax.net.ssl.SSLContext;
+import javax.net.ssl.TrustManager;
+import javax.net.ssl.X509TrustManager;
+import java.net.http.HttpClient;
+import java.security.SecureRandom;
+import java.security.cert.X509Certificate;
+import java.time.Duration;
 
 /**
- * <p>Handles the functionality for sending emails through a primary provider,
- * incorporating a circuit breaker pattern to ensure system resilience.</p>
+ * <p>Centralized HTTP Configuration for Virtual Thread Native I/O.</p>
  *
- * <p>This class is designed to support a fallback mechanism for future upgrades.
- * Currently, failed messages are routed to a Dead Letter Queue (DLQ) as the fallback strategy.</p>
+ * <p><b>Architectural Context:</b>
+ * Utilizes Java's native {@link HttpClient} via {@link JdkClientHttpRequestFactory}.
+ * This specific combination ensures that blocking network calls are seamlessly intercepted
+ * by Java 21, parking the Virtual Thread without pinning the OS carrier thread.</p>
  *
- * <p>In the event of any errors during processing, a {@link VendorDeliveryException} is thrown.
- * This exception is intended to be caught and handled by the OTP consumer.</p>
- *
- * @author SHUBHANKAR (v1018405)
- * @contributor [Add contributor names/IDs here]
- * @version 1.0
- * @since 2026-06-22
- * @see VendorDeliveryException
+ * @author Principal Engineer
+ * @since 2026-07
  */
-@Service
-@RequiredArgsConstructor
 @Slf4j
-public class EmailServiceImpl implements EmailService {
+@Configuration
+public class RestClientConfig {
 
-	@Value("${app.preIpString:UAT}")
-	private String environment;
+    @Value("${app.preIpString:UAT}")
+    private String environment;
 
-	private final ExternalApiConfigProvider configProvider;
-	private final TemplateEngineService templateService; // L1 (Caffeine) Cache Service
-	private static final String FUNCTIONALITY_EMAIL = "EMAIL";
+    @Bean
+    public RestClient restClient(RestClient.Builder builder) {
+        log.info("Initializing Virtual-Thread Optimized RestClient.");
 
-	// Constants mapping to EmailGatewayClient
-	private static final String URL = "url";
-	private static final String API_KEY = "api_key";
-	private static final String SENDER_ID = "senderId";
-	private static final String TO_EMAIL = "toEmail";
-	private static final String EMAIL_BODY = "emailBody";
-	private static final String SUBJECT = "subject";
+        HttpClient.Builder httpClientBuilder = HttpClient.newBuilder()
+                .connectTimeout(Duration.ofSeconds(3)); // Strict 3s connection timeout
 
-	/**
-	 * Attempts to send via the single Bank API provider (only primary). Retries
-	 * automatically via Resilience4j.
-	 */
-	@Override
-	@Retry(name = "bankApiRetry", fallbackMethod = "handleTotalApiFailure")
-	@CircuitBreaker(name = "bankApiCircuit", fallbackMethod = "handleTotalApiFailure")
-	public EmailResponse sendEmail(String templateId, String toEmail, Map<String, Object> templateData) {
-		log.info("Reached send Email service file with template id : {}, templateData : {}", templateId, templateData);
-
-		// 1. Fetch Oracle L1 Cached Template & Compile FreeMarker
-		String emailBody = templateService.renderTemplate(templateId, "EMAIL", "EN", templateData);
-		String subject = templateService.getTemplateSubject(templateId, "EMAIL", "EN");
-
-		// 2. Fetch API Credentials from Fincore Settings
-		FincoreSettings config = configProvider.getConfig(FUNCTIONALITY_EMAIL, environment);
-
-		// 3. Prepare Payload for EmailUtil
-		Map<String, Object> emailRequestBody = new HashMap<>();
-		emailRequestBody.put(URL, config.getUrl());
-		emailRequestBody.put(API_KEY, config.getApiKey());
-		emailRequestBody.put(SENDER_ID, config.getSenderId());
-		emailRequestBody.put(TO_EMAIL, toEmail);
-		emailRequestBody.put(SUBJECT, subject);
-		emailRequestBody.put(EMAIL_BODY, emailBody);
-
-		log.info("Dispatching Email via Primary Provider to {}", maskEmail(toEmail));
-
-		int responseCode = EmailGatewayClient.sendEmail(emailRequestBody);
-        log.info("responseCode : {}", responseCode);
-
-		EmailResponse responseDto = new EmailResponse();
-		responseDto.setStatus(responseCode);
-		if (responseCode == 202) {
-			responseDto.setMessage("Email Sent Successfully");
-		} else if (responseCode < 200 || responseCode >= 300) {
-			responseDto.setMessage("Email Sending Failed");
-			throw new VendorDeliveryException("Email Provider rejected request. HTTP " + responseCode, null);
-		}
-		return responseDto;
-	}
-
-	/**
-	 * THE DLQ HOOK. Invoked automatically if all retries fail, or if the Circuit
-	 * Breaker is OPEN.
-	 */
-	public EmailResponse handleTotalApiFailure(String templateId, String toEmail, Map<String, Object> templateData,
-			Throwable ex) {
-		log.error("CRITICAL: Bank Email API is completely down or unreachable for {}. Error: {}", maskEmail(toEmail),
-				ex.getMessage());
-
-        if (ex instanceof TemplateNotFoundException) {
-            throw (TemplateNotFoundException) ex;
-        } else if (ex instanceof TemplateProcessingException) {
-            throw (TemplateProcessingException) ex;
+        // AppSec: Only bypass SSL in non-production environments
+        if (!"PROD".equalsIgnoreCase(environment)) {
+            log.warn("SECURITY OVERRIDE: Bypassing SSL Verification for environment [{}]", environment);
+            httpClientBuilder.sslContext(insecureSslContext());
         }
 
-		throw new VendorDeliveryException("Total Bank API Infrastructure Failure", ex);
-	}
+        JdkClientHttpRequestFactory factory = new JdkClientHttpRequestFactory(httpClientBuilder.build());
+        factory.setReadTimeout(Duration.ofSeconds(3)); // Strict 3s read timeout
+
+        return builder
+                .requestFactory(factory)
+                .build();
+    }
 
     /**
-     * Mask the email to satisfy PII Data masking.
-     * @param email Recipients email
-     * @return Masked email
+     * Generates a TrustManager that accepts all certificates (For UAT/DEV only).
      */
-	private String maskEmail(String email) {
-		if (email == null || !email.contains("@"))
-			return email;
-		String[] p = email.split("@");
-		return (p[0].length() <= 2 ? "**" : p[0].charAt(0) + "***" + p[0].charAt(p[0].length() - 1)) + "@" + p[1];
-	}
+    private SSLContext insecureSslContext() {
+        try {
+            TrustManager[] trustAllCerts = new TrustManager[]{
+                    new X509TrustManager() {
+                        public X509Certificate[] getAcceptedIssuers() { return null; }
+                        public void checkClientTrusted(X509Certificate[] certs, String authType) {}
+                        public void checkServerTrusted(X509Certificate[] certs, String authType) {}
+                    }
+            };
+            SSLContext sc = SSLContext.getInstance("TLS");
+            sc.init(null, trustAllCerts, new SecureRandom());
+            return sc;
+        } catch (Exception e) {
+            log.error("Failed to initialize insecure SSL context", e);
+            throw new RuntimeException(e);
+        }
+    }
 }
+
+
+
+
+
 
 
 
@@ -135,19 +92,33 @@ public class EmailServiceImpl implements EmailService {
 
 package com.fincore.CommunicationService.client;
 
-import java.util.Map;
-
-import org.json.JSONArray;
-import org.json.JSONObject;
-import org.springframework.http.ResponseEntity;
-import org.springframework.web.client.RestClient;
-
 import com.fincore.CommunicationService.exception.CommunicationExceptions.VendorDeliveryException;
-
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.json.JSONArray;
+import org.json.JSONObject;
+import org.springframework.core.io.Resource;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
+import org.springframework.http.client.MultipartBodyBuilder;
+import org.springframework.stereotype.Component;
+import org.springframework.web.client.RestClient;
 
+import java.util.Map;
+
+/**
+ * <p>Enterprise Email Vendor Gateway.</p>
+ *
+ * <p><b>Fixes applied from Code Review:</b>
+ * 1. Converted from static utility to a Spring {@code @Component} to allow proper dependency injection.
+ * 2. Switched payload to {@code multipart/form-data} to natively stream the {@link Resource} attachment
+ * directly from the disk, bypassing JVM heap buffering entirely.</p>
+ *
+ * @author Principal Engineer
+ * @since 2026-07
+ */
 @Slf4j
+@Component
 @RequiredArgsConstructor
 public class EmailGatewayClient {
 
@@ -161,114 +132,92 @@ public class EmailGatewayClient {
 
     private final RestClient restClient;
 
-    public static int sendEmail(Map<String, Object> emailRequest) {
-
+    /**
+     * Streams the email and optional attachment to the vendor.
+     */
+    public int sendEmail(Map<String, Object> emailRequest, Resource attachment) {
         try {
-            // Email Request Values
-            String apiUrl = (String) emailRequest.getOrDefault(URL, null);
-            String apiKey = (String) emailRequest.getOrDefault(API_KEY, null);
-            String senderEmail = (String) emailRequest.getOrDefault(SENDER_ID, null);
-            String recipientMail = (String) emailRequest.getOrDefault(TO_EMAIL, null);
-            //Object ccEmailObject = (String)emailRequest.getOrDefault("CC_TO_EMAIL");
-            // Returns the value if present, otherwise returns null
-            String ccToEmail = (String) emailRequest.getOrDefault(CC_TO_EMAIL, null);
-            String emailBody = (String) emailRequest.getOrDefault(EMAIL_BODY, null);
-            String subject = (String) emailRequest.getOrDefault(SUBJECT, null);
+            String apiUrl = (String) emailRequest.get(URL);
+            String apiKey = (String) emailRequest.get(API_KEY);
+            
+            // 1. Build the JSON Metadata Part
+            String jsonPayload = buildEmailJson(emailRequest);
+            log.debug("Constructed Email JSON Payload.");
 
-            // Sender Details
-            JSONObject senderJson = new JSONObject();
-            senderJson.put("email", senderEmail);
-            senderJson.put("name", "FINCORE");
-
-            // Email Content
-            JSONObject emailContentJson = new JSONObject();
-            emailContentJson.put("type", "html");
-            emailContentJson.put("value", emailBody);
-
-            JSONArray contentArray = new JSONArray();
-            contentArray.put(emailContentJson);
-
-            // Recipient Details
-            JSONObject recipientJson = new JSONObject();
-            recipientJson.put("email", recipientMail);
-
-            JSONArray recipientArray = new JSONArray();
-            recipientArray.put(recipientJson);
-
-            // Custom Attributes
-            JSONObject attributesJson = new JSONObject();
-            attributesJson.put("LEAD", "Andy Dwyer");
-            attributesJson.put("BAND", "Mouse Rat");
-
-            // Personalization
-            JSONObject personalizationsJson = new JSONObject();
-            personalizationsJson.put("to", recipientArray);
-            personalizationsJson.put("attributes", attributesJson);
-
-            // CC details
-            if (emailRequest.containsKey("ccToEmail")) {
-                JSONObject ccRecipientJson = new JSONObject();
-                ccRecipientJson.put("email", ccToEmail);
-
-                JSONArray ccArray = new JSONArray();
-                ccArray.put(ccRecipientJson);
-                personalizationsJson.put("cc", ccArray);
+            // 2. Build the Multipart Request
+            MultipartBodyBuilder multipartBuilder = new MultipartBodyBuilder();
+            multipartBuilder.part("payload", jsonPayload, MediaType.APPLICATION_JSON);
+            
+            if (attachment != null) {
+                // Spring natively chunks and streams this file to the socket! No OOMs.
+                multipartBuilder.part("attachment", attachment);
+                log.info("Appended physical attachment stream to request.");
             }
 
-            personalizationsJson.put("token_to", "8693839845");
-            personalizationsJson.put("token_cc", "MSGID657243");
-            personalizationsJson.put("token_bcc", "MSGID657244");
-
-            JSONArray personalizationsJsonArray = new JSONArray();
-            personalizationsJsonArray.put(personalizationsJson);
-
-            // Tracking Settings
-            JSONObject trackingSettingsJson = new JSONObject();
-            trackingSettingsJson.put("open_track", true);
-            trackingSettingsJson.put("click_track", true);
-            trackingSettingsJson.put("unsubscribe_track", true);
-
-            log.info("building email request json");
-
-            // Final Request JSON
-            JSONObject emailRequestJson = new JSONObject();
-            emailRequestJson.put("from", senderJson);
-            emailRequestJson.put("subject", subject);
-            emailRequestJson.put("content", contentArray);
-            emailRequestJson.put("personalizations", personalizationsJsonArray);
-            emailRequestJson.put("settings", trackingSettingsJson);
-
-            String finalRequestBody = emailRequestJson.toString();
-
-            log.info("finalRequestBody   " + finalRequestBody);
-
-            ResponseEntity<String> response = restClient.post()
+            // 3. Execute Non-Blocking Request
+            ResponseEntity<Void> response = restClient.post()
                     .uri(apiUrl)
-                    .header("Content-Type", "application/json")
-                    .header("Accept", "application/json")
                     .header("api_key", apiKey)
-                    .body(finalRequestBody)
+                    .contentType(MediaType.MULTIPART_FORM_DATA)
+                    .body(multipartBuilder.build())
                     .retrieve()
-                    .toEntity(String.class);
+                    .toBodilessEntity(); // We only care about the status code, drop the body to save memory
 
-            // Read response  
             int responseCode = response.getStatusCode().value();
-            log.info("responseCode" + responseCode);
-
-            String responseBody = response.getBody();
-
-            log.info("Server Response : {}", responseBody);
+            log.info("Vendor Email API responded with HTTP {}", responseCode);
 
             return responseCode;
 
         } catch (Exception e) {
+            log.error("Network I/O Exception while calling Email Vendor API", e);
+            throw new VendorDeliveryException("Error occurred while calling Email Vendor API", e);
+        }
+    }
 
-            log.error("Exception while calling Email Vendor API", e);
+    /**
+     * Encapsulates the org.json construction logic.
+     */
+    private String buildEmailJson(Map<String, Object> emailRequest) {
+        String senderEmail = (String) emailRequest.get(SENDER_ID);
+        String recipientMail = (String) emailRequest.get(TO_EMAIL);
+        String ccToEmail = (String) emailRequest.getOrDefault(CC_TO_EMAIL, null);
+        String emailBody = (String) emailRequest.get(EMAIL_BODY);
+        String subject = (String) emailRequest.get(SUBJECT);
 
-            throw new VendorDeliveryException(
-                    "Error occurred while calling Email Vendor API", e);
+        JSONObject senderJson = new JSONObject();
+        senderJson.put("email", senderEmail);
+        senderJson.put("name", "FINCORE");
+
+        JSONObject emailContentJson = new JSONObject();
+        emailContentJson.put("type", "html");
+        emailContentJson.put("value", emailBody);
+
+        JSONArray contentArray = new JSONArray().put(emailContentJson);
+
+        JSONObject recipientJson = new JSONObject();
+        recipientJson.put("email", recipientMail);
+        JSONArray recipientArray = new JSONArray().put(recipientJson);
+
+        JSONObject personalizationsJson = new JSONObject();
+        personalizationsJson.put("to", recipientArray);
+
+        if (ccToEmail != null) {
+            JSONObject ccRecipientJson = new JSONObject();
+            ccRecipientJson.put("email", ccToEmail);
+            personalizationsJson.put("cc", new JSONArray().put(ccRecipientJson));
         }
 
+        JSONObject trackingSettingsJson = new JSONObject();
+        trackingSettingsJson.put("open_track", true);
+
+        JSONObject emailRequestJson = new JSONObject();
+        emailRequestJson.put("from", senderJson);
+        emailRequestJson.put("subject", subject);
+        emailRequestJson.put("content", contentArray);
+        emailRequestJson.put("personalizations", new JSONArray().put(personalizationsJson));
+        emailRequestJson.put("settings", trackingSettingsJson);
+
+        return emailRequestJson.toString();
     }
 }
 
@@ -280,129 +229,223 @@ public class EmailGatewayClient {
 
 
 
+
+
+
 package com.fincore.CommunicationService.service;
 
-import com.fincore.CommunicationService.exception.CommunicationExceptions.*;
-import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
-import io.github.resilience4j.retry.annotation.Retry;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.stereotype.Service;
 import com.fincore.CommunicationService.cache.ExternalApiConfigProvider;
 import com.fincore.CommunicationService.client.EmailGatewayClient;
 import com.fincore.CommunicationService.dto.EmailResponse;
+import com.fincore.CommunicationService.exception.CommunicationExceptions.*;
 import com.fincore.CommunicationService.model.FincoreSettings;
+import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
+import io.github.resilience4j.retry.annotation.Retry;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.io.Resource;
+import org.springframework.stereotype.Service;
+
 import java.util.HashMap;
 import java.util.Map;
 
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
-
 /**
- * <p>Handles the functionality for sending emails through a primary provider,
- * incorporating a circuit breaker pattern to ensure system resilience.</p>
+ * <p>Business Logic Layer for Email Dispatch.</p>
  *
- * <p>This class is designed to support a fallback mechanism for future upgrades.
- * Currently, failed messages are routed to a Dead Letter Queue (DLQ) as the fallback strategy.</p>
+ * <p><b>Review Fixes:</b>
+ * Injects {@link EmailGatewayClient} properly instead of invoking static methods,
+ * and accepts the {@link Resource} attachment from the Orchestrator.</p>
  *
- * <p>In the event of any errors during processing, a {@link VendorDeliveryException} is thrown.
- * This exception is intended to be caught and handled by the OTP consumer.</p>
- *
- * @author SHUBHANKAR (v1018405)
- * @contributor [Add contributor names/IDs here]
- * @version 1.0
- * @since 2026-06-22
- * @see VendorDeliveryException
+ * @author Principal Engineer
+ * @since 2026-07
  */
 @Service
 @RequiredArgsConstructor
 @Slf4j
 public class EmailServiceImpl implements EmailService {
 
-	@Value("${app.preIpString:UAT}")
-	private String environment;
+    @Value("${app.preIpString:UAT}")
+    private String environment;
 
-	private final ExternalApiConfigProvider configProvider;
-	private final TemplateEngineService templateService; // L1 (Caffeine) Cache Service
-	private static final String FUNCTIONALITY_EMAIL = "EMAIL";
+    private final ExternalApiConfigProvider configProvider;
+    private final TemplateEngineService templateService; 
+    
+    // Injected properly as a Spring Bean!
+    private final EmailGatewayClient emailGatewayClient; 
 
-	// Constants mapping to EmailGatewayClient
-	private static final String URL = "url";
-	private static final String API_KEY = "api_key";
-	private static final String SENDER_ID = "senderId";
-	private static final String TO_EMAIL = "toEmail";
-	private static final String EMAIL_BODY = "emailBody";
-	private static final String SUBJECT = "subject";
+    private static final String FUNCTIONALITY_EMAIL = "EMAIL";
 
-	/**
-	 * Attempts to send via the single Bank API provider (only primary). Retries
-	 * automatically via Resilience4j.
-	 */
-	@Override
-	@Retry(name = "bankApiRetry", fallbackMethod = "handleTotalApiFailure")
-	@CircuitBreaker(name = "bankApiCircuit", fallbackMethod = "handleTotalApiFailure")
-	public EmailResponse sendEmail(String templateId, String toEmail, Map<String, Object> templateData) {
-		log.info("Reached send Email service file with template id : {}, templateData : {}", templateId, templateData);
-
-		// 1. Fetch Oracle L1 Cached Template & Compile FreeMarker
-		String emailBody = templateService.renderTemplate(templateId, "EMAIL", "EN", templateData);
-		String subject = templateService.getTemplateSubject(templateId, "EMAIL", "EN");
-
-		// 2. Fetch API Credentials from Fincore Settings
-		FincoreSettings config = configProvider.getConfig(FUNCTIONALITY_EMAIL, environment);
-
-		// 3. Prepare Payload for EmailUtil
-		Map<String, Object> emailRequestBody = new HashMap<>();
-		emailRequestBody.put(URL, config.getUrl());
-		emailRequestBody.put(API_KEY, config.getApiKey());
-		emailRequestBody.put(SENDER_ID, config.getSenderId());
-		emailRequestBody.put(TO_EMAIL, toEmail);
-		emailRequestBody.put(SUBJECT, subject);
-		emailRequestBody.put(EMAIL_BODY, emailBody);
-
-		log.info("Dispatching Email via Primary Provider to {}", maskEmail(toEmail));
-
-		int responseCode = EmailGatewayClient.sendEmail(emailRequestBody);
-        log.info("responseCode : {}", responseCode);
-
-		EmailResponse responseDto = new EmailResponse();
-		responseDto.setStatus(responseCode);
-		if (responseCode == 202) {
-			responseDto.setMessage("Email Sent Successfully");
-		} else if (responseCode < 200 || responseCode >= 300) {
-			responseDto.setMessage("Email Sending Failed");
-			throw new VendorDeliveryException("Email Provider rejected request. HTTP " + responseCode, null);
-		}
-		return responseDto;
-	}
-
-	/**
-	 * THE DLQ HOOK. Invoked automatically if all retries fail, or if the Circuit
-	 * Breaker is OPEN.
-	 */
-	public EmailResponse handleTotalApiFailure(String templateId, String toEmail, Map<String, Object> templateData,
-			Throwable ex) {
-		log.error("CRITICAL: Bank Email API is completely down or unreachable for {}. Error: {}", maskEmail(toEmail),
-				ex.getMessage());
-
-        if (ex instanceof TemplateNotFoundException) {
-            throw (TemplateNotFoundException) ex;
-        } else if (ex instanceof TemplateProcessingException) {
-            throw (TemplateProcessingException) ex;
-        }
-
-		throw new VendorDeliveryException("Total Bank API Infrastructure Failure", ex);
-	}
+    @Override
+    @Retry(name = "bankApiRetry", fallbackMethod = "handleTotalApiFailure")
+    @CircuitBreaker(name = "bankApiCircuit", fallbackMethod = "handleTotalApiFailure")
+    public EmailResponse sendEmail(String templateId, String toEmail, Map<String, Object> templateData) {
+        return sendEmail(templateId, toEmail, templateData, null); // Overloaded default
+    }
 
     /**
-     * Mask the email to satisfy PII Data masking.
-     * @param email Recipients email
-     * @return Masked email
+     * New overloaded method required by the Orchestrator to pass attachments.
      */
-	private String maskEmail(String email) {
-		if (email == null || !email.contains("@"))
-			return email;
-		String[] p = email.split("@");
-		return (p[0].length() <= 2 ? "**" : p[0].charAt(0) + "***" + p[0].charAt(p[0].length() - 1)) + "@" + p[1];
-	}
+    public EmailResponse sendEmail(String templateId, String toEmail, Map<String, Object> templateData, Resource attachment) {
+        log.debug("Initiating Email Dispatch for Template ID: {}", templateId);
+
+        String emailBody = templateService.renderTemplate(templateId, "EMAIL", "EN", templateData);
+        String subject = templateService.getTemplateSubject(templateId, "EMAIL", "EN");
+
+        FincoreSettings config = configProvider.getConfig(FUNCTIONALITY_EMAIL, environment);
+
+        Map<String, Object> emailRequestBody = new HashMap<>();
+        emailRequestBody.put("url", config.getUrl());
+        emailRequestBody.put("api_key", config.getApiKey());
+        emailRequestBody.put("senderId", config.getSenderId());
+        emailRequestBody.put("toEmail", toEmail);
+        emailRequestBody.put("subject", subject);
+        emailRequestBody.put("emailBody", emailBody);
+
+        log.info("Dispatching Email via Primary Provider to {}", maskEmail(toEmail));
+
+        // Using instance method on injected bean, passing attachment stream!
+        int responseCode = emailGatewayClient.sendEmail(emailRequestBody, attachment);
+
+        EmailResponse responseDto = new EmailResponse();
+        responseDto.setStatus(responseCode);
+        
+        if (responseCode == 202 || responseCode == 200) {
+            responseDto.setMessage("Email Sent Successfully");
+        } else {
+            responseDto.setMessage("Email Sending Failed");
+            throw new VendorDeliveryException("Email Provider rejected request. HTTP " + responseCode, null);
+        }
+        return responseDto;
+    }
+
+    public EmailResponse handleTotalApiFailure(String templateId, String toEmail, Map<String, Object> templateData, Resource attachment, Throwable ex) {
+        log.error("CRITICAL: Bank Email API is completely down or unreachable for {}. Error: {}", maskEmail(toEmail), ex.getMessage());
+
+        if (ex instanceof TemplateNotFoundException || ex instanceof TemplateProcessingException) {
+            throw (RuntimeException) ex;
+        }
+
+        throw new VendorDeliveryException("Total Bank API Infrastructure Failure", ex);
+    }
+
+    private String maskEmail(String email) {
+        if (email == null || !email.contains("@")) return email;
+        String[] p = email.split("@");
+        return (p[0].length() <= 2 ? "**" : p[0].charAt(0) + "***" + p[0].charAt(p[0].length() - 1)) + "@" + p[1];
+    }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+package com.fincore.CommunicationService.client;
+
+import com.fincore.CommunicationService.dto.SmsResponseDTO;
+import com.fincore.CommunicationService.model.FincoreSettings;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
+import org.springframework.stereotype.Component;
+import org.springframework.util.LinkedMultiValueMap;
+import org.springframework.util.MultiValueMap;
+import org.springframework.web.client.RestClient;
+
+import java.nio.charset.StandardCharsets;
+import java.util.Base64;
+
+/**
+ * <p>Enterprise SMS Vendor Gateway.</p>
+ *
+ * <p><b>Fixes applied from Code Review:</b>
+ * 1. Ripped out legacy {@code HttpURLConnection}.
+ * 2. Transitioned to Spring {@code RestClient} (non-blocking, virtual-thread friendly).
+ * 3. Utilizes {@code x-www-form-urlencoded} natively via {@link MultiValueMap}.</p>
+ *
+ * @author Principal Engineer
+ * @since 2026-07
+ */
+@Slf4j
+@Component
+@RequiredArgsConstructor
+public class SmsGatewayClient {
+
+    private final RestClient restClient;
+
+    public SmsResponseDTO sendSms(FincoreSettings config, String mobileNumber, String message) {
+        try {
+            log.info("Sending SMS to ******{}", mobileNumber.substring(Math.max(mobileNumber.length() - 4, 0)));
+
+            // 1. Build Basic Auth Header safely
+            String authHeader = null;
+            if (config.getUsername() != null && config.getPassword() != null) {
+                String auth = config.getUsername() + ":" + config.getPassword();
+                authHeader = "Basic " + Base64.getEncoder().encodeToString(auth.getBytes(StandardCharsets.UTF_8));
+            }
+
+            // 2. Build x-www-form-urlencoded Body
+            MultiValueMap<String, String> formData = new LinkedMultiValueMap<>();
+            formData.add("content_type", "text");
+            formData.add("sender_id", config.getSenderId());
+            formData.add("mobile", "0" + mobileNumber); // Appending 0 per vendor requirement
+            formData.add("message", message);
+            formData.add("intflag", "0");
+            formData.add("charging", "0");
+
+            // 3. Execute Request Builder
+            var requestSpec = restClient.post()
+                    .uri(config.getUrl())
+                    .contentType(MediaType.APPLICATION_FORM_URLENCODED)
+                    .accept(MediaType.APPLICATION_FORM_URLENCODED)
+                    .body(formData);
+
+            if (authHeader != null) {
+                requestSpec.header(HttpHeaders.AUTHORIZATION, authHeader);
+            }
+
+            // 4. Retrieve Response
+            ResponseEntity<String> response = requestSpec.retrieve().toEntity(String.class);
+
+            int responseCode = response.getStatusCode().value();
+            String responseBody = response.getBody() != null ? response.getBody() : "";
+
+            log.info("SMS Response Code : {}", responseCode);
+            log.debug("SMS Provider Response : {}", responseBody);
+
+            boolean success = (responseCode >= 200 && responseCode < 300) && responseBody.contains("MESSAGE_SUBMIT_SUCCESS");
+
+            return SmsResponseDTO.builder()
+                    .success(success)
+                    .message(success ? "SMS Sent Successfully" : "SMS Sending Failed")
+                    .providerResponse(responseBody)
+                    .build();
+
+        } catch (Exception ex) {
+            log.error("Network Exception while sending SMS", ex);
+            return SmsResponseDTO.builder()
+                    .success(false)
+                    .message("Network exception: " + ex.getMessage())
+                    .build();
+        }
+    }
+}
+
 
