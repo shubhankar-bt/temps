@@ -1,74 +1,274 @@
-package com.fincore.CommunicationService.subscriber;
+package com.fincore.CommunicationService.service;
+
+import com.fincore.CommunicationService.exception.CommunicationExceptions.*;
+import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
+import io.github.resilience4j.retry.annotation.Retry;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.stereotype.Service;
+import com.fincore.CommunicationService.cache.ExternalApiConfigProvider;
+import com.fincore.CommunicationService.client.EmailGatewayClient;
+import com.fincore.CommunicationService.dto.EmailResponse;
+import com.fincore.CommunicationService.model.FincoreSettings;
+import java.util.HashMap;
+import java.util.Map;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.cache.Cache;
-import org.springframework.cache.CacheManager;
-import org.springframework.data.redis.connection.Message;
-import org.springframework.data.redis.connection.MessageListener;
-import org.springframework.stereotype.Component;
-
-import java.nio.charset.StandardCharsets;
 
 /**
- * <p>Listener for Distributed Cache Eviction Events.</p>
+ * <p>Handles the functionality for sending emails through a primary provider,
+ * incorporating a circuit breaker pattern to ensure system resilience.</p>
  *
- * <p>Implements Spring Data Redis's native {@link MessageListener} to guarantee
- * compile-time type safety and avoid brittle reflection-based adapters.</p>
+ * <p>This class is designed to support a fallback mechanism for future upgrades.
+ * Currently, failed messages are routed to a Dead Letter Queue (DLQ) as the fallback strategy.</p>
  *
- * @author Principal Engineer
- * @since 2026-07
+ * <p>In the event of any errors during processing, a {@link VendorDeliveryException} is thrown.
+ * This exception is intended to be caught and handled by the OTP consumer.</p>
+ *
+ * @author SHUBHANKAR (v1018405)
+ * @contributor [Add contributor names/IDs here]
+ * @version 1.0
+ * @since 2026-06-22
+ * @see VendorDeliveryException
  */
-@Slf4j
-@Component
+@Service
 @RequiredArgsConstructor
-public class CacheSyncSubscriber implements MessageListener {
+@Slf4j
+public class EmailServiceImpl implements EmailService {
 
-    private final CacheManager cacheManager;
+	@Value("${app.preIpString:UAT}")
+	private String environment;
+
+	private final ExternalApiConfigProvider configProvider;
+	private final TemplateEngineService templateService; // L1 (Caffeine) Cache Service
+	private static final String FUNCTIONALITY_EMAIL = "EMAIL";
+
+	// Constants mapping to EmailGatewayClient
+	private static final String URL = "url";
+	private static final String API_KEY = "api_key";
+	private static final String SENDER_ID = "senderId";
+	private static final String TO_EMAIL = "toEmail";
+	private static final String EMAIL_BODY = "emailBody";
+	private static final String SUBJECT = "subject";
+
+	/**
+	 * Attempts to send via the single Bank API provider (only primary). Retries
+	 * automatically via Resilience4j.
+	 */
+	@Override
+	@Retry(name = "bankApiRetry", fallbackMethod = "handleTotalApiFailure")
+	@CircuitBreaker(name = "bankApiCircuit", fallbackMethod = "handleTotalApiFailure")
+	public EmailResponse sendEmail(String templateId, String toEmail, Map<String, Object> templateData) {
+		log.info("Reached send Email service file with template id : {}, templateData : {}", templateId, templateData);
+
+		// 1. Fetch Oracle L1 Cached Template & Compile FreeMarker
+		String emailBody = templateService.renderTemplate(templateId, "EMAIL", "EN", templateData);
+		String subject = templateService.getTemplateSubject(templateId, "EMAIL", "EN");
+
+		// 2. Fetch API Credentials from Fincore Settings
+		FincoreSettings config = configProvider.getConfig(FUNCTIONALITY_EMAIL, environment);
+
+		// 3. Prepare Payload for EmailUtil
+		Map<String, Object> emailRequestBody = new HashMap<>();
+		emailRequestBody.put(URL, config.getUrl());
+		emailRequestBody.put(API_KEY, config.getApiKey());
+		emailRequestBody.put(SENDER_ID, config.getSenderId());
+		emailRequestBody.put(TO_EMAIL, toEmail);
+		emailRequestBody.put(SUBJECT, subject);
+		emailRequestBody.put(EMAIL_BODY, emailBody);
+
+		log.info("Dispatching Email via Primary Provider to {}", maskEmail(toEmail));
+
+		int responseCode = EmailGatewayClient.sendEmail(emailRequestBody);
+        log.info("responseCode : {}", responseCode);
+
+		EmailResponse responseDto = new EmailResponse();
+		responseDto.setStatus(responseCode);
+		if (responseCode == 202) {
+			responseDto.setMessage("Email Sent Successfully");
+		} else if (responseCode < 200 || responseCode >= 300) {
+			responseDto.setMessage("Email Sending Failed");
+			throw new VendorDeliveryException("Email Provider rejected request. HTTP " + responseCode, null);
+		}
+		return responseDto;
+	}
+
+	/**
+	 * THE DLQ HOOK. Invoked automatically if all retries fail, or if the Circuit
+	 * Breaker is OPEN.
+	 */
+	public EmailResponse handleTotalApiFailure(String templateId, String toEmail, Map<String, Object> templateData,
+			Throwable ex) {
+		log.error("CRITICAL: Bank Email API is completely down or unreachable for {}. Error: {}", maskEmail(toEmail),
+				ex.getMessage());
+
+        if (ex instanceof TemplateNotFoundException) {
+            throw (TemplateNotFoundException) ex;
+        } else if (ex instanceof TemplateProcessingException) {
+            throw (TemplateProcessingException) ex;
+        }
+
+		throw new VendorDeliveryException("Total Bank API Infrastructure Failure", ex);
+	}
 
     /**
-     * <p>Invoked asynchronously natively by the RedisMessageListenerContainer.</p>
-     *
-     * @param message The raw binary message payload from Redis.
-     * @param pattern The pattern matching the channel (if any).
+     * Mask the email to satisfy PII Data masking.
+     * @param email Recipients email
+     * @return Masked email
      */
-    @Override
-    public void onMessage(Message message, byte[] pattern) {
-        // Safely decode the binary payload into Strings
-        String eventCommand = new String(message.getBody(), StandardCharsets.UTF_8);
-        String channel = new String(message.getChannel(), StandardCharsets.UTF_8);
-        
-        log.warn("CLUSTER EVENT RECEIVED: Action [{}] detected on topic [{}]", eventCommand, channel);
+	private String maskEmail(String email) {
+		if (email == null || !email.contains("@"))
+			return email;
+		String[] p = email.split("@");
+		return (p[0].length() <= 2 ? "**" : p[0].charAt(0) + "***" + p[0].charAt(p[0].length() - 1)) + "@" + p[1];
+	}
+}
+
+
+
+
+
+
+
+
+
+
+package com.fincore.CommunicationService.client;
+
+import java.util.Map;
+
+import org.json.JSONArray;
+import org.json.JSONObject;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.client.RestClient;
+
+import com.fincore.CommunicationService.exception.CommunicationExceptions.VendorDeliveryException;
+
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+
+@Slf4j
+@RequiredArgsConstructor
+public class EmailGatewayClient {
+
+    private static final String URL = "url";
+    private static final String API_KEY = "api_key";
+    private static final String SENDER_ID = "senderId";
+    private static final String TO_EMAIL = "toEmail";
+    private static final String CC_TO_EMAIL = "ccToEmail";
+    private static final String EMAIL_BODY = "emailBody";
+    private static final String SUBJECT = "subject";
+
+    private final RestClient restClient;
+
+    public static int sendEmail(Map<String, Object> emailRequest) {
 
         try {
-            if ("FLUSH_ALL".equalsIgnoreCase(eventCommand)) {
-                evictAllCaches();
-            } else {
-                log.info("Unrecognized cache sync command: {}. Ignoring.", eventCommand);
-            }
-        } catch (IllegalStateException | IllegalArgumentException ex) {
-            log.error("Internal cache manager state error during eviction.", ex);
-        }
-    }
+            // Email Request Values
+            String apiUrl = (String) emailRequest.getOrDefault(URL, null);
+            String apiKey = (String) emailRequest.getOrDefault(API_KEY, null);
+            String senderEmail = (String) emailRequest.getOrDefault(SENDER_ID, null);
+            String recipientMail = (String) emailRequest.getOrDefault(TO_EMAIL, null);
+            //Object ccEmailObject = (String)emailRequest.getOrDefault("CC_TO_EMAIL");
+            // Returns the value if present, otherwise returns null
+            String ccToEmail = (String) emailRequest.getOrDefault(CC_TO_EMAIL, null);
+            String emailBody = (String) emailRequest.getOrDefault(EMAIL_BODY, null);
+            String subject = (String) emailRequest.getOrDefault(SUBJECT, null);
 
-    /**
-     * Safely clears all local caches managed by the Caffeine CacheManager.
-     */
-    private void evictAllCaches() {
-        if (cacheManager.getCacheNames().isEmpty()) {
-            log.debug("No local caches found to evict.");
-            return;
+            // Sender Details
+            JSONObject senderJson = new JSONObject();
+            senderJson.put("email", senderEmail);
+            senderJson.put("name", "FINCORE");
+
+            // Email Content
+            JSONObject emailContentJson = new JSONObject();
+            emailContentJson.put("type", "html");
+            emailContentJson.put("value", emailBody);
+
+            JSONArray contentArray = new JSONArray();
+            contentArray.put(emailContentJson);
+
+            // Recipient Details
+            JSONObject recipientJson = new JSONObject();
+            recipientJson.put("email", recipientMail);
+
+            JSONArray recipientArray = new JSONArray();
+            recipientArray.put(recipientJson);
+
+            // Custom Attributes
+            JSONObject attributesJson = new JSONObject();
+            attributesJson.put("LEAD", "Andy Dwyer");
+            attributesJson.put("BAND", "Mouse Rat");
+
+            // Personalization
+            JSONObject personalizationsJson = new JSONObject();
+            personalizationsJson.put("to", recipientArray);
+            personalizationsJson.put("attributes", attributesJson);
+
+            // CC details
+            if (emailRequest.containsKey("ccToEmail")) {
+                JSONObject ccRecipientJson = new JSONObject();
+                ccRecipientJson.put("email", ccToEmail);
+
+                JSONArray ccArray = new JSONArray();
+                ccArray.put(ccRecipientJson);
+                personalizationsJson.put("cc", ccArray);
+            }
+
+            personalizationsJson.put("token_to", "8693839845");
+            personalizationsJson.put("token_cc", "MSGID657243");
+            personalizationsJson.put("token_bcc", "MSGID657244");
+
+            JSONArray personalizationsJsonArray = new JSONArray();
+            personalizationsJsonArray.put(personalizationsJson);
+
+            // Tracking Settings
+            JSONObject trackingSettingsJson = new JSONObject();
+            trackingSettingsJson.put("open_track", true);
+            trackingSettingsJson.put("click_track", true);
+            trackingSettingsJson.put("unsubscribe_track", true);
+
+            log.info("building email request json");
+
+            // Final Request JSON
+            JSONObject emailRequestJson = new JSONObject();
+            emailRequestJson.put("from", senderJson);
+            emailRequestJson.put("subject", subject);
+            emailRequestJson.put("content", contentArray);
+            emailRequestJson.put("personalizations", personalizationsJsonArray);
+            emailRequestJson.put("settings", trackingSettingsJson);
+
+            String finalRequestBody = emailRequestJson.toString();
+
+            log.info("finalRequestBody   " + finalRequestBody);
+
+            ResponseEntity<String> response = restClient.post()
+                    .uri(apiUrl)
+                    .header("Content-Type", "application/json")
+                    .header("Accept", "application/json")
+                    .header("api_key", apiKey)
+                    .body(finalRequestBody)
+                    .retrieve()
+                    .toEntity(String.class);
+
+            // Read response  
+            int responseCode = response.getStatusCode().value();
+            log.info("responseCode" + responseCode);
+
+            String responseBody = response.getBody();
+
+            log.info("Server Response : {}", responseBody);
+
+            return responseCode;
+
+        } catch (Exception e) {
+
+            log.error("Exception while calling Email Vendor API", e);
+
+            throw new VendorDeliveryException(
+                    "Error occurred while calling Email Vendor API", e);
         }
 
-        cacheManager.getCacheNames().forEach(cacheName -> {
-            Cache cache = cacheManager.getCache(cacheName);
-            if (cache != null) {
-                cache.clear();
-                log.info("Successfully evicted local L1 cache: [{}]", cacheName);
-            }
-        });
-        
-        log.info("Global Cache Synchronization completed successfully on this node.");
     }
 }
 
@@ -80,59 +280,129 @@ public class CacheSyncSubscriber implements MessageListener {
 
 
 
+package com.fincore.CommunicationService.service;
 
+import com.fincore.CommunicationService.exception.CommunicationExceptions.*;
+import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
+import io.github.resilience4j.retry.annotation.Retry;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.stereotype.Service;
+import com.fincore.CommunicationService.cache.ExternalApiConfigProvider;
+import com.fincore.CommunicationService.client.EmailGatewayClient;
+import com.fincore.CommunicationService.dto.EmailResponse;
+import com.fincore.CommunicationService.model.FincoreSettings;
+import java.util.HashMap;
+import java.util.Map;
 
-
-
-
-package com.fincore.CommunicationService.config;
-
-import com.fincore.CommunicationService.subscriber.CacheSyncSubscriber;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Configuration;
-import org.springframework.data.redis.connection.RedisConnectionFactory;
-import org.springframework.data.redis.listener.ChannelTopic;
-import org.springframework.data.redis.listener.RedisMessageListenerContainer;
 
 /**
- * <p>Enterprise Distributed Cache Synchronization Configuration.</p>
+ * <p>Handles the functionality for sending emails through a primary provider,
+ * incorporating a circuit breaker pattern to ensure system resilience.</p>
  *
- * <p>Binds the native {@link CacheSyncSubscriber} directly to the Redis Container,
- * bypassing dynamic reflection adapters for maximum startup safety.</p>
+ * <p>This class is designed to support a fallback mechanism for future upgrades.
+ * Currently, failed messages are routed to a Dead Letter Queue (DLQ) as the fallback strategy.</p>
  *
- * @author Principal Engineer
- * @since 2026-07
+ * <p>In the event of any errors during processing, a {@link VendorDeliveryException} is thrown.
+ * This exception is intended to be caught and handled by the OTP consumer.</p>
+ *
+ * @author SHUBHANKAR (v1018405)
+ * @contributor [Add contributor names/IDs here]
+ * @version 1.0
+ * @since 2026-06-22
+ * @see VendorDeliveryException
  */
+@Service
+@RequiredArgsConstructor
 @Slf4j
-@Configuration
-public class CacheSyncConfig {
+public class EmailServiceImpl implements EmailService {
 
-    public static final String CACHE_EVICT_TOPIC = "fincore_cache_evict_topic";
+	@Value("${app.preIpString:UAT}")
+	private String environment;
 
-    @Bean
-    public ChannelTopic cacheEvictTopic() {
-        return new ChannelTopic(CACHE_EVICT_TOPIC);
-    }
+	private final ExternalApiConfigProvider configProvider;
+	private final TemplateEngineService templateService; // L1 (Caffeine) Cache Service
+	private static final String FUNCTIONALITY_EMAIL = "EMAIL";
+
+	// Constants mapping to EmailGatewayClient
+	private static final String URL = "url";
+	private static final String API_KEY = "api_key";
+	private static final String SENDER_ID = "senderId";
+	private static final String TO_EMAIL = "toEmail";
+	private static final String EMAIL_BODY = "emailBody";
+	private static final String SUBJECT = "subject";
+
+	/**
+	 * Attempts to send via the single Bank API provider (only primary). Retries
+	 * automatically via Resilience4j.
+	 */
+	@Override
+	@Retry(name = "bankApiRetry", fallbackMethod = "handleTotalApiFailure")
+	@CircuitBreaker(name = "bankApiCircuit", fallbackMethod = "handleTotalApiFailure")
+	public EmailResponse sendEmail(String templateId, String toEmail, Map<String, Object> templateData) {
+		log.info("Reached send Email service file with template id : {}, templateData : {}", templateId, templateData);
+
+		// 1. Fetch Oracle L1 Cached Template & Compile FreeMarker
+		String emailBody = templateService.renderTemplate(templateId, "EMAIL", "EN", templateData);
+		String subject = templateService.getTemplateSubject(templateId, "EMAIL", "EN");
+
+		// 2. Fetch API Credentials from Fincore Settings
+		FincoreSettings config = configProvider.getConfig(FUNCTIONALITY_EMAIL, environment);
+
+		// 3. Prepare Payload for EmailUtil
+		Map<String, Object> emailRequestBody = new HashMap<>();
+		emailRequestBody.put(URL, config.getUrl());
+		emailRequestBody.put(API_KEY, config.getApiKey());
+		emailRequestBody.put(SENDER_ID, config.getSenderId());
+		emailRequestBody.put(TO_EMAIL, toEmail);
+		emailRequestBody.put(SUBJECT, subject);
+		emailRequestBody.put(EMAIL_BODY, emailBody);
+
+		log.info("Dispatching Email via Primary Provider to {}", maskEmail(toEmail));
+
+		int responseCode = EmailGatewayClient.sendEmail(emailRequestBody);
+        log.info("responseCode : {}", responseCode);
+
+		EmailResponse responseDto = new EmailResponse();
+		responseDto.setStatus(responseCode);
+		if (responseCode == 202) {
+			responseDto.setMessage("Email Sent Successfully");
+		} else if (responseCode < 200 || responseCode >= 300) {
+			responseDto.setMessage("Email Sending Failed");
+			throw new VendorDeliveryException("Email Provider rejected request. HTTP " + responseCode, null);
+		}
+		return responseDto;
+	}
+
+	/**
+	 * THE DLQ HOOK. Invoked automatically if all retries fail, or if the Circuit
+	 * Breaker is OPEN.
+	 */
+	public EmailResponse handleTotalApiFailure(String templateId, String toEmail, Map<String, Object> templateData,
+			Throwable ex) {
+		log.error("CRITICAL: Bank Email API is completely down or unreachable for {}. Error: {}", maskEmail(toEmail),
+				ex.getMessage());
+
+        if (ex instanceof TemplateNotFoundException) {
+            throw (TemplateNotFoundException) ex;
+        } else if (ex instanceof TemplateProcessingException) {
+            throw (TemplateProcessingException) ex;
+        }
+
+		throw new VendorDeliveryException("Total Bank API Infrastructure Failure", ex);
+	}
 
     /**
-     * Creates the container that binds the Redis connection directly to our native listener.
+     * Mask the email to satisfy PII Data masking.
+     * @param email Recipients email
+     * @return Masked email
      */
-    @Bean
-    public RedisMessageListenerContainer redisContainer(
-            RedisConnectionFactory connectionFactory,
-            CacheSyncSubscriber cacheSyncSubscriber) { // Inject directly!
-            
-        log.info("Initializing Redis Pub/Sub Container for Distributed Cache Synchronization.");
-        
-        RedisMessageListenerContainer container = new RedisMessageListenerContainer();
-        container.setConnectionFactory(connectionFactory);
-        
-        // Directly map the subscriber implementing MessageListener to the topic
-        container.addMessageListener(cacheSyncSubscriber, cacheEvictTopic());
-        
-        return container;
-    }
+	private String maskEmail(String email) {
+		if (email == null || !email.contains("@"))
+			return email;
+		String[] p = email.split("@");
+		return (p[0].length() <= 2 ? "**" : p[0].charAt(0) + "***" + p[0].charAt(p[0].length() - 1)) + "@" + p[1];
+	}
 }
-
 
