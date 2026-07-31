@@ -1,57 +1,138 @@
-Exception encountered during context initialization - cancelling refresh attempt: org.springframework.beans.factory.UnsatisfiedDependencyException: Error creating bean with name 'redisContainer' defined in class path resource [com/fincore/CommunicationService/config/CacheSyncConfig.class]: Unsatisfied dependency expressed through method 'redisContainer' parameter 1: Error creating bean with name 'listenerAdapter' defined in class path resource [com/fincore/CommunicationService/config/CacheSyncConfig.class]: Cannot find a suitable method named [com.fincore.CommunicationService.subscriber.CacheSyncSubscriber#onMessage] - is the method public and has the proper arguments
-2026-07-31T16:30:08.848+05:30  INFO 43124 --- [CommunicationService] [           main] j.LocalContainerEntityManagerFactoryBean : Closing JPA EntityManagerFactory for persistence unit 'default'
-2026-07-31T16:30:08.851+05:30  INFO 43124 --- [CommunicationService] [           main] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Shutdown initiated...
-2026-07-31T16:30:09.105+05:30  INFO 43124 --- [CommunicationService] [           main] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Shutdown completed.
-2026-07-31T16:30:09.126+05:30  INFO 43124 --- [CommunicationService] [           main] o.apache.catalina.core.StandardService   : Stopping service [Tomcat]
-2026-07-31T16:30:09.157+05:30  INFO 43124 --- [CommunicationService] [           main] .s.b.a.l.ConditionEvaluationReportLogger : 
+package com.fincore.CommunicationService.subscriber;
 
-Error starting ApplicationContext. To display the condition evaluation report re-run your application with 'debug' enabled.
-2026-07-31T16:30:09.175+05:30 ERROR 43124 --- [CommunicationService] [           main] o.s.boot.SpringApplication               : Application run failed
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.Cache;
+import org.springframework.cache.CacheManager;
+import org.springframework.data.redis.connection.Message;
+import org.springframework.data.redis.connection.MessageListener;
+import org.springframework.stereotype.Component;
 
-org.springframework.beans.factory.UnsatisfiedDependencyException: Error creating bean with name 'redisContainer' defined in class path resource [com/fincore/CommunicationService/config/CacheSyncConfig.class]: Unsatisfied dependency expressed through method 'redisContainer' parameter 1: Error creating bean with name 'listenerAdapter' defined in class path resource [com/fincore/CommunicationService/config/CacheSyncConfig.class]: Cannot find a suitable method named [com.fincore.CommunicationService.subscriber.CacheSyncSubscriber#onMessage] - is the method public and has the proper arguments
-	at org.springframework.beans.factory.support.ConstructorResolver.createArgumentArray(ConstructorResolver.java:804) ~[spring-beans-7.0.8.jar:7.0.8]
-	at org.springframework.beans.factory.support.ConstructorResolver.instantiateUsingFactoryMethod(ConstructorResolver.java:546) ~[spring-beans-7.0.8.jar:7.0.8]
-	at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.instantiateUsingFactoryMethod(AbstractAutowireCapableBeanFactory.java:1360) ~[spring-beans-7.0.8.jar:7.0.8]
-	at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.createBeanInstance(AbstractAutowireCapableBeanFactory.java:1192) ~[spring-beans-7.0.8.jar:7.0.8]
-	at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.doCreateBean(AbstractAutowireCapableBeanFactory.java:565) ~[spring-beans-7.0.8.jar:7.0.8]
-	at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.createBean(AbstractAutowireCapableBeanFactory.java:525) ~[spring-beans-7.0.8.jar:7.0.8]
-	at org.springframework.beans.factory.support.AbstractBeanFactory.lambda$doGetBean$0(AbstractBeanFactory.java:333) ~[spring-beans-7.0.8.jar:7.0.8]
-	at org.springframework.beans.factory.support.DefaultSingletonBeanRegistry.getSingleton(DefaultSingletonBeanRegistry.java:371) ~[spring-beans-7.0.8.jar:7.0.8]
-	at org.springframework.beans.factory.support.AbstractBeanFactory.doGetBean(AbstractBeanFactory.java:331) ~[spring-beans-7.0.8.jar:7.0.8]
-	at org.springframework.beans.factory.support.AbstractBeanFactory.getBean(AbstractBeanFactory.java:196) ~[spring-beans-7.0.8.jar:7.0.8]
-	at org.springframework.beans.factory.support.DefaultListableBeanFactory.instantiateSingleton(DefaultListableBeanFactory.java:1225) ~[spring-beans-7.0.8.jar:7.0.8]
-	at org.springframework.beans.factory.support.DefaultListableBeanFactory.preInstantiateSingleton(DefaultListableBeanFactory.java:1191) ~[spring-beans-7.0.8.jar:7.0.8]
-	at org.springframework.beans.factory.support.DefaultListableBeanFactory.preInstantiateSingletons(DefaultListableBeanFactory.java:1121) ~[spring-beans-7.0.8.jar:7.0.8]
-	at org.springframework.context.support.AbstractApplicationContext.finishBeanFactoryInitialization(AbstractApplicationContext.java:994) ~[spring-context-7.0.8.jar:7.0.8]
-	at org.springframework.context.support.AbstractApplicationContext.refresh(AbstractApplicationContext.java:621) ~[spring-context-7.0.8.jar:7.0.8]
-	at org.springframework.boot.web.server.servlet.context.ServletWebServerApplicationContext.refresh(ServletWebServerApplicationContext.java:143) ~[spring-boot-web-server-4.1.0.jar:4.1.0]
-	at org.springframework.boot.SpringApplication.refresh(SpringApplication.java:756) ~[spring-boot-4.1.0.jar:4.1.0]
-	at org.springframework.boot.SpringApplication.refreshContext(SpringApplication.java:445) ~[spring-boot-4.1.0.jar:4.1.0]
-	at org.springframework.boot.SpringApplication.run(SpringApplication.java:321) ~[spring-boot-4.1.0.jar:4.1.0]
-	at org.springframework.boot.SpringApplication.run(SpringApplication.java:1365) ~[spring-boot-4.1.0.jar:4.1.0]
-	at org.springframework.boot.SpringApplication.run(SpringApplication.java:1354) ~[spring-boot-4.1.0.jar:4.1.0]
-	at com.fincore.CommunicationService.CommunicationServiceApplication.main(CommunicationServiceApplication.java:12) ~[classes/:na]
-Caused by: org.springframework.beans.factory.BeanCreationException: Error creating bean with name 'listenerAdapter' defined in class path resource [com/fincore/CommunicationService/config/CacheSyncConfig.class]: Cannot find a suitable method named [com.fincore.CommunicationService.subscriber.CacheSyncSubscriber#onMessage] - is the method public and has the proper arguments
-	at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.initializeBean(AbstractAutowireCapableBeanFactory.java:1815) ~[spring-beans-7.0.8.jar:7.0.8]
-	at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.doCreateBean(AbstractAutowireCapableBeanFactory.java:603) ~[spring-beans-7.0.8.jar:7.0.8]
-	at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.createBean(AbstractAutowireCapableBeanFactory.java:525) ~[spring-beans-7.0.8.jar:7.0.8]
-	at org.springframework.beans.factory.support.AbstractBeanFactory.lambda$doGetBean$0(AbstractBeanFactory.java:333) ~[spring-beans-7.0.8.jar:7.0.8]
-	at org.springframework.beans.factory.support.DefaultSingletonBeanRegistry.getSingleton(DefaultSingletonBeanRegistry.java:371) ~[spring-beans-7.0.8.jar:7.0.8]
-	at org.springframework.beans.factory.support.AbstractBeanFactory.doGetBean(AbstractBeanFactory.java:331) ~[spring-beans-7.0.8.jar:7.0.8]
-	at org.springframework.beans.factory.support.AbstractBeanFactory.getBean(AbstractBeanFactory.java:201) ~[spring-beans-7.0.8.jar:7.0.8]
-	at org.springframework.beans.factory.support.DefaultListableBeanFactory.resolveBean(DefaultListableBeanFactory.java:1232) ~[spring-beans-7.0.8.jar:7.0.8]
-	at org.springframework.beans.factory.support.DefaultListableBeanFactory.doResolveDependency(DefaultListableBeanFactory.java:1711) ~[spring-beans-7.0.8.jar:7.0.8]
-	at org.springframework.beans.factory.support.DefaultListableBeanFactory.resolveDependency(DefaultListableBeanFactory.java:1658) ~[spring-beans-7.0.8.jar:7.0.8]
-	at org.springframework.beans.factory.support.ConstructorResolver.resolveAutowiredArgument(ConstructorResolver.java:912) ~[spring-beans-7.0.8.jar:7.0.8]
-	at org.springframework.beans.factory.support.ConstructorResolver.createArgumentArray(ConstructorResolver.java:791) ~[spring-beans-7.0.8.jar:7.0.8]
-	... 21 common frames omitted
-Caused by: java.lang.IllegalArgumentException: Cannot find a suitable method named [com.fincore.CommunicationService.subscriber.CacheSyncSubscriber#onMessage] - is the method public and has the proper arguments
-	at org.springframework.util.Assert.isTrue(Assert.java:117) ~[spring-core-7.0.8.jar:7.0.8]
-	at org.springframework.data.redis.listener.adapter.MessageListenerAdapter$MethodInvoker.<init>(MessageListenerAdapter.java:357) ~[spring-data-redis-4.1.0.jar:4.1.0]
-	at org.springframework.data.redis.listener.adapter.MessageListenerAdapter.afterPropertiesSet(MessageListenerAdapter.java:226) ~[spring-data-redis-4.1.0.jar:4.1.0]
-	at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.invokeInitMethods(AbstractAutowireCapableBeanFactory.java:1862) ~[spring-beans-7.0.8.jar:7.0.8]
-	at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.initializeBean(AbstractAutowireCapableBeanFactory.java:1811) ~[spring-beans-7.0.8.jar:7.0.8]
-	... 32 common frames omitted
+import java.nio.charset.StandardCharsets;
+
+/**
+ * <p>Listener for Distributed Cache Eviction Events.</p>
+ *
+ * <p>Implements Spring Data Redis's native {@link MessageListener} to guarantee
+ * compile-time type safety and avoid brittle reflection-based adapters.</p>
+ *
+ * @author Principal Engineer
+ * @since 2026-07
+ */
+@Slf4j
+@Component
+@RequiredArgsConstructor
+public class CacheSyncSubscriber implements MessageListener {
+
+    private final CacheManager cacheManager;
+
+    /**
+     * <p>Invoked asynchronously natively by the RedisMessageListenerContainer.</p>
+     *
+     * @param message The raw binary message payload from Redis.
+     * @param pattern The pattern matching the channel (if any).
+     */
+    @Override
+    public void onMessage(Message message, byte[] pattern) {
+        // Safely decode the binary payload into Strings
+        String eventCommand = new String(message.getBody(), StandardCharsets.UTF_8);
+        String channel = new String(message.getChannel(), StandardCharsets.UTF_8);
+        
+        log.warn("CLUSTER EVENT RECEIVED: Action [{}] detected on topic [{}]", eventCommand, channel);
+
+        try {
+            if ("FLUSH_ALL".equalsIgnoreCase(eventCommand)) {
+                evictAllCaches();
+            } else {
+                log.info("Unrecognized cache sync command: {}. Ignoring.", eventCommand);
+            }
+        } catch (IllegalStateException | IllegalArgumentException ex) {
+            log.error("Internal cache manager state error during eviction.", ex);
+        }
+    }
+
+    /**
+     * Safely clears all local caches managed by the Caffeine CacheManager.
+     */
+    private void evictAllCaches() {
+        if (cacheManager.getCacheNames().isEmpty()) {
+            log.debug("No local caches found to evict.");
+            return;
+        }
+
+        cacheManager.getCacheNames().forEach(cacheName -> {
+            Cache cache = cacheManager.getCache(cacheName);
+            if (cache != null) {
+                cache.clear();
+                log.info("Successfully evicted local L1 cache: [{}]", cacheName);
+            }
+        });
+        
+        log.info("Global Cache Synchronization completed successfully on this node.");
+    }
+}
 
 
-Process finished with exit code 1
+
+
+
+
+
+
+
+
+
+
+
+
+package com.fincore.CommunicationService.config;
+
+import com.fincore.CommunicationService.subscriber.CacheSyncSubscriber;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.data.redis.connection.RedisConnectionFactory;
+import org.springframework.data.redis.listener.ChannelTopic;
+import org.springframework.data.redis.listener.RedisMessageListenerContainer;
+
+/**
+ * <p>Enterprise Distributed Cache Synchronization Configuration.</p>
+ *
+ * <p>Binds the native {@link CacheSyncSubscriber} directly to the Redis Container,
+ * bypassing dynamic reflection adapters for maximum startup safety.</p>
+ *
+ * @author Principal Engineer
+ * @since 2026-07
+ */
+@Slf4j
+@Configuration
+public class CacheSyncConfig {
+
+    public static final String CACHE_EVICT_TOPIC = "fincore_cache_evict_topic";
+
+    @Bean
+    public ChannelTopic cacheEvictTopic() {
+        return new ChannelTopic(CACHE_EVICT_TOPIC);
+    }
+
+    /**
+     * Creates the container that binds the Redis connection directly to our native listener.
+     */
+    @Bean
+    public RedisMessageListenerContainer redisContainer(
+            RedisConnectionFactory connectionFactory,
+            CacheSyncSubscriber cacheSyncSubscriber) { // Inject directly!
+            
+        log.info("Initializing Redis Pub/Sub Container for Distributed Cache Synchronization.");
+        
+        RedisMessageListenerContainer container = new RedisMessageListenerContainer();
+        container.setConnectionFactory(connectionFactory);
+        
+        // Directly map the subscriber implementing MessageListener to the topic
+        container.addMessageListener(cacheSyncSubscriber, cacheEvictTopic());
+        
+        return container;
+    }
+}
+
+
