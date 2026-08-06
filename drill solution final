@@ -1,171 +1,451 @@
-package com.fincore.analyticsservice.mock;
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns="http://maven.apache.org/POM/4.0.0"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    <parent>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-starter-parent</artifactId>
+        <version>4.1.0</version>
+        <relativePath/> <!-- lookup parent from repository -->
+    </parent>
 
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fincore.analyticsservice.dto.DrillDownRequest;
-import com.fincore.analyticsservice.dto.DrillDownResponse;
-import com.fincore.analyticsservice.dto.FilterDto;
-import jakarta.annotation.PostConstruct;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.core.io.ClassPathResource;
-import org.springframework.stereotype.Service;
+    <groupId>com.example</groupId>
+    <artifactId>userService</artifactId>
+    <version>0.0.1-SNAPSHOT</version>
+    <packaging>jar</packaging>
+    <name>user-service</name>
+    <description>userService</description>
+    <properties>
+        <java.version>21</java.version>
+        <tomcat.version>11.0.24</tomcat.version>
+    </properties>
 
-import java.io.InputStream;
-import java.math.BigDecimal;
-import java.math.RoundingMode;
-import java.util.*;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentMap;
-import java.util.stream.Collectors;
+    <dependencies>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-devtools</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-web</artifactId>
+        </dependency>
 
-@Slf4j
-@Service
-public class MockDruidEngine {
+        <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+            <optional>true</optional>
+        </dependency>
 
-    @Value("${app.mock.druid.enabled:false}")
-    private boolean mockEnabled;
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-data-jpa</artifactId>
+        </dependency>
 
-    private List<Map<String, Object>> mockData = new ArrayList<>();
-    private final ObjectMapper objectMapper;
+        <dependency>
+            <groupId>com.oracle.database.jdbc</groupId>
+            <artifactId>ojdbc11</artifactId>
+            <scope>runtime</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.json</groupId>
+            <artifactId>json</artifactId>
+            <version>20240303</version>
+        </dependency>
 
-    public MockDruidEngine(ObjectMapper objectMapper) {
-        this.objectMapper = objectMapper;
-    }
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-actuator</artifactId>
+        </dependency>
 
-    @PostConstruct
-    public void init() {
-        if (!mockEnabled) {
-            log.info("Mock Druid Engine is DISABLED. Routing to real Apache Druid.");
-            return;
-        }
-        
-        try {
-            log.warn("⏳ ST ENVIRONMENT MOCK DETECTED: Loading mock data into memory...");
-            long loadStart = System.currentTimeMillis();
-            
-            InputStream is = new ClassPathResource("mock_druid_data.json").getInputStream();
-            JsonNode rootNode = objectMapper.readTree(is);
-            
-            if (rootNode.isObject() && rootNode.has("rows")) {
-                mockData = objectMapper.convertValue(rootNode.get("rows"), new TypeReference<List<Map<String, Object>>>() {});
-            } else if (rootNode.isArray()) {
-                mockData = objectMapper.convertValue(rootNode, new TypeReference<List<Map<String, Object>>>() {});
-            }
-            
-            log.info("✅ Mock Data Loaded in {} ms. Total Rows in RAM: {}", (System.currentTimeMillis() - loadStart), mockData.size());
-        } catch (Exception e) {
-            log.error("❌ Failed to load mock data. Ensure mock_druid_data.json is in src/main/resources!", e);
-        }
-    }
+        <!-- health metrics -->
+        <dependency>
+            <groupId>io.micrometer</groupId>
+            <artifactId>micrometer-registry-prometheus</artifactId>
+        </dependency>
 
-    public boolean isMockEnabled() {
-        return mockEnabled;
-    }
+        <dependency>
+            <groupId>org.springframework.data</groupId>
+            <artifactId>spring-data-redis</artifactId>
+        </dependency>
 
-    public DrillDownResponse execute(DrillDownRequest request, List<FilterDto> securedFilters) {
-        long startTime = System.currentTimeMillis();
-        String targetDim = request.dimensions().get(0); 
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-data-redis</artifactId>
+        </dependency>
 
-        // 🚀 PERFORMANCE UPGRADE: Use ConcurrentHashMap for thread-safe parallel merging
-        ConcurrentMap<String, BigDecimal> groupedData = new ConcurrentHashMap<>();
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-cache</artifactId>
+        </dependency>
 
-        // 🚀 PERFORMANCE UPGRADE: Use parallelStream() to leverage all CPU Cores
-        mockData.parallelStream()
-                .filter(row -> matchesFilters(row, securedFilters, request.viewCode()))
-                .forEach(row -> {
-                    String groupKey = extractDimensionValue(row, targetDim);
-                    if (groupKey == null || groupKey.trim().isEmpty() || "null".equals(groupKey)) {
-                        return; 
-                    }
+        <dependency>
+            <groupId>com.fincore</groupId>
+            <artifactId>common-utilities</artifactId>
+            <version>1.0.0</version>
+        </dependency>
 
-                    Object balanceObj = row.get("BALANCE");
-                    BigDecimal balance = BigDecimal.ZERO;
-                    
-                    // 🚀 PERFORMANCE UPGRADE: Avoid expensive String conversions if it's already a Number
-                    if (balanceObj instanceof Number) {
-                        balance = BigDecimal.valueOf(((Number) balanceObj).doubleValue());
-                    } else if (balanceObj != null) {
-                        balance = new BigDecimal(balanceObj.toString());
-                    }
-                    
-                    // Thread-safe addition
-                    groupedData.merge(groupKey, balance, BigDecimal::add);
-                });
+        <!--LDAP-->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-data-ldap</artifactId>
+        </dependency>
 
-        // Format exactly like the Real Application Response
-        List<Map<String, Object>> responseData = groupedData.entrySet().stream()
-                .map(entry -> {
-                    Map<String, Object> map = new HashMap<>();
-                    map.put("id", targetDim.toLowerCase() + "_" + entry.getKey().replaceAll("[^a-zA-Z0-9]", ""));
-                    map.put("name", entry.getKey());
-                    map.put("TotalAmount", entry.getValue().setScale(2, RoundingMode.HALF_UP));
-                    map.put("hasChildren", true); 
-                    return map;
-                })
-                .sorted((a, b) -> ((BigDecimal) b.get("TotalAmount")).compareTo((BigDecimal) a.get("TotalAmount"))) 
-                .collect(Collectors.toList());
+        <!-- KAFKA -->
+        <dependency>
+            <groupId>org.springframework.kafka</groupId>
+            <artifactId>spring-kafka</artifactId>
+        </dependency>
 
-        long timeTaken = System.currentTimeMillis() - startTime;
-        log.info("Mock Engine aggregated {} groups in {} ms (Parallel Mode)", responseData.size(), timeTaken);
+        <dependency>
+            <groupId>org.springframework.kafka</groupId>
+            <artifactId>spring-kafka-test</artifactId>
+            <scope>test</scope>
+        </dependency>
 
-        DrillDownResponse.Meta meta = new DrillDownResponse.Meta("SUCCESS", targetDim, responseData.size(), timeTaken);
-        return new DrillDownResponse(meta, responseData);
-    }
+        <dependency>
+            <groupId>org.springframework</groupId>
+            <artifactId>spring-messaging</artifactId>
+        </dependency>
 
-    private boolean matchesFilters(Map<String, Object> row, List<FilterDto> filters, String viewCode) {
-        if (filters == null || filters.isEmpty()) return true;
+        <dependency>
+            <groupId>net.logstash.logback</groupId>
+            <artifactId>logstash-logback-encoder</artifactId>
+            <version>7.4</version>
+        </dependency>
 
-        for (FilterDto f : filters) {
-            String val = String.valueOf(f.value());
-            
-            switch (f.logicalField()) {
-                case "ReportDate":
-                    if (!val.equals(String.valueOf(row.get("DATE")))) return false;
-                    break;
-                case "HeadCode":
-                    String headCol = viewCode.startsWith("YSA") ? "YSA_HEADCODE" :
-                                     viewCode.startsWith("PNL") ? "PNL_HEADCODE" : "NWSA_HEADCODE";
-                    Object arrayData = row.get(headCol);
-                    if (arrayData == null || !arrayData.toString().contains(val)) return false; 
-                    break;
-                case "Circle":
-                    if (!val.equals(String.valueOf(row.get("CIRCLE_CODE")))) return false;
-                    break;
-                case "Branch":
-                case "BranchCode":
-                    if (!val.equals(String.valueOf(row.get("BRANCH_CODE")))) return false;
-                    break;
-                case "Geography":
-                    String geo = "D".equals(row.get("BRANCH_TYPE")) ? "Domestic" : "Foreign";
-                    if (!val.equals(geo)) return false;
-                    break;
-                case "Cgl":
-                    if (!val.equals(String.valueOf(row.get("CGL")))) return false;
-                    break;
-                case "Product":
-                    if (!val.equals(String.valueOf(row.get("PRODUCT")))) return false;
-                    break;
-            }
-        }
-        return true;
-    }
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-validation</artifactId>
+        </dependency>
 
-    private String extractDimensionValue(Map<String, Object> row, String targetDim) {
-        switch (targetDim) {
-            case "Geography":
-                return "D".equals(row.get("BRANCH_TYPE")) ? "Domestic" : "Foreign";
-            case "Cgl":
-                return String.valueOf(row.get("CGL"));
-            case "Product":
-                return String.valueOf(row.get("PRODUCT"));
-            case "Branch":
-                return row.get("BRANCH_CODE") + " - " + row.get("CIRCLE_NAME");
-            default:
-                return null;
-        }
-    }
-}
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-kafka</artifactId>
+        </dependency>
+
+        <!-- Replace springboot4-dotenv with this -->
+        <dependency>
+            <groupId>me.paulschwarz</groupId>
+            <artifactId>spring-dotenv</artifactId>
+            <version>4.0.0</version>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <finalName>${project.artifactId}</finalName>
+        <plugins>
+            <plugin>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-maven-plugin</artifactId>
+            </plugin>
+        </plugins>
+    </build>
+</project>
+
+
+
+
+
+
+
+
+
+
+spring.application.name=userService
+# Only use this if your working directory is inside 'src'
+spring.profiles.active=dev
+server.port=8087
+
+# LDAP
+spring.ldap.domain=${LDAP_DOMAIN}
+spring.ldap.urls=${LDAP_URL}
+spring.ldap.base=${LDAP_BASE}
+spring.ldap.username=${LDAP_USERNAME}
+spring.ldap.password=${LDAP_PASSWORD}
+
+security.ldap.truststore-password=${LDAP_TRUSTSTORE_PASSWORD}
+security.ldap.truststore-path=${LDAP_TRUSTSTORE_PATH}
+
+
+# --- Redis Configuration ---
+spring.cache.type=redis
+
+# --- Jackson (JSON) ---
+spring.jackson.date-format=yyyy-MM-dd HH:mm:ss
+spring.jackson.time-zone=Asia/Kolkata
+# spring.jackson.serialization.write-dates-as-timestamps=false
+spring.jackson.deserialization.fail-on-unknown-properties=true   
+
+## --- Debezium JSON Deserialization ---
+spring.kafka.consumer.key-deserializer=org.apache.kafka.common.serialization.StringDeserializer
+spring.kafka.consumer.value-deserializer=org.apache.kafka.common.serialization.StringDeserializer
+
+# Disable JSON type mapping features to prevent auto-conversion attempts
+spring.kafka.consumer.properties.spring.json.trusted.packages=*
+spring.kafka.consumer.properties.spring.json.use.type.headers=false
+
+# --- JPA Common ---
+spring.jpa.open-in-view=false
+
+# --- Actuator Base Config ---
+# Enable the endpoints, but control exposure in specific profile files
+management.endpoints.web.base-path=/actuator
+management.endpoint.health.probes.enabled=true
+management.endpoints.web.exposure.include=health, info, prometheus
+management.endpoint.health.show-details=always
+management.metrics.tags.application=${spring.application.name}
+management.info.env.enabled=true
+
+# Add some custom info to the /info endpoint
+info.app.name=UserService
+info.app.description=Service for managing all user and role related operations
+info.app.version=1.0.0
+
+# LOGIN SERVICE KEY USED BY common-entities
+jwt.secret=${JWT_SECRET}
+
+# DB Timeouts: Configuration of connection pooling timeouts ## 30 sec.
+spring.datasource.hikari.connection-timeout=30000
+spring.datasource.hikari.maximum-pool-size=30
+
+# ==============================================================
+# RESILIENCE4J CONFIGURATION (Global Rules)
+# ==============================================================
+
+# --- 1. RETRY STRATEGY ---
+# A. RETRY ON THESE (Transient / "Blips")
+# 1. Spring's wrapper for DB Timeouts, Deadlocks, Connection Drops
+resilience4j.retry.instances.defaultService.retry-exceptions[0]=org.springframework.dao.TransientDataAccessException
+# 2. Connection failure at start of transaction
+resilience4j.retry.instances.defaultService.retry-exceptions[1]=org.springframework.transaction.CannotCreateTransactionException
+# 3. DB Resource Failure (DB Down)
+resilience4j.retry.instances.defaultService.retry-exceptions[2]=org.springframework.dao.DataAccessResourceFailureException
+# 4. Network I/O errors (for Feign/RestCalls)
+resilience4j.retry.instances.defaultService.retry-exceptions[3]=java.io.IOException
+resilience4j.retry.instances.defaultService.retry-exceptions[4]=java.net.ConnectException
+resilience4j.retry.instances.defaultService.retry-exceptions[5]=java.net.SocketTimeoutException
+# B. DO NOT RETRY ON THESE (Logic / Permanent Errors)
+# Even if these happen, we fail immediately so GlobalExceptionHandler can return 400/409
+resilience4j.retry.instances.defaultService.ignore-exceptions[0]=java.lang.IllegalArgumentException
+resilience4j.retry.instances.defaultService.ignore-exceptions[1]=java.lang.NullPointerException
+resilience4j.retry.instances.defaultService.ignore-exceptions[2]=org.springframework.dao.DataIntegrityViolationException
+resilience4j.retry.instances.defaultService.ignore-exceptions[3]=org.springframework.dao.DuplicateKeyException
+resilience4j.retry.instances.defaultService.ignore-exceptions[4]=org.springframework.web.client.HttpClientErrorException
+
+# --- 2. CIRCUIT BREAKER STRATEGY ---
+# If 50% of requests fail, OPEN the circuit (Fail Fast)
+resilience4j.circuitbreaker.instances.defaultService.failure-rate-threshold=50
+# Wait 10 seconds before trying again (Half-Open state)
+resilience4j.circuitbreaker.instances.defaultService.wait-duration-in-open-state=10s
+# Must have at least 5 calls to calculate failure rate
+resilience4j.circuitbreaker.instances.defaultService.minimum-number-of-calls=5
+# When Half-Open, allow 3 test calls to see if backend is up
+resilience4j.circuitbreaker.instances.defaultService.permitted-number-of-calls-in-half-open-state=3
+# Automatically move from Open to Half-Open
+resilience4j.circuitbreaker.instances.defaultService.automatic-transition-from-open-to-half-open-enabled=true
+
+
+
+
+
+
+
+
+application-dev.properties :
+
+server.port=8087
+
+# --- Database ---
+spring.datasource.driver-class-name=${SPRING_DATASOURCE_DRIVER_CLASS_NAME}
+spring.datasource.url=${SPRING_DATASOURCE_URL}
+spring.datasource.username=${SPRING_DATASOURCE_USERNAME}
+spring.datasource.password=${SPRING_DATASOURCE_PASSWORD}
+
+# LOGIN SERVICE KEY USED BY common-entities
+jwt.secret=${JWT_SECRET}
+
+# --- Redis (Docker Localhost) ---
+# --- Redis Configuration ---
+spring.data.redis.host=${REDIS_HOST}
+spring.data.redis.port=${REDIS_PORT}
+
+# --- Kafka (Localhost) ---
+spring.kafka.consumer.bootstrap-servers=${KAFKA_CONSUMER_BOOTSTRAP_SERVERS}
+spring.kafka.producer.bootstrap-servers=${KAFKA_PRODUCER_BOOTSTRAP_SERVERS}
+spring.kafka.consumer.group-id=rbac-cache-group
+spring.kafka.consumer.auto-offset-reset=earliest
+
+# ========================= 2. LOG ROLLING POLICIES =========================
+# Keep logs for 7 days (Old logs auto-deleted)
+logging.logback.rollingpolicy.max-history=30
+
+# Log file rotation based on size (Each file max 10MB)
+logging.logback.rollingpolicy.max-file-size=10MB
+
+# Roll logs daily (Time-based rolling)
+logging.logback.rollingpolicy.file-name-pattern=${logging.file.path}/Archived/${spring.application.name}-%d{yyyy-MM-dd}.%i.log.zip
+
+# ========================= 3. LOG FORMATTING =========================
+# Console log pattern (Color-coded output)
+logging.pattern.console=%d{yyyy-MM-dd :: HH:mm:ss.SSS ||} %highlight(%-5level:: %file: | %line |){ERROR=bold red, WARN=yellow, INFO=white, DEBUG=green, TRACE=green} ::  %msg%n
+
+# File log pattern
+logging.pattern.file=%d{yyyy-MM-dd :: HH:mm:ss.SSS ||}  %-5level:: %file: | %line | :: %msg %n
+
+
+
+
+
+
+
+
+
+
+.env:
+
+# ======================== LDAP ============================
+LDAP_DOMAIN=UATAD.SBI
+LDAP_URL=ldaps://uatrootdc1.uatad.sbi:3269
+LDAP_BASE=DC=UATAD,DC=SBI
+LDAP_USERNAME=cn=fincorecbops,dc=UATAD,dc=SBI
+LDAP_PASSWORD=F1C0re#15
+LDAP_TRUSTSTORE_PATH=file:C:/fincore/secrets/ad-truststore.jks
+LDAP_TRUSTSTORE_PASSWORD=changeit
+
+# ======================== DB DETAILS ============================
+SPRING_DATASOURCE_URL=jdbc:oracle:thin:@10.177.103.192:1523/fincorepdb1
+SPRING_DATASOURCE_USERNAME=fincore
+SPRING_DATASOURCE_PASSWORD=Password#1234
+SPRING_DATASOURCE_DRIVER_CLASS_NAME=oracle.jdbc.OracleDriver
+
+# ======================== REDIS ============================
+REDIS_HOST=10.0.17.242
+REDIS_PORT=6379
+
+# ========================= KAFKA ============================
+KAFKA_AES_SECRET=xVEzviA5Ysgdp/YzTOskDOHbQwVoLgYNRRcK0+Dwdes=
+KAFKA_CONSUMER_BOOTSTRAP_SERVERS=10.0.17.242:9092
+KAFKA_PRODUCER_BOOTSTRAP_SERVERS=10.0.17.242:9092
+KAFKA_BOOTSTRAP_SERVERS=10.0.17.242:9092
+
+# ========================== AIRFLOW =========================
+AIRFLOW_USERNAME=admin
+AIRFLOW_PASSWORD=admin
+AIRFLOW_URL=http://airflow-api-server.cbops.svc.cluster.local:8080/airflow
+
+# =========================== HDFS ============================
+HADOOP_SERVICE_NAME=fincoredev
+HADOOP_USER=root
+HADOOP_URI=hdfs://10.177.103.199:8022
+HADOOP_NN1=10.177.103.199:8022
+HADOOP_NN2=10.177.103.192:8022
+HADOOP_NN3=10.177.103.196:8022
+
+# =========================== POSTGRES =========================
+PSQL_SPRING_DATASOURCE_URL=jdbc:postgresql://10.0.17.242:5432/notification_db
+PSQL_SPRING_DATASOURCE_USERNAME=notification_user
+PSQL_SPRING_DATASOURCE_PASSWORD=notification_password
+# PSQL_SPRING_DATASOURCE_DRIVER_CLASS_NAME=org.postgresql.Driver
+
+# ============================ DRUID ============================
+DRUID_USERNAME=druid_query
+DRUID_PASSWORD=DruidQuery@123
+DRUID_URL=https://10.177.103.194:8282/
+
+# ============================= SECRETS ==========================
+JWT_SECRET=bWV0aGlvbnlsdGhyZW9ueWx0aHJlb255bGdsdXRhbWlueWxhbGFueWw=
+
+# FIXED: Multiline keys must be enclosed in double quotes with real newlines
+RSA_PRIVATE="-----BEGIN PRIVATE KEY-----
+MIIEvgIBADANBgkqhkiG9w0BAQEFAASCBKgwggSkAgEAAoIBAQC23w0qcSOrrTez
+Ybv/CRfiRGgZXMm7/tXk6kT8ApAHYG/4Pr8FJ9EnficJG9TK/qZ0JNXWMqmLDzcQ
+9gYCWTQ7q77dTPSXK1FP6YuVVIuRgJAVYjHniRu6f0SsteiyrfEvXEi4sKbOfYar
+bj6z2oaAyxm8g6BGiTH7XfJ9yV0HchrkrYQfY7HklM7rPCxLLxZ6zrUZx/Lg12rH
+/6FjjeQNMTTpcZHA3rlhoDGYQT0Cd1jXLgByxEw0fEoIRyMc+eWB4mE/uGNh5H9S
+nNQ5acjSMHnovifmoJG9SHjE5DLmtC1mOm/+PqXCjgzsVEZTI0dh8CGVrzEV2qzp
+LEdj91ZlAgMBAAECggEAREKoOHJ4/SkwRH4z3XP4fVZJgUYYa1spXkRwMZ2HQ6mk
+wgYx6Wu+b75wNb80w/0gBvSE+Wp5zNWGGYesII5JqAhou1RxbEgYFvs3RiuD2XEi
+10iLFkEgn5HIAav5S1EQWTxaTM5rxWInta/2Kc5lLIgjeDGtzwaBKLIdxQQ3/IHi
+QXDRzT6WndW8olM9uB9Y+hq6QIGOy1sSIqx+Kpgl1xV+tEcGUNBCZbxZintzXj++
+vPfLTo12U1Wi/FcZDSFychsCftMM25y3O1Ao0YfmUcjghcS/BOssll4DqpNno0jo
+4NCp4cG/wh9d1g5rDvZSbi4xpHlnqUQ/V8GP/NI1FQKBgQDop2q3y3jyC86R0TG/
+tTzhAyv5kP+Lvx56+xysaBuUfO4HxS2TzB80vf6rbeLtz57WynCYV8vbd+85sL2Q
+3hdUhMdXRgzeYGdjoVVwSeYXgVZ2S2/rTrtKfZlFoJAUaeJEIwcYT28ifVjsdUAC
+akOW9xFroMeI6qL6QMMXaI52EwKBgQDJOMf9y049U1g9Ccz5eCRIJGmPSWj7WGmr
+2ux4m3suLa4+ZoVeqa2fAq9rHaSvxVHzs0gFMvVKsE7Az1EBSPpzkP/ob/f6hLYJ
+yXV51MekXR1B8kmM+hL+YHbYuFIg6H8yIbUj8MjSBOkcbomITbKvu2PTHXHqjOWV
+tlR9oyBwpwKBgQCTEkpXF4xEToxuB3VQgCyU/aFN6Yhx+gY1rgpJPqK4smTyioYu
+WSoc+EJGcney5728gEq/MzkOavnSWVTsgEj1R96P4BuAdCbHh5RwIHcQwtU6gKOm
+d6XUCCPdLQwHq4u6kP4KMyTJA74z9Ebbf/tsMpFTnValydXvJwNtB86O+wKBgQDE
+7Sb8gF1/svNmORM7CpMnb0tHiaaOZUZ1g/ltR2zUEqy2MQtRS2m5dp1KjWZBBzFe
++RQA0pAwmj9Yfwxd35gMRdnNFtdvezXUei7YHp+Lgf1CLuZAa/TusmVdT3ZA8oiY
+/VgTZnCC6X9h7eP3W2MGjLPzRpvX2jBNxnUFyAHVfQKBgGCgfZG71cRFwShb6zP9
+PrpXAqyTOJVAuEHVit86+v44ijWicgs+Lb8HkGq4LDYum1vyiCTImhkVKgvRObaH
+7Ppi9i1O/P3MJliNiUlSdLyitCwz25EfReeJfqb+Wq8WqFJ2WOcx97ev0EHt8QrM
+5VLF1yEPbg+SpHwbA52SQdNe
+-----END PRIVATE KEY-----"
+
+RSA_PUBLIC="-----BEGIN PUBLIC KEY-----
+MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAtt8NKnEjq603s2G7/wkX
+4kRoGVzJu/7V5OpE/AKQB2Bv+D6/BSfRJ34nCRvUyv6mdCTV1jKpiw83EPYGAlk0
+O6u+3Uz0lytRT+mLlVSLkYCQFWIx54kbun9ErLXosq3xL1xIuLCmzn2Gq24+s9qG
+gMsZvIOgRokx+13yfcldB3Ia5K2EH2Ox5JTO6zwsSy8Wes61Gcfy4Ndqx/+hY43k
+DTE06XGRwN65YaAxmEE9AndY1y4AcsRMNHxKCEcjHPnlgeJhP7hjYeR/UpzUOWnI
+0jB56L4n5qCRvUh4xOQy5rQtZjpv/j6lwo4M7FRGUyNHYfAhla8xFdqs6SxHY/dW
+ZQIDAQAB
+-----END PUBLIC KEY-----"
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Root WebApplicationContext: initialization completed in 3039 ms 
+{"@timestamp":"2026-08-06T14:41:44.6366318+05:30","level":"INFO","service":"UserService","traceId":"","userId":"","clientIp":"","apiPath":"","class":"o.s.b.w.c.s.WebApplicationContextInitializer","message":"Root WebApplicationContext: initialization completed in 3039 ms","stack_trace":""}
+2026-08-06 14:41:44.669 ERROR [restartedMain] o.s.b.t.s.DeferredServletContainerInitializers: Error starting Tomcat context. Exception: org.springframework.beans.factory.UnsatisfiedDependencyException. Message: Error creating bean with name 'securityConfig': Unsatisfied dependency expressed through field 'redisTemplate': Error creating bean with name 'stringRedisTemplate' defined in class path resource [com/fincore/commonutilities/config/RedisConfig.class]: Unsatisfied dependency expressed through method 'stringRedisTemplate' parameter 0: Error creating bean with name 'org.springframework.boot.data.redis.autoconfigure.LettuceConnectionConfiguration': Unsatisfied dependency expressed through constructor parameter 0: Error creating bean with name 'spring.data.redis-org.springframework.boot.data.redis.autoconfigure.DataRedisProperties': Could not bind properties to 'DataRedisProperties' : prefix=spring.data.redis, ignoreInvalidFields=false, ignoreUnknownFields=true 
+{"@timestamp":"2026-08-06T14:41:44.6699568+05:30","level":"ERROR","service":"UserService","traceId":"","userId":"","clientIp":"","apiPath":"","class":"o.s.b.t.s.DeferredServletContainerInitializers","message":"Error starting Tomcat context. Exception: org.springframework.beans.factory.UnsatisfiedDependencyException. Message: Error creating bean with name 'securityConfig': Unsatisfied dependency expressed through field 'redisTemplate': Error creating bean with name 'stringRedisTemplate' defined in class path resource [com/fincore/commonutilities/config/RedisConfig.class]: Unsatisfied dependency expressed through method 'stringRedisTemplate' parameter 0: Error creating bean with name 'org.springframework.boot.data.redis.autoconfigure.LettuceConnectionConfiguration': Unsatisfied dependency expressed through constructor parameter 0: Error creating bean with name 'spring.data.redis-org.springframework.boot.data.redis.autoconfigure.DataRedisProperties': Could not bind properties to 'DataRedisProperties' : prefix=spring.data.redis, ignoreInvalidFields=false, ignoreUnknownFields=true","stack_trace":""}
+2026-08-06 14:41:44.694 INFO  [restartedMain] o.a.j.l.DirectJDKLog: Stopping service [Tomcat] 
+{"@timestamp":"2026-08-06T14:41:44.6945892+05:30","level":"INFO","service":"UserService","traceId":"","userId":"","clientIp":"","apiPath":"","class":"o.apache.catalina.core.StandardService","message":"Stopping service [Tomcat]","stack_trace":""}
+2026-08-06 14:41:44.793 WARN  [restartedMain] o.s.c.s.AbstractApplicationContext: Exception encountered during context initialization - cancelling refresh attempt: org.springframework.context.ApplicationContextException: Unable to start web server 
+{"@timestamp":"2026-08-06T14:41:44.7934625+05:30","level":"WARN","service":"UserService","traceId":"","userId":"","clientIp":"","apiPath":"","class":"o.s.b.w.s.s.c.AnnotationConfigServletWebServerApplicationContext","message":"Exception encountered during context initialization - cancelling refresh attempt: org.springframework.context.ApplicationContextException: Unable to start web server","stack_trace":""}
+2026-08-06 14:41:44.807 INFO  [restartedMain] o.s.b.a.l.ConditionEvaluationReportLogger: 
+
+Error starting ApplicationContext. To display the condition evaluation report re-run your application with 'debug' enabled. 
+{"@timestamp":"2026-08-06T14:41:44.8074771+05:30","level":"INFO","service":"UserService","traceId":"","userId":"","clientIp":"","apiPath":"","class":"o.s.b.a.l.ConditionEvaluationReportLogger","message":"\r\n\r\nError starting ApplicationContext. To display the condition evaluation report re-run your application with 'debug' enabled.","stack_trace":""}
+2026-08-06 14:41:44.825 ERROR [restartedMain] o.s.b.d.LoggingFailureAnalysisReporter: 
+
+***************************
+APPLICATION FAILED TO START
+***************************
+
+Description:
+
+Failed to bind properties under 'spring.data.redis.port' to int:
+
+    Property: spring.data.redis.port
+    Value: "${REDIS_PORT}"
+    Origin: class path resource [application-dev.properties] - 15:24
+    Reason: failed to convert java.lang.String to int (caused by java.lang.NumberFormatException: For input string: "${REDIS_PORT}")
+
+Action:
+
+Update your application's configuration
+ 
+{"@timestamp":"2026-08-06T14:41:44.8258409+05:30","level":"ERROR","service":"UserService","traceId":"","userId":"","clientIp":"","apiPath":"","class":"o.s.b.d.LoggingFailureAnalysisReporter","message":"\r\n\r\n***************************\r\nAPPLICATION FAILED TO START\r\n***************************\r\n\r\nDescription:\r\n\r\nFailed to bind properties under 'spring.data.redis.port' to int:\r\n\r\n    Property: spring.data.redis.port\r\n    Value: \"${REDIS_PORT}\"\r\n    Origin: class path resource [application-dev.properties] - 15:24\r\n    Reason: failed to convert java.lang.String to int (caused by java.lang.NumberFormatException: For input string: \"${REDIS_PORT}\")\r\n\r\nAction:\r\n\r\nUpdate your application's configuration\r\n","stack_trace":""}
+
+Process finished with exit code 0
+
+
+
 
 
