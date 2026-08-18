@@ -1,160 +1,71 @@
-package com.fincore.CommunicationService.service;
+package com.fincore.commonutilities.config;
 
-import java.util.List;
-import java.util.Map;
-import org.springframework.core.io.Resource;
-import com.fincore.CommunicationService.dto.EmailResponse;
-
-public interface EmailService {
-
-    /**
-     * Standard dispatch without attachments.
-     */
-    EmailResponse sendEmail(String templateId, String toEmail, Map<String, Object> templateData);
-
-    /**
-     * Overloaded dispatch supporting file attachments (Phase 5 I/O Edge).
-     */
-    EmailResponse sendEmail(String templateId, String toEmail, Map<String, Object> templateData, Resource attachment);
-
-    /**
-     * High-velocity bulk dispatch using BCC arrays. 
-     * Optimizes 500 emails into a single Vendor API HTTP call.
-     */
-    EmailResponse sendBulkEmail(String templateId, List<String> bccEmails, Map<String, Object> templateData, Resource attachment);
-}
-
-
-
-
-
-
-
-
-
-
-
-
-package com.fincore.CommunicationService.service;
-
-import com.fincore.CommunicationService.cache.ExternalApiConfigProvider;
-import com.fincore.CommunicationService.client.EmailGatewayClient;
-import com.fincore.CommunicationService.dto.EmailResponse;
-import com.fincore.CommunicationService.exception.CommunicationExceptions.*;
-import com.fincore.CommunicationService.model.FincoreSettings;
-import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
-import io.github.resilience4j.retry.annotation.Retry;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
+import com.fincore.commonutilities.jwt.JwtUtil;
+import org.slf4j.MDC;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.core.io.Resource;
-import org.springframework.stereotype.Service;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.client.ClientHttpRequestInterceptor;
+import org.springframework.web.client.RestClient;
 
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.UUID;
 
 /**
- * <p>Business Logic Layer for Email Dispatch.</p>
- *
- * <p><b>AOP Proxy Compliance:</b>
- * Annotations are applied to all public interface methods. This ensures that regardless
- * of which method the Orchestrator calls, the invocation routes through the Spring 
- * CGLIB proxy, guaranteeing Resilience4j Circuit Breakers and Retries fire correctly.</p>
- *
- * @author Principal Engineer
- * @since 2026-07
+ * Configuration for Service-to-Service (S2S) HTTP Communication.
+ * Provides an auto-configured RestClient that automatically injects M2M credentials,
+ * correlation IDs, and internal routing headers for secure internal network transit.
+ * 
+ * @since 2.0 (Spring Boot 4.1.0 Architecture)
  */
-@Service
-@RequiredArgsConstructor
-@Slf4j
-public class EmailServiceImpl implements EmailService {
+@Configuration
+public class S2SRestClientConfig {
 
-    @Value("${app.preIpString:UAT}")
-    private String environment;
+    private static final String HEADER_CORRELATION_ID = "X-Correlation-ID";
+    private static final String HEADER_INTERNAL_CALL = "X-Internal-Call";
+    private static final String MDC_TRACE_ID = "traceId";
 
-    private final ExternalApiConfigProvider configProvider;
-    private final TemplateEngineService templateService; 
-    private final EmailGatewayClient emailGatewayClient; 
+    @Value("${spring.application.name:unknown-service}")
+    private String applicationName;
 
-    private static final String FUNCTIONALITY_EMAIL = "EMAIL";
-
-    @Override
-    @Retry(name = "bankApiRetry", fallbackMethod = "handleTotalApiFailure")
-    @CircuitBreaker(name = "bankApiCircuit", fallbackMethod = "handleTotalApiFailure")
-    public EmailResponse sendEmail(String templateId, String toEmail, Map<String, Object> templateData) {
-        return executeEmailDispatch(templateId, toEmail, null, templateData, null);
-    }
-
-    @Override
-    @Retry(name = "bankApiRetry", fallbackMethod = "handleTotalApiFailure")
-    @CircuitBreaker(name = "bankApiCircuit", fallbackMethod = "handleTotalApiFailure")
-    public EmailResponse sendEmail(String templateId, String toEmail, Map<String, Object> templateData, Resource attachment) {
-        return executeEmailDispatch(templateId, toEmail, null, templateData, attachment);
-    }
-
-    @Override
-    @Retry(name = "bankApiRetry", fallbackMethod = "handleBulkApiFailure")
-    @CircuitBreaker(name = "bankApiCircuit", fallbackMethod = "handleBulkApiFailure")
-    public EmailResponse sendBulkEmail(String templateId, List<String> bccEmails, Map<String, Object> templateData, Resource attachment) {
-        return executeEmailDispatch(templateId, null, bccEmails, templateData, attachment);
+    /**
+     * Provides a centrally configured RestClient for internal S2S calls.
+     *
+     * @param builder Auto-configured Spring RestClient Builder.
+     * @param jwtUtil Utility to generate M2M Service Tokens.
+     * @return Fully configured RestClient instance.
+     */
+    @Bean
+    public RestClient interServiceClient(RestClient.Builder builder, JwtUtil jwtUtil) {
+        return builder
+                .requestInterceptor(interServiceAuthInterceptor(jwtUtil))
+                .build();
     }
 
     /**
-     * Private core execution logic. Does NOT require AOP annotations as it is wrapped by public callers.
+     * Interceptor that runs on every outbound S2S request.
+     * Secures the request by generating a short-lived JWS and appending tracing context.
      */
-    private EmailResponse executeEmailDispatch(String templateId, String toEmail, List<String> bccEmails, Map<String, Object> templateData, Resource attachment) {
-        log.debug("Initiating Email Dispatch Pipeline for Template ID: {}", templateId);
+    private ClientHttpRequestInterceptor interServiceAuthInterceptor(JwtUtil jwtUtil) {
+        return (request, body, execution) -> {
+            
+            // 1. Generate & Inject Short-Lived M2M Token
+            String serviceToken = jwtUtil.generateServiceToken(applicationName);
+            request.getHeaders().set(HttpHeaders.AUTHORIZATION, "Bearer " + serviceToken);
 
-        String emailBody = templateService.renderTemplate(templateId, "EMAIL", "EN", templateData);
-        String subject = templateService.getTemplateSubject(templateId, "EMAIL", "EN");
+            // 2. Add Internal Call Flag (Bypasses Payload Encryption at Destination)
+            request.getHeaders().set(HEADER_INTERNAL_CALL, "true");
 
-        FincoreSettings config = configProvider.getConfig(FUNCTIONALITY_EMAIL, environment);
+            // 3. Propagate Distributed Trace ID from SLF4J MDC
+            String traceId = MDC.get(MDC_TRACE_ID);
+            if (traceId == null || traceId.isBlank()) {
+                // Generate new trace ID if Kafka consumer didn't supply one
+                traceId = UUID.randomUUID().toString();
+            }
+            request.getHeaders().set(HEADER_CORRELATION_ID, traceId);
 
-        Map<String, Object> emailRequestBody = new HashMap<>();
-        emailRequestBody.put("url", config.getUrl());
-        emailRequestBody.put("api_key", config.getApiKey());
-        emailRequestBody.put("senderId", config.getSenderId());
-        emailRequestBody.put("subject", subject);
-        emailRequestBody.put("emailBody", emailBody);
-        
-        if (toEmail != null) emailRequestBody.put("toEmail", toEmail);
-        if (bccEmails != null) emailRequestBody.put("bccEmails", bccEmails);
-
-        int responseCode = emailGatewayClient.sendEmail(emailRequestBody, attachment);
-
-        EmailResponse responseDto = new EmailResponse();
-        responseDto.setStatus(responseCode);
-        
-        if (responseCode >= 200 && responseCode < 300) {
-            responseDto.setMessage("Email Sent Successfully");
-        } else {
-            responseDto.setMessage("Email Sending Failed");
-            throw new VendorDeliveryException("Email Provider rejected request. HTTP " + responseCode, null);
-        }
-        return responseDto;
-    }
-
-    // --- Fallback Hooks ---
-
-    public EmailResponse handleTotalApiFailure(String templateId, String toEmail, Map<String, Object> templateData, Throwable ex) {
-        return processFallback(toEmail, ex);
-    }
-
-    public EmailResponse handleTotalApiFailure(String templateId, String toEmail, Map<String, Object> templateData, Resource attachment, Throwable ex) {
-        return processFallback(toEmail, ex);
-    }
-
-    public EmailResponse handleBulkApiFailure(String templateId, List<String> bccEmails, Map<String, Object> templateData, Resource attachment, Throwable ex) {
-        return processFallback("BULK_ARRAY", ex);
-    }
-
-    private EmailResponse processFallback(String identifier, Throwable ex) {
-        log.error("CRITICAL: Bank Email API unreachable for {}. Error: {}", identifier, ex.getMessage());
-        if (ex instanceof TemplateNotFoundException || ex instanceof TemplateProcessingException) {
-            throw (RuntimeException) ex;
-        }
-        throw new VendorDeliveryException("Total Bank API Infrastructure Failure", ex);
+            return execution.execute(request, body);
+        };
     }
 }
 
@@ -169,111 +80,184 @@ public class EmailServiceImpl implements EmailService {
 
 
 
-package com.fincore.CommunicationService.client;
 
-import com.fincore.CommunicationService.exception.CommunicationExceptions.VendorDeliveryException;
+    // ... [Keep existing imports] ...
+    import java.util.UUID;
+
+    /**
+     * Generates a short-lived JSON Web Token specifically for Service-to-Service (M2M) communication.
+     * Fortify Note: Expiration is strictly limited to 5 minutes to mitigate replay attacks.
+     *
+     * @param serviceName The name of the calling microservice (used as the subject).
+     * @return A signed JWS containing the 'SERVICE' type claim.
+     */
+    public String generateServiceToken(String serviceName) {
+        long currentTimeMillis = System.currentTimeMillis();
+        long expirationTimeMillis = currentTimeMillis + (1000 * 60 * 5); // 5 Minutes maximum lifespan
+
+        return Jwts.builder()
+                .subject(serviceName)
+                .claim("type", "SERVICE")
+                .id(UUID.randomUUID().toString()) // Unique JTI
+                .issuedAt(new Date(currentTimeMillis))
+                .expiration(new Date(expirationTimeMillis))
+                .signWith(getSigningKey())
+                .compact();
+    }
+    
+    // ... [Keep existing methods] ...
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+package com.fincore.commonutilities.security;
+
+import com.fincore.commonutilities.jwt.JwtUtil;
+import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.ExpiredJwtException;
+import io.jsonwebtoken.JwtException;
+import jakarta.servlet.FilterChain;
+import jakarta.servlet.ServletException;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.json.JSONArray;
-import org.json.JSONObject;
-import org.springframework.core.io.Resource;
-import org.springframework.http.MediaType;
-import org.springframework.http.ResponseEntity;
-import org.springframework.http.client.MultipartBodyBuilder;
-import org.springframework.stereotype.Component;
-import org.springframework.web.client.RestClient;
-import org.springframework.web.client.RestClientException;
+import org.jspecify.annotations.NonNull; // Spring Boot 4.x / Framework 7 standard
+import org.springframework.data.redis.RedisConnectionFailureException;
+import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.http.server.PathContainer;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.web.filter.OncePerRequestFilter;
+import org.springframework.web.util.pattern.PathPatternParser; // Modern Path Matching
 
+import java.io.IOException;
 import java.util.List;
-import java.util.Map;
+import java.util.Set;
 
 /**
- * <p>Enterprise Email Vendor Gateway.</p>
- *
- * <p><b>Fixes applied:</b>
- * - Specific AppSec exception handling (RestClientException).
- * - Full JSON BCC Array support for Bulk Operations.</p>
+ * Security Filter enforcing both User Context (RBAC & Redis Single-Session) 
+ * and Service-to-Service (M2M) Context.
+ * 
+ * @since 2.0
  */
 @Slf4j
-@Component
 @RequiredArgsConstructor
-public class EmailGatewayClient {
+public class ContextRbacFilter extends OncePerRequestFilter {
 
-    private final RestClient restClient;
+    private static final String REDIS_USER_PREFIX = "USR:";
+    private static final String REDIS_RBAC_PREFIX = "RBAC::PERMISSIONS::";
+    private static final String TOKEN_TYPE_SERVICE = "SERVICE";
 
-    public int sendEmail(Map<String, Object> emailRequest, Resource attachment) {
-        try {
-            String apiUrl = (String) emailRequest.get("url");
-            String apiKey = (String) emailRequest.get("api_key");
-            
-            String jsonPayload = buildEmailJson(emailRequest);
+    private static final Set<String> WHITELIST = Set.of(
+            "/api/auth/**", "/actuator/**", "/error", "/swagger-ui/**", "/v3/api-docs/**", "/api/login",
+            "/api/auth/login", "/api/auth/logout", "/api/auth/check-user", "/swagger-ui.html"
+    );
 
-            MultipartBodyBuilder multipartBuilder = new MultipartBodyBuilder();
-            multipartBuilder.part("payload", jsonPayload, MediaType.APPLICATION_JSON);
-            
-            if (attachment != null) {
-                multipartBuilder.part("attachment", attachment);
-                log.info("Appended physical attachment stream to multipart request.");
+    private final StringRedisTemplate redisTemplate;
+    private final JwtUtil jwtUtil;
+    private final PathPatternParser pathParser = new PathPatternParser(); // Replaces AntPathMatcher
+
+    @Override
+    protected void doFilterInternal(
+            @NonNull HttpServletRequest request,
+            @NonNull HttpServletResponse response,
+            @NonNull FilterChain filterChain
+    ) throws ServletException, IOException {
+
+        String uri = request.getRequestURI();
+        PathContainer pathContainer = PathContainer.parsePath(uri);
+
+        // 1. SKIP WHITELIST
+        boolean isWhitelisted = WHITELIST.stream()
+                .anyMatch(pattern -> pathParser.parse(pattern).matches(pathContainer));
+
+        if (isWhitelisted) {
+            filterChain.doFilter(request, response);
+            return;
+        }
+
+        // 2. VALIDATE TOKEN
+        String token = request.getHeader("Authorization");
+
+        if (token != null) {
+            try {
+                // A. STANDARD VALIDATION (Signature + Expiry)
+                if (!jwtUtil.isTokenValid(token)) {
+                    throw new JwtException("Invalid Token Signature");
+                }
+                
+                String cleanToken = removeBearer(token);
+                String tokenType = jwtUtil.extractClaim(cleanToken, claims -> claims.get("type", String.class));
+
+                // B. SERVICE-TO-SERVICE BYPASS
+                // Service tokens are internal M2M credentials. They skip single-session checks and RBAC.
+                if (TOKEN_TYPE_SERVICE.equalsIgnoreCase(tokenType)) {
+                    String serviceSubject = jwtUtil.extractClaim(cleanToken, Claims::getSubject);
+                    setSecurityContext(serviceSubject, "SERVICE");
+                    filterChain.doFilter(request, response);
+                    return;
+                }
+
+                // C. STANDARD USER FLOW
+                String userId = jwtUtil.getUserIdFromToken(token);
+                String incomingJti = jwtUtil.extractClaim(cleanToken, Claims::getId);
+                int roleIdInt = jwtUtil.getUserRoleFromToken(token);
+
+                if (!checkRedisSession(response, userId, incomingJti)) {
+                    return; 
+                }
+
+                setSecurityContext(userId, "ROLE_" + roleIdInt);
+
+                if (!checkRbac(request, response, String.valueOf(roleIdInt), userId)) {
+                    return;
+                }
+
+            } catch (ExpiredJwtException e) {
+                handleExpiredToken(response, e);
+                return;
+            } catch (Exception e) {
+                log.error("Auth Error: {}", e.getMessage());
+                sendError(response, HttpServletResponse.SC_UNAUTHORIZED, "AUTH_ERROR", "Authentication failed.");
+                return;
             }
+        } else {
+            sendError(response, HttpServletResponse.SC_UNAUTHORIZED, "MISSING_TOKEN", "Authorization header missing.");
+            return;
+        }
 
-            ResponseEntity<Void> response = restClient.post()
-                    .uri(apiUrl)
-                    .header("api_key", apiKey)
-                    .contentType(MediaType.MULTIPART_FORM_DATA)
-                    .body(multipartBuilder.build())
-                    .retrieve()
-                    .toBodilessEntity(); 
-
-            return response.getStatusCode().value();
-
-        } catch (RestClientException e) {
-            log.error("Network I/O Exception calling Email Vendor API: {}", e.getMessage());
-            throw new VendorDeliveryException("Network communication with Email Vendor failed", e);
+        filterChain.doFilter(request, response);
+    }
+    
+    private void setSecurityContext(String principal, String authority) {
+        if (SecurityContextHolder.getContext().getAuthentication() == null) {
+            UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(
+                    principal, null, List.of(new SimpleGrantedAuthority(authority))
+            );
+            SecurityContextHolder.getContext().setAuthentication(authToken);
         }
     }
 
-    @SuppressWarnings("unchecked")
-    private String buildEmailJson(Map<String, Object> emailRequest) {
-        JSONObject senderJson = new JSONObject();
-        senderJson.put("email", (String) emailRequest.get("senderId"));
-        senderJson.put("name", "FINCORE");
-
-        JSONObject emailContentJson = new JSONObject();
-        emailContentJson.put("type", "html");
-        emailContentJson.put("value", (String) emailRequest.get("emailBody"));
-
-        JSONObject personalizationsJson = new JSONObject();
-
-        // 1. Single To Address
-        if (emailRequest.containsKey("toEmail")) {
-            JSONObject recipientJson = new JSONObject();
-            recipientJson.put("email", (String) emailRequest.get("toEmail"));
-            personalizationsJson.put("to", new JSONArray().put(recipientJson));
+    // ... [Keep checkRedisSession, checkRbac, and handleExpiredToken helper logic exactly as before] ...
+    
+    private String removeBearer(String token) {
+        if (token != null && token.startsWith("Bearer ")) {
+            return token.substring(7);
         }
-
-        // 2. Bulk BCC Array Mapping
-        if (emailRequest.containsKey("bccEmails")) {
-            List<String> bccEmails = (List<String>) emailRequest.get("bccEmails");
-            JSONArray bccArray = new JSONArray();
-            for (String email : bccEmails) {
-                JSONObject bccObj = new JSONObject();
-                bccObj.put("email", email);
-                bccArray.put(bccObj);
-            }
-            personalizationsJson.put("bcc", bccArray);
-        }
-
-        JSONObject trackingSettingsJson = new JSONObject();
-        trackingSettingsJson.put("open_track", true);
-
-        JSONObject emailRequestJson = new JSONObject();
-        emailRequestJson.put("from", senderJson);
-        emailRequestJson.put("subject", (String) emailRequest.get("subject"));
-        emailRequestJson.put("content", new JSONArray().put(emailContentJson));
-        emailRequestJson.put("personalizations", new JSONArray().put(personalizationsJson));
-        emailRequestJson.put("settings", trackingSettingsJson);
-
-        return emailRequestJson.toString();
+        return token;
     }
 }
 
@@ -290,86 +274,111 @@ public class EmailGatewayClient {
 
 
 
+package com.fincore.commonutilities.security;
 
-
-package com.fincore.CommunicationService.client;
-
-import com.fincore.CommunicationService.dto.SmsResponseDTO;
-import com.fincore.CommunicationService.model.FincoreSettings;
+import tools.jackson.core.JsonProcessingException; // Boot 4.1.0 Jackson 3 update
+import tools.jackson.databind.ObjectMapper;       // Boot 4.1.0 Jackson 3 update
+import com.fincore.commonutilities.annotation.EncryptedResponse;
+import com.fincore.commonutilities.jwt.JwtUtil;
+import com.fincore.commonutilities.util.AesEncryptionUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.core.MethodParameter;
+import org.springframework.core.io.Resource;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
-import org.springframework.http.ResponseEntity;
-import org.springframework.stereotype.Component;
-import org.springframework.util.LinkedMultiValueMap;
-import org.springframework.util.MultiValueMap;
-import org.springframework.web.client.RestClient;
-import org.springframework.web.client.RestClientException;
+import org.springframework.http.ProblemDetail;
+import org.springframework.http.converter.HttpMessageConverter;
+import org.springframework.http.converter.StringHttpMessageConverter;
+import org.springframework.http.server.ServerHttpRequest;
+import org.springframework.http.server.ServerHttpResponse;
+import org.springframework.http.server.ServletServerHttpRequest;
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.web.bind.annotation.ControllerAdvice;
+import org.springframework.web.servlet.mvc.method.annotation.ResponseBodyAdvice;
 
-import java.nio.charset.StandardCharsets;
-import java.util.Base64;
+import java.security.GeneralSecurityException;
+import java.util.Map;
 
 /**
- * <p>Enterprise SMS Vendor Gateway.</p>
- *
- * <p><b>Fixes applied:</b>
- * - Specific AppSec exception handling (RestClientException).
- * - Exact case-matching for HTTP Headers to support fragile telecom APIs.</p>
+ * Global Interceptor that encrypts outgoing responses for methods
+ * annotated with @EncryptedResponse. Bypasses encryption for internal S2S traffic.
  */
 @Slf4j
-@Component
+@ControllerAdvice
 @RequiredArgsConstructor
-public class SmsGatewayClient {
+public class EncryptResponseBodyAdvice implements ResponseBodyAdvice<Object> {
 
-    private final RestClient restClient;
+    private final AesEncryptionUtil aesEncryptionUtil;
+    private final StringRedisTemplate redisTemplate;
+    private final JwtUtil jwtUtil;
+    private final ObjectMapper objectMapper;
 
-    public SmsResponseDTO sendSms(FincoreSettings config, String mobileNumber, String message) {
+    private static final String AES_KEY_PREFIX = "AES:USR:";
+    private static final String HEADER_INTERNAL_CALL = "X-Internal-Call";
+
+    @Override
+    public boolean supports(MethodParameter returnType, Class<? extends HttpMessageConverter<?>> converterType) {
+        return returnType.hasMethodAnnotation(EncryptedResponse.class) ||
+                returnType.getDeclaringClass().isAnnotationPresent(EncryptedResponse.class);
+    }
+
+    @Override
+    public Object beforeBodyWrite(Object body, MethodParameter returnType, MediaType selectedContentType,
+                                  Class<? extends HttpMessageConverter<?>> selectedConverterType,
+                                  ServerHttpRequest request, ServerHttpResponse response) {
+
+        // EDGE CASE 1: Skip Nulls, File Downloads, and Error Responses
+        if (body == null || body instanceof Resource || body instanceof byte[] || body instanceof ProblemDetail) {
+            return body;
+        }
+
+        // EDGE CASE 2: Custom Error Wrappers
+        if (body.getClass().getSimpleName().toLowerCase().contains("error")) {
+            return body;
+        }
+
+        var servletRequest = ((ServletServerHttpRequest) request).getServletRequest();
+
+        // INTERNAL TRAFFIC BYPASS: S2S calls inside the VPC do not require payload encryption.
+        if ("true".equalsIgnoreCase(servletRequest.getHeader(HEADER_INTERNAL_CALL))) {
+            return body;
+        }
+
         try {
-            String authHeader = null;
-            if (config.getUsername() != null && config.getPassword() != null) {
-                String auth = config.getUsername() + ":" + config.getPassword();
-                authHeader = "Basic " + Base64.getEncoder().encodeToString(auth.getBytes(StandardCharsets.UTF_8));
+            // ... [Keep existing encryption logic mapping plainTextPayload to encryptedString] ...
+            var plainTextPayload = body instanceof String ? (String) body : objectMapper.writeValueAsString(body);
+
+            var token = servletRequest.getHeader(HttpHeaders.AUTHORIZATION);
+            if (token == null || !token.toLowerCase().startsWith("bearer ")) {
+                throw new AccessDeniedException("No valid Auth token found for encrypted response.");
             }
 
-            MultiValueMap<String, String> formData = new LinkedMultiValueMap<>();
-            formData.add("content_type", "text");
-            formData.add("sender_id", config.getSenderId());
-            formData.add("mobile", "0" + mobileNumber); 
-            formData.add("message", message);
-            formData.add("intflag", "0");
-            formData.add("charging", "0");
+            var userId = jwtUtil.getUserIdFromToken(token.substring(7));
+            var base64AesKey = redisTemplate.opsForValue().get(AES_KEY_PREFIX + userId);
 
-            var requestSpec = restClient.post()
-                    .uri(config.getUrl())
-                    // Explicitly enforcing exact Case for fragile legacy telecom APIs
-                    .header("Content-Type", MediaType.APPLICATION_FORM_URLENCODED_VALUE)
-                    .header("Accept", MediaType.APPLICATION_FORM_URLENCODED_VALUE)
-                    .body(formData);
-
-            if (authHeader != null) {
-                requestSpec.header(HttpHeaders.AUTHORIZATION, authHeader);
+            if (base64AesKey == null) {
+                log.error("Encryption failed: AES Key missing for user {}", userId);
+                throw new IllegalStateException("Encryption Session expired. Cannot securely transmit data.");
             }
 
-            ResponseEntity<String> response = requestSpec.retrieve().toEntity(String.class);
+            var encryptedString = aesEncryptionUtil.encrypt(plainTextPayload, base64AesKey);
+            response.getHeaders().add("X-Encrypted-Response", "true");
+            var wrappedResponse = Map.of("encryptedResponse", encryptedString);
 
-            int responseCode = response.getStatusCode().value();
-            String responseBody = response.getBody() != null ? response.getBody() : "";
+            if (selectedConverterType.equals(StringHttpMessageConverter.class)) {
+                return objectMapper.writeValueAsString(wrappedResponse);
+            }
 
-            boolean success = (responseCode >= 200 && responseCode < 300) && responseBody.contains("MESSAGE_SUBMIT_SUCCESS");
+            return wrappedResponse;
 
-            return SmsResponseDTO.builder()
-                    .success(success)
-                    .message(success ? "SMS Sent Successfully" : "SMS Sending Failed")
-                    .providerResponse(responseBody)
-                    .build();
-
-        } catch (RestClientException ex) { // AppSec: Specific catching
-            log.error("Network Exception while sending SMS: {}", ex.getMessage());
-            return SmsResponseDTO.builder()
-                    .success(false)
-                    .message("Network exception: " + ex.getMessage())
-                    .build();
+        } catch (GeneralSecurityException e) {
+            log.error("Cryptographic failure during response encryption");
+            throw new SecurityException("Failed to secure sensitive response.", e);
+        } catch (JsonProcessingException e) {
+            log.error("JSON serialization failure during response encryption");
+            throw new IllegalStateException("Failed to serialize response payload.", e);
         }
     }
 }
@@ -386,34 +395,30 @@ public class SmsGatewayClient {
 
 
 
-        // Replace the bottom catch blocks of the 'process' method with this strict AppSec compliant version:
-        
-        } catch (java.io.IOException e) {
-            log.error("Fatal I/O error preparing attachments for Event: {}", eventId, e);
-            throw new VendorDeliveryException("Attachment processing failed on local disk/network", e);
-        } catch (org.springframework.web.client.RestClientException e) {
-            log.error("Upstream Report Service / Vendor HTTP network failure for Event: {}", eventId, e);
-            throw new VendorDeliveryException("Upstream REST dependency failed", e);
-        } catch (org.springframework.dao.DataAccessException e) {
-            log.error("Oracle DB / Redis failure while orchestrating Event: {}", eventId, e);
-            throw new VendorDeliveryException("Database/Cache dependency failed", e);
-        } catch (RuntimeException e) {
-            // Catching RuntimeException is acceptable ONLY as a last resort barrier to log unexpected bugs 
-            // before Spring Kafka handles the failure. 
-            log.error("Unexpected runtime bug orchestrating Event: {}", eventId, e);
-            throw new VendorDeliveryException("Unexpected orchestration failure", e);
-        } finally {
-            // 6. PREVENT LEAK
-            // Closes S3/HDFS InputStream connections and forces deletion of local /tmp ZIP files.
-            if (attachment != null) {
-                try {
-                    attachment.getInputStream().close();
-                    log.debug("Successfully purged attachment I/O resources for Event: {}", eventId);
-                } catch (java.io.IOException e) {
-                    log.error("MEMORY LEAK ALERT: Failed to close attachment resource for Event: {}", eventId, e);
-                }
-            }
-        }
+
+
+@Service
+@RequiredArgsConstructor
+public class ReportJobService {
+    
+    // Injects the pre-configured RestClient from common-utilities
+    private final RestClient interServiceClient; 
+
+    @KafkaListener(topics = "generate-report-topic")
+    public void handleReportEvent(String eventData) {
+        // The interceptor automatically attaches the S2S Token and X-Internal-Call headers!
+        String report = interServiceClient.get()
+                .uri("http://report-service/api/reports/download")
+                .retrieve()
+                .body(String.class);
+    }
+}
+
+
+
+
+
+
 
 
 
