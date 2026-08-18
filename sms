@@ -426,7 +426,151 @@ public class ReportJobService {
 
 
 
+-------------------------------
 
+
+
+
+
+package com.fincore.communicationservice.kafka;
+
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.kafka.annotation.KafkaListener;
+import org.springframework.stereotype.Service;
+import org.springframework.web.client.RestClient;
+import org.springframework.web.client.RestClientResponseException;
+
+/**
+ * Service responsible for listening to background Kafka events and triggering
+ * report downloads from the Report Service.
+ * <p>
+ * This class uses the pre-configured interServiceClient from common-utilities,
+ * which automatically handles M2M token generation and Context Propagation.
+ */
+@Slf4j
+@Service
+@RequiredArgsConstructor
+public class ReportJobListener {
+
+    // Injected automatically from common-utilities (S2SRestClientConfig)
+    private final RestClient interServiceClient;
+
+    /**
+     * Listens to the report generation topic.
+     * Note: Because this is triggered by Kafka, there is no User SecurityContext.
+     * 
+     * @param eventPayload The raw payload from Kafka containing report parameters.
+     */
+    @KafkaListener(topics = "trigger-report-download-topic", groupId = "communication-service-group")
+    public void consumeReportEvent(String eventPayload) {
+        log.info("Received Kafka event to download report. Payload: {}", eventPayload);
+
+        try {
+            // 1. Execute the HTTP Call
+            // Behind the scenes, the Interceptor from common-utilities does the following:
+            // - Calls JwtUtil.generateServiceToken("communication-service")
+            // - Adds Header: 'Authorization: Bearer <token>'
+            // - Adds Header: 'X-Internal-Call: true'
+            // - Adds Header: 'X-Correlation-ID: <traceId>'
+            String reportJson = interServiceClient.get()
+                    .uri("http://report-service/api/reports/download?type=MONTHLY")
+                    .retrieve()
+                    .body(String.class);
+
+            // 2. Process the successfully downloaded report
+            log.info("Successfully downloaded report from Report Service. Size: {} bytes", reportJson.length());
+            
+            // TODO: Convert JSON to PDF, attach to email, send to customer, etc.
+
+        } catch (RestClientResponseException e) {
+            // Handles 4xx and 5xx errors from the Report Service gracefully
+            log.error("Failed to download report. HTTP Status: {}. Response Body: {}", 
+                    e.getStatusCode(), e.getResponseBodyAsString());
+        } catch (Exception e) {
+            log.error("Unexpected error during S2S communication: {}", e.getMessage(), e);
+        }
+    }
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+package com.fincore.reportservice.controller;
+
+import com.fincore.commonutilities.annotation.EncryptedResponse;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
+
+import java.util.Map;
+import java.util.UUID;
+
+/**
+ * REST Controller for generating and serving financial reports.
+ */
+@Slf4j
+@RestController
+@RequestMapping("/api/reports")
+public class ReportController {
+
+    /**
+     * Endpoint to download a report. 
+     * 
+     * @EncryptedResponse ensures that if a User UI calls this directly, the payload is AES encrypted.
+     * However, because the communication-service sends 'X-Internal-Call: true', 
+     * the EncryptResponseBodyAdvice will bypass encryption, returning raw JSON.
+     * 
+     * @param type The type of report requested.
+     * @return A JSON representation of the report.
+     */
+    @GetMapping("/download")
+    @EncryptedResponse 
+    public ResponseEntity<Map<String, Object>> downloadReport(@RequestParam String type) {
+        
+        // 1. (Optional) Audit who is calling this endpoint
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth != null) {
+            // If called by communication-service, auth.getName() will be "communication-service"
+            // and auth.getAuthorities() will contain "SERVICE".
+            log.info("Report download triggered by principal: {} with authorities: {}", 
+                    auth.getName(), auth.getAuthorities());
+        }
+
+        // 2. Generate the report payload (Mocked for example)
+        Map<String, Object> reportPayload = Map.of(
+                "reportId", UUID.randomUUID().toString(),
+                "reportType", type,
+                "status", "GENERATED",
+                "data", "Base64.../PDF.../RawData..."
+        );
+
+        log.info("Report generated successfully. Returning payload.");
+
+        // 3. Return the response
+        // The EncryptResponseBodyAdvice intercepts this return value.
+        return ResponseEntity.ok(reportPayload);
+    }
+}
 
 
 
