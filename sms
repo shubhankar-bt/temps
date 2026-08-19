@@ -1,12 +1,49 @@
-consumer logs : 
-2026-08-19T16:46:31.937+05:30  INFO 22260 --- [CommunicationService] [ntainer#0-0-C-1] c.f.C.c.GenericCommunicationConsumer     : Received Generic Communication Event : {"eventId":"evt-322cf512-23f9-47e5-9860-e8197cf1a6cd","traceId":"trc-c18c8fd1-0c13-4c38-99e4-f67640b775c7","correlationId":"batch-01-08-26","producerService":"PROCESS_STATUS","eventType":"EOD_EVENT","priority":"NORMAL","channels":["SMS","EMAIL"],"recipients":{"roles":["10","11","51","54","60"]},"templateId":"SUCCESS_EOD_TEMPLATE","payload":{"timeTaken":null,"STATUS":"5","suspenseHeaders":["Summary"],"cibaHeaders":["Summary"],"cibaRows":null,"processDate":"01-08-26","balanceCompareRows":null,"suspenseRows":null,"startTime":null,"titles":{"balanceCompareTitle":"Balance Compare","suspenseTitle":"Suspense","cibaTitle":"CIBA"},"endTime":null,"balanceCompareHeaders":["Summary"]},"attachments":[{"attachmentId":"balance_compare_report_01082026","attachmentType":"BAL_COMP_SUMMARY","fileName":"balance_compare_report"},{"attachmentId":"intr_report_01082026","attachmentType":"INTR_SUMMARY","fileName":"intr_report"},{"attachmentId":"cntr_report_01082026","attachmentType":"CNTR_SUMMARY","fileName":"cntr_report"}]}
-2026-08-19T16:46:31.947+05:30 ERROR 22260 --- [CommunicationService] [ntainer#0-0-C-1] c.f.C.c.GenericCommunicationConsumer     : Invalid Generic Communication Event. EventId=UNKNOWN Reason=Malformed Generic Communication Event : Cannot map `null` into type `boolean` (set `DeserializationFeature.FAIL_ON_NULL_FOR_PRIMITIVES` to 'false' to allow)
- at [Source: REDACTED (`StreamReadFeature.INCLUDE_SOURCE_IN_LOCATION` disabled); byte offset: #UNKNOWN] (through reference chain: com.fincore.CommunicationService.dto.GenericCommunicationEvent["isPersonalized"])
-2026-08-19T16:46:31.948+05:30 ERROR 22260 --- [CommunicationService] [ntainer#0-0-C-1] k.r.DeadLetterPublishingRecovererFactory : Record: topic = fincore.communication.generic, partition = 0, offset = 75, main topic = fincore.communication.generic threw an error at topic fincore.communication.generic and won't be retried. Sending to DLT with name fincore.communication.generic-dlq.
+2026-08-19T17:05:00.849+05:30  INFO 46988 --- [CommunicationService] [ntainer#0-0-C-1] c.f.C.c.GenericCommunicationConsumer     : Received Generic Communication Event : {"eventId":"evt-1eac307f-8163-456c-b11a-46c16f621ffe","traceId":"trc-d1abc6d9-8c92-4b2a-80c5-0d3c8dd8cf14","correlationId":"batch-01-08-26","producerService":"PROCESS_STATUS","eventType":"EOD_EVENT","priority":"NORMAL","channels":["SMS","EMAIL"],"recipients":{"roles":["10","11","51","54","60"]},"templateId":"SUCCESS_EOD_TEMPLATE","payload":{"timeTaken":null,"STATUS":"5","suspenseHeaders":["Summary"],"cibaHeaders":["Summary"],"cibaRows":null,"processDate":"01-08-26","balanceCompareRows":null,"suspenseRows":null,"startTime":null,"titles":{"balanceCompareTitle":"Balance Compare","suspenseTitle":"Suspense","cibaTitle":"CIBA"},"endTime":null,"balanceCompareHeaders":["Summary"]},"attachments":[{"attachmentId":"balance_compare_report_01082026","attachmentType":"BAL_COMP_SUMMARY","fileName":"balance_compare_report"},{"attachmentId":"intr_report_01082026","attachmentType":"INTR_SUMMARY","fileName":"intr_report"},{"attachmentId":"cntr_report_01082026","attachmentType":"CNTR_SUMMARY","fileName":"cntr_report"}]}
+2026-08-19T17:05:01.018+05:30  INFO 46988 --- [CommunicationService] [ntainer#0-0-C-1] c.f.C.c.GenericCommunicationConsumer     : Validated Generic Communication Event : evt-1eac307f-8163-456c-b11a-46c16f621ffe
+2026-08-19T17:05:01.061+05:30  INFO 46988 --- [CommunicationService] [ntainer#0-0-C-1] c.f.C.o.CommunicationOrchestrator        : Orchestrator executing Event: evt-1eac307f-8163-456c-b11a-46c16f621ffe | Personalized Flag: true
+2026-08-19T17:05:01.061+05:30  INFO 46988 --- [CommunicationService] [ntainer#0-0-C-1] c.f.C.recipient.RecipientResolver        : Recipient Resolution Started.
+2026-08-19T17:05:01.075+05:30 ERROR 46988 --- [CommunicationService] [ntainer#0-0-C-1] c.f.C.recipient.RecipientResolver        : Recipient Resolution Failed.
 
-org.springframework.kafka.listener.ListenerExecutionFailedException: Listener failed
-	at org.springframework.kafka.listener.KafkaMessageListenerContainer$ListenerConsumer.decorateException(KafkaMessageListenerContainer.java:3164) ~[spring-kafka-4.1.0.jar:4.1.0]
-	at org.springframework.kafka.listener.KafkaMessageListenerContainer$ListenerConsumer.doInvokeOnMessage(KafkaMessageListenerContainer.java:3031) ~[spring-kafka-4.1.0.jar:4.1.0]
+java.util.concurrent.ExecutionException: java.lang.IllegalArgumentException: Cannot find cache named 'roles' for Builder[public java.util.List com.fincore.CommunicationService.recipient.provider.RoleRecipientProvider.resolve(com.fincore.CommunicationService.dto.GenericCommunicationEvent$Recipients)] caches=[roles] | key='#recipients.roles' | keyGenerator='' | cacheManager='' | cacheResolver='' | condition='' | unless='' | sync='false'
+	at java.base/java.util.concurrent.FutureTask.report(FutureTask.java:122) ~[na:na]
+	at java.base/java.util.concurrent.FutureTask.get(FutureTask.java:191) ~[na:na]
+	at com.fincore.CommunicationService.recipient.RecipientResolver.resolveRecipients(RecipientResolver.java:100) ~[classes/:na]
+	at com.fincore.CommunicationService.orchestrator.CommunicationOrchestrator.process(CommunicationOrchestrator.java:95) ~[classes/:na]
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:103) ~[na:na]
+	at java.base/java.lang.reflect.Method.invoke(Method.java:580) ~[na:na]
+	at org.springframework.aop.support.AopUtils.invokeJoinpointUsingReflection(AopUtils.java:359) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.framework.ReflectiveMethodInvocation.invokeJoinpoint(ReflectiveMethodInvocation.java:190) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:158) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.interceptor.ExposeInvocationInterceptor.invoke(ExposeInvocationInterceptor.java:96) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:179) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.aspectj.MethodInvocationProceedingJoinPoint.proceed(MethodInvocationProceedingJoinPoint.java:82) ~[spring-aop-7.0.8.jar:7.0.8]
+	at com.fincore.commonutilities.aspect.GlobalResilienceAspect.lambda$applyResilience$0(GlobalResilienceAspect.java:60) ~[classes/:na]
+	at io.github.resilience4j.retry.Retry.lambda$decorateSupplier$5(Retry.java:301) ~[resilience4j-retry-2.3.0.jar:2.3.0]
+	at io.github.resilience4j.circuitbreaker.CircuitBreaker.lambda$decorateSupplier$5(CircuitBreaker.java:194) ~[resilience4j-circuitbreaker-2.3.0.jar:2.3.0]
+	at com.fincore.commonutilities.aspect.GlobalResilienceAspect.applyResilience(GlobalResilienceAspect.java:73) ~[classes/:na]
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:103) ~[na:na]
+	at java.base/java.lang.reflect.Method.invoke(Method.java:580) ~[na:na]
+	at org.springframework.aop.aspectj.AbstractAspectJAdvice.invokeAdviceMethodWithGivenArgs(AbstractAspectJAdvice.java:648) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.aspectj.AbstractAspectJAdvice.invokeAdviceMethod(AbstractAspectJAdvice.java:630) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.aspectj.AspectJAroundAdvice.invoke(AspectJAroundAdvice.java:70) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:179) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.framework.CglibAopProxy$DynamicAdvisedInterceptor.intercept(CglibAopProxy.java:719) ~[spring-aop-7.0.8.jar:7.0.8]
+	at com.fincore.CommunicationService.orchestrator.CommunicationOrchestrator$$SpringCGLIB$$0.process(<generated>) ~[classes/:na]
+	at com.fincore.CommunicationService.consumer.GenericCommunicationConsumer.consumeGenericCommunication(GenericCommunicationConsumer.java:157) ~[classes/:na]
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:103) ~[na:na]
+	at java.base/java.lang.reflect.Method.invoke(Method.java:580) ~[na:na]
+	at org.springframework.messaging.handler.invocation.InvocableHandlerMethod.doInvoke(InvocableHandlerMethod.java:168) ~[spring-messaging-7.0.8.jar:7.0.8]
+	at org.springframework.kafka.listener.adapter.KotlinAwareInvocableHandlerMethod.doInvoke(KotlinAwareInvocableHandlerMethod.java:48) ~[spring-kafka-4.1.0.jar:4.1.0]
+	at org.springframework.messaging.handler.invocation.InvocableHandlerMethod.invoke(InvocableHandlerMethod.java:119) ~[spring-messaging-7.0.8.jar:7.0.8]
+	at org.springframework.kafka.listener.adapter.HandlerAdapter.invoke(HandlerAdapter.java:80) ~[spring-kafka-4.1.0.jar:4.1.0]
+	at org.springframework.kafka.listener.adapter.MessagingMessageListenerAdapter.invokeHandler(MessagingMessageListenerAdapter.java:489) ~[spring-kafka-4.1.0.jar:4.1.0]
+	at org.springframework.kafka.listener.adapter.MessagingMessageListenerAdapter.invoke(MessagingMessageListenerAdapter.java:426) ~[spring-kafka-4.1.0.jar:4.1.0]
+	at org.springframework.kafka.listener.adapter.RecordMessagingMessageListenerAdapter.onMessage(RecordMessagingMessageListenerAdapter.java:92) ~[spring-kafka-4.1.0.jar:4.1.0]
+	at org.springframework.kafka.listener.adapter.RecordMessagingMessageListenerAdapter.onMessage(RecordMessagingMessageListenerAdapter.java:52) ~[spring-kafka-4.1.0.jar:4.1.0]
+	at org.springframework.kafka.listener.adapter.KafkaBackoffAwareMessageListenerAdapter.invokeDelegateOnMessage(KafkaBackoffAwareMessageListenerAdapter.java:109) ~[spring-kafka-4.1.0.jar:4.1.0]
+	at org.springframework.kafka.listener.adapter.KafkaBackoffAwareMessageListenerAdapter.onMessage(KafkaBackoffAwareMessageListenerAdapter.java:100) ~[spring-kafka-4.1.0.jar:4.1.0]
+	at org.springframework.kafka.listener.adapter.KafkaBackoffAwareMessageListenerAdapter.onMessage(KafkaBackoffAwareMessageListenerAdapter.java:50) ~[spring-kafka-4.1.0.jar:4.1.0]
+	at org.springframework.kafka.listener.KafkaMessageListenerContainer$ListenerConsumer.doInvokeOnMessage(KafkaMessageListenerContainer.java:3018) ~[spring-kafka-4.1.0.jar:4.1.0]
 	at org.springframework.kafka.listener.KafkaMessageListenerContainer$ListenerConsumer.invokeOnMessage(KafkaMessageListenerContainer.java:2997) ~[spring-kafka-4.1.0.jar:4.1.0]
 	at org.springframework.kafka.listener.KafkaMessageListenerContainer$ListenerConsumer.doInvokeRecordListener(KafkaMessageListenerContainer.java:2907) ~[spring-kafka-4.1.0.jar:4.1.0]
 	at org.springframework.kafka.listener.KafkaMessageListenerContainer$ListenerConsumer.doInvokeWithRecords(KafkaMessageListenerContainer.java:2749) ~[spring-kafka-4.1.0.jar:4.1.0]
@@ -17,22 +54,53 @@ org.springframework.kafka.listener.ListenerExecutionFailedException: Listener fa
 	at org.springframework.kafka.listener.KafkaMessageListenerContainer$ListenerConsumer.run(KafkaMessageListenerContainer.java:1373) ~[spring-kafka-4.1.0.jar:4.1.0]
 	at java.base/java.util.concurrent.CompletableFuture$AsyncRun.run(CompletableFuture.java:1804) ~[na:na]
 	at java.base/java.lang.Thread.run(Thread.java:1570) ~[na:na]
-Caused by: org.springframework.kafka.listener.TimestampedException: Exception thrown at 2026-08-19T11:16:31.947028600Z
-	at org.springframework.kafka.listener.adapter.KafkaBackoffAwareMessageListenerAdapter.onMessage(KafkaBackoffAwareMessageListenerAdapter.java:103) ~[spring-kafka-4.1.0.jar:4.1.0]
-	at org.springframework.kafka.listener.adapter.KafkaBackoffAwareMessageListenerAdapter.onMessage(KafkaBackoffAwareMessageListenerAdapter.java:50) ~[spring-kafka-4.1.0.jar:4.1.0]
-	at org.springframework.kafka.listener.KafkaMessageListenerContainer$ListenerConsumer.doInvokeOnMessage(KafkaMessageListenerContainer.java:3018) ~[spring-kafka-4.1.0.jar:4.1.0]
-	... 10 common frames omitted
-Caused by: org.springframework.kafka.listener.ListenerExecutionFailedException: Listener method 'public void com.fincore.CommunicationService.consumer.GenericCommunicationConsumer.consumeGenericCommunication(java.lang.String,org.springframework.kafka.support.Acknowledgment) throws com.fasterxml.jackson.core.JsonProcessingException' threw exception
-	at org.springframework.kafka.listener.adapter.MessagingMessageListenerAdapter.invokeHandler(MessagingMessageListenerAdapter.java:514) ~[spring-kafka-4.1.0.jar:4.1.0]
-	at org.springframework.kafka.listener.adapter.MessagingMessageListenerAdapter.invoke(MessagingMessageListenerAdapter.java:426) ~[spring-kafka-4.1.0.jar:4.1.0]
-	at org.springframework.kafka.listener.adapter.RecordMessagingMessageListenerAdapter.onMessage(RecordMessagingMessageListenerAdapter.java:92) ~[spring-kafka-4.1.0.jar:4.1.0]
-	at org.springframework.kafka.listener.adapter.RecordMessagingMessageListenerAdapter.onMessage(RecordMessagingMessageListenerAdapter.java:52) ~[spring-kafka-4.1.0.jar:4.1.0]
-	at org.springframework.kafka.listener.adapter.KafkaBackoffAwareMessageListenerAdapter.invokeDelegateOnMessage(KafkaBackoffAwareMessageListenerAdapter.java:109) ~[spring-kafka-4.1.0.jar:4.1.0]
-	at org.springframework.kafka.listener.adapter.KafkaBackoffAwareMessageListenerAdapter.onMessage(KafkaBackoffAwareMessageListenerAdapter.java:100) ~[spring-kafka-4.1.0.jar:4.1.0]
-	... 12 common frames omitted
-Caused by: com.fincore.CommunicationService.exception.CommunicationExceptions$InvalidPayloadException: Malformed Generic Communication Event : Cannot map `null` into type `boolean` (set `DeserializationFeature.FAIL_ON_NULL_FOR_PRIMITIVES` to 'false' to allow)
- at [Source: REDACTED (`StreamReadFeature.INCLUDE_SOURCE_IN_LOCATION` disabled); byte offset: #UNKNOWN] (through reference chain: com.fincore.CommunicationService.dto.GenericCommunicationEvent["isPersonalized"])
-	at com.fincore.CommunicationService.consumer.GenericCommunicationConsumer.consumeGenericCommunication(GenericCommunicationConsumer.java:136) ~[classes/:na]
+Caused by: java.lang.IllegalArgumentException: Cannot find cache named 'roles' for Builder[public java.util.List com.fincore.CommunicationService.recipient.provider.RoleRecipientProvider.resolve(com.fincore.CommunicationService.dto.GenericCommunicationEvent$Recipients)] caches=[roles] | key='#recipients.roles' | keyGenerator='' | cacheManager='' | cacheResolver='' | condition='' | unless='' | sync='false'
+	at org.springframework.cache.interceptor.AbstractCacheResolver.resolveCaches(AbstractCacheResolver.java:92) ~[spring-context-7.0.8.jar:7.0.8]
+	at org.springframework.cache.interceptor.CacheAspectSupport.getCaches(CacheAspectSupport.java:314) ~[spring-context-7.0.8.jar:7.0.8]
+	at org.springframework.cache.interceptor.CacheAspectSupport$CacheOperationContext.<init>(CacheAspectSupport.java:882) ~[spring-context-7.0.8.jar:7.0.8]
+	at org.springframework.cache.interceptor.CacheAspectSupport.getOperationContext(CacheAspectSupport.java:327) ~[spring-context-7.0.8.jar:7.0.8]
+	at org.springframework.cache.interceptor.CacheAspectSupport$CacheOperationContexts.<init>(CacheAspectSupport.java:772) ~[spring-context-7.0.8.jar:7.0.8]
+	at org.springframework.cache.interceptor.CacheAspectSupport.execute(CacheAspectSupport.java:406) ~[spring-context-7.0.8.jar:7.0.8]
+	at org.springframework.cache.interceptor.CacheInterceptor.invoke(CacheInterceptor.java:64) ~[spring-context-7.0.8.jar:7.0.8]
+	at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:179) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.framework.CglibAopProxy$DynamicAdvisedInterceptor.intercept(CglibAopProxy.java:719) ~[spring-aop-7.0.8.jar:7.0.8]
+	at com.fincore.CommunicationService.recipient.provider.RoleRecipientProvider$$SpringCGLIB$$0.resolve(<generated>) ~[classes/:na]
+	at com.fincore.CommunicationService.recipient.RecipientResolver.lambda$resolveRecipients$1(RecipientResolver.java:79) ~[classes/:na]
+	at java.base/java.util.concurrent.FutureTask.run(FutureTask.java:317) ~[na:na]
+	at java.base/java.lang.VirtualThread.run(VirtualThread.java:329) ~[na:na]
+
+2026-08-19T17:05:01.384+05:30  INFO 46988 --- [CommunicationService] [ner#0-dlq-0-C-1] o.a.k.c.c.i.ClassicKafkaConsumer         : [Consumer clientId=consumer-communication-generic-group-v2-dlq-1, groupId=communication-generic-group-v2-dlq] Seeking to offset 737 for partition fincore.communication.generic-dlq-0
+2026-08-19T17:05:01.384+05:30  INFO 46988 --- [CommunicationService] [ner#0-dlq-0-C-1] o.s.k.l.KafkaMessageListenerContainer    : Record in retry and not yet recovered
+2026-08-19T17:05:01.585+05:30  INFO 46988 --- [CommunicationService] [ntainer#0-0-C-1] c.f.C.o.CommunicationOrchestrator        : Orchestrator executing Event: evt-1eac307f-8163-456c-b11a-46c16f621ffe | Personalized Flag: true
+2026-08-19T17:05:01.585+05:30  INFO 46988 --- [CommunicationService] [ntainer#0-0-C-1] c.f.C.recipient.RecipientResolver        : Recipient Resolution Started.
+2026-08-19T17:05:01.586+05:30 ERROR 46988 --- [CommunicationService] [ntainer#0-0-C-1] c.f.C.recipient.RecipientResolver        : Recipient Resolution Failed.
+
+java.util.concurrent.ExecutionException: java.lang.IllegalArgumentException: Cannot find cache named 'roles' for Builder[public java.util.List com.fincore.CommunicationService.recipient.provider.RoleRecipientProvider.resolve(com.fincore.CommunicationService.dto.GenericCommunicationEvent$Recipients)] caches=[roles] | key='#recipients.roles' | keyGenerator='' | cacheManager='' | cacheResolver='' | condition='' | unless='' | sync='false'
+	at java.base/java.util.concurrent.FutureTask.report(FutureTask.java:122) ~[na:na]
+	at java.base/java.util.concurrent.FutureTask.get(FutureTask.java:191) ~[na:na]
+	at com.fincore.CommunicationService.recipient.RecipientResolver.resolveRecipients(RecipientResolver.java:100) ~[classes/:na]
+	at com.fincore.CommunicationService.orchestrator.CommunicationOrchestrator.process(CommunicationOrchestrator.java:95) ~[classes/:na]
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:103) ~[na:na]
+	at java.base/java.lang.reflect.Method.invoke(Method.java:580) ~[na:na]
+	at org.springframework.aop.support.AopUtils.invokeJoinpointUsingReflection(AopUtils.java:359) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.framework.ReflectiveMethodInvocation.invokeJoinpoint(ReflectiveMethodInvocation.java:190) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:158) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.interceptor.ExposeInvocationInterceptor.invoke(ExposeInvocationInterceptor.java:96) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:179) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.aspectj.MethodInvocationProceedingJoinPoint.proceed(MethodInvocationProceedingJoinPoint.java:82) ~[spring-aop-7.0.8.jar:7.0.8]
+	at com.fincore.commonutilities.aspect.GlobalResilienceAspect.lambda$applyResilience$0(GlobalResilienceAspect.java:60) ~[classes/:na]
+	at io.github.resilience4j.retry.Retry.lambda$decorateSupplier$5(Retry.java:301) ~[resilience4j-retry-2.3.0.jar:2.3.0]
+	at io.github.resilience4j.circuitbreaker.CircuitBreaker.lambda$decorateSupplier$5(CircuitBreaker.java:194) ~[resilience4j-circuitbreaker-2.3.0.jar:2.3.0]
+	at com.fincore.commonutilities.aspect.GlobalResilienceAspect.applyResilience(GlobalResilienceAspect.java:73) ~[classes/:na]
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:103) ~[na:na]
+	at java.base/java.lang.reflect.Method.invoke(Method.java:580) ~[na:na]
+	at org.springframework.aop.aspectj.AbstractAspectJAdvice.invokeAdviceMethodWithGivenArgs(AbstractAspectJAdvice.java:648) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.aspectj.AbstractAspectJAdvice.invokeAdviceMethod(AbstractAspectJAdvice.java:630) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.aspectj.AspectJAroundAdvice.invoke(AspectJAroundAdvice.java:70) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:179) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.framework.CglibAopProxy$DynamicAdvisedInterceptor.intercept(CglibAopProxy.java:719) ~[spring-aop-7.0.8.jar:7.0.8]
+	at com.fincore.CommunicationService.orchestrator.CommunicationOrchestrator$$SpringCGLIB$$0.process(<generated>) ~[classes/:na]
+	at com.fincore.CommunicationService.consumer.GenericCommunicationConsumer.consumeGenericCommunication(GenericCommunicationConsumer.java:157) ~[classes/:na]
 	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:103) ~[na:na]
 	at java.base/java.lang.reflect.Method.invoke(Method.java:580) ~[na:na]
 	at org.springframework.messaging.handler.invocation.InvocableHandlerMethod.doInvoke(InvocableHandlerMethod.java:168) ~[spring-messaging-7.0.8.jar:7.0.8]
@@ -40,25 +108,860 @@ Caused by: com.fincore.CommunicationService.exception.CommunicationExceptions$In
 	at org.springframework.messaging.handler.invocation.InvocableHandlerMethod.invoke(InvocableHandlerMethod.java:119) ~[spring-messaging-7.0.8.jar:7.0.8]
 	at org.springframework.kafka.listener.adapter.HandlerAdapter.invoke(HandlerAdapter.java:80) ~[spring-kafka-4.1.0.jar:4.1.0]
 	at org.springframework.kafka.listener.adapter.MessagingMessageListenerAdapter.invokeHandler(MessagingMessageListenerAdapter.java:489) ~[spring-kafka-4.1.0.jar:4.1.0]
-	... 17 common frames omitted
+	at org.springframework.kafka.listener.adapter.MessagingMessageListenerAdapter.invoke(MessagingMessageListenerAdapter.java:426) ~[spring-kafka-4.1.0.jar:4.1.0]
+	at org.springframework.kafka.listener.adapter.RecordMessagingMessageListenerAdapter.onMessage(RecordMessagingMessageListenerAdapter.java:92) ~[spring-kafka-4.1.0.jar:4.1.0]
+	at org.springframework.kafka.listener.adapter.RecordMessagingMessageListenerAdapter.onMessage(RecordMessagingMessageListenerAdapter.java:52) ~[spring-kafka-4.1.0.jar:4.1.0]
+	at org.springframework.kafka.listener.adapter.KafkaBackoffAwareMessageListenerAdapter.invokeDelegateOnMessage(KafkaBackoffAwareMessageListenerAdapter.java:109) ~[spring-kafka-4.1.0.jar:4.1.0]
+	at org.springframework.kafka.listener.adapter.KafkaBackoffAwareMessageListenerAdapter.onMessage(KafkaBackoffAwareMessageListenerAdapter.java:100) ~[spring-kafka-4.1.0.jar:4.1.0]
+	at org.springframework.kafka.listener.adapter.KafkaBackoffAwareMessageListenerAdapter.onMessage(KafkaBackoffAwareMessageListenerAdapter.java:50) ~[spring-kafka-4.1.0.jar:4.1.0]
+	at org.springframework.kafka.listener.KafkaMessageListenerContainer$ListenerConsumer.doInvokeOnMessage(KafkaMessageListenerContainer.java:3018) ~[spring-kafka-4.1.0.jar:4.1.0]
+	at org.springframework.kafka.listener.KafkaMessageListenerContainer$ListenerConsumer.invokeOnMessage(KafkaMessageListenerContainer.java:2997) ~[spring-kafka-4.1.0.jar:4.1.0]
+	at org.springframework.kafka.listener.KafkaMessageListenerContainer$ListenerConsumer.doInvokeRecordListener(KafkaMessageListenerContainer.java:2907) ~[spring-kafka-4.1.0.jar:4.1.0]
+	at org.springframework.kafka.listener.KafkaMessageListenerContainer$ListenerConsumer.doInvokeWithRecords(KafkaMessageListenerContainer.java:2749) ~[spring-kafka-4.1.0.jar:4.1.0]
+	at org.springframework.kafka.listener.KafkaMessageListenerContainer$ListenerConsumer.invokeRecordListener(KafkaMessageListenerContainer.java:2643) ~[spring-kafka-4.1.0.jar:4.1.0]
+	at org.springframework.kafka.listener.KafkaMessageListenerContainer$ListenerConsumer.invokeListener(KafkaMessageListenerContainer.java:2274) ~[spring-kafka-4.1.0.jar:4.1.0]
+	at org.springframework.kafka.listener.KafkaMessageListenerContainer$ListenerConsumer.invokeIfHaveRecords(KafkaMessageListenerContainer.java:1572) ~[spring-kafka-4.1.0.jar:4.1.0]
+	at org.springframework.kafka.listener.KafkaMessageListenerContainer$ListenerConsumer.pollAndInvoke(KafkaMessageListenerContainer.java:1504) ~[spring-kafka-4.1.0.jar:4.1.0]
+	at org.springframework.kafka.listener.KafkaMessageListenerContainer$ListenerConsumer.run(KafkaMessageListenerContainer.java:1373) ~[spring-kafka-4.1.0.jar:4.1.0]
+	at java.base/java.util.concurrent.CompletableFuture$AsyncRun.run(CompletableFuture.java:1804) ~[na:na]
+	at java.base/java.lang.Thread.run(Thread.java:1570) ~[na:na]
+Caused by: java.lang.IllegalArgumentException: Cannot find cache named 'roles' for Builder[public java.util.List com.fincore.CommunicationService.recipient.provider.RoleRecipientProvider.resolve(com.fincore.CommunicationService.dto.GenericCommunicationEvent$Recipients)] caches=[roles] | key='#recipients.roles' | keyGenerator='' | cacheManager='' | cacheResolver='' | condition='' | unless='' | sync='false'
+	at org.springframework.cache.interceptor.AbstractCacheResolver.resolveCaches(AbstractCacheResolver.java:92) ~[spring-context-7.0.8.jar:7.0.8]
+	at org.springframework.cache.interceptor.CacheAspectSupport.getCaches(CacheAspectSupport.java:314) ~[spring-context-7.0.8.jar:7.0.8]
+	at org.springframework.cache.interceptor.CacheAspectSupport$CacheOperationContext.<init>(CacheAspectSupport.java:882) ~[spring-context-7.0.8.jar:7.0.8]
+	at org.springframework.cache.interceptor.CacheAspectSupport.getOperationContext(CacheAspectSupport.java:327) ~[spring-context-7.0.8.jar:7.0.8]
+	at org.springframework.cache.interceptor.CacheAspectSupport$CacheOperationContexts.<init>(CacheAspectSupport.java:772) ~[spring-context-7.0.8.jar:7.0.8]
+	at org.springframework.cache.interceptor.CacheAspectSupport.execute(CacheAspectSupport.java:406) ~[spring-context-7.0.8.jar:7.0.8]
+	at org.springframework.cache.interceptor.CacheInterceptor.invoke(CacheInterceptor.java:64) ~[spring-context-7.0.8.jar:7.0.8]
+	at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:179) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.framework.CglibAopProxy$DynamicAdvisedInterceptor.intercept(CglibAopProxy.java:719) ~[spring-aop-7.0.8.jar:7.0.8]
+	at com.fincore.CommunicationService.recipient.provider.RoleRecipientProvider$$SpringCGLIB$$0.resolve(<generated>) ~[classes/:na]
+	at com.fincore.CommunicationService.recipient.RecipientResolver.lambda$resolveRecipients$1(RecipientResolver.java:79) ~[classes/:na]
+	at java.base/java.util.concurrent.FutureTask.run(FutureTask.java:317) ~[na:na]
+	at java.base/java.lang.VirtualThread.run(VirtualThread.java:329) ~[na:na]
 
-2026-08-19T16:46:32.457+05:30  INFO 22260 --- [CommunicationService] [ner#0-dlq-0-C-1] o.a.k.c.c.i.ClassicKafkaConsumer         : [Consumer clientId=consumer-communication-generic-group-v2-dlq-1, groupId=communication-generic-group-v2-dlq] Seeking to offset 731 for partition fincore.communication.generic-dlq-0
-2026-08-19T16:46:32.457+05:30  INFO 22260 --- [CommunicationService] [ner#0-dlq-0-C-1] o.s.k.l.KafkaMessageListenerContainer    : Record in retry and not yet recovered
+2026-08-19T17:05:02.088+05:30  INFO 46988 --- [CommunicationService] [ntainer#0-0-C-1] c.f.C.o.CommunicationOrchestrator        : Orchestrator executing Event: evt-1eac307f-8163-456c-b11a-46c16f621ffe | Personalized Flag: true
+2026-08-19T17:05:02.088+05:30  INFO 46988 --- [CommunicationService] [ntainer#0-0-C-1] c.f.C.recipient.RecipientResolver        : Recipient Resolution Started.
+2026-08-19T17:05:02.088+05:30 ERROR 46988 --- [CommunicationService] [ntainer#0-0-C-1] c.f.C.recipient.RecipientResolver        : Recipient Resolution Failed.
 
-\
+java.util.concurrent.ExecutionException: java.lang.IllegalArgumentException: Cannot find cache named 'roles' for Builder[public java.util.List com.fincore.CommunicationService.recipient.provider.RoleRecipientProvider.resolve(com.fincore.CommunicationService.dto.GenericCommunicationEvent$Recipients)] caches=[roles] | key='#recipients.roles' | keyGenerator='' | cacheManager='' | cacheResolver='' | condition='' | unless='' | sync='false'
+	at java.base/java.util.concurrent.FutureTask.report(FutureTask.java:122) ~[na:na]
+	at java.base/java.util.concurrent.FutureTask.get(FutureTask.java:191) ~[na:na]
+	at com.fincore.CommunicationService.recipient.RecipientResolver.resolveRecipients(RecipientResolver.java:100) ~[classes/:na]
+	at com.fincore.CommunicationService.orchestrator.CommunicationOrchestrator.process(CommunicationOrchestrator.java:95) ~[classes/:na]
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:103) ~[na:na]
+	at java.base/java.lang.reflect.Method.invoke(Method.java:580) ~[na:na]
+	at org.springframework.aop.support.AopUtils.invokeJoinpointUsingReflection(AopUtils.java:359) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.framework.ReflectiveMethodInvocation.invokeJoinpoint(ReflectiveMethodInvocation.java:190) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:158) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.interceptor.ExposeInvocationInterceptor.invoke(ExposeInvocationInterceptor.java:96) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:179) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.aspectj.MethodInvocationProceedingJoinPoint.proceed(MethodInvocationProceedingJoinPoint.java:82) ~[spring-aop-7.0.8.jar:7.0.8]
+	at com.fincore.commonutilities.aspect.GlobalResilienceAspect.lambda$applyResilience$0(GlobalResilienceAspect.java:60) ~[classes/:na]
+	at io.github.resilience4j.retry.Retry.lambda$decorateSupplier$5(Retry.java:301) ~[resilience4j-retry-2.3.0.jar:2.3.0]
+	at io.github.resilience4j.circuitbreaker.CircuitBreaker.lambda$decorateSupplier$5(CircuitBreaker.java:194) ~[resilience4j-circuitbreaker-2.3.0.jar:2.3.0]
+	at com.fincore.commonutilities.aspect.GlobalResilienceAspect.applyResilience(GlobalResilienceAspect.java:73) ~[classes/:na]
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:103) ~[na:na]
+	at java.base/java.lang.reflect.Method.invoke(Method.java:580) ~[na:na]
+	at org.springframework.aop.aspectj.AbstractAspectJAdvice.invokeAdviceMethodWithGivenArgs(AbstractAspectJAdvice.java:648) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.aspectj.AbstractAspectJAdvice.invokeAdviceMethod(AbstractAspectJAdvice.java:630) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.aspectj.AspectJAroundAdvice.invoke(AspectJAroundAdvice.java:70) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:179) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.framework.CglibAopProxy$DynamicAdvisedInterceptor.intercept(CglibAopProxy.java:719) ~[spring-aop-7.0.8.jar:7.0.8]
+	at com.fincore.CommunicationService.orchestrator.CommunicationOrchestrator$$SpringCGLIB$$0.process(<generated>) ~[classes/:na]
+	at com.fincore.CommunicationService.consumer.GenericCommunicationConsumer.consumeGenericCommunication(GenericCommunicationConsumer.java:157) ~[classes/:na]
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:103) ~[na:na]
+	at java.base/java.lang.reflect.Method.invoke(Method.java:580) ~[na:na]
+	at org.springframework.messaging.handler.invocation.InvocableHandlerMethod.doInvoke(InvocableHandlerMethod.java:168) ~[spring-messaging-7.0.8.jar:7.0.8]
+	at org.springframework.kafka.listener.adapter.KotlinAwareInvocableHandlerMethod.doInvoke(KotlinAwareInvocableHandlerMethod.java:48) ~[spring-kafka-4.1.0.jar:4.1.0]
+	at org.springframework.messaging.handler.invocation.InvocableHandlerMethod.invoke(InvocableHandlerMethod.java:119) ~[spring-messaging-7.0.8.jar:7.0.8]
+	at org.springframework.kafka.listener.adapter.HandlerAdapter.invoke(HandlerAdapter.java:80) ~[spring-kafka-4.1.0.jar:4.1.0]
+	at org.springframework.kafka.listener.adapter.MessagingMessageListenerAdapter.invokeHandler(MessagingMessageListenerAdapter.java:489) ~[spring-kafka-4.1.0.jar:4.1.0]
+	at org.springframework.kafka.listener.adapter.MessagingMessageListenerAdapter.invoke(MessagingMessageListenerAdapter.java:426) ~[spring-kafka-4.1.0.jar:4.1.0]
+	at org.springframework.kafka.listener.adapter.RecordMessagingMessageListenerAdapter.onMessage(RecordMessagingMessageListenerAdapter.java:92) ~[spring-kafka-4.1.0.jar:4.1.0]
+	at org.springframework.kafka.listener.adapter.RecordMessagingMessageListenerAdapter.onMessage(RecordMessagingMessageListenerAdapter.java:52) ~[spring-kafka-4.1.0.jar:4.1.0]
+	at org.springframework.kafka.listener.adapter.KafkaBackoffAwareMessageListenerAdapter.invokeDelegateOnMessage(KafkaBackoffAwareMessageListenerAdapter.java:109) ~[spring-kafka-4.1.0.jar:4.1.0]
+	at org.springframework.kafka.listener.adapter.KafkaBackoffAwareMessageListenerAdapter.onMessage(KafkaBackoffAwareMessageListenerAdapter.java:100) ~[spring-kafka-4.1.0.jar:4.1.0]
+	at org.springframework.kafka.listener.adapter.KafkaBackoffAwareMessageListenerAdapter.onMessage(KafkaBackoffAwareMessageListenerAdapter.java:50) ~[spring-kafka-4.1.0.jar:4.1.0]
+	at org.springframework.kafka.listener.KafkaMessageListenerContainer$ListenerConsumer.doInvokeOnMessage(KafkaMessageListenerContainer.java:3018) ~[spring-kafka-4.1.0.jar:4.1.0]
+	at org.springframework.kafka.listener.KafkaMessageListenerContainer$ListenerConsumer.invokeOnMessage(KafkaMessageListenerContainer.java:2997) ~[spring-kafka-4.1.0.jar:4.1.0]
+	at org.springframework.kafka.listener.KafkaMessageListenerContainer$ListenerConsumer.doInvokeRecordListener(KafkaMessageListenerContainer.java:2907) ~[spring-kafka-4.1.0.jar:4.1.0]
+	at org.springframework.kafka.listener.KafkaMessageListenerContainer$ListenerConsumer.doInvokeWithRecords(KafkaMessageListenerContainer.java:2749) ~[spring-kafka-4.1.0.jar:4.1.0]
+	at org.springframework.kafka.listener.KafkaMessageListenerContainer$ListenerConsumer.invokeRecordListener(KafkaMessageListenerContainer.java:2643) ~[spring-kafka-4.1.0.jar:4.1.0]
+	at org.springframework.kafka.listener.KafkaMessageListenerContainer$ListenerConsumer.invokeListener(KafkaMessageListenerContainer.java:2274) ~[spring-kafka-4.1.0.jar:4.1.0]
+	at org.springframework.kafka.listener.KafkaMessageListenerContainer$ListenerConsumer.invokeIfHaveRecords(KafkaMessageListenerContainer.java:1572) ~[spring-kafka-4.1.0.jar:4.1.0]
+	at org.springframework.kafka.listener.KafkaMessageListenerContainer$ListenerConsumer.pollAndInvoke(KafkaMessageListenerContainer.java:1504) ~[spring-kafka-4.1.0.jar:4.1.0]
+	at org.springframework.kafka.listener.KafkaMessageListenerContainer$ListenerConsumer.run(KafkaMessageListenerContainer.java:1373) ~[spring-kafka-4.1.0.jar:4.1.0]
+	at java.base/java.util.concurrent.CompletableFuture$AsyncRun.run(CompletableFuture.java:1804) ~[na:na]
+	at java.base/java.lang.Thread.run(Thread.java:1570) ~[na:na]
+Caused by: java.lang.IllegalArgumentException: Cannot find cache named 'roles' for Builder[public java.util.List com.fincore.CommunicationService.recipient.provider.RoleRecipientProvider.resolve(com.fincore.CommunicationService.dto.GenericCommunicationEvent$Recipients)] caches=[roles] | key='#recipients.roles' | keyGenerator='' | cacheManager='' | cacheResolver='' | condition='' | unless='' | sync='false'
+	at org.springframework.cache.interceptor.AbstractCacheResolver.resolveCaches(AbstractCacheResolver.java:92) ~[spring-context-7.0.8.jar:7.0.8]
+	at org.springframework.cache.interceptor.CacheAspectSupport.getCaches(CacheAspectSupport.java:314) ~[spring-context-7.0.8.jar:7.0.8]
+	at org.springframework.cache.interceptor.CacheAspectSupport$CacheOperationContext.<init>(CacheAspectSupport.java:882) ~[spring-context-7.0.8.jar:7.0.8]
+	at org.springframework.cache.interceptor.CacheAspectSupport.getOperationContext(CacheAspectSupport.java:327) ~[spring-context-7.0.8.jar:7.0.8]
+	at org.springframework.cache.interceptor.CacheAspectSupport$CacheOperationContexts.<init>(CacheAspectSupport.java:772) ~[spring-context-7.0.8.jar:7.0.8]
+	at org.springframework.cache.interceptor.CacheAspectSupport.execute(CacheAspectSupport.java:406) ~[spring-context-7.0.8.jar:7.0.8]
+	at org.springframework.cache.interceptor.CacheInterceptor.invoke(CacheInterceptor.java:64) ~[spring-context-7.0.8.jar:7.0.8]
+	at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:179) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.framework.CglibAopProxy$DynamicAdvisedInterceptor.intercept(CglibAopProxy.java:719) ~[spring-aop-7.0.8.jar:7.0.8]
+	at com.fincore.CommunicationService.recipient.provider.RoleRecipientProvider$$SpringCGLIB$$0.resolve(<generated>) ~[classes/:na]
+	at com.fincore.CommunicationService.recipient.RecipientResolver.lambda$resolveRecipients$1(RecipientResolver.java:79) ~[classes/:na]
+	at java.base/java.util.concurrent.FutureTask.run(FutureTask.java:317) ~[na:na]
+	at java.base/java.lang.VirtualThread.run(VirtualThread.java:329) ~[na:na]
 
+2026-08-19T17:05:02.092+05:30 ERROR 46988 --- [CommunicationService] [ntainer#0-0-C-1] c.f.C.c.GenericCommunicationConsumer     : Generic Communication processing failed for EventId=evt-1eac307f-8163-456c-b11a-46c16f621ffe
 
+java.lang.RuntimeException: Unable to resolve recipients.
+	at com.fincore.CommunicationService.recipient.RecipientResolver.resolveRecipients(RecipientResolver.java:107) ~[classes/:na]
+	at com.fincore.CommunicationService.orchestrator.CommunicationOrchestrator.process(CommunicationOrchestrator.java:95) ~[classes/:na]
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:103) ~[na:na]
+	at java.base/java.lang.reflect.Method.invoke(Method.java:580) ~[na:na]
+	at org.springframework.aop.support.AopUtils.invokeJoinpointUsingReflection(AopUtils.java:359) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.framework.ReflectiveMethodInvocation.invokeJoinpoint(ReflectiveMethodInvocation.java:190) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:158) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.interceptor.ExposeInvocationInterceptor.invoke(ExposeInvocationInterceptor.java:96) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:179) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.aspectj.MethodInvocationProceedingJoinPoint.proceed(MethodInvocationProceedingJoinPoint.java:82) ~[spring-aop-7.0.8.jar:7.0.8]
+	at com.fincore.commonutilities.aspect.GlobalResilienceAspect.lambda$applyResilience$0(GlobalResilienceAspect.java:60) ~[classes/:na]
+	at io.github.resilience4j.retry.Retry.lambda$decorateSupplier$5(Retry.java:301) ~[resilience4j-retry-2.3.0.jar:2.3.0]
+	at io.github.resilience4j.circuitbreaker.CircuitBreaker.lambda$decorateSupplier$5(CircuitBreaker.java:194) ~[resilience4j-circuitbreaker-2.3.0.jar:2.3.0]
+	at com.fincore.commonutilities.aspect.GlobalResilienceAspect.applyResilience(GlobalResilienceAspect.java:73) ~[classes/:na]
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:103) ~[na:na]
+	at java.base/java.lang.reflect.Method.invoke(Method.java:580) ~[na:na]
+	at org.springframework.aop.aspectj.AbstractAspectJAdvice.invokeAdviceMethodWithGivenArgs(AbstractAspectJAdvice.java:648) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.aspectj.AbstractAspectJAdvice.invokeAdviceMethod(AbstractAspectJAdvice.java:630) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.aspectj.AspectJAroundAdvice.invoke(AspectJAroundAdvice.java:70) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:179) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.framework.CglibAopProxy$DynamicAdvisedInterceptor.intercept(CglibAopProxy.java:719) ~[spring-aop-7.0.8.jar:7.0.8]
+	at com.fincore.CommunicationService.orchestrator.CommunicationOrchestrator$$SpringCGLIB$$0.process(<generated>) ~[classes/:na]
+	at com.fincore.CommunicationService.consumer.GenericCommunicationConsumer.consumeGenericCommunication(GenericCommunicationConsumer.java:157) ~[classes/:na]
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:103) ~[na:na]
+	at java.base/java.lang.reflect.Method.invoke(Method.java:580) ~[na:na]
+	at org.springframework.messaging.handler.invocation.InvocableHandlerMethod.doInvoke(InvocableHandlerMethod.java:168) ~[spring-messaging-7.0.8.jar:7.0.8]
+	at org.springframework.kafka.listener.adapter.KotlinAwareInvocableHandlerMethod.doInvoke(KotlinAwareInvocableHandlerMethod.java:48) ~[spring-kafka-4.1.0.jar:4.1.0]
+	at org.springframework.messaging.handler.invocation.InvocableHandlerMethod.invoke(InvocableHandlerMethod.java:119) ~[spring-messaging-7.0.8.jar:7.0.8]
+	at org.springframework.kafka.listener.adapter.HandlerAdapter.invoke(HandlerAdapter.java:80) ~[spring-kafka-4.1.0.jar:4.1.0]
+	at org.springframework.kafka.listener.adapter.MessagingMessageListenerAdapter.invokeHandler(MessagingMessageListenerAdapter.java:489) ~[spring-kafka-4.1.0.jar:4.1.0]
+	at org.springframework.kafka.listener.adapter.MessagingMessageListenerAdapter.invoke(MessagingMessageListenerAdapter.java:426) ~[spring-kafka-4.1.0.jar:4.1.0]
+	at org.springframework.kafka.listener.adapter.RecordMessagingMessageListenerAdapter.onMessage(RecordMessagingMessageListenerAdapter.java:92) ~[spring-kafka-4.1.0.jar:4.1.0]
+	at org.springframework.kafka.listener.adapter.RecordMessagingMessageListenerAdapter.onMessage(RecordMessagingMessageListenerAdapter.java:52) ~[spring-kafka-4.1.0.jar:4.1.0]
+	at org.springframework.kafka.listener.adapter.KafkaBackoffAwareMessageListenerAdapter.invokeDelegateOnMessage(KafkaBackoffAwareMessageListenerAdapter.java:109) ~[spring-kafka-4.1.0.jar:4.1.0]
+	at org.springframework.kafka.listener.adapter.KafkaBackoffAwareMessageListenerAdapter.onMessage(KafkaBackoffAwareMessageListenerAdapter.java:100) ~[spring-kafka-4.1.0.jar:4.1.0]
+	at org.springframework.kafka.listener.adapter.KafkaBackoffAwareMessageListenerAdapter.onMessage(KafkaBackoffAwareMessageListenerAdapter.java:50) ~[spring-kafka-4.1.0.jar:4.1.0]
+	at org.springframework.kafka.listener.KafkaMessageListenerContainer$ListenerConsumer.doInvokeOnMessage(KafkaMessageListenerContainer.java:3018) ~[spring-kafka-4.1.0.jar:4.1.0]
+	at org.springframework.kafka.listener.KafkaMessageListenerContainer$ListenerConsumer.invokeOnMessage(KafkaMessageListenerContainer.java:2997) ~[spring-kafka-4.1.0.jar:4.1.0]
+	at org.springframework.kafka.listener.KafkaMessageListenerContainer$ListenerConsumer.doInvokeRecordListener(KafkaMessageListenerContainer.java:2907) ~[spring-kafka-4.1.0.jar:4.1.0]
+	at org.springframework.kafka.listener.KafkaMessageListenerContainer$ListenerConsumer.doInvokeWithRecords(KafkaMessageListenerContainer.java:2749) ~[spring-kafka-4.1.0.jar:4.1.0]
+	at org.springframework.kafka.listener.KafkaMessageListenerContainer$ListenerConsumer.invokeRecordListener(KafkaMessageListenerContainer.java:2643) ~[spring-kafka-4.1.0.jar:4.1.0]
+	at org.springframework.kafka.listener.KafkaMessageListenerContainer$ListenerConsumer.invokeListener(KafkaMessageListenerContainer.java:2274) ~[spring-kafka-4.1.0.jar:4.1.0]
+	at org.springframework.kafka.listener.KafkaMessageListenerContainer$ListenerConsumer.invokeIfHaveRecords(KafkaMessageListenerContainer.java:1572) ~[spring-kafka-4.1.0.jar:4.1.0]
+	at org.springframework.kafka.listener.KafkaMessageListenerContainer$ListenerConsumer.pollAndInvoke(KafkaMessageListenerContainer.java:1504) ~[spring-kafka-4.1.0.jar:4.1.0]
+	at org.springframework.kafka.listener.KafkaMessageListenerContainer$ListenerConsumer.run(KafkaMessageListenerContainer.java:1373) ~[spring-kafka-4.1.0.jar:4.1.0]
+	at java.base/java.util.concurrent.CompletableFuture$AsyncRun.run(CompletableFuture.java:1804) ~[na:na]
+	at java.base/java.lang.Thread.run(Thread.java:1570) ~[na:na]
+Caused by: java.util.concurrent.ExecutionException: java.lang.IllegalArgumentException: Cannot find cache named 'roles' for Builder[public java.util.List com.fincore.CommunicationService.recipient.provider.RoleRecipientProvider.resolve(com.fincore.CommunicationService.dto.GenericCommunicationEvent$Recipients)] caches=[roles] | key='#recipients.roles' | keyGenerator='' | cacheManager='' | cacheResolver='' | condition='' | unless='' | sync='false'
+	at java.base/java.util.concurrent.FutureTask.report(FutureTask.java:122) ~[na:na]
+	at java.base/java.util.concurrent.FutureTask.get(FutureTask.java:191) ~[na:na]
+	at com.fincore.CommunicationService.recipient.RecipientResolver.resolveRecipients(RecipientResolver.java:100) ~[classes/:na]
+	... 46 common frames omitted
+Caused by: java.lang.IllegalArgumentException: Cannot find cache named 'roles' for Builder[public java.util.List com.fincore.CommunicationService.recipient.provider.RoleRecipientProvider.resolve(com.fincore.CommunicationService.dto.GenericCommunicationEvent$Recipients)] caches=[roles] | key='#recipients.roles' | keyGenerator='' | cacheManager='' | cacheResolver='' | condition='' | unless='' | sync='false'
+	at org.springframework.cache.interceptor.AbstractCacheResolver.resolveCaches(AbstractCacheResolver.java:92) ~[spring-context-7.0.8.jar:7.0.8]
+	at org.springframework.cache.interceptor.CacheAspectSupport.getCaches(CacheAspectSupport.java:314) ~[spring-context-7.0.8.jar:7.0.8]
+	at org.springframework.cache.interceptor.CacheAspectSupport$CacheOperationContext.<init>(CacheAspectSupport.java:882) ~[spring-context-7.0.8.jar:7.0.8]
+	at org.springframework.cache.interceptor.CacheAspectSupport.getOperationContext(CacheAspectSupport.java:327) ~[spring-context-7.0.8.jar:7.0.8]
+	at org.springframework.cache.interceptor.CacheAspectSupport$CacheOperationContexts.<init>(CacheAspectSupport.java:772) ~[spring-context-7.0.8.jar:7.0.8]
+	at org.springframework.cache.interceptor.CacheAspectSupport.execute(CacheAspectSupport.java:406) ~[spring-context-7.0.8.jar:7.0.8]
+	at org.springframework.cache.interceptor.CacheInterceptor.invoke(CacheInterceptor.java:64) ~[spring-context-7.0.8.jar:7.0.8]
+	at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:179) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.framework.CglibAopProxy$DynamicAdvisedInterceptor.intercept(CglibAopProxy.java:719) ~[spring-aop-7.0.8.jar:7.0.8]
+	at com.fincore.CommunicationService.recipient.provider.RoleRecipientProvider$$SpringCGLIB$$0.resolve(<generated>) ~[classes/:na]
+	at com.fincore.CommunicationService.recipient.RecipientResolver.lambda$resolveRecipients$1(RecipientResolver.java:79) ~[classes/:na]
+	at java.base/java.util.concurrent.FutureTask.run(FutureTask.java:317) ~[na:na]
+	at java.base/java.lang.VirtualThread.run(VirtualThread.java:329) ~[na:na]
 
+2026-08-19T17:05:02.120+05:30  INFO 46988 --- [CommunicationService] [ntainer#0-0-C-1] o.a.kafka.common.config.AbstractConfig   : ProducerConfig values: 
+	acks = -1
+	batch.size = 16384
+	bootstrap.servers = [10.0.17.242:9092]
+	buffer.memory = 33554432
+	client.dns.lookup = use_all_dns_ips
+	client.id = CommunicationService-producer-1
+	compression.gzip.level = -1
+	compression.lz4.level = 9
+	compression.type = none
+	compression.zstd.level = 3
+	config.providers = []
+	connections.max.idle.ms = 540000
+	delivery.timeout.ms = 120000
+	enable.idempotence = true
+	enable.metrics.push = true
+	interceptor.classes = []
+	key.serializer = class org.apache.kafka.common.serialization.StringSerializer
+	linger.ms = 5
+	max.block.ms = 60000
+	max.in.flight.requests.per.connection = 5
+	max.request.size = 1048576
+	metadata.max.age.ms = 300000
+	metadata.max.idle.ms = 300000
+	metadata.recovery.rebootstrap.trigger.ms = 300000
+	metadata.recovery.strategy = rebootstrap
+	metric.reporters = [org.apache.kafka.common.metrics.JmxReporter]
+	metrics.num.samples = 2
+	metrics.recording.level = INFO
+	metrics.sample.window.ms = 30000
+	partitioner.adaptive.partitioning.enable = true
+	partitioner.availability.timeout.ms = 0
+	partitioner.class = null
+	partitioner.ignore.keys = false
+	receive.buffer.bytes = 32768
+	reconnect.backoff.max.ms = 1000
+	reconnect.backoff.ms = 50
+	request.timeout.ms = 30000
+	retries = 2147483647
+	retry.backoff.max.ms = 1000
+	retry.backoff.ms = 100
+	sasl.client.callback.handler.class = null
+	sasl.jaas.config = null
+	sasl.kerberos.kinit.cmd = /usr/bin/kinit
+	sasl.kerberos.min.time.before.relogin = 60000
+	sasl.kerberos.service.name = null
+	sasl.kerberos.ticket.renew.jitter = 0.05
+	sasl.kerberos.ticket.renew.window.factor = 0.8
+	sasl.login.callback.handler.class = null
+	sasl.login.class = null
+	sasl.login.connect.timeout.ms = null
+	sasl.login.read.timeout.ms = null
+	sasl.login.refresh.buffer.seconds = 300
+	sasl.login.refresh.min.period.seconds = 60
+	sasl.login.refresh.window.factor = 0.8
+	sasl.login.refresh.window.jitter = 0.05
+	sasl.login.retry.backoff.max.ms = 10000
+	sasl.login.retry.backoff.ms = 100
+	sasl.mechanism = GSSAPI
+	sasl.oauthbearer.assertion.algorithm = RS256
+	sasl.oauthbearer.assertion.claim.aud = null
+	sasl.oauthbearer.assertion.claim.exp.seconds = 300
+	sasl.oauthbearer.assertion.claim.iss = null
+	sasl.oauthbearer.assertion.claim.jti.include = false
+	sasl.oauthbearer.assertion.claim.nbf.seconds = 60
+	sasl.oauthbearer.assertion.claim.sub = null
+	sasl.oauthbearer.assertion.file = null
+	sasl.oauthbearer.assertion.private.key.file = null
+	sasl.oauthbearer.assertion.private.key.passphrase = null
+	sasl.oauthbearer.assertion.template.file = null
+	sasl.oauthbearer.client.credentials.client.id = null
+	sasl.oauthbearer.client.credentials.client.secret = null
+	sasl.oauthbearer.clock.skew.seconds = 30
+	sasl.oauthbearer.expected.audience = []
+	sasl.oauthbearer.expected.issuer = null
+	sasl.oauthbearer.header.urlencode = false
+	sasl.oauthbearer.jwks.endpoint.refresh.ms = 3600000
+	sasl.oauthbearer.jwks.endpoint.retry.backoff.max.ms = 10000
+	sasl.oauthbearer.jwks.endpoint.retry.backoff.ms = 100
+	sasl.oauthbearer.jwks.endpoint.url = null
+	sasl.oauthbearer.jwt.retriever.class = class org.apache.kafka.common.security.oauthbearer.DefaultJwtRetriever
+	sasl.oauthbearer.jwt.validator.class = class org.apache.kafka.common.security.oauthbearer.DefaultJwtValidator
+	sasl.oauthbearer.scope = null
+	sasl.oauthbearer.scope.claim.name = scope
+	sasl.oauthbearer.sub.claim.name = sub
+	sasl.oauthbearer.token.endpoint.url = null
+	security.protocol = PLAINTEXT
+	security.providers = null
+	send.buffer.bytes = 131072
+	socket.connection.setup.timeout.max.ms = 30000
+	socket.connection.setup.timeout.ms = 10000
+	ssl.cipher.suites = []
+	ssl.enabled.protocols = [TLSv1.2, TLSv1.3]
+	ssl.endpoint.identification.algorithm = https
+	ssl.engine.factory.class = null
+	ssl.key.password = null
+	ssl.keymanager.algorithm = SunX509
+	ssl.keystore.certificate.chain = null
+	ssl.keystore.key = null
+	ssl.keystore.location = null
+	ssl.keystore.password = null
+	ssl.keystore.type = JKS
+	ssl.protocol = TLSv1.3
+	ssl.provider = null
+	ssl.secure.random.implementation = null
+	ssl.trustmanager.algorithm = PKIX
+	ssl.truststore.certificates = null
+	ssl.truststore.location = null
+	ssl.truststore.password = null
+	ssl.truststore.type = JKS
+	transaction.timeout.ms = 60000
+	transaction.two.phase.commit.enable = false
+	transactional.id = null
+	value.serializer = class org.apache.kafka.common.serialization.StringSerializer
 
+2026-08-19T17:05:02.121+05:30  INFO 46988 --- [CommunicationService] [ntainer#0-0-C-1] o.a.k.c.t.i.KafkaMetricsCollector        : initializing Kafka metrics collector
+2026-08-19T17:05:02.138+05:30  INFO 46988 --- [CommunicationService] [ntainer#0-0-C-1] o.a.k.clients.producer.KafkaProducer     : [Producer clientId=CommunicationService-producer-1] Instantiated an idempotent producer.
+2026-08-19T17:05:02.162+05:30  INFO 46988 --- [CommunicationService] [ntainer#0-0-C-1] o.a.kafka.common.utils.AppInfoParser     : Kafka version: 4.2.1
+2026-08-19T17:05:02.162+05:30  INFO 46988 --- [CommunicationService] [ntainer#0-0-C-1] o.a.kafka.common.utils.AppInfoParser     : Kafka commitId: 92f61c44867f39dc
+2026-08-19T17:05:02.162+05:30  INFO 46988 --- [CommunicationService] [ntainer#0-0-C-1] o.a.kafka.common.utils.AppInfoParser     : Kafka startTimeMs: 1787139302162
+2026-08-19T17:05:02.171+05:30  INFO 46988 --- [CommunicationService] [vice-producer-1] org.apache.kafka.clients.Metadata        : [Producer clientId=CommunicationService-producer-1] Cluster ID: 
+2026-08-19T17:05:02.172+05:30  INFO 46988 --- [CommunicationService] [vice-producer-1] o.a.k.c.p.internals.TransactionManager   : [Producer clientId=CommunicationService-producer-1] ProducerId set to 6019 with epoch 0
+2026-08-19T17:05:02.226+05:30  INFO 46988 --- [CommunicationService] [0-retry-0-0-C-1] o.a.k.c.c.i.ClassicKafkaConsumer         : [Consumer clientId=consumer-communication-generic-group-v2-retry-0-26, groupId=communication-generic-group-v2-retry-0] Seeking to offset 96 for partition fincore.communication.generic-retry-0-0
+2026-08-19T17:05:02.226+05:30  INFO 46988 --- [CommunicationService] [0-retry-0-0-C-1] o.s.k.l.KafkaMessageListenerContainer    : Record in retry and not yet recovered
+2026-08-19T17:05:04.103+05:30  INFO 46988 --- [CommunicationService] [0-retry-0-0-C-1] c.f.C.c.GenericCommunicationConsumer     : Received Generic Communication Event : {"eventId":"evt-1eac307f-8163-456c-b11a-46c16f621ffe","traceId":"trc-d1abc6d9-8c92-4b2a-80c5-0d3c8dd8cf14","correlationId":"batch-01-08-26","producerService":"PROCESS_STATUS","eventType":"EOD_EVENT","priority":"NORMAL","channels":["SMS","EMAIL"],"recipients":{"roles":["10","11","51","54","60"]},"templateId":"SUCCESS_EOD_TEMPLATE","payload":{"timeTaken":null,"STATUS":"5","suspenseHeaders":["Summary"],"cibaHeaders":["Summary"],"cibaRows":null,"processDate":"01-08-26","balanceCompareRows":null,"suspenseRows":null,"startTime":null,"titles":{"balanceCompareTitle":"Balance Compare","suspenseTitle":"Suspense","cibaTitle":"CIBA"},"endTime":null,"balanceCompareHeaders":["Summary"]},"attachments":[{"attachmentId":"balance_compare_report_01082026","attachmentType":"BAL_COMP_SUMMARY","fileName":"balance_compare_report"},{"attachmentId":"intr_report_01082026","attachmentType":"INTR_SUMMARY","fileName":"intr_report"},{"attachmentId":"cntr_report_01082026","attachmentType":"CNTR_SUMMARY","fileName":"cntr_report"}]}
+2026-08-19T17:05:04.105+05:30  INFO 46988 --- [CommunicationService] [0-retry-0-0-C-1] c.f.C.c.GenericCommunicationConsumer     : Validated Generic Communication Event : evt-1eac307f-8163-456c-b11a-46c16f621ffe
+2026-08-19T17:05:04.105+05:30  INFO 46988 --- [CommunicationService] [0-retry-0-0-C-1] c.f.C.o.CommunicationOrchestrator        : Orchestrator executing Event: evt-1eac307f-8163-456c-b11a-46c16f621ffe | Personalized Flag: true
+2026-08-19T17:05:04.105+05:30  INFO 46988 --- [CommunicationService] [0-retry-0-0-C-1] c.f.C.recipient.RecipientResolver        : Recipient Resolution Started.
+2026-08-19T17:05:04.106+05:30 ERROR 46988 --- [CommunicationService] [0-retry-0-0-C-1] c.f.C.recipient.RecipientResolver        : Recipient Resolution Failed.
 
+java.util.concurrent.ExecutionException: java.lang.IllegalArgumentException: Cannot find cache named 'roles' for Builder[public java.util.List com.fincore.CommunicationService.recipient.provider.RoleRecipientProvider.resolve(com.fincore.CommunicationService.dto.GenericCommunicationEvent$Recipients)] caches=[roles] | key='#recipients.roles' | keyGenerator='' | cacheManager='' | cacheResolver='' | condition='' | unless='' | sync='false'
+	at java.base/java.util.concurrent.FutureTask.report(FutureTask.java:122) ~[na:na]
+	at java.base/java.util.concurrent.FutureTask.get(FutureTask.java:191) ~[na:na]
+	at com.fincore.CommunicationService.recipient.RecipientResolver.resolveRecipients(RecipientResolver.java:100) ~[classes/:na]
+	at com.fincore.CommunicationService.orchestrator.CommunicationOrchestrator.process(CommunicationOrchestrator.java:95) ~[classes/:na]
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:103) ~[na:na]
+	at java.base/java.lang.reflect.Method.invoke(Method.java:580) ~[na:na]
+	at org.springframework.aop.support.AopUtils.invokeJoinpointUsingReflection(AopUtils.java:359) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.framework.ReflectiveMethodInvocation.invokeJoinpoint(ReflectiveMethodInvocation.java:190) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:158) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.interceptor.ExposeInvocationInterceptor.invoke(ExposeInvocationInterceptor.java:96) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:179) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.aspectj.MethodInvocationProceedingJoinPoint.proceed(MethodInvocationProceedingJoinPoint.java:82) ~[spring-aop-7.0.8.jar:7.0.8]
+	at com.fincore.commonutilities.aspect.GlobalResilienceAspect.lambda$applyResilience$0(GlobalResilienceAspect.java:60) ~[classes/:na]
+	at io.github.resilience4j.retry.Retry.lambda$decorateSupplier$5(Retry.java:301) ~[resilience4j-retry-2.3.0.jar:2.3.0]
+	at io.github.resilience4j.circuitbreaker.CircuitBreaker.lambda$decorateSupplier$5(CircuitBreaker.java:194) ~[resilience4j-circuitbreaker-2.3.0.jar:2.3.0]
+	at com.fincore.commonutilities.aspect.GlobalResilienceAspect.applyResilience(GlobalResilienceAspect.java:73) ~[classes/:na]
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:103) ~[na:na]
+	at java.base/java.lang.reflect.Method.invoke(Method.java:580) ~[na:na]
+	at org.springframework.aop.aspectj.AbstractAspectJAdvice.invokeAdviceMethodWithGivenArgs(AbstractAspectJAdvice.java:648) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.aspectj.AbstractAspectJAdvice.invokeAdviceMethod(AbstractAspectJAdvice.java:630) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.aspectj.AspectJAroundAdvice.invoke(AspectJAroundAdvice.java:70) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:179) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.framework.CglibAopProxy$DynamicAdvisedInterceptor.intercept(CglibAopProxy.java:719) ~[spring-aop-7.0.8.jar:7.0.8]
+	at com.fincore.CommunicationService.orchestrator.CommunicationOrchestrator$$SpringCGLIB$$0.process(<generated>) ~[classes/:na]
+	at com.fincore.CommunicationService.consumer.GenericCommunicationConsumer.consumeGenericCommunication(GenericCommunicationConsumer.java:157) ~[classes/:na]
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:103) ~[na:na]
+	at java.base/java.lang.reflect.Method.invoke(Method.java:580) ~[na:na]
+	at org.springframework.messaging.handler.invocation.InvocableHandlerMethod.doInvoke(InvocableHandlerMethod.java:168) ~[spring-messaging-7.0.8.jar:7.0.8]
+	at org.springframework.kafka.listener.adapter.KotlinAwareInvocableHandlerMethod.doInvoke(KotlinAwareInvocableHandlerMethod.java:48) ~[spring-kafka-4.1.0.jar:4.1.0]
+	at org.springframework.messaging.handler.invocation.InvocableHandlerMethod.invoke(InvocableHandlerMethod.java:119) ~[spring-messaging-7.0.8.jar:7.0.8]
+	at org.springframework.kafka.listener.adapter.HandlerAdapter.invoke(HandlerAdapter.java:80) ~[spring-kafka-4.1.0.jar:4.1.0]
+	at org.springframework.kafka.listener.adapter.MessagingMessageListenerAdapter.invokeHandler(MessagingMessageListenerAdapter.java:489) ~[spring-kafka-4.1.0.jar:4.1.0]
+	at org.springframework.kafka.listener.adapter.MessagingMessageListenerAdapter.invoke(MessagingMessageListenerAdapter.java:426) ~[spring-kafka-4.1.0.jar:4.1.0]
+	at org.springframework.kafka.listener.adapter.RecordMessagingMessageListenerAdapter.onMessage(RecordMessagingMessageListenerAdapter.java:92) ~[spring-kafka-4.1.0.jar:4.1.0]
+	at org.springframework.kafka.listener.adapter.RecordMessagingMessageListenerAdapter.onMessage(RecordMessagingMessageListenerAdapter.java:52) ~[spring-kafka-4.1.0.jar:4.1.0]
+	at org.springframework.kafka.listener.adapter.KafkaBackoffAwareMessageListenerAdapter.invokeDelegateOnMessage(KafkaBackoffAwareMessageListenerAdapter.java:109) ~[spring-kafka-4.1.0.jar:4.1.0]
+	at org.springframework.kafka.listener.adapter.KafkaBackoffAwareMessageListenerAdapter.onMessage(KafkaBackoffAwareMessageListenerAdapter.java:100) ~[spring-kafka-4.1.0.jar:4.1.0]
+	at org.springframework.kafka.listener.adapter.KafkaBackoffAwareMessageListenerAdapter.onMessage(KafkaBackoffAwareMessageListenerAdapter.java:50) ~[spring-kafka-4.1.0.jar:4.1.0]
+	at org.springframework.kafka.listener.KafkaMessageListenerContainer$ListenerConsumer.doInvokeOnMessage(KafkaMessageListenerContainer.java:3018) ~[spring-kafka-4.1.0.jar:4.1.0]
+	at org.springframework.kafka.listener.KafkaMessageListenerContainer$ListenerConsumer.invokeOnMessage(KafkaMessageListenerContainer.java:2997) ~[spring-kafka-4.1.0.jar:4.1.0]
+	at org.springframework.kafka.listener.KafkaMessageListenerContainer$ListenerConsumer.doInvokeRecordListener(KafkaMessageListenerContainer.java:2907) ~[spring-kafka-4.1.0.jar:4.1.0]
+	at org.springframework.kafka.listener.KafkaMessageListenerContainer$ListenerConsumer.doInvokeWithRecords(KafkaMessageListenerContainer.java:2749) ~[spring-kafka-4.1.0.jar:4.1.0]
+	at org.springframework.kafka.listener.KafkaMessageListenerContainer$ListenerConsumer.invokeRecordListener(KafkaMessageListenerContainer.java:2643) ~[spring-kafka-4.1.0.jar:4.1.0]
+	at org.springframework.kafka.listener.KafkaMessageListenerContainer$ListenerConsumer.invokeListener(KafkaMessageListenerContainer.java:2274) ~[spring-kafka-4.1.0.jar:4.1.0]
+	at org.springframework.kafka.listener.KafkaMessageListenerContainer$ListenerConsumer.invokeIfHaveRecords(KafkaMessageListenerContainer.java:1572) ~[spring-kafka-4.1.0.jar:4.1.0]
+	at org.springframework.kafka.listener.KafkaMessageListenerContainer$ListenerConsumer.pollAndInvoke(KafkaMessageListenerContainer.java:1504) ~[spring-kafka-4.1.0.jar:4.1.0]
+	at org.springframework.kafka.listener.KafkaMessageListenerContainer$ListenerConsumer.run(KafkaMessageListenerContainer.java:1373) ~[spring-kafka-4.1.0.jar:4.1.0]
+	at java.base/java.util.concurrent.CompletableFuture$AsyncRun.run(CompletableFuture.java:1804) ~[na:na]
+	at java.base/java.lang.Thread.run(Thread.java:1570) ~[na:na]
+Caused by: java.lang.IllegalArgumentException: Cannot find cache named 'roles' for Builder[public java.util.List com.fincore.CommunicationService.recipient.provider.RoleRecipientProvider.resolve(com.fincore.CommunicationService.dto.GenericCommunicationEvent$Recipients)] caches=[roles] | key='#recipients.roles' | keyGenerator='' | cacheManager='' | cacheResolver='' | condition='' | unless='' | sync='false'
+	at org.springframework.cache.interceptor.AbstractCacheResolver.resolveCaches(AbstractCacheResolver.java:92) ~[spring-context-7.0.8.jar:7.0.8]
+	at org.springframework.cache.interceptor.CacheAspectSupport.getCaches(CacheAspectSupport.java:314) ~[spring-context-7.0.8.jar:7.0.8]
+	at org.springframework.cache.interceptor.CacheAspectSupport$CacheOperationContext.<init>(CacheAspectSupport.java:882) ~[spring-context-7.0.8.jar:7.0.8]
+	at org.springframework.cache.interceptor.CacheAspectSupport.getOperationContext(CacheAspectSupport.java:327) ~[spring-context-7.0.8.jar:7.0.8]
+	at org.springframework.cache.interceptor.CacheAspectSupport$CacheOperationContexts.<init>(CacheAspectSupport.java:772) ~[spring-context-7.0.8.jar:7.0.8]
+	at org.springframework.cache.interceptor.CacheAspectSupport.execute(CacheAspectSupport.java:406) ~[spring-context-7.0.8.jar:7.0.8]
+	at org.springframework.cache.interceptor.CacheInterceptor.invoke(CacheInterceptor.java:64) ~[spring-context-7.0.8.jar:7.0.8]
+	at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:179) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.framework.CglibAopProxy$DynamicAdvisedInterceptor.intercept(CglibAopProxy.java:719) ~[spring-aop-7.0.8.jar:7.0.8]
+	at com.fincore.CommunicationService.recipient.provider.RoleRecipientProvider$$SpringCGLIB$$0.resolve(<generated>) ~[classes/:na]
+	at com.fincore.CommunicationService.recipient.RecipientResolver.lambda$resolveRecipients$1(RecipientResolver.java:79) ~[classes/:na]
+	at java.base/java.util.concurrent.FutureTask.run(FutureTask.java:317) ~[na:na]
+	at java.base/java.lang.VirtualThread.run(VirtualThread.java:329) ~[na:na]
 
+2026-08-19T17:05:04.609+05:30  INFO 46988 --- [CommunicationService] [0-retry-0-0-C-1] c.f.C.o.CommunicationOrchestrator        : Orchestrator executing Event: evt-1eac307f-8163-456c-b11a-46c16f621ffe | Personalized Flag: true
+2026-08-19T17:05:04.609+05:30  INFO 46988 --- [CommunicationService] [0-retry-0-0-C-1] c.f.C.recipient.RecipientResolver        : Recipient Resolution Started.
+2026-08-19T17:05:04.609+05:30 ERROR 46988 --- [CommunicationService] [0-retry-0-0-C-1] c.f.C.recipient.RecipientResolver        : Recipient Resolution Failed.
 
+java.util.concurrent.ExecutionException: java.lang.IllegalArgumentException: Cannot find cache named 'roles' for Builder[public java.util.List com.fincore.CommunicationService.recipient.provider.RoleRecipientProvider.resolve(com.fincore.CommunicationService.dto.GenericCommunicationEvent$Recipients)] caches=[roles] | key='#recipients.roles' | keyGenerator='' | cacheManager='' | cacheResolver='' | condition='' | unless='' | sync='false'
+	at java.base/java.util.concurrent.FutureTask.report(FutureTask.java:122) ~[na:na]
+	at java.base/java.util.concurrent.FutureTask.get(FutureTask.java:191) ~[na:na]
+	at com.fincore.CommunicationService.recipient.RecipientResolver.resolveRecipients(RecipientResolver.java:100) ~[classes/:na]
+	at com.fincore.CommunicationService.orchestrator.CommunicationOrchestrator.process(CommunicationOrchestrator.java:95) ~[classes/:na]
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:103) ~[na:na]
+	at java.base/java.lang.reflect.Method.invoke(Method.java:580) ~[na:na]
+	at org.springframework.aop.support.AopUtils.invokeJoinpointUsingReflection(AopUtils.java:359) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.framework.ReflectiveMethodInvocation.invokeJoinpoint(ReflectiveMethodInvocation.java:190) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:158) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.interceptor.ExposeInvocationInterceptor.invoke(ExposeInvocationInterceptor.java:96) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:179) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.aspectj.MethodInvocationProceedingJoinPoint.proceed(MethodInvocationProceedingJoinPoint.java:82) ~[spring-aop-7.0.8.jar:7.0.8]
+	at com.fincore.commonutilities.aspect.GlobalResilienceAspect.lambda$applyResilience$0(GlobalResilienceAspect.java:60) ~[classes/:na]
+	at io.github.resilience4j.retry.Retry.lambda$decorateSupplier$5(Retry.java:301) ~[resilience4j-retry-2.3.0.jar:2.3.0]
+	at io.github.resilience4j.circuitbreaker.CircuitBreaker.lambda$decorateSupplier$5(CircuitBreaker.java:194) ~[resilience4j-circuitbreaker-2.3.0.jar:2.3.0]
+	at com.fincore.commonutilities.aspect.GlobalResilienceAspect.applyResilience(GlobalResilienceAspect.java:73) ~[classes/:na]
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:103) ~[na:na]
+	at java.base/java.lang.reflect.Method.invoke(Method.java:580) ~[na:na]
+	at org.springframework.aop.aspectj.AbstractAspectJAdvice.invokeAdviceMethodWithGivenArgs(AbstractAspectJAdvice.java:648) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.aspectj.AbstractAspectJAdvice.invokeAdviceMethod(AbstractAspectJAdvice.java:630) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.aspectj.AspectJAroundAdvice.invoke(AspectJAroundAdvice.java:70) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:179) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.framework.CglibAopProxy$DynamicAdvisedInterceptor.intercept(CglibAopProxy.java:719) ~[spring-aop-7.0.8.jar:7.0.8]
+	at com.fincore.CommunicationService.orchestrator.CommunicationOrchestrator$$SpringCGLIB$$0.process(<generated>) ~[classes/:na]
+	at com.fincore.CommunicationService.consumer.GenericCommunicationConsumer.consumeGenericCommunication(GenericCommunicationConsumer.java:157) ~[classes/:na]
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:103) ~[na:na]
+	at java.base/java.lang.reflect.Method.invoke(Method.java:580) ~[na:na]
+	at org.springframework.messaging.handler.invocation.InvocableHandlerMethod.doInvoke(InvocableHandlerMethod.java:168) ~[spring-messaging-7.0.8.jar:7.0.8]
+	at org.springframework.kafka.listener.adapter.KotlinAwareInvocableHandlerMethod.doInvoke(KotlinAwareInvocableHandlerMethod.java:48) ~[spring-kafka-4.1.0.jar:4.1.0]
+	at org.springframework.messaging.handler.invocation.InvocableHandlerMethod.invoke(InvocableHandlerMethod.java:119) ~[spring-messaging-7.0.8.jar:7.0.8]
+	at org.springframework.kafka.listener.adapter.HandlerAdapter.invoke(HandlerAdapter.java:80) ~[spring-kafka-4.1.0.jar:4.1.0]
+	at org.springframework.kafka.listener.adapter.MessagingMessageListenerAdapter.invokeHandler(MessagingMessageListenerAdapter.java:489) ~[spring-kafka-4.1.0.jar:4.1.0]
+	at org.springframework.kafka.listener.adapter.MessagingMessageListenerAdapter.invoke(MessagingMessageListenerAdapter.java:426) ~[spring-kafka-4.1.0.jar:4.1.0]
+	at org.springframework.kafka.listener.adapter.RecordMessagingMessageListenerAdapter.onMessage(RecordMessagingMessageListenerAdapter.java:92) ~[spring-kafka-4.1.0.jar:4.1.0]
+	at org.springframework.kafka.listener.adapter.RecordMessagingMessageListenerAdapter.onMessage(RecordMessagingMessageListenerAdapter.java:52) ~[spring-kafka-4.1.0.jar:4.1.0]
+	at org.springframework.kafka.listener.adapter.KafkaBackoffAwareMessageListenerAdapter.invokeDelegateOnMessage(KafkaBackoffAwareMessageListenerAdapter.java:109) ~[spring-kafka-4.1.0.jar:4.1.0]
+	at org.springframework.kafka.listener.adapter.KafkaBackoffAwareMessageListenerAdapter.onMessage(KafkaBackoffAwareMessageListenerAdapter.java:100) ~[spring-kafka-4.1.0.jar:4.1.0]
+	at org.springframework.kafka.listener.adapter.KafkaBackoffAwareMessageListenerAdapter.onMessage(KafkaBackoffAwareMessageListenerAdapter.java:50) ~[spring-kafka-4.1.0.jar:4.1.0]
+	at org.springframework.kafka.listener.KafkaMessageListenerContainer$ListenerConsumer.doInvokeOnMessage(KafkaMessageListenerContainer.java:3018) ~[spring-kafka-4.1.0.jar:4.1.0]
+	at org.springframework.kafka.listener.KafkaMessageListenerContainer$ListenerConsumer.invokeOnMessage(KafkaMessageListenerContainer.java:2997) ~[spring-kafka-4.1.0.jar:4.1.0]
+	at org.springframework.kafka.listener.KafkaMessageListenerContainer$ListenerConsumer.doInvokeRecordListener(KafkaMessageListenerContainer.java:2907) ~[spring-kafka-4.1.0.jar:4.1.0]
+	at org.springframework.kafka.listener.KafkaMessageListenerContainer$ListenerConsumer.doInvokeWithRecords(KafkaMessageListenerContainer.java:2749) ~[spring-kafka-4.1.0.jar:4.1.0]
+	at org.springframework.kafka.listener.KafkaMessageListenerContainer$ListenerConsumer.invokeRecordListener(KafkaMessageListenerContainer.java:2643) ~[spring-kafka-4.1.0.jar:4.1.0]
+	at org.springframework.kafka.listener.KafkaMessageListenerContainer$ListenerConsumer.invokeListener(KafkaMessageListenerContainer.java:2274) ~[spring-kafka-4.1.0.jar:4.1.0]
+	at org.springframework.kafka.listener.KafkaMessageListenerContainer$ListenerConsumer.invokeIfHaveRecords(KafkaMessageListenerContainer.java:1572) ~[spring-kafka-4.1.0.jar:4.1.0]
+	at org.springframework.kafka.listener.KafkaMessageListenerContainer$ListenerConsumer.pollAndInvoke(KafkaMessageListenerContainer.java:1504) ~[spring-kafka-4.1.0.jar:4.1.0]
+	at org.springframework.kafka.listener.KafkaMessageListenerContainer$ListenerConsumer.run(KafkaMessageListenerContainer.java:1373) ~[spring-kafka-4.1.0.jar:4.1.0]
+	at java.base/java.util.concurrent.CompletableFuture$AsyncRun.run(CompletableFuture.java:1804) ~[na:na]
+	at java.base/java.lang.Thread.run(Thread.java:1570) ~[na:na]
+Caused by: java.lang.IllegalArgumentException: Cannot find cache named 'roles' for Builder[public java.util.List com.fincore.CommunicationService.recipient.provider.RoleRecipientProvider.resolve(com.fincore.CommunicationService.dto.GenericCommunicationEvent$Recipients)] caches=[roles] | key='#recipients.roles' | keyGenerator='' | cacheManager='' | cacheResolver='' | condition='' | unless='' | sync='false'
+	at org.springframework.cache.interceptor.AbstractCacheResolver.resolveCaches(AbstractCacheResolver.java:92) ~[spring-context-7.0.8.jar:7.0.8]
+	at org.springframework.cache.interceptor.CacheAspectSupport.getCaches(CacheAspectSupport.java:314) ~[spring-context-7.0.8.jar:7.0.8]
+	at org.springframework.cache.interceptor.CacheAspectSupport$CacheOperationContext.<init>(CacheAspectSupport.java:882) ~[spring-context-7.0.8.jar:7.0.8]
+	at org.springframework.cache.interceptor.CacheAspectSupport.getOperationContext(CacheAspectSupport.java:327) ~[spring-context-7.0.8.jar:7.0.8]
+	at org.springframework.cache.interceptor.CacheAspectSupport$CacheOperationContexts.<init>(CacheAspectSupport.java:772) ~[spring-context-7.0.8.jar:7.0.8]
+	at org.springframework.cache.interceptor.CacheAspectSupport.execute(CacheAspectSupport.java:406) ~[spring-context-7.0.8.jar:7.0.8]
+	at org.springframework.cache.interceptor.CacheInterceptor.invoke(CacheInterceptor.java:64) ~[spring-context-7.0.8.jar:7.0.8]
+	at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:179) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.framework.CglibAopProxy$DynamicAdvisedInterceptor.intercept(CglibAopProxy.java:719) ~[spring-aop-7.0.8.jar:7.0.8]
+	at com.fincore.CommunicationService.recipient.provider.RoleRecipientProvider$$SpringCGLIB$$0.resolve(<generated>) ~[classes/:na]
+	at com.fincore.CommunicationService.recipient.RecipientResolver.lambda$resolveRecipients$1(RecipientResolver.java:79) ~[classes/:na]
+	at java.base/java.util.concurrent.FutureTask.run(FutureTask.java:317) ~[na:na]
+	at java.base/java.lang.VirtualThread.run(VirtualThread.java:329) ~[na:na]
 
+2026-08-19T17:05:05.111+05:30  INFO 46988 --- [CommunicationService] [0-retry-0-0-C-1] c.f.C.o.CommunicationOrchestrator        : Orchestrator executing Event: evt-1eac307f-8163-456c-b11a-46c16f621ffe | Personalized Flag: true
+2026-08-19T17:05:05.111+05:30  INFO 46988 --- [CommunicationService] [0-retry-0-0-C-1] c.f.C.recipient.RecipientResolver        : Recipient Resolution Started.
+2026-08-19T17:05:05.111+05:30 ERROR 46988 --- [CommunicationService] [0-retry-0-0-C-1] c.f.C.recipient.RecipientResolver        : Recipient Resolution Failed.
 
+java.util.concurrent.ExecutionException: java.lang.IllegalArgumentException: Cannot find cache named 'roles' for Builder[public java.util.List com.fincore.CommunicationService.recipient.provider.RoleRecipientProvider.resolve(com.fincore.CommunicationService.dto.GenericCommunicationEvent$Recipients)] caches=[roles] | key='#recipients.roles' | keyGenerator='' | cacheManager='' | cacheResolver='' | condition='' | unless='' | sync='false'
+	at java.base/java.util.concurrent.FutureTask.report(FutureTask.java:122) ~[na:na]
+	at java.base/java.util.concurrent.FutureTask.get(FutureTask.java:191) ~[na:na]
+	at com.fincore.CommunicationService.recipient.RecipientResolver.resolveRecipients(RecipientResolver.java:100) ~[classes/:na]
+	at com.fincore.CommunicationService.orchestrator.CommunicationOrchestrator.process(CommunicationOrchestrator.java:95) ~[classes/:na]
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:103) ~[na:na]
+	at java.base/java.lang.reflect.Method.invoke(Method.java:580) ~[na:na]
+	at org.springframework.aop.support.AopUtils.invokeJoinpointUsingReflection(AopUtils.java:359) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.framework.ReflectiveMethodInvocation.invokeJoinpoint(ReflectiveMethodInvocation.java:190) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:158) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.interceptor.ExposeInvocationInterceptor.invoke(ExposeInvocationInterceptor.java:96) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:179) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.aspectj.MethodInvocationProceedingJoinPoint.proceed(MethodInvocationProceedingJoinPoint.java:82) ~[spring-aop-7.0.8.jar:7.0.8]
+	at com.fincore.commonutilities.aspect.GlobalResilienceAspect.lambda$applyResilience$0(GlobalResilienceAspect.java:60) ~[classes/:na]
+	at io.github.resilience4j.retry.Retry.lambda$decorateSupplier$5(Retry.java:301) ~[resilience4j-retry-2.3.0.jar:2.3.0]
+	at io.github.resilience4j.circuitbreaker.CircuitBreaker.lambda$decorateSupplier$5(CircuitBreaker.java:194) ~[resilience4j-circuitbreaker-2.3.0.jar:2.3.0]
+	at com.fincore.commonutilities.aspect.GlobalResilienceAspect.applyResilience(GlobalResilienceAspect.java:73) ~[classes/:na]
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:103) ~[na:na]
+	at java.base/java.lang.reflect.Method.invoke(Method.java:580) ~[na:na]
+	at org.springframework.aop.aspectj.AbstractAspectJAdvice.invokeAdviceMethodWithGivenArgs(AbstractAspectJAdvice.java:648) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.aspectj.AbstractAspectJAdvice.invokeAdviceMethod(AbstractAspectJAdvice.java:630) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.aspectj.AspectJAroundAdvice.invoke(AspectJAroundAdvice.java:70) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:179) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.framework.CglibAopProxy$DynamicAdvisedInterceptor.intercept(CglibAopProxy.java:719) ~[spring-aop-7.0.8.jar:7.0.8]
+	at com.fincore.CommunicationService.orchestrator.CommunicationOrchestrator$$SpringCGLIB$$0.process(<generated>) ~[classes/:na]
+	at com.fincore.CommunicationService.consumer.GenericCommunicationConsumer.consumeGenericCommunication(GenericCommunicationConsumer.java:157) ~[classes/:na]
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:103) ~[na:na]
+	at java.base/java.lang.reflect.Method.invoke(Method.java:580) ~[na:na]
+	at org.springframework.messaging.handler.invocation.InvocableHandlerMethod.doInvoke(InvocableHandlerMethod.java:168) ~[spring-messaging-7.0.8.jar:7.0.8]
+	at org.springframework.kafka.listener.adapter.KotlinAwareInvocableHandlerMethod.doInvoke(KotlinAwareInvocableHandlerMethod.java:48) ~[spring-kafka-4.1.0.jar:4.1.0]
+	at org.springframework.messaging.handler.invocation.InvocableHandlerMethod.invoke(InvocableHandlerMethod.java:119) ~[spring-messaging-7.0.8.jar:7.0.8]
+	at org.springframework.kafka.listener.adapter.HandlerAdapter.invoke(HandlerAdapter.java:80) ~[spring-kafka-4.1.0.jar:4.1.0]
+	at org.springframework.kafka.listener.adapter.MessagingMessageListenerAdapter.invokeHandler(MessagingMessageListenerAdapter.java:489) ~[spring-kafka-4.1.0.jar:4.1.0]
+	at org.springframework.kafka.listener.adapter.MessagingMessageListenerAdapter.invoke(MessagingMessageListenerAdapter.java:426) ~[spring-kafka-4.1.0.jar:4.1.0]
+	at org.springframework.kafka.listener.adapter.RecordMessagingMessageListenerAdapter.onMessage(RecordMessagingMessageListenerAdapter.java:92) ~[spring-kafka-4.1.0.jar:4.1.0]
+	at org.springframework.kafka.listener.adapter.RecordMessagingMessageListenerAdapter.onMessage(RecordMessagingMessageListenerAdapter.java:52) ~[spring-kafka-4.1.0.jar:4.1.0]
+	at org.springframework.kafka.listener.adapter.KafkaBackoffAwareMessageListenerAdapter.invokeDelegateOnMessage(KafkaBackoffAwareMessageListenerAdapter.java:109) ~[spring-kafka-4.1.0.jar:4.1.0]
+	at org.springframework.kafka.listener.adapter.KafkaBackoffAwareMessageListenerAdapter.onMessage(KafkaBackoffAwareMessageListenerAdapter.java:100) ~[spring-kafka-4.1.0.jar:4.1.0]
+	at org.springframework.kafka.listener.adapter.KafkaBackoffAwareMessageListenerAdapter.onMessage(KafkaBackoffAwareMessageListenerAdapter.java:50) ~[spring-kafka-4.1.0.jar:4.1.0]
+	at org.springframework.kafka.listener.KafkaMessageListenerContainer$ListenerConsumer.doInvokeOnMessage(KafkaMessageListenerContainer.java:3018) ~[spring-kafka-4.1.0.jar:4.1.0]
+	at org.springframework.kafka.listener.KafkaMessageListenerContainer$ListenerConsumer.invokeOnMessage(KafkaMessageListenerContainer.java:2997) ~[spring-kafka-4.1.0.jar:4.1.0]
+	at org.springframework.kafka.listener.KafkaMessageListenerContainer$ListenerConsumer.doInvokeRecordListener(KafkaMessageListenerContainer.java:2907) ~[spring-kafka-4.1.0.jar:4.1.0]
+	at org.springframework.kafka.listener.KafkaMessageListenerContainer$ListenerConsumer.doInvokeWithRecords(KafkaMessageListenerContainer.java:2749) ~[spring-kafka-4.1.0.jar:4.1.0]
+	at org.springframework.kafka.listener.KafkaMessageListenerContainer$ListenerConsumer.invokeRecordListener(KafkaMessageListenerContainer.java:2643) ~[spring-kafka-4.1.0.jar:4.1.0]
+	at org.springframework.kafka.listener.KafkaMessageListenerContainer$ListenerConsumer.invokeListener(KafkaMessageListenerContainer.java:2274) ~[spring-kafka-4.1.0.jar:4.1.0]
+	at org.springframework.kafka.listener.KafkaMessageListenerContainer$ListenerConsumer.invokeIfHaveRecords(KafkaMessageListenerContainer.java:1572) ~[spring-kafka-4.1.0.jar:4.1.0]
+	at org.springframework.kafka.listener.KafkaMessageListenerContainer$ListenerConsumer.pollAndInvoke(KafkaMessageListenerContainer.java:1504) ~[spring-kafka-4.1.0.jar:4.1.0]
+	at org.springframework.kafka.listener.KafkaMessageListenerContainer$ListenerConsumer.run(KafkaMessageListenerContainer.java:1373) ~[spring-kafka-4.1.0.jar:4.1.0]
+	at java.base/java.util.concurrent.CompletableFuture$AsyncRun.run(CompletableFuture.java:1804) ~[na:na]
+	at java.base/java.lang.Thread.run(Thread.java:1570) ~[na:na]
+Caused by: java.lang.IllegalArgumentException: Cannot find cache named 'roles' for Builder[public java.util.List com.fincore.CommunicationService.recipient.provider.RoleRecipientProvider.resolve(com.fincore.CommunicationService.dto.GenericCommunicationEvent$Recipients)] caches=[roles] | key='#recipients.roles' | keyGenerator='' | cacheManager='' | cacheResolver='' | condition='' | unless='' | sync='false'
+	at org.springframework.cache.interceptor.AbstractCacheResolver.resolveCaches(AbstractCacheResolver.java:92) ~[spring-context-7.0.8.jar:7.0.8]
+	at org.springframework.cache.interceptor.CacheAspectSupport.getCaches(CacheAspectSupport.java:314) ~[spring-context-7.0.8.jar:7.0.8]
+	at org.springframework.cache.interceptor.CacheAspectSupport$CacheOperationContext.<init>(CacheAspectSupport.java:882) ~[spring-context-7.0.8.jar:7.0.8]
+	at org.springframework.cache.interceptor.CacheAspectSupport.getOperationContext(CacheAspectSupport.java:327) ~[spring-context-7.0.8.jar:7.0.8]
+	at org.springframework.cache.interceptor.CacheAspectSupport$CacheOperationContexts.<init>(CacheAspectSupport.java:772) ~[spring-context-7.0.8.jar:7.0.8]
+	at org.springframework.cache.interceptor.CacheAspectSupport.execute(CacheAspectSupport.java:406) ~[spring-context-7.0.8.jar:7.0.8]
+	at org.springframework.cache.interceptor.CacheInterceptor.invoke(CacheInterceptor.java:64) ~[spring-context-7.0.8.jar:7.0.8]
+	at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:179) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.framework.CglibAopProxy$DynamicAdvisedInterceptor.intercept(CglibAopProxy.java:719) ~[spring-aop-7.0.8.jar:7.0.8]
+	at com.fincore.CommunicationService.recipient.provider.RoleRecipientProvider$$SpringCGLIB$$0.resolve(<generated>) ~[classes/:na]
+	at com.fincore.CommunicationService.recipient.RecipientResolver.lambda$resolveRecipients$1(RecipientResolver.java:79) ~[classes/:na]
+	at java.base/java.util.concurrent.FutureTask.run(FutureTask.java:317) ~[na:na]
+	at java.base/java.lang.VirtualThread.run(VirtualThread.java:329) ~[na:na]
 
-//----------------------------- producer ---------------------------------------
+2026-08-19T17:05:05.113+05:30 ERROR 46988 --- [CommunicationService] [0-retry-0-0-C-1] c.f.C.c.GenericCommunicationConsumer     : Generic Communication processing failed for EventId=evt-1eac307f-8163-456c-b11a-46c16f621ffe
 
-2026-08-19 16:47:38.221 INFO  [http-nio-9006-exec-8] c.f.p.p.CommunicationEventProducer: Producing EOD event to communication service: CommunicationEvent(eventId=evt-f64e631c-2991-4070-af6a-3e5f5ee3e084, traceId=trc-bb91c209-7196-4880-8075-a79f7ff57e84, correlationId=batch-01-08-26, producerService=PROCESS_STATUS, eventType=EOD_EVENT, priority=NORMAL, channels=[SMS, EMAIL], recipients=Recipients(userIds=null, roles=[10, 11, 51, 54, 60], emails=null, mobiles=null), templateId=SUCCESS_EOD_TEMPLATE, payload={timeTaken=null, STATUS=5, suspenseHeaders=[Summary], cibaHeaders=[Summary], cibaRows=null, processDate=01-08-26, balanceCompareRows=null, suspenseRows=null, startTime=null, titles={balanceCompareTitle=Balance Compare, suspenseTitle=Suspense, cibaTitle=CIBA}, endTime=null, balanceCompareHeaders=[Summary]}, attachments=[AttachmentRef(attachmentId=balance_compare_report_01082026, attachmentType=BAL_COMP_SUMMARY, fileName=balance_compare_report), AttachmentRef(attachmentId=intr_report_01082026, attachmentType=INTR_SUMMARY, fileName=intr_report), AttachmentRef(attachmentId=cntr_report_01082026, attachmentType=CNTR_SUMMARY, fileName=cntr_report)]) 
-{"@timestamp":"2026-08-19T16:47:38.2218875+05:30","level":"INFO","service":"ProcessStatusService","traceId":"ddd4bac4-e7ff-4c10-a0a2-24d52341bc6b","userId":"2488766","clientIp":"0:0:0:0:0:0:0:1","apiPath":"/api/process/generic-event","requestUrl":"http://localhost:9006/api/process/generic-event","httpMethod":"POST","httpStatus":"","class":"c.f.p.p.CommunicationEventProducer","message":"Producing EOD event to communication service: CommunicationEvent(eventId=evt-f64e631c-2991-4070-af6a-3e5f5ee3e084, traceId=trc-bb91c209-7196-4880-8075-a79f7ff57e84, correlationId=batch-01-08-26, producerService=PROCESS_STATUS, eventType=EOD_EVENT, priority=NORMAL, channels=[SMS, EMAIL], recipients=Recipients(userIds=null, roles=[10, 11, 51, 54, 60], emails=null, mobiles=null), templateId=SUCCESS_EOD_TEMPLATE, payload={timeTaken=null, STATUS=5, suspenseHeaders=[Summary], cibaHeaders=[Summary], cibaRows=null, processDate=01-08-26, balanceCompareRows=null, suspenseRows=null, startTime=null, titles={balanceCompareTitle=Balance Compare, suspenseTitle=Suspense, cibaTitle=CIBA}, endTime=null, balanceCompareHeaders=[Summary]}, attachments=[AttachmentRef(attachmentId=balance_compare_report_01082026, attachmentType=BAL_COMP_SUMMARY, fileName=balance_compare_report), AttachmentRef(attachmentId=intr_report_01082026, attachmentType=INTR_SUMMARY, fileName=intr_report), AttachmentRef(attachmentId=cntr_report_01082026, attachmentType=CNTR_SUMMARY, fileName=cntr_report)])","stack_trace":""}
-2026-08-19 16:47:38.225 INFO  [http-nio-9006-exec-8] c.f.c.l.MdcLoggingFilter: API Execution Completed - Method: POST | URL: http://localhost:9006/api/process/generic-event | Status: 200 
-{"@timestamp":"2026-08-19T16:47:38.2254218+05:30","level":"INFO","service":"ProcessStatusService","traceId":"ddd4bac4-e7ff-4c10-a0a2-24d52341bc6b","userId":"2488766","clientIp":"0:0:0:0:0:0:0:1","apiPath":"/api/process/generic-event","requestUrl":"http://localhost:9006/api/process/generic-event","httpMethod":"POST","httpStatus":"200","class":"c.f.c.logging.MdcLoggingFilter","message":"API Execution Completed - Method: POST | URL: http://localhost:9006/api/process/generic-event | Status: 200","stack_trace":""}
+java.lang.RuntimeException: Unable to resolve recipients.
+	at com.fincore.CommunicationService.recipient.RecipientResolver.resolveRecipients(RecipientResolver.java:107) ~[classes/:na]
+	at com.fincore.CommunicationService.orchestrator.CommunicationOrchestrator.process(CommunicationOrchestrator.java:95) ~[classes/:na]
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:103) ~[na:na]
+	at java.base/java.lang.reflect.Method.invoke(Method.java:580) ~[na:na]
+	at org.springframework.aop.support.AopUtils.invokeJoinpointUsingReflection(AopUtils.java:359) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.framework.ReflectiveMethodInvocation.invokeJoinpoint(ReflectiveMethodInvocation.java:190) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:158) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.interceptor.ExposeInvocationInterceptor.invoke(ExposeInvocationInterceptor.java:96) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:179) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.aspectj.MethodInvocationProceedingJoinPoint.proceed(MethodInvocationProceedingJoinPoint.java:82) ~[spring-aop-7.0.8.jar:7.0.8]
+	at com.fincore.commonutilities.aspect.GlobalResilienceAspect.lambda$applyResilience$0(GlobalResilienceAspect.java:60) ~[classes/:na]
+	at io.github.resilience4j.retry.Retry.lambda$decorateSupplier$5(Retry.java:301) ~[resilience4j-retry-2.3.0.jar:2.3.0]
+	at io.github.resilience4j.circuitbreaker.CircuitBreaker.lambda$decorateSupplier$5(CircuitBreaker.java:194) ~[resilience4j-circuitbreaker-2.3.0.jar:2.3.0]
+	at com.fincore.commonutilities.aspect.GlobalResilienceAspect.applyResilience(GlobalResilienceAspect.java:73) ~[classes/:na]
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:103) ~[na:na]
+	at java.base/java.lang.reflect.Method.invoke(Method.java:580) ~[na:na]
+	at org.springframework.aop.aspectj.AbstractAspectJAdvice.invokeAdviceMethodWithGivenArgs(AbstractAspectJAdvice.java:648) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.aspectj.AbstractAspectJAdvice.invokeAdviceMethod(AbstractAspectJAdvice.java:630) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.aspectj.AspectJAroundAdvice.invoke(AspectJAroundAdvice.java:70) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:179) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.framework.CglibAopProxy$DynamicAdvisedInterceptor.intercept(CglibAopProxy.java:719) ~[spring-aop-7.0.8.jar:7.0.8]
+	at com.fincore.CommunicationService.orchestrator.CommunicationOrchestrator$$SpringCGLIB$$0.process(<generated>) ~[classes/:na]
+	at com.fincore.CommunicationService.consumer.GenericCommunicationConsumer.consumeGenericCommunication(GenericCommunicationConsumer.java:157) ~[classes/:na]
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:103) ~[na:na]
+	at java.base/java.lang.reflect.Method.invoke(Method.java:580) ~[na:na]
+	at org.springframework.messaging.handler.invocation.InvocableHandlerMethod.doInvoke(InvocableHandlerMethod.java:168) ~[spring-messaging-7.0.8.jar:7.0.8]
+	at org.springframework.kafka.listener.adapter.KotlinAwareInvocableHandlerMethod.doInvoke(KotlinAwareInvocableHandlerMethod.java:48) ~[spring-kafka-4.1.0.jar:4.1.0]
+	at org.springframework.messaging.handler.invocation.InvocableHandlerMethod.invoke(InvocableHandlerMethod.java:119) ~[spring-messaging-7.0.8.jar:7.0.8]
+	at org.springframework.kafka.listener.adapter.HandlerAdapter.invoke(HandlerAdapter.java:80) ~[spring-kafka-4.1.0.jar:4.1.0]
+	at org.springframework.kafka.listener.adapter.MessagingMessageListenerAdapter.invokeHandler(MessagingMessageListenerAdapter.java:489) ~[spring-kafka-4.1.0.jar:4.1.0]
+	at org.springframework.kafka.listener.adapter.MessagingMessageListenerAdapter.invoke(MessagingMessageListenerAdapter.java:426) ~[spring-kafka-4.1.0.jar:4.1.0]
+	at org.springframework.kafka.listener.adapter.RecordMessagingMessageListenerAdapter.onMessage(RecordMessagingMessageListenerAdapter.java:92) ~[spring-kafka-4.1.0.jar:4.1.0]
+	at org.springframework.kafka.listener.adapter.RecordMessagingMessageListenerAdapter.onMessage(RecordMessagingMessageListenerAdapter.java:52) ~[spring-kafka-4.1.0.jar:4.1.0]
+	at org.springframework.kafka.listener.adapter.KafkaBackoffAwareMessageListenerAdapter.invokeDelegateOnMessage(KafkaBackoffAwareMessageListenerAdapter.java:109) ~[spring-kafka-4.1.0.jar:4.1.0]
+	at org.springframework.kafka.listener.adapter.KafkaBackoffAwareMessageListenerAdapter.onMessage(KafkaBackoffAwareMessageListenerAdapter.java:100) ~[spring-kafka-4.1.0.jar:4.1.0]
+	at org.springframework.kafka.listener.adapter.KafkaBackoffAwareMessageListenerAdapter.onMessage(KafkaBackoffAwareMessageListenerAdapter.java:50) ~[spring-kafka-4.1.0.jar:4.1.0]
+	at org.springframework.kafka.listener.KafkaMessageListenerContainer$ListenerConsumer.doInvokeOnMessage(KafkaMessageListenerContainer.java:3018) ~[spring-kafka-4.1.0.jar:4.1.0]
+	at org.springframework.kafka.listener.KafkaMessageListenerContainer$ListenerConsumer.invokeOnMessage(KafkaMessageListenerContainer.java:2997) ~[spring-kafka-4.1.0.jar:4.1.0]
+	at org.springframework.kafka.listener.KafkaMessageListenerContainer$ListenerConsumer.doInvokeRecordListener(KafkaMessageListenerContainer.java:2907) ~[spring-kafka-4.1.0.jar:4.1.0]
+	at org.springframework.kafka.listener.KafkaMessageListenerContainer$ListenerConsumer.doInvokeWithRecords(KafkaMessageListenerContainer.java:2749) ~[spring-kafka-4.1.0.jar:4.1.0]
+	at org.springframework.kafka.listener.KafkaMessageListenerContainer$ListenerConsumer.invokeRecordListener(KafkaMessageListenerContainer.java:2643) ~[spring-kafka-4.1.0.jar:4.1.0]
+	at org.springframework.kafka.listener.KafkaMessageListenerContainer$ListenerConsumer.invokeListener(KafkaMessageListenerContainer.java:2274) ~[spring-kafka-4.1.0.jar:4.1.0]
+	at org.springframework.kafka.listener.KafkaMessageListenerContainer$ListenerConsumer.invokeIfHaveRecords(KafkaMessageListenerContainer.java:1572) ~[spring-kafka-4.1.0.jar:4.1.0]
+	at org.springframework.kafka.listener.KafkaMessageListenerContainer$ListenerConsumer.pollAndInvoke(KafkaMessageListenerContainer.java:1504) ~[spring-kafka-4.1.0.jar:4.1.0]
+	at org.springframework.kafka.listener.KafkaMessageListenerContainer$ListenerConsumer.run(KafkaMessageListenerContainer.java:1373) ~[spring-kafka-4.1.0.jar:4.1.0]
+	at java.base/java.util.concurrent.CompletableFuture$AsyncRun.run(CompletableFuture.java:1804) ~[na:na]
+	at java.base/java.lang.Thread.run(Thread.java:1570) ~[na:na]
+Caused by: java.util.concurrent.ExecutionException: java.lang.IllegalArgumentException: Cannot find cache named 'roles' for Builder[public java.util.List com.fincore.CommunicationService.recipient.provider.RoleRecipientProvider.resolve(com.fincore.CommunicationService.dto.GenericCommunicationEvent$Recipients)] caches=[roles] | key='#recipients.roles' | keyGenerator='' | cacheManager='' | cacheResolver='' | condition='' | unless='' | sync='false'
+	at java.base/java.util.concurrent.FutureTask.report(FutureTask.java:122) ~[na:na]
+	at java.base/java.util.concurrent.FutureTask.get(FutureTask.java:191) ~[na:na]
+	at com.fincore.CommunicationService.recipient.RecipientResolver.resolveRecipients(RecipientResolver.java:100) ~[classes/:na]
+	... 46 common frames omitted
+Caused by: java.lang.IllegalArgumentException: Cannot find cache named 'roles' for Builder[public java.util.List com.fincore.CommunicationService.recipient.provider.RoleRecipientProvider.resolve(com.fincore.CommunicationService.dto.GenericCommunicationEvent$Recipients)] caches=[roles] | key='#recipients.roles' | keyGenerator='' | cacheManager='' | cacheResolver='' | condition='' | unless='' | sync='false'
+	at org.springframework.cache.interceptor.AbstractCacheResolver.resolveCaches(AbstractCacheResolver.java:92) ~[spring-context-7.0.8.jar:7.0.8]
+	at org.springframework.cache.interceptor.CacheAspectSupport.getCaches(CacheAspectSupport.java:314) ~[spring-context-7.0.8.jar:7.0.8]
+	at org.springframework.cache.interceptor.CacheAspectSupport$CacheOperationContext.<init>(CacheAspectSupport.java:882) ~[spring-context-7.0.8.jar:7.0.8]
+	at org.springframework.cache.interceptor.CacheAspectSupport.getOperationContext(CacheAspectSupport.java:327) ~[spring-context-7.0.8.jar:7.0.8]
+	at org.springframework.cache.interceptor.CacheAspectSupport$CacheOperationContexts.<init>(CacheAspectSupport.java:772) ~[spring-context-7.0.8.jar:7.0.8]
+	at org.springframework.cache.interceptor.CacheAspectSupport.execute(CacheAspectSupport.java:406) ~[spring-context-7.0.8.jar:7.0.8]
+	at org.springframework.cache.interceptor.CacheInterceptor.invoke(CacheInterceptor.java:64) ~[spring-context-7.0.8.jar:7.0.8]
+	at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:179) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.framework.CglibAopProxy$DynamicAdvisedInterceptor.intercept(CglibAopProxy.java:719) ~[spring-aop-7.0.8.jar:7.0.8]
+	at com.fincore.CommunicationService.recipient.provider.RoleRecipientProvider$$SpringCGLIB$$0.resolve(<generated>) ~[classes/:na]
+	at com.fincore.CommunicationService.recipient.RecipientResolver.lambda$resolveRecipients$1(RecipientResolver.java:79) ~[classes/:na]
+	at java.base/java.util.concurrent.FutureTask.run(FutureTask.java:317) ~[na:na]
+	at java.base/java.lang.VirtualThread.run(VirtualThread.java:329) ~[na:na]
+
+2026-08-19T17:05:05.138+05:30  INFO 46988 --- [CommunicationService] [0-retry-1-0-C-1] o.a.k.c.c.i.ClassicKafkaConsumer         : [Consumer clientId=consumer-communication-generic-group-v2-retry-1-21, groupId=communication-generic-group-v2-retry-1] Seeking to offset 182 for partition fincore.communication.generic-retry-1-0
+2026-08-19T17:05:05.138+05:30  INFO 46988 --- [CommunicationService] [0-retry-1-0-C-1] o.s.k.l.KafkaMessageListenerContainer    : Record in retry and not yet recovered
+2026-08-19T17:05:09.118+05:30  INFO 46988 --- [CommunicationService] [0-retry-1-0-C-1] c.f.C.c.GenericCommunicationConsumer     : Received Generic Communication Event : {"eventId":"evt-1eac307f-8163-456c-b11a-46c16f621ffe","traceId":"trc-d1abc6d9-8c92-4b2a-80c5-0d3c8dd8cf14","correlationId":"batch-01-08-26","producerService":"PROCESS_STATUS","eventType":"EOD_EVENT","priority":"NORMAL","channels":["SMS","EMAIL"],"recipients":{"roles":["10","11","51","54","60"]},"templateId":"SUCCESS_EOD_TEMPLATE","payload":{"timeTaken":null,"STATUS":"5","suspenseHeaders":["Summary"],"cibaHeaders":["Summary"],"cibaRows":null,"processDate":"01-08-26","balanceCompareRows":null,"suspenseRows":null,"startTime":null,"titles":{"balanceCompareTitle":"Balance Compare","suspenseTitle":"Suspense","cibaTitle":"CIBA"},"endTime":null,"balanceCompareHeaders":["Summary"]},"attachments":[{"attachmentId":"balance_compare_report_01082026","attachmentType":"BAL_COMP_SUMMARY","fileName":"balance_compare_report"},{"attachmentId":"intr_report_01082026","attachmentType":"INTR_SUMMARY","fileName":"intr_report"},{"attachmentId":"cntr_report_01082026","attachmentType":"CNTR_SUMMARY","fileName":"cntr_report"}]}
+2026-08-19T17:05:09.118+05:30  INFO 46988 --- [CommunicationService] [0-retry-1-0-C-1] c.f.C.c.GenericCommunicationConsumer     : Validated Generic Communication Event : evt-1eac307f-8163-456c-b11a-46c16f621ffe
+2026-08-19T17:05:09.118+05:30  INFO 46988 --- [CommunicationService] [0-retry-1-0-C-1] c.f.C.o.CommunicationOrchestrator        : Orchestrator executing Event: evt-1eac307f-8163-456c-b11a-46c16f621ffe | Personalized Flag: true
+2026-08-19T17:05:09.118+05:30  INFO 46988 --- [CommunicationService] [0-retry-1-0-C-1] c.f.C.recipient.RecipientResolver        : Recipient Resolution Started.
+2026-08-19T17:05:09.119+05:30 ERROR 46988 --- [CommunicationService] [0-retry-1-0-C-1] c.f.C.recipient.RecipientResolver        : Recipient Resolution Failed.
+
+java.util.concurrent.ExecutionException: java.lang.IllegalArgumentException: Cannot find cache named 'roles' for Builder[public java.util.List com.fincore.CommunicationService.recipient.provider.RoleRecipientProvider.resolve(com.fincore.CommunicationService.dto.GenericCommunicationEvent$Recipients)] caches=[roles] | key='#recipients.roles' | keyGenerator='' | cacheManager='' | cacheResolver='' | condition='' | unless='' | sync='false'
+	at java.base/java.util.concurrent.FutureTask.report(FutureTask.java:122) ~[na:na]
+	at java.base/java.util.concurrent.FutureTask.get(FutureTask.java:191) ~[na:na]
+	at com.fincore.CommunicationService.recipient.RecipientResolver.resolveRecipients(RecipientResolver.java:100) ~[classes/:na]
+	at com.fincore.CommunicationService.orchestrator.CommunicationOrchestrator.process(CommunicationOrchestrator.java:95) ~[classes/:na]
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:103) ~[na:na]
+	at java.base/java.lang.reflect.Method.invoke(Method.java:580) ~[na:na]
+	at org.springframework.aop.support.AopUtils.invokeJoinpointUsingReflection(AopUtils.java:359) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.framework.ReflectiveMethodInvocation.invokeJoinpoint(ReflectiveMethodInvocation.java:190) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:158) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.interceptor.ExposeInvocationInterceptor.invoke(ExposeInvocationInterceptor.java:96) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:179) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.aspectj.MethodInvocationProceedingJoinPoint.proceed(MethodInvocationProceedingJoinPoint.java:82) ~[spring-aop-7.0.8.jar:7.0.8]
+	at com.fincore.commonutilities.aspect.GlobalResilienceAspect.lambda$applyResilience$0(GlobalResilienceAspect.java:60) ~[classes/:na]
+	at io.github.resilience4j.retry.Retry.lambda$decorateSupplier$5(Retry.java:301) ~[resilience4j-retry-2.3.0.jar:2.3.0]
+	at io.github.resilience4j.circuitbreaker.CircuitBreaker.lambda$decorateSupplier$5(CircuitBreaker.java:194) ~[resilience4j-circuitbreaker-2.3.0.jar:2.3.0]
+	at com.fincore.commonutilities.aspect.GlobalResilienceAspect.applyResilience(GlobalResilienceAspect.java:73) ~[classes/:na]
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:103) ~[na:na]
+	at java.base/java.lang.reflect.Method.invoke(Method.java:580) ~[na:na]
+	at org.springframework.aop.aspectj.AbstractAspectJAdvice.invokeAdviceMethodWithGivenArgs(AbstractAspectJAdvice.java:648) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.aspectj.AbstractAspectJAdvice.invokeAdviceMethod(AbstractAspectJAdvice.java:630) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.aspectj.AspectJAroundAdvice.invoke(AspectJAroundAdvice.java:70) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:179) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.framework.CglibAopProxy$DynamicAdvisedInterceptor.intercept(CglibAopProxy.java:719) ~[spring-aop-7.0.8.jar:7.0.8]
+	at com.fincore.CommunicationService.orchestrator.CommunicationOrchestrator$$SpringCGLIB$$0.process(<generated>) ~[classes/:na]
+	at com.fincore.CommunicationService.consumer.GenericCommunicationConsumer.consumeGenericCommunication(GenericCommunicationConsumer.java:157) ~[classes/:na]
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:103) ~[na:na]
+	at java.base/java.lang.reflect.Method.invoke(Method.java:580) ~[na:na]
+	at org.springframework.messaging.handler.invocation.InvocableHandlerMethod.doInvoke(InvocableHandlerMethod.java:168) ~[spring-messaging-7.0.8.jar:7.0.8]
+	at org.springframework.kafka.listener.adapter.KotlinAwareInvocableHandlerMethod.doInvoke(KotlinAwareInvocableHandlerMethod.java:48) ~[spring-kafka-4.1.0.jar:4.1.0]
+	at org.springframework.messaging.handler.invocation.InvocableHandlerMethod.invoke(InvocableHandlerMethod.java:119) ~[spring-messaging-7.0.8.jar:7.0.8]
+	at org.springframework.kafka.listener.adapter.HandlerAdapter.invoke(HandlerAdapter.java:80) ~[spring-kafka-4.1.0.jar:4.1.0]
+	at org.springframework.kafka.listener.adapter.MessagingMessageListenerAdapter.invokeHandler(MessagingMessageListenerAdapter.java:489) ~[spring-kafka-4.1.0.jar:4.1.0]
+	at org.springframework.kafka.listener.adapter.MessagingMessageListenerAdapter.invoke(MessagingMessageListenerAdapter.java:426) ~[spring-kafka-4.1.0.jar:4.1.0]
+	at org.springframework.kafka.listener.adapter.RecordMessagingMessageListenerAdapter.onMessage(RecordMessagingMessageListenerAdapter.java:92) ~[spring-kafka-4.1.0.jar:4.1.0]
+	at org.springframework.kafka.listener.adapter.RecordMessagingMessageListenerAdapter.onMessage(RecordMessagingMessageListenerAdapter.java:52) ~[spring-kafka-4.1.0.jar:4.1.0]
+	at org.springframework.kafka.listener.adapter.KafkaBackoffAwareMessageListenerAdapter.invokeDelegateOnMessage(KafkaBackoffAwareMessageListenerAdapter.java:109) ~[spring-kafka-4.1.0.jar:4.1.0]
+	at org.springframework.kafka.listener.adapter.KafkaBackoffAwareMessageListenerAdapter.onMessage(KafkaBackoffAwareMessageListenerAdapter.java:100) ~[spring-kafka-4.1.0.jar:4.1.0]
+	at org.springframework.kafka.listener.adapter.KafkaBackoffAwareMessageListenerAdapter.onMessage(KafkaBackoffAwareMessageListenerAdapter.java:50) ~[spring-kafka-4.1.0.jar:4.1.0]
+	at org.springframework.kafka.listener.KafkaMessageListenerContainer$ListenerConsumer.doInvokeOnMessage(KafkaMessageListenerContainer.java:3018) ~[spring-kafka-4.1.0.jar:4.1.0]
+	at org.springframework.kafka.listener.KafkaMessageListenerContainer$ListenerConsumer.invokeOnMessage(KafkaMessageListenerContainer.java:2997) ~[spring-kafka-4.1.0.jar:4.1.0]
+	at org.springframework.kafka.listener.KafkaMessageListenerContainer$ListenerConsumer.doInvokeRecordListener(KafkaMessageListenerContainer.java:2907) ~[spring-kafka-4.1.0.jar:4.1.0]
+	at org.springframework.kafka.listener.KafkaMessageListenerContainer$ListenerConsumer.doInvokeWithRecords(KafkaMessageListenerContainer.java:2749) ~[spring-kafka-4.1.0.jar:4.1.0]
+	at org.springframework.kafka.listener.KafkaMessageListenerContainer$ListenerConsumer.invokeRecordListener(KafkaMessageListenerContainer.java:2643) ~[spring-kafka-4.1.0.jar:4.1.0]
+	at org.springframework.kafka.listener.KafkaMessageListenerContainer$ListenerConsumer.invokeListener(KafkaMessageListenerContainer.java:2274) ~[spring-kafka-4.1.0.jar:4.1.0]
+	at org.springframework.kafka.listener.KafkaMessageListenerContainer$ListenerConsumer.invokeIfHaveRecords(KafkaMessageListenerContainer.java:1572) ~[spring-kafka-4.1.0.jar:4.1.0]
+	at org.springframework.kafka.listener.KafkaMessageListenerContainer$ListenerConsumer.pollAndInvoke(KafkaMessageListenerContainer.java:1504) ~[spring-kafka-4.1.0.jar:4.1.0]
+	at org.springframework.kafka.listener.KafkaMessageListenerContainer$ListenerConsumer.run(KafkaMessageListenerContainer.java:1373) ~[spring-kafka-4.1.0.jar:4.1.0]
+	at java.base/java.util.concurrent.CompletableFuture$AsyncRun.run(CompletableFuture.java:1804) ~[na:na]
+	at java.base/java.lang.Thread.run(Thread.java:1570) ~[na:na]
+Caused by: java.lang.IllegalArgumentException: Cannot find cache named 'roles' for Builder[public java.util.List com.fincore.CommunicationService.recipient.provider.RoleRecipientProvider.resolve(com.fincore.CommunicationService.dto.GenericCommunicationEvent$Recipients)] caches=[roles] | key='#recipients.roles' | keyGenerator='' | cacheManager='' | cacheResolver='' | condition='' | unless='' | sync='false'
+	at org.springframework.cache.interceptor.AbstractCacheResolver.resolveCaches(AbstractCacheResolver.java:92) ~[spring-context-7.0.8.jar:7.0.8]
+	at org.springframework.cache.interceptor.CacheAspectSupport.getCaches(CacheAspectSupport.java:314) ~[spring-context-7.0.8.jar:7.0.8]
+	at org.springframework.cache.interceptor.CacheAspectSupport$CacheOperationContext.<init>(CacheAspectSupport.java:882) ~[spring-context-7.0.8.jar:7.0.8]
+	at org.springframework.cache.interceptor.CacheAspectSupport.getOperationContext(CacheAspectSupport.java:327) ~[spring-context-7.0.8.jar:7.0.8]
+	at org.springframework.cache.interceptor.CacheAspectSupport$CacheOperationContexts.<init>(CacheAspectSupport.java:772) ~[spring-context-7.0.8.jar:7.0.8]
+	at org.springframework.cache.interceptor.CacheAspectSupport.execute(CacheAspectSupport.java:406) ~[spring-context-7.0.8.jar:7.0.8]
+	at org.springframework.cache.interceptor.CacheInterceptor.invoke(CacheInterceptor.java:64) ~[spring-context-7.0.8.jar:7.0.8]
+	at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:179) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.framework.CglibAopProxy$DynamicAdvisedInterceptor.intercept(CglibAopProxy.java:719) ~[spring-aop-7.0.8.jar:7.0.8]
+	at com.fincore.CommunicationService.recipient.provider.RoleRecipientProvider$$SpringCGLIB$$0.resolve(<generated>) ~[classes/:na]
+	at com.fincore.CommunicationService.recipient.RecipientResolver.lambda$resolveRecipients$1(RecipientResolver.java:79) ~[classes/:na]
+	at java.base/java.util.concurrent.FutureTask.run(FutureTask.java:317) ~[na:na]
+	at java.base/java.lang.VirtualThread.run(VirtualThread.java:329) ~[na:na]
+
+2026-08-19T17:05:09.623+05:30  INFO 46988 --- [CommunicationService] [0-retry-1-0-C-1] c.f.C.o.CommunicationOrchestrator        : Orchestrator executing Event: evt-1eac307f-8163-456c-b11a-46c16f621ffe | Personalized Flag: true
+2026-08-19T17:05:09.623+05:30  INFO 46988 --- [CommunicationService] [0-retry-1-0-C-1] c.f.C.recipient.RecipientResolver        : Recipient Resolution Started.
+2026-08-19T17:05:09.623+05:30 ERROR 46988 --- [CommunicationService] [0-retry-1-0-C-1] c.f.C.recipient.RecipientResolver        : Recipient Resolution Failed.
+
+java.util.concurrent.ExecutionException: java.lang.IllegalArgumentException: Cannot find cache named 'roles' for Builder[public java.util.List com.fincore.CommunicationService.recipient.provider.RoleRecipientProvider.resolve(com.fincore.CommunicationService.dto.GenericCommunicationEvent$Recipients)] caches=[roles] | key='#recipients.roles' | keyGenerator='' | cacheManager='' | cacheResolver='' | condition='' | unless='' | sync='false'
+	at java.base/java.util.concurrent.FutureTask.report(FutureTask.java:122) ~[na:na]
+	at java.base/java.util.concurrent.FutureTask.get(FutureTask.java:191) ~[na:na]
+	at com.fincore.CommunicationService.recipient.RecipientResolver.resolveRecipients(RecipientResolver.java:100) ~[classes/:na]
+	at com.fincore.CommunicationService.orchestrator.CommunicationOrchestrator.process(CommunicationOrchestrator.java:95) ~[classes/:na]
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:103) ~[na:na]
+	at java.base/java.lang.reflect.Method.invoke(Method.java:580) ~[na:na]
+	at org.springframework.aop.support.AopUtils.invokeJoinpointUsingReflection(AopUtils.java:359) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.framework.ReflectiveMethodInvocation.invokeJoinpoint(ReflectiveMethodInvocation.java:190) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:158) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.interceptor.ExposeInvocationInterceptor.invoke(ExposeInvocationInterceptor.java:96) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:179) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.aspectj.MethodInvocationProceedingJoinPoint.proceed(MethodInvocationProceedingJoinPoint.java:82) ~[spring-aop-7.0.8.jar:7.0.8]
+	at com.fincore.commonutilities.aspect.GlobalResilienceAspect.lambda$applyResilience$0(GlobalResilienceAspect.java:60) ~[classes/:na]
+	at io.github.resilience4j.retry.Retry.lambda$decorateSupplier$5(Retry.java:301) ~[resilience4j-retry-2.3.0.jar:2.3.0]
+	at io.github.resilience4j.circuitbreaker.CircuitBreaker.lambda$decorateSupplier$5(CircuitBreaker.java:194) ~[resilience4j-circuitbreaker-2.3.0.jar:2.3.0]
+	at com.fincore.commonutilities.aspect.GlobalResilienceAspect.applyResilience(GlobalResilienceAspect.java:73) ~[classes/:na]
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:103) ~[na:na]
+	at java.base/java.lang.reflect.Method.invoke(Method.java:580) ~[na:na]
+	at org.springframework.aop.aspectj.AbstractAspectJAdvice.invokeAdviceMethodWithGivenArgs(AbstractAspectJAdvice.java:648) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.aspectj.AbstractAspectJAdvice.invokeAdviceMethod(AbstractAspectJAdvice.java:630) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.aspectj.AspectJAroundAdvice.invoke(AspectJAroundAdvice.java:70) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:179) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.framework.CglibAopProxy$DynamicAdvisedInterceptor.intercept(CglibAopProxy.java:719) ~[spring-aop-7.0.8.jar:7.0.8]
+	at com.fincore.CommunicationService.orchestrator.CommunicationOrchestrator$$SpringCGLIB$$0.process(<generated>) ~[classes/:na]
+	at com.fincore.CommunicationService.consumer.GenericCommunicationConsumer.consumeGenericCommunication(GenericCommunicationConsumer.java:157) ~[classes/:na]
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:103) ~[na:na]
+	at java.base/java.lang.reflect.Method.invoke(Method.java:580) ~[na:na]
+	at org.springframework.messaging.handler.invocation.InvocableHandlerMethod.doInvoke(InvocableHandlerMethod.java:168) ~[spring-messaging-7.0.8.jar:7.0.8]
+	at org.springframework.kafka.listener.adapter.KotlinAwareInvocableHandlerMethod.doInvoke(KotlinAwareInvocableHandlerMethod.java:48) ~[spring-kafka-4.1.0.jar:4.1.0]
+	at org.springframework.messaging.handler.invocation.InvocableHandlerMethod.invoke(InvocableHandlerMethod.java:119) ~[spring-messaging-7.0.8.jar:7.0.8]
+	at org.springframework.kafka.listener.adapter.HandlerAdapter.invoke(HandlerAdapter.java:80) ~[spring-kafka-4.1.0.jar:4.1.0]
+	at org.springframework.kafka.listener.adapter.MessagingMessageListenerAdapter.invokeHandler(MessagingMessageListenerAdapter.java:489) ~[spring-kafka-4.1.0.jar:4.1.0]
+	at org.springframework.kafka.listener.adapter.MessagingMessageListenerAdapter.invoke(MessagingMessageListenerAdapter.java:426) ~[spring-kafka-4.1.0.jar:4.1.0]
+	at org.springframework.kafka.listener.adapter.RecordMessagingMessageListenerAdapter.onMessage(RecordMessagingMessageListenerAdapter.java:92) ~[spring-kafka-4.1.0.jar:4.1.0]
+	at org.springframework.kafka.listener.adapter.RecordMessagingMessageListenerAdapter.onMessage(RecordMessagingMessageListenerAdapter.java:52) ~[spring-kafka-4.1.0.jar:4.1.0]
+	at org.springframework.kafka.listener.adapter.KafkaBackoffAwareMessageListenerAdapter.invokeDelegateOnMessage(KafkaBackoffAwareMessageListenerAdapter.java:109) ~[spring-kafka-4.1.0.jar:4.1.0]
+	at org.springframework.kafka.listener.adapter.KafkaBackoffAwareMessageListenerAdapter.onMessage(KafkaBackoffAwareMessageListenerAdapter.java:100) ~[spring-kafka-4.1.0.jar:4.1.0]
+	at org.springframework.kafka.listener.adapter.KafkaBackoffAwareMessageListenerAdapter.onMessage(KafkaBackoffAwareMessageListenerAdapter.java:50) ~[spring-kafka-4.1.0.jar:4.1.0]
+	at org.springframework.kafka.listener.KafkaMessageListenerContainer$ListenerConsumer.doInvokeOnMessage(KafkaMessageListenerContainer.java:3018) ~[spring-kafka-4.1.0.jar:4.1.0]
+	at org.springframework.kafka.listener.KafkaMessageListenerContainer$ListenerConsumer.invokeOnMessage(KafkaMessageListenerContainer.java:2997) ~[spring-kafka-4.1.0.jar:4.1.0]
+	at org.springframework.kafka.listener.KafkaMessageListenerContainer$ListenerConsumer.doInvokeRecordListener(KafkaMessageListenerContainer.java:2907) ~[spring-kafka-4.1.0.jar:4.1.0]
+	at org.springframework.kafka.listener.KafkaMessageListenerContainer$ListenerConsumer.doInvokeWithRecords(KafkaMessageListenerContainer.java:2749) ~[spring-kafka-4.1.0.jar:4.1.0]
+	at org.springframework.kafka.listener.KafkaMessageListenerContainer$ListenerConsumer.invokeRecordListener(KafkaMessageListenerContainer.java:2643) ~[spring-kafka-4.1.0.jar:4.1.0]
+	at org.springframework.kafka.listener.KafkaMessageListenerContainer$ListenerConsumer.invokeListener(KafkaMessageListenerContainer.java:2274) ~[spring-kafka-4.1.0.jar:4.1.0]
+	at org.springframework.kafka.listener.KafkaMessageListenerContainer$ListenerConsumer.invokeIfHaveRecords(KafkaMessageListenerContainer.java:1572) ~[spring-kafka-4.1.0.jar:4.1.0]
+	at org.springframework.kafka.listener.KafkaMessageListenerContainer$ListenerConsumer.pollAndInvoke(KafkaMessageListenerContainer.java:1504) ~[spring-kafka-4.1.0.jar:4.1.0]
+	at org.springframework.kafka.listener.KafkaMessageListenerContainer$ListenerConsumer.run(KafkaMessageListenerContainer.java:1373) ~[spring-kafka-4.1.0.jar:4.1.0]
+	at java.base/java.util.concurrent.CompletableFuture$AsyncRun.run(CompletableFuture.java:1804) ~[na:na]
+	at java.base/java.lang.Thread.run(Thread.java:1570) ~[na:na]
+Caused by: java.lang.IllegalArgumentException: Cannot find cache named 'roles' for Builder[public java.util.List com.fincore.CommunicationService.recipient.provider.RoleRecipientProvider.resolve(com.fincore.CommunicationService.dto.GenericCommunicationEvent$Recipients)] caches=[roles] | key='#recipients.roles' | keyGenerator='' | cacheManager='' | cacheResolver='' | condition='' | unless='' | sync='false'
+	at org.springframework.cache.interceptor.AbstractCacheResolver.resolveCaches(AbstractCacheResolver.java:92) ~[spring-context-7.0.8.jar:7.0.8]
+	at org.springframework.cache.interceptor.CacheAspectSupport.getCaches(CacheAspectSupport.java:314) ~[spring-context-7.0.8.jar:7.0.8]
+	at org.springframework.cache.interceptor.CacheAspectSupport$CacheOperationContext.<init>(CacheAspectSupport.java:882) ~[spring-context-7.0.8.jar:7.0.8]
+	at org.springframework.cache.interceptor.CacheAspectSupport.getOperationContext(CacheAspectSupport.java:327) ~[spring-context-7.0.8.jar:7.0.8]
+	at org.springframework.cache.interceptor.CacheAspectSupport$CacheOperationContexts.<init>(CacheAspectSupport.java:772) ~[spring-context-7.0.8.jar:7.0.8]
+	at org.springframework.cache.interceptor.CacheAspectSupport.execute(CacheAspectSupport.java:406) ~[spring-context-7.0.8.jar:7.0.8]
+	at org.springframework.cache.interceptor.CacheInterceptor.invoke(CacheInterceptor.java:64) ~[spring-context-7.0.8.jar:7.0.8]
+	at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:179) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.framework.CglibAopProxy$DynamicAdvisedInterceptor.intercept(CglibAopProxy.java:719) ~[spring-aop-7.0.8.jar:7.0.8]
+	at com.fincore.CommunicationService.recipient.provider.RoleRecipientProvider$$SpringCGLIB$$0.resolve(<generated>) ~[classes/:na]
+	at com.fincore.CommunicationService.recipient.RecipientResolver.lambda$resolveRecipients$1(RecipientResolver.java:79) ~[classes/:na]
+	at java.base/java.util.concurrent.FutureTask.run(FutureTask.java:317) ~[na:na]
+	at java.base/java.lang.VirtualThread.run(VirtualThread.java:329) ~[na:na]
+
+2026-08-19T17:05:10.129+05:30  INFO 46988 --- [CommunicationService] [0-retry-1-0-C-1] c.f.C.o.CommunicationOrchestrator        : Orchestrator executing Event: evt-1eac307f-8163-456c-b11a-46c16f621ffe | Personalized Flag: true
+2026-08-19T17:05:10.129+05:30  INFO 46988 --- [CommunicationService] [0-retry-1-0-C-1] c.f.C.recipient.RecipientResolver        : Recipient Resolution Started.
+2026-08-19T17:05:10.130+05:30 ERROR 46988 --- [CommunicationService] [0-retry-1-0-C-1] c.f.C.recipient.RecipientResolver        : Recipient Resolution Failed.
+
+java.util.concurrent.ExecutionException: java.lang.IllegalArgumentException: Cannot find cache named 'roles' for Builder[public java.util.List com.fincore.CommunicationService.recipient.provider.RoleRecipientProvider.resolve(com.fincore.CommunicationService.dto.GenericCommunicationEvent$Recipients)] caches=[roles] | key='#recipients.roles' | keyGenerator='' | cacheManager='' | cacheResolver='' | condition='' | unless='' | sync='false'
+	at java.base/java.util.concurrent.FutureTask.report(FutureTask.java:122) ~[na:na]
+	at java.base/java.util.concurrent.FutureTask.get(FutureTask.java:191) ~[na:na]
+	at com.fincore.CommunicationService.recipient.RecipientResolver.resolveRecipients(RecipientResolver.java:100) ~[classes/:na]
+	at com.fincore.CommunicationService.orchestrator.CommunicationOrchestrator.process(CommunicationOrchestrator.java:95) ~[classes/:na]
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:103) ~[na:na]
+	at java.base/java.lang.reflect.Method.invoke(Method.java:580) ~[na:na]
+	at org.springframework.aop.support.AopUtils.invokeJoinpointUsingReflection(AopUtils.java:359) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.framework.ReflectiveMethodInvocation.invokeJoinpoint(ReflectiveMethodInvocation.java:190) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:158) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.interceptor.ExposeInvocationInterceptor.invoke(ExposeInvocationInterceptor.java:96) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:179) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.aspectj.MethodInvocationProceedingJoinPoint.proceed(MethodInvocationProceedingJoinPoint.java:82) ~[spring-aop-7.0.8.jar:7.0.8]
+	at com.fincore.commonutilities.aspect.GlobalResilienceAspect.lambda$applyResilience$0(GlobalResilienceAspect.java:60) ~[classes/:na]
+	at io.github.resilience4j.retry.Retry.lambda$decorateSupplier$5(Retry.java:301) ~[resilience4j-retry-2.3.0.jar:2.3.0]
+	at io.github.resilience4j.circuitbreaker.CircuitBreaker.lambda$decorateSupplier$5(CircuitBreaker.java:194) ~[resilience4j-circuitbreaker-2.3.0.jar:2.3.0]
+	at com.fincore.commonutilities.aspect.GlobalResilienceAspect.applyResilience(GlobalResilienceAspect.java:73) ~[classes/:na]
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:103) ~[na:na]
+	at java.base/java.lang.reflect.Method.invoke(Method.java:580) ~[na:na]
+	at org.springframework.aop.aspectj.AbstractAspectJAdvice.invokeAdviceMethodWithGivenArgs(AbstractAspectJAdvice.java:648) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.aspectj.AbstractAspectJAdvice.invokeAdviceMethod(AbstractAspectJAdvice.java:630) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.aspectj.AspectJAroundAdvice.invoke(AspectJAroundAdvice.java:70) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:179) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.framework.CglibAopProxy$DynamicAdvisedInterceptor.intercept(CglibAopProxy.java:719) ~[spring-aop-7.0.8.jar:7.0.8]
+	at com.fincore.CommunicationService.orchestrator.CommunicationOrchestrator$$SpringCGLIB$$0.process(<generated>) ~[classes/:na]
+	at com.fincore.CommunicationService.consumer.GenericCommunicationConsumer.consumeGenericCommunication(GenericCommunicationConsumer.java:157) ~[classes/:na]
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:103) ~[na:na]
+	at java.base/java.lang.reflect.Method.invoke(Method.java:580) ~[na:na]
+	at org.springframework.messaging.handler.invocation.InvocableHandlerMethod.doInvoke(InvocableHandlerMethod.java:168) ~[spring-messaging-7.0.8.jar:7.0.8]
+	at org.springframework.kafka.listener.adapter.KotlinAwareInvocableHandlerMethod.doInvoke(KotlinAwareInvocableHandlerMethod.java:48) ~[spring-kafka-4.1.0.jar:4.1.0]
+	at org.springframework.messaging.handler.invocation.InvocableHandlerMethod.invoke(InvocableHandlerMethod.java:119) ~[spring-messaging-7.0.8.jar:7.0.8]
+	at org.springframework.kafka.listener.adapter.HandlerAdapter.invoke(HandlerAdapter.java:80) ~[spring-kafka-4.1.0.jar:4.1.0]
+	at org.springframework.kafka.listener.adapter.MessagingMessageListenerAdapter.invokeHandler(MessagingMessageListenerAdapter.java:489) ~[spring-kafka-4.1.0.jar:4.1.0]
+	at org.springframework.kafka.listener.adapter.MessagingMessageListenerAdapter.invoke(MessagingMessageListenerAdapter.java:426) ~[spring-kafka-4.1.0.jar:4.1.0]
+	at org.springframework.kafka.listener.adapter.RecordMessagingMessageListenerAdapter.onMessage(RecordMessagingMessageListenerAdapter.java:92) ~[spring-kafka-4.1.0.jar:4.1.0]
+	at org.springframework.kafka.listener.adapter.RecordMessagingMessageListenerAdapter.onMessage(RecordMessagingMessageListenerAdapter.java:52) ~[spring-kafka-4.1.0.jar:4.1.0]
+	at org.springframework.kafka.listener.adapter.KafkaBackoffAwareMessageListenerAdapter.invokeDelegateOnMessage(KafkaBackoffAwareMessageListenerAdapter.java:109) ~[spring-kafka-4.1.0.jar:4.1.0]
+	at org.springframework.kafka.listener.adapter.KafkaBackoffAwareMessageListenerAdapter.onMessage(KafkaBackoffAwareMessageListenerAdapter.java:100) ~[spring-kafka-4.1.0.jar:4.1.0]
+	at org.springframework.kafka.listener.adapter.KafkaBackoffAwareMessageListenerAdapter.onMessage(KafkaBackoffAwareMessageListenerAdapter.java:50) ~[spring-kafka-4.1.0.jar:4.1.0]
+	at org.springframework.kafka.listener.KafkaMessageListenerContainer$ListenerConsumer.doInvokeOnMessage(KafkaMessageListenerContainer.java:3018) ~[spring-kafka-4.1.0.jar:4.1.0]
+	at org.springframework.kafka.listener.KafkaMessageListenerContainer$ListenerConsumer.invokeOnMessage(KafkaMessageListenerContainer.java:2997) ~[spring-kafka-4.1.0.jar:4.1.0]
+	at org.springframework.kafka.listener.KafkaMessageListenerContainer$ListenerConsumer.doInvokeRecordListener(KafkaMessageListenerContainer.java:2907) ~[spring-kafka-4.1.0.jar:4.1.0]
+	at org.springframework.kafka.listener.KafkaMessageListenerContainer$ListenerConsumer.doInvokeWithRecords(KafkaMessageListenerContainer.java:2749) ~[spring-kafka-4.1.0.jar:4.1.0]
+	at org.springframework.kafka.listener.KafkaMessageListenerContainer$ListenerConsumer.invokeRecordListener(KafkaMessageListenerContainer.java:2643) ~[spring-kafka-4.1.0.jar:4.1.0]
+	at org.springframework.kafka.listener.KafkaMessageListenerContainer$ListenerConsumer.invokeListener(KafkaMessageListenerContainer.java:2274) ~[spring-kafka-4.1.0.jar:4.1.0]
+	at org.springframework.kafka.listener.KafkaMessageListenerContainer$ListenerConsumer.invokeIfHaveRecords(KafkaMessageListenerContainer.java:1572) ~[spring-kafka-4.1.0.jar:4.1.0]
+	at org.springframework.kafka.listener.KafkaMessageListenerContainer$ListenerConsumer.pollAndInvoke(KafkaMessageListenerContainer.java:1504) ~[spring-kafka-4.1.0.jar:4.1.0]
+	at org.springframework.kafka.listener.KafkaMessageListenerContainer$ListenerConsumer.run(KafkaMessageListenerContainer.java:1373) ~[spring-kafka-4.1.0.jar:4.1.0]
+	at java.base/java.util.concurrent.CompletableFuture$AsyncRun.run(CompletableFuture.java:1804) ~[na:na]
+	at java.base/java.lang.Thread.run(Thread.java:1570) ~[na:na]
+Caused by: java.lang.IllegalArgumentException: Cannot find cache named 'roles' for Builder[public java.util.List com.fincore.CommunicationService.recipient.provider.RoleRecipientProvider.resolve(com.fincore.CommunicationService.dto.GenericCommunicationEvent$Recipients)] caches=[roles] | key='#recipients.roles' | keyGenerator='' | cacheManager='' | cacheResolver='' | condition='' | unless='' | sync='false'
+	at org.springframework.cache.interceptor.AbstractCacheResolver.resolveCaches(AbstractCacheResolver.java:92) ~[spring-context-7.0.8.jar:7.0.8]
+	at org.springframework.cache.interceptor.CacheAspectSupport.getCaches(CacheAspectSupport.java:314) ~[spring-context-7.0.8.jar:7.0.8]
+	at org.springframework.cache.interceptor.CacheAspectSupport$CacheOperationContext.<init>(CacheAspectSupport.java:882) ~[spring-context-7.0.8.jar:7.0.8]
+	at org.springframework.cache.interceptor.CacheAspectSupport.getOperationContext(CacheAspectSupport.java:327) ~[spring-context-7.0.8.jar:7.0.8]
+	at org.springframework.cache.interceptor.CacheAspectSupport$CacheOperationContexts.<init>(CacheAspectSupport.java:772) ~[spring-context-7.0.8.jar:7.0.8]
+	at org.springframework.cache.interceptor.CacheAspectSupport.execute(CacheAspectSupport.java:406) ~[spring-context-7.0.8.jar:7.0.8]
+	at org.springframework.cache.interceptor.CacheInterceptor.invoke(CacheInterceptor.java:64) ~[spring-context-7.0.8.jar:7.0.8]
+	at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:179) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.framework.CglibAopProxy$DynamicAdvisedInterceptor.intercept(CglibAopProxy.java:719) ~[spring-aop-7.0.8.jar:7.0.8]
+	at com.fincore.CommunicationService.recipient.provider.RoleRecipientProvider$$SpringCGLIB$$0.resolve(<generated>) ~[classes/:na]
+	at com.fincore.CommunicationService.recipient.RecipientResolver.lambda$resolveRecipients$1(RecipientResolver.java:79) ~[classes/:na]
+	at java.base/java.util.concurrent.FutureTask.run(FutureTask.java:317) ~[na:na]
+	at java.base/java.lang.VirtualThread.run(VirtualThread.java:329) ~[na:na]
+
+2026-08-19T17:05:10.130+05:30 ERROR 46988 --- [CommunicationService] [0-retry-1-0-C-1] c.f.C.c.GenericCommunicationConsumer     : Generic Communication processing failed for EventId=evt-1eac307f-8163-456c-b11a-46c16f621ffe
+
+java.lang.RuntimeException: Unable to resolve recipients.
+	at com.fincore.CommunicationService.recipient.RecipientResolver.resolveRecipients(RecipientResolver.java:107) ~[classes/:na]
+	at com.fincore.CommunicationService.orchestrator.CommunicationOrchestrator.process(CommunicationOrchestrator.java:95) ~[classes/:na]
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:103) ~[na:na]
+	at java.base/java.lang.reflect.Method.invoke(Method.java:580) ~[na:na]
+	at org.springframework.aop.support.AopUtils.invokeJoinpointUsingReflection(AopUtils.java:359) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.framework.ReflectiveMethodInvocation.invokeJoinpoint(ReflectiveMethodInvocation.java:190) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:158) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.interceptor.ExposeInvocationInterceptor.invoke(ExposeInvocationInterceptor.java:96) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:179) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.aspectj.MethodInvocationProceedingJoinPoint.proceed(MethodInvocationProceedingJoinPoint.java:82) ~[spring-aop-7.0.8.jar:7.0.8]
+	at com.fincore.commonutilities.aspect.GlobalResilienceAspect.lambda$applyResilience$0(GlobalResilienceAspect.java:60) ~[classes/:na]
+	at io.github.resilience4j.retry.Retry.lambda$decorateSupplier$5(Retry.java:301) ~[resilience4j-retry-2.3.0.jar:2.3.0]
+	at io.github.resilience4j.circuitbreaker.CircuitBreaker.lambda$decorateSupplier$5(CircuitBreaker.java:194) ~[resilience4j-circuitbreaker-2.3.0.jar:2.3.0]
+	at com.fincore.commonutilities.aspect.GlobalResilienceAspect.applyResilience(GlobalResilienceAspect.java:73) ~[classes/:na]
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:103) ~[na:na]
+	at java.base/java.lang.reflect.Method.invoke(Method.java:580) ~[na:na]
+	at org.springframework.aop.aspectj.AbstractAspectJAdvice.invokeAdviceMethodWithGivenArgs(AbstractAspectJAdvice.java:648) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.aspectj.AbstractAspectJAdvice.invokeAdviceMethod(AbstractAspectJAdvice.java:630) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.aspectj.AspectJAroundAdvice.invoke(AspectJAroundAdvice.java:70) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:179) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.framework.CglibAopProxy$DynamicAdvisedInterceptor.intercept(CglibAopProxy.java:719) ~[spring-aop-7.0.8.jar:7.0.8]
+	at com.fincore.CommunicationService.orchestrator.CommunicationOrchestrator$$SpringCGLIB$$0.process(<generated>) ~[classes/:na]
+	at com.fincore.CommunicationService.consumer.GenericCommunicationConsumer.consumeGenericCommunication(GenericCommunicationConsumer.java:157) ~[classes/:na]
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:103) ~[na:na]
+	at java.base/java.lang.reflect.Method.invoke(Method.java:580) ~[na:na]
+	at org.springframework.messaging.handler.invocation.InvocableHandlerMethod.doInvoke(InvocableHandlerMethod.java:168) ~[spring-messaging-7.0.8.jar:7.0.8]
+	at org.springframework.kafka.listener.adapter.KotlinAwareInvocableHandlerMethod.doInvoke(KotlinAwareInvocableHandlerMethod.java:48) ~[spring-kafka-4.1.0.jar:4.1.0]
+	at org.springframework.messaging.handler.invocation.InvocableHandlerMethod.invoke(InvocableHandlerMethod.java:119) ~[spring-messaging-7.0.8.jar:7.0.8]
+	at org.springframework.kafka.listener.adapter.HandlerAdapter.invoke(HandlerAdapter.java:80) ~[spring-kafka-4.1.0.jar:4.1.0]
+	at org.springframework.kafka.listener.adapter.MessagingMessageListenerAdapter.invokeHandler(MessagingMessageListenerAdapter.java:489) ~[spring-kafka-4.1.0.jar:4.1.0]
+	at org.springframework.kafka.listener.adapter.MessagingMessageListenerAdapter.invoke(MessagingMessageListenerAdapter.java:426) ~[spring-kafka-4.1.0.jar:4.1.0]
+	at org.springframework.kafka.listener.adapter.RecordMessagingMessageListenerAdapter.onMessage(RecordMessagingMessageListenerAdapter.java:92) ~[spring-kafka-4.1.0.jar:4.1.0]
+	at org.springframework.kafka.listener.adapter.RecordMessagingMessageListenerAdapter.onMessage(RecordMessagingMessageListenerAdapter.java:52) ~[spring-kafka-4.1.0.jar:4.1.0]
+	at org.springframework.kafka.listener.adapter.KafkaBackoffAwareMessageListenerAdapter.invokeDelegateOnMessage(KafkaBackoffAwareMessageListenerAdapter.java:109) ~[spring-kafka-4.1.0.jar:4.1.0]
+	at org.springframework.kafka.listener.adapter.KafkaBackoffAwareMessageListenerAdapter.onMessage(KafkaBackoffAwareMessageListenerAdapter.java:100) ~[spring-kafka-4.1.0.jar:4.1.0]
+	at org.springframework.kafka.listener.adapter.KafkaBackoffAwareMessageListenerAdapter.onMessage(KafkaBackoffAwareMessageListenerAdapter.java:50) ~[spring-kafka-4.1.0.jar:4.1.0]
+	at org.springframework.kafka.listener.KafkaMessageListenerContainer$ListenerConsumer.doInvokeOnMessage(KafkaMessageListenerContainer.java:3018) ~[spring-kafka-4.1.0.jar:4.1.0]
+	at org.springframework.kafka.listener.KafkaMessageListenerContainer$ListenerConsumer.invokeOnMessage(KafkaMessageListenerContainer.java:2997) ~[spring-kafka-4.1.0.jar:4.1.0]
+	at org.springframework.kafka.listener.KafkaMessageListenerContainer$ListenerConsumer.doInvokeRecordListener(KafkaMessageListenerContainer.java:2907) ~[spring-kafka-4.1.0.jar:4.1.0]
+	at org.springframework.kafka.listener.KafkaMessageListenerContainer$ListenerConsumer.doInvokeWithRecords(KafkaMessageListenerContainer.java:2749) ~[spring-kafka-4.1.0.jar:4.1.0]
+	at org.springframework.kafka.listener.KafkaMessageListenerContainer$ListenerConsumer.invokeRecordListener(KafkaMessageListenerContainer.java:2643) ~[spring-kafka-4.1.0.jar:4.1.0]
+	at org.springframework.kafka.listener.KafkaMessageListenerContainer$ListenerConsumer.invokeListener(KafkaMessageListenerContainer.java:2274) ~[spring-kafka-4.1.0.jar:4.1.0]
+	at org.springframework.kafka.listener.KafkaMessageListenerContainer$ListenerConsumer.invokeIfHaveRecords(KafkaMessageListenerContainer.java:1572) ~[spring-kafka-4.1.0.jar:4.1.0]
+	at org.springframework.kafka.listener.KafkaMessageListenerContainer$ListenerConsumer.pollAndInvoke(KafkaMessageListenerContainer.java:1504) ~[spring-kafka-4.1.0.jar:4.1.0]
+	at org.springframework.kafka.listener.KafkaMessageListenerContainer$ListenerConsumer.run(KafkaMessageListenerContainer.java:1373) ~[spring-kafka-4.1.0.jar:4.1.0]
+	at java.base/java.util.concurrent.CompletableFuture$AsyncRun.run(CompletableFuture.java:1804) ~[na:na]
+	at java.base/java.lang.Thread.run(Thread.java:1570) ~[na:na]
+Caused by: java.util.concurrent.ExecutionException: java.lang.IllegalArgumentException: Cannot find cache named 'roles' for Builder[public java.util.List com.fincore.CommunicationService.recipient.provider.RoleRecipientProvider.resolve(com.fincore.CommunicationService.dto.GenericCommunicationEvent$Recipients)] caches=[roles] | key='#recipients.roles' | keyGenerator='' | cacheManager='' | cacheResolver='' | condition='' | unless='' | sync='false'
+	at java.base/java.util.concurrent.FutureTask.report(FutureTask.java:122) ~[na:na]
+	at java.base/java.util.concurrent.FutureTask.get(FutureTask.java:191) ~[na:na]
+	at com.fincore.CommunicationService.recipient.RecipientResolver.resolveRecipients(RecipientResolver.java:100) ~[classes/:na]
+	... 46 common frames omitted
+Caused by: java.lang.IllegalArgumentException: Cannot find cache named 'roles' for Builder[public java.util.List com.fincore.CommunicationService.recipient.provider.RoleRecipientProvider.resolve(com.fincore.CommunicationService.dto.GenericCommunicationEvent$Recipients)] caches=[roles] | key='#recipients.roles' | keyGenerator='' | cacheManager='' | cacheResolver='' | condition='' | unless='' | sync='false'
+	at org.springframework.cache.interceptor.AbstractCacheResolver.resolveCaches(AbstractCacheResolver.java:92) ~[spring-context-7.0.8.jar:7.0.8]
+	at org.springframework.cache.interceptor.CacheAspectSupport.getCaches(CacheAspectSupport.java:314) ~[spring-context-7.0.8.jar:7.0.8]
+	at org.springframework.cache.interceptor.CacheAspectSupport$CacheOperationContext.<init>(CacheAspectSupport.java:882) ~[spring-context-7.0.8.jar:7.0.8]
+	at org.springframework.cache.interceptor.CacheAspectSupport.getOperationContext(CacheAspectSupport.java:327) ~[spring-context-7.0.8.jar:7.0.8]
+	at org.springframework.cache.interceptor.CacheAspectSupport$CacheOperationContexts.<init>(CacheAspectSupport.java:772) ~[spring-context-7.0.8.jar:7.0.8]
+	at org.springframework.cache.interceptor.CacheAspectSupport.execute(CacheAspectSupport.java:406) ~[spring-context-7.0.8.jar:7.0.8]
+	at org.springframework.cache.interceptor.CacheInterceptor.invoke(CacheInterceptor.java:64) ~[spring-context-7.0.8.jar:7.0.8]
+	at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:179) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.framework.CglibAopProxy$DynamicAdvisedInterceptor.intercept(CglibAopProxy.java:719) ~[spring-aop-7.0.8.jar:7.0.8]
+	at com.fincore.CommunicationService.recipient.provider.RoleRecipientProvider$$SpringCGLIB$$0.resolve(<generated>) ~[classes/:na]
+	at com.fincore.CommunicationService.recipient.RecipientResolver.lambda$resolveRecipients$1(RecipientResolver.java:79) ~[classes/:na]
+	at java.base/java.util.concurrent.FutureTask.run(FutureTask.java:317) ~[na:na]
+	at java.base/java.lang.VirtualThread.run(VirtualThread.java:329) ~[na:na]
+
+2026-08-19T17:05:10.151+05:30  INFO 46988 --- [CommunicationService] [0-retry-2-0-C-1] o.a.k.c.c.i.ClassicKafkaConsumer         : [Consumer clientId=consumer-communication-generic-group-v2-retry-2-16, groupId=communication-generic-group-v2-retry-2] Seeking to offset 358 for partition fincore.communication.generic-retry-2-0
+2026-08-19T17:05:10.151+05:30  INFO 46988 --- [CommunicationService] [0-retry-2-0-C-1] o.s.k.l.KafkaMessageListenerContainer    : Record in retry and not yet recovered
