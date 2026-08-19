@@ -1,11 +1,106 @@
-2026-08-19T17:13:52.979+05:30  INFO 26004 --- [CommunicationService] [ntainer#0-0-C-1] c.f.C.c.GenericCommunicationConsumer     : Received Generic Communication Event : {"eventId":"evt-31c804eb-8e8d-43f0-88cb-8c3e5a0ffa4a","traceId":"trc-841ac8a2-5594-467c-8f1a-1d8b746fa922","correlationId":"batch-01-08-26","producerService":"PROCESS_STATUS","eventType":"EOD_EVENT","priority":"NORMAL","channels":["SMS","EMAIL"],"recipients":{"roles":["10","11","51","54","60"]},"templateId":"SUCCESS_EOD_TEMPLATE","payload":{"timeTaken":null,"STATUS":"5","suspenseHeaders":["Summary"],"cibaHeaders":["Summary"],"cibaRows":null,"processDate":"01-08-26","balanceCompareRows":null,"suspenseRows":null,"startTime":null,"titles":{"balanceCompareTitle":"Balance Compare","suspenseTitle":"Suspense","cibaTitle":"CIBA"},"endTime":null,"balanceCompareHeaders":["Summary"]},"attachments":[{"attachmentId":"balance_compare_report_01082026","attachmentType":"BAL_COMP_SUMMARY","fileName":"balance_compare_report"},{"attachmentId":"intr_report_01082026","attachmentType":"INTR_SUMMARY","fileName":"intr_report"},{"attachmentId":"cntr_report_01082026","attachmentType":"CNTR_SUMMARY","fileName":"cntr_report"}]}
-2026-08-19T17:13:53.134+05:30  INFO 26004 --- [CommunicationService] [ntainer#0-0-C-1] c.f.C.c.GenericCommunicationConsumer     : Validated Generic Communication Event : evt-31c804eb-8e8d-43f0-88cb-8c3e5a0ffa4a
-2026-08-19T17:13:53.171+05:30  INFO 26004 --- [CommunicationService] [ntainer#0-0-C-1] c.f.C.o.CommunicationOrchestrator        : Orchestrator executing Event: evt-31c804eb-8e8d-43f0-88cb-8c3e5a0ffa4a | Personalized Flag: true
-2026-08-19T17:13:53.171+05:30  INFO 26004 --- [CommunicationService] [ntainer#0-0-C-1] c.f.C.recipient.RecipientResolver        : Recipient Resolution Started.
-2026-08-19T17:13:53.275+05:30  INFO 26004 --- [CommunicationService] [    virtual-291] c.f.C.r.provider.RoleRecipientProvider   : Resolving recipients for Roles : [10, 11, 51, 54, 60]
-2026-08-19T17:13:53.491+05:30  INFO 26004 --- [CommunicationService] [ner#0-dlq-0-C-1] o.a.k.c.c.i.ClassicKafkaConsumer         : [Consumer clientId=consumer-communication-generic-group-v2-dlq-1, groupId=communication-generic-group-v2-dlq] Seeking to offset 742 for partition fincore.communication.generic-dlq-0
-2026-08-19T17:13:53.491+05:30  INFO 26004 --- [CommunicationService] [ner#0-dlq-0-C-1] o.s.k.l.KafkaMessageListenerContainer    : Record in retry and not yet recovered
-2026-08-19T17:13:53.575+05:30  WARN 26004 --- [CommunicationService] [    virtual-291] c.f.C.r.provider.RoleRecipientProvider   : No Roles found.
-2026-08-19T17:13:53.577+05:30  INFO 26004 --- [CommunicationService] [ntainer#0-0-C-1] c.f.C.recipient.RecipientResolver        : Recipient Resolution Completed. Total Unique Recipients : 0
-2026-08-19T17:13:53.577+05:30  WARN 26004 --- [CommunicationService] [ntainer#0-0-C-1] c.f.C.o.CommunicationOrchestrator        : Recipient Resolution yielded 0 contacts for Event: evt-31c804eb-8e8d-43f0-88cb-8c3e5a0ffa4a. Dropping payload gracefully.
-2026-08-19T17:13:53.595+05:30  INFO 26004 --- [CommunicationService] [ntainer#0-0-C-1] c.f.C.c.GenericCommunicationConsumer     : Successfully processed Generic Communication Event : evt-31c804eb-8e8d-43f0-88cb-8c3e5a0ffa4a
+package com.fincore.CommunicationService.recipient.provider;
+
+import com.fincore.CommunicationService.dto.GenericCommunicationEvent;
+import com.fincore.CommunicationService.dto.ResolvedRecipient;
+import com.fincore.CommunicationService.model.Role;
+import com.fincore.CommunicationService.model.User;
+import com.fincore.CommunicationService.model.UserRole;
+import com.fincore.CommunicationService.repository.RoleRepository;
+import com.fincore.CommunicationService.repository.UserRepository;
+import com.fincore.CommunicationService.repository.UserRoleRepository;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.annotation.Cacheable;
+import org.springframework.stereotype.Component;
+
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+
+/**
+ * Resolves Role-based recipients into Email and Mobile details.
+ *
+ * <p><b>Fix Applied:</b>
+ * Producers send Role IDs as Strings (e.g., ["10", "11"]). 
+ * The logic now securely parses these to Longs and searches by ID, rather than Name.</p>
+ *
+ * @since 2026-07
+ */
+@Slf4j
+@Component
+@RequiredArgsConstructor
+public class RoleRecipientProvider implements RecipientProvider {
+
+    private static final String ACTIVE = "ACTIVE";
+
+    private final RoleRepository roleRepository;
+    private final UserRoleRepository userRoleRepository;
+    private final UserRepository userRepository;
+
+    @Override
+    @Cacheable(value = "roles", key = "#recipients.roles")
+    public List<ResolvedRecipient> resolve(GenericCommunicationEvent.Recipients recipients) {
+
+        if (recipients.getRoles() == null || recipients.getRoles().isEmpty()) {
+            return Collections.emptyList();
+        }
+
+        log.info("Resolving recipients for Roles: {}", recipients.getRoles());
+
+        List<Long> roleIdsToSearch = new ArrayList<>();
+
+        // 1. Determine if we are fetching ALL roles or specific IDs
+        if (recipients.getRoles().contains("ALL")) {
+            log.info("Received 'ALL' Roles. Fetching all active role IDs from database.");
+            List<Role> activeRoles = roleRepository.findByRoleStatus(ACTIVE);
+            roleIdsToSearch = activeRoles.stream().map(Role::getRoleId).toList();
+        } else {
+            // Parse the Producer's String IDs into Longs safely
+            for (String roleStr : recipients.getRoles()) {
+                try {
+                    roleIdsToSearch.add(Long.parseLong(roleStr.trim()));
+                } catch (NumberFormatException e) {
+                    log.warn("Producer sent non-numeric Role ID: [{}]. Ignoring.", roleStr);
+                }
+            }
+        }
+
+        if (roleIdsToSearch.isEmpty()) {
+            log.warn("No valid numeric Role IDs resolved.");
+            return Collections.emptyList();
+        }
+
+        // 2. Fetch User-to-Role Mappings directly
+        List<UserRole> mappings = userRoleRepository.findByRoleIdIn(roleIdsToSearch);
+
+        if (mappings.isEmpty()) {
+            log.warn("No User mappings found for Role IDs: {}", roleIdsToSearch);
+            return Collections.emptyList();
+        }
+
+        // 3. Extract unique User IDs
+        List<String> userIds = mappings.stream()
+                .map(UserRole::getUserId)
+                .distinct()
+                .toList();
+
+        // 4. Fetch actual User Contact Info
+        List<User> users = userRepository.findByUserIdIn(userIds);
+
+        log.info("Successfully resolved {} User(s) from {} Role(s).", users.size(), roleIdsToSearch.size());
+
+        return users.stream()
+                .map(user -> ResolvedRecipient.builder()
+                        .userId(user.getUserId())
+                        .email(user.getEmail())
+                        .mobile(user.getPhoneNumber())
+                        .build())
+                .toList();
+    }
+
+    @Override
+    public String getType() {
+        return "ROLE";
+    }
+}
+
