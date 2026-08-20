@@ -1,41 +1,27 @@
-ntainer#0-0-C-1] c.f.C.c.GenericCommunicationConsumer     : Received Generic Communication Event : {"eventId":"evt-722c4d96-4534-49dc-b13e-78316f250d27","traceId":"trc-428a695a-a244-4630-8f7f-84f8dbb1b72a","correlationId":"batch-01-08-26","producerService":"PROCESS_STATUS","eventType":"EOD_EVENT","priority":"NORMAL","channels":["SMS","EMAIL"],"recipients":{"roles":["10","11","51","54","60"]},"templateId":"SUCCESS_EOD_TEMPLATE","payload":{"timeTaken":null,"STATUS":"5","suspenseHeaders":["Summary"],"cibaHeaders":["Summary"],"cibaRows":null,"processDate":"01-08-26","balanceCompareRows":null,"suspenseRows":null,"startTime":null,"titles":{"balanceCompareTitle":"Balance Compare","suspenseTitle":"Suspense","cibaTitle":"CIBA"},"endTime":null,"balanceCompareHeaders":["Summary"]},"attachments":[{"attachmentId":"balance_compare_report_01082026","attachmentType":"BAL_COMP_SUMMARY","fileName":"balance_compare_report"},{"attachmentId":"intr_report_01082026","attachmentType":"INTR_SUMMARY","fileName":"intr_report"},{"attachmentId":"cntr_report_01082026","attachmentType":"CNTR_SUMMARY","fileName":"cntr_report"}],"personalized":true,"isPersonalized":true}
-2026-08-20T14:16:31.127+05:30  INFO 42932 --- [CommunicationService] [ntainer#0-0-C-1] c.f.C.c.GenericCommunicationConsumer     : Validated Generic Communication Event : evt-722c4d96-4534-49dc-b13e-78316f250d27
-2026-08-20T14:16:31.127+05:30  INFO 42932 --- [CommunicationService] [ntainer#0-0-C-1] c.f.C.o.CommunicationOrchestrator        : Orchestrator executing Event: evt-722c4d96-4534-49dc-b13e-78316f250d27 | Personalized Flag: true
-2026-08-20T14:16:31.127+05:30  INFO 42932 --- [CommunicationService] [ntainer#0-0-C-1] c.f.C.recipient.RecipientResolver        : Recipient Resolution Started.
-2026-08-20T14:16:31.128+05:30  INFO 42932 --- [CommunicationService] [ntainer#0-0-C-1] c.f.C.recipient.RecipientResolver        : Recipient Resolution Completed. Total Unique Recipients : 27
-2026-08-20T14:16:31.128+05:30  INFO 42932 --- [CommunicationService] [ntainer#0-0-C-1] c.f.C.o.CommunicationOrchestrator        : Delegating 3 attachments to AttachmentPreparationService.
-2026-08-20T14:16:31.129+05:30 DEBUG 42932 --- [CommunicationService] [ntainer#0-0-C-1] c.f.C.a.AttachmentPreparationServiceImpl : Initiating attachment preparation for 3 items.
-2026-08-20T14:16:31.129+05:30 DEBUG 42932 --- [CommunicationService] [ntainer#0-0-C-1] c.f.C.client.ReportServiceClient         : Initiating upstream request to Report Service: http://localhost:9005/api/reports/attachment/download
-2026-08-20T14:16:31.138+05:30 ERROR 42932 --- [CommunicationService] [ntainer#0-0-C-1] c.f.C.client.ReportServiceClient         : Upstream HTTP failure communicating with Report Service.
+2026-08-20T17:20:46.765+05:30  INFO 18108 --- [CommunicationService] [ntainer#0-0-C-1] c.f.C.c.GenericCommunicationConsumer     : Received Generic Communication Event : {"eventId":"evt-55b6dcaa-b687-48e3-b7eb-e8e673a7c483","traceId":"trc-edfb2502-76cb-489e-9c60-6d0c699702bb","correlationId":"batch-31-03-26","producerService":"PROCESS_STATUS","eventType":"EOD_EVENT","priority":"NORMAL","channels":["SMS","EMAIL"],"recipients":{"roles":["10","11","51","54","60"]},"templateId":"SUCCESS_EOD_TEMPLATE","payload":{"timeTaken":null,"STATUS":"5","suspenseHeaders":["Summary"],"cibaHeaders":["Summary"],"cibaRows":null,"processDate":"31-03-26","balanceCompareRows":null,"suspenseRows":null,"startTime":null,"titles":{"balanceCompareTitle":"Balance Compare","suspenseTitle":"Suspense","cibaTitle":"CIBA"},"endTime":null,"balanceCompareHeaders":["Summary"]},"attachments":[{"attachmentId":"balance_compare_report_31032026","attachmentType":"BAL_COMP_SUMMARY","fileName":"balance_compare_report"},{"attachmentId":"intr_report_31032026","attachmentType":"INTR_SUMMARY","fileName":"intr_report"},{"attachmentId":"cntr_report_31032026","attachmentType":"CNTR_SUMMARY","fileName":"cntr_report"}],"personalized":true,"isPersonalized":true}
+2026-08-20T17:20:46.766+05:30  INFO 18108 --- [CommunicationService] [ntainer#0-0-C-1] c.f.C.c.GenericCommunicationConsumer     : Validated Generic Communication Event : evt-55b6dcaa-b687-48e3-b7eb-e8e673a7c483
+2026-08-20T17:20:46.766+05:30  INFO 18108 --- [CommunicationService] [ntainer#0-0-C-1] c.f.C.o.CommunicationOrchestrator        : Orchestrator executing Event: evt-55b6dcaa-b687-48e3-b7eb-e8e673a7c483 | Personalized Flag: true
+2026-08-20T17:20:46.766+05:30  INFO 18108 --- [CommunicationService] [ntainer#0-0-C-1] c.f.C.recipient.RecipientResolver        : Recipient Resolution Started.
+2026-08-20T17:20:46.770+05:30  INFO 18108 --- [CommunicationService] [ntainer#0-0-C-1] c.f.C.recipient.RecipientResolver        : Recipient Resolution Completed. Total Unique Recipients : 27
+2026-08-20T17:20:46.770+05:30  INFO 18108 --- [CommunicationService] [ntainer#0-0-C-1] c.f.C.o.CommunicationOrchestrator        : Delegating 3 attachments to AttachmentPreparationService.
+2026-08-20T17:20:46.770+05:30 DEBUG 18108 --- [CommunicationService] [ntainer#0-0-C-1] c.f.C.a.AttachmentPreparationServiceImpl : Initiating attachment preparation for 3 items.
+2026-08-20T17:20:46.770+05:30 DEBUG 18108 --- [CommunicationService] [ntainer#0-0-C-1] c.f.C.client.ReportServiceClient         : Initiating upstream request to Report Service: http://localhost:9005/api/reports/attachment/download
+2026-08-20T17:20:47.234+05:30 DEBUG 18108 --- [CommunicationService] [ntainer#0-0-C-1] c.f.C.a.AttachmentPreparationServiceImpl : ZIP not required. Returning single file resource.
+2026-08-20T17:20:47.235+05:30  INFO 18108 --- [CommunicationService] [ntainer#0-0-C-1] c.f.C.o.CommunicationOrchestrator        : Event evt-55b6dcaa-b687-48e3-b7eb-e8e673a7c483 requires 27 total recipients. Partitioned into 1 execution chunks.
+2026-08-20T17:20:47.236+05:30 DEBUG 18108 --- [CommunicationService] [   virtual-1476] c.f.C.o.CommunicationOrchestrator        : Initiating Personalized Pipeline for chunk of size 27
+2026-08-20T17:20:47.248+05:30 DEBUG 18108 --- [CommunicationService] [   virtual-1484] c.f.C.service.EmailServiceImpl           : Initiating Email Dispatch Pipeline for Template ID: SUCCESS_EOD_TEMPLATE
+2026-08-20T17:20:47.248+05:30 DEBUG 18108 --- [CommunicationService] [   virtual-1494] c.f.C.service.EmailServiceImpl           : Initiating Email Dispatch Pipeline for Template ID: SUCCESS_EOD_TEMPLATE
+2026-08-20T17:20:47.248+05:30  INFO 18108 --- [CommunicationService] [   virtual-1478] c.f.C.service.SmsServiceImpl             : Reached sendSms service. templateId=SUCCESS_EOD_TEMPLATE, mobile=******3422
+2026-08-20T17:20:47.248+05:30 DEBUG 18108 --- [CommunicationService] [   virtual-1488] c.f.C.service.EmailServiceImpl           : Initiating Email Dispatch Pipeline for Template ID: SUCCESS_EOD_TEMPLATE
+2026-08-20T17:20:47.248+05:30  INFO 18108 --- [CommunicationService] [   virtual-1495] c.f.C.service.SmsServiceImpl             : Reached sendSms service. templateId=SUCCESS_EOD_TEMPLATE, mobile=******4132
+2026-08-20T17:20:47.248+05:30 DEBUG 18108 --- [CommunicationService] [   virtual-1482] c.f.C.service.EmailServiceImpl           : Initiating Email Dispatch Pipeline for Template ID: SUCCESS_EOD_TEMPLATE
+2026-08-20T17:20:47.248+05:30 ERROR 18108 --- [CommunicationService] [   virtual-1552] .a.i.SimpleAsyncUncaughtExceptionHandler : Unexpected exception occurred invoking async method: public void com.fincore.CommunicationService.service.CommunicationAuditService.logAttempt(java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String)
 
-org.springframework.web.client.HttpClientErrorException$Unauthorized: 401 Unauthorized: "{"status": 401, "error": "MISSING_TOKEN", "message": "Authorization header missing."}"
-	at org.springframework.web.client.HttpClientErrorException.create(HttpClientErrorException.java:109) ~[spring-web-7.0.8.jar:7.0.8]
-	at org.springframework.web.client.StatusHandler.createException(StatusHandler.java:132) ~[spring-web-7.0.8.jar:7.0.8]
-	at org.springframework.web.client.StatusHandler.lambda$createDefaultStatusHandler$1(StatusHandler.java:107) ~[spring-web-7.0.8.jar:7.0.8]
-	at org.springframework.web.client.StatusHandler.handle(StatusHandler.java:75) ~[spring-web-7.0.8.jar:7.0.8]
-	at org.springframework.web.client.DefaultRestClient$DefaultResponseSpec.applyStatusHandlers(DefaultRestClient.java:943) ~[spring-web-7.0.8.jar:7.0.8]
-	at org.springframework.web.client.DefaultRestClient$DefaultResponseSpec.lambda$readBody$0(DefaultRestClient.java:932) ~[spring-web-7.0.8.jar:7.0.8]
-	at org.springframework.web.client.DefaultRestClient.readWithMessageConverters(DefaultRestClient.java:224) ~[spring-web-7.0.8.jar:7.0.8]
-	at org.springframework.web.client.DefaultRestClient$DefaultResponseSpec.readBody(DefaultRestClient.java:931) ~[spring-web-7.0.8.jar:7.0.8]
-	at org.springframework.web.client.DefaultRestClient$DefaultResponseSpec.lambda$body$1(DefaultRestClient.java:847) ~[spring-web-7.0.8.jar:7.0.8]
-	at org.springframework.web.client.DefaultRestClient$DefaultRequestBodyUriSpec.exchangeInternal(DefaultRestClient.java:617) ~[spring-web-7.0.8.jar:7.0.8]
-	at org.springframework.web.client.DefaultRestClient$DefaultRequestBodyUriSpec.exchange(DefaultRestClient.java:572) ~[spring-web-7.0.8.jar:7.0.8]
-	at org.springframework.web.client.RestClient$RequestHeadersSpec.exchange(RestClient.java:747) ~[spring-web-7.0.8.jar:7.0.8]
-	at org.springframework.web.client.DefaultRestClient$DefaultResponseSpec.executeAndExtract(DefaultRestClient.java:924) ~[spring-web-7.0.8.jar:7.0.8]
-	at org.springframework.web.client.DefaultRestClient$DefaultResponseSpec.body(DefaultRestClient.java:847) ~[spring-web-7.0.8.jar:7.0.8]
-	at com.fincore.CommunicationService.client.ReportServiceClient.downloadAttachments(ReportServiceClient.java:43) ~[classes/:na]
-	at com.fincore.CommunicationService.attachment.AttachmentPreparationServiceImpl.prepareAttachments(AttachmentPreparationServiceImpl.java:62) ~[classes/:na]
-	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:103) ~[na:na]
-	at java.base/java.lang.reflect.Method.invoke(Method.java:580) ~[na:na]
-	at org.springframework.aop.support.AopUtils.invokeJoinpointUsingReflection(AopUtils.java:359) ~[spring-aop-7.0.8.jar:7.0.8]
-	at org.springframework.aop.framework.ReflectiveMethodInvocation.invokeJoinpoint(ReflectiveMethodInvocation.java:190) ~[spring-aop-7.0.8.jar:7.0.8]
-	at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:158) ~[spring-aop-7.0.8.jar:7.0.8]
-	at org.springframework.aop.interceptor.ExposeInvocationInterceptor.invoke(ExposeInvocationInterceptor.java:96) ~[spring-aop-7.0.8.jar:7.0.8]
-	at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:179) ~[spring-aop-7.0.8.jar:7.0.8]
-	at org.springframework.aop.aspectj.MethodInvocationProceedingJoinPoint.proceed(MethodInvocationProceedingJoinPoint.java:82) ~[spring-aop-7.0.8.jar:7.0.8]
-	at com.fincore.commonutilities.aspect.GlobalResilienceAspect.lambda$applyResilience$0(GlobalResilienceAspect.java:60) ~[classes/:na]
-	at io.github.resilience4j.retry.Retry.lambda$decorateSupplier$5(Retry.java:301) ~[resilience4j-retry-2.3.0.jar:2.3.0]
-	at io.github.resilience4j.circuitbreaker.CircuitBreaker.lambda$decorateSupplier$5(CircuitBreaker.java:194) ~[resilience4j-circuitbreaker-2.3.0.jar:2.3.0]
+io.github.resilience4j.circuitbreaker.CallNotPermittedException: CircuitBreaker 'defaultService' is HALF_OPEN and does not permit further calls
+	at io.github.resilience4j.circuitbreaker.CallNotPermittedException.createCallNotPermittedException(CallNotPermittedException.java:48) ~[resilience4j-circuitbreaker-2.3.0.jar:2.3.0]
+	at io.github.resilience4j.circuitbreaker.internal.CircuitBreakerStateMachine$HalfOpenState.acquirePermission(CircuitBreakerStateMachine.java:1098) ~[resilience4j-circuitbreaker-2.3.0.jar:2.3.0]
+	at io.github.resilience4j.circuitbreaker.internal.CircuitBreakerStateMachine.acquirePermission(CircuitBreakerStateMachine.java:184) ~[resilience4j-circuitbreaker-2.3.0.jar:2.3.0]
+	at io.github.resilience4j.circuitbreaker.CircuitBreaker.lambda$decorateSupplier$5(CircuitBreaker.java:191) ~[resilience4j-circuitbreaker-2.3.0.jar:2.3.0]
 	at com.fincore.commonutilities.aspect.GlobalResilienceAspect.applyResilience(GlobalResilienceAspect.java:73) ~[classes/:na]
 	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:103) ~[na:na]
 	at java.base/java.lang.reflect.Method.invoke(Method.java:580) ~[na:na]
@@ -43,20 +29,17 @@ org.springframework.web.client.HttpClientErrorException$Unauthorized: 401 Unauth
 	at org.springframework.aop.aspectj.AbstractAspectJAdvice.invokeAdviceMethod(AbstractAspectJAdvice.java:630) ~[spring-aop-7.0.8.jar:7.0.8]
 	at org.springframework.aop.aspectj.AspectJAroundAdvice.invoke(AspectJAroundAdvice.java:70) ~[spring-aop-7.0.8.jar:7.0.8]
 	at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:179) ~[spring-aop-7.0.8.jar:7.0.8]
-	at org.springframework.aop.framework.CglibAopProxy$DynamicAdvisedInterceptor.intercept(CglibAopProxy.java:719) ~[spring-aop-7.0.8.jar:7.0.8]
-	at com.fincore.CommunicationService.attachment.AttachmentPreparationServiceImpl$$SpringCGLIB$$0.prepareAttachments(<generated>) ~[classes/:na]
-	at com.fincore.CommunicationService.orchestrator.CommunicationOrchestrator.process(CommunicationOrchestrator.java:108) ~[classes/:na]
-	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:103) ~[na:na]
-	at java.base/java.lang.reflect.Method.invoke(Method.java:580) ~[na:na]
-	at org.springframework.aop.support.AopUtils.invokeJoinpointUsingReflection(AopUtils.java:359) ~[spring-aop-7.0.8.jar:7.0.8]
-	at org.springframework.aop.framework.ReflectiveMethodInvocation.invokeJoinpoint(ReflectiveMethodInvocation.java:190) ~[spring-aop-7.0.8.jar:7.0.8]
-	at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:158) ~[spring-aop-7.0.8.jar:7.0.8]
-	at org.springframework.aop.interceptor.ExposeInvocationInterceptor.invoke(ExposeInvocationInterceptor.java:96) ~[spring-aop-7.0.8.jar:7.0.8]
-	at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:179) ~[spring-aop-7.0.8.jar:7.0.8]
-	at org.springframework.aop.aspectj.MethodInvocationProceedingJoinPoint.proceed(MethodInvocationProceedingJoinPoint.java:82) ~[spring-aop-7.0.8.jar:7.0.8]
-	at com.fincore.commonutilities.aspect.GlobalResilienceAspect.lambda$applyResilience$0(GlobalResilienceAspect.java:60) ~[classes/:na]
-	at io.github.resilience4j.retry.Retry.lambda$decorateSupplier$5(Retry.java:301) ~[resilience4j-retry-2.3.0.jar:2.3.0]
-	at io.github.resilience4j.circuitbreaker.CircuitBreaker.lambda$decorateSupplier$5(CircuitBreaker.java:194) ~[resilience4j-circuitbreaker-2.3.0.jar:2.3.0]
+	at org.springframework.aop.interceptor.AsyncExecutionInterceptor.lambda$invoke$0(AsyncExecutionInterceptor.java:112) ~[spring-aop-7.0.8.jar:7.0.8]
+	at java.base/java.util.concurrent.FutureTask.run(FutureTask.java:317) ~[na:na]
+	at java.base/java.lang.VirtualThread.run(VirtualThread.java:329) ~[na:na]
+
+2026-08-20T17:20:47.249+05:30 ERROR 18108 --- [CommunicationService] [   virtual-1558] .a.i.SimpleAsyncUncaughtExceptionHandler : Unexpected exception occurred invoking async method: public void com.fincore.CommunicationService.service.CommunicationAuditService.logAttempt(java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String)
+
+io.github.resilience4j.circuitbreaker.CallNotPermittedException: CircuitBreaker 'defaultService' is HALF_OPEN and does not permit further calls
+	at io.github.resilience4j.circuitbreaker.CallNotPermittedException.createCallNotPermittedException(CallNotPermittedException.java:48) ~[resilience4j-circuitbreaker-2.3.0.jar:2.3.0]
+	at io.github.resilience4j.circuitbreaker.internal.CircuitBreakerStateMachine$HalfOpenState.acquirePermission(CircuitBreakerStateMachine.java:1098) ~[resilience4j-circuitbreaker-2.3.0.jar:2.3.0]
+	at io.github.resilience4j.circuitbreaker.internal.CircuitBreakerStateMachine.acquirePermission(CircuitBreakerStateMachine.java:184) ~[resilience4j-circuitbreaker-2.3.0.jar:2.3.0]
+	at io.github.resilience4j.circuitbreaker.CircuitBreaker.lambda$decorateSupplier$5(CircuitBreaker.java:191) ~[resilience4j-circuitbreaker-2.3.0.jar:2.3.0]
 	at com.fincore.commonutilities.aspect.GlobalResilienceAspect.applyResilience(GlobalResilienceAspect.java:73) ~[classes/:na]
 	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:103) ~[na:na]
 	at java.base/java.lang.reflect.Method.invoke(Method.java:580) ~[na:na]
@@ -64,284 +47,810 @@ org.springframework.web.client.HttpClientErrorException$Unauthorized: 401 Unauth
 	at org.springframework.aop.aspectj.AbstractAspectJAdvice.invokeAdviceMethod(AbstractAspectJAdvice.java:630) ~[spring-aop-7.0.8.jar:7.0.8]
 	at org.springframework.aop.aspectj.AspectJAroundAdvice.invoke(AspectJAroundAdvice.java:70) ~[spring-aop-7.0.8.jar:7.0.8]
 	at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:179) ~[spring-aop-7.0.8.jar:7.0.8]
-	at org.springframework.aop.framework.CglibAopProxy$DynamicAdvisedInterceptor.intercept(CglibAopProxy.java:719) ~[spring-aop-7.0.8.jar:7.0.8]
-	at com.fincore.CommunicationService.orchestrator.CommunicationOrchestrator$$SpringCGLIB$$0.process(<generated>) ~[classes/:na]
-	at com.fincore.CommunicationService.consumer.GenericCommunicationConsumer.consumeGenericCommunication(GenericCommunicationConsumer.java:157) ~[classes/:na]
+	at org.springframework.aop.interceptor.AsyncExecutionInterceptor.lambda$invoke$0(AsyncExecutionInterceptor.java:112) ~[spring-aop-7.0.8.jar:7.0.8]
+	at java.base/java.util.concurrent.FutureTask.run(FutureTask.java:317) ~[na:na]
+	at java.base/java.lang.VirtualThread.run(VirtualThread.java:329) ~[na:na]
+
+2026-08-20T17:20:47.248+05:30 ERROR 18108 --- [CommunicationService] [   virtual-1553] .a.i.SimpleAsyncUncaughtExceptionHandler : Unexpected exception occurred invoking async method: public void com.fincore.CommunicationService.service.CommunicationAuditService.logAttempt(java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String)
+
+io.github.resilience4j.circuitbreaker.CallNotPermittedException: CircuitBreaker 'defaultService' is HALF_OPEN and does not permit further calls
+	at io.github.resilience4j.circuitbreaker.CallNotPermittedException.createCallNotPermittedException(CallNotPermittedException.java:48) ~[resilience4j-circuitbreaker-2.3.0.jar:2.3.0]
+	at io.github.resilience4j.circuitbreaker.internal.CircuitBreakerStateMachine$HalfOpenState.acquirePermission(CircuitBreakerStateMachine.java:1098) ~[resilience4j-circuitbreaker-2.3.0.jar:2.3.0]
+	at io.github.resilience4j.circuitbreaker.internal.CircuitBreakerStateMachine.acquirePermission(CircuitBreakerStateMachine.java:184) ~[resilience4j-circuitbreaker-2.3.0.jar:2.3.0]
+	at io.github.resilience4j.circuitbreaker.CircuitBreaker.lambda$decorateSupplier$5(CircuitBreaker.java:191) ~[resilience4j-circuitbreaker-2.3.0.jar:2.3.0]
+	at com.fincore.commonutilities.aspect.GlobalResilienceAspect.applyResilience(GlobalResilienceAspect.java:73) ~[classes/:na]
 	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:103) ~[na:na]
 	at java.base/java.lang.reflect.Method.invoke(Method.java:580) ~[na:na]
-	at org.springframework.messaging.handler.invocation.InvocableHandlerMethod.doInvoke(InvocableHandlerMethod.java:168) ~[spring-messaging-7.0.8.jar:7.0.8]
-	at org.springframework.kafka.listener.adapter.KotlinAwareInvocableHandlerMethod.doInvoke(KotlinAwareInvocableHandlerMethod.java:48) ~[spring-kafka-4.1.0.jar:4.1.0]
-	at org.springframework.messaging.handler.invocation.InvocableHandlerMethod.invoke(InvocableHandlerMethod.java:119) ~[spring-messaging-7.0.8.jar:7.0.8]
-	at org.springframework.kafka.listener.adapter.HandlerAdapter.invoke(HandlerAdapter.java:80) ~[spring-kafka-4.1.0.jar:4.1.0]
-	at org.springframework.kafka.listener.adapter.MessagingMessageListenerAdapter.invokeHandler(MessagingMessageListenerAdapter.java:489) ~[spring-kafka-4.1.0.jar:4.1.0]
-	at org.springframework.kafka.listener.adapter.MessagingMessageListenerAdapter.invoke(MessagingMessageListenerAdapter.java:426) ~[spring-kafka-4.1.0.jar:4.1.0]
-	at org.springframework.kafka.listener.adapter.RecordMessagingMessageListenerAdapter.onMessage(RecordMessagingMessageListenerAdapter.java:92) ~[spring-kafka-4.1.0.jar:4.1.0]
-	at org.springframework.kafka.listener.adapter.RecordMessagingMessageListenerAdapter.onMessage(RecordMessagingMessageListenerAdapter.java:52) ~[spring-kafka-4.1.0.jar:4.1.0]
-	at org.springframework.kafka.listener.adapter.KafkaBackoffAwareMessageListenerAdapter.invokeDelegateOnMessage(KafkaBackoffAwareMessageListenerAdapter.java:109) ~[spring-kafka-4.1.0.jar:4.1.0]
-	at org.springframework.kafka.listener.adapter.KafkaBackoffAwareMessageListenerAdapter.onMessage(KafkaBackoffAwareMessageListenerAdapter.java:100) ~[spring-kafka-4.1.0.jar:4.1.0]
-	at org.springframework.kafka.listener.adapter.KafkaBackoffAwareMessageListenerAdapter.onMessage(KafkaBackoffAwareMessageListenerAdapter.java:50) ~[spring-kafka-4.1.0.jar:4.1.0]
-	at org.springframework.kafka.listener.KafkaMessageListenerContainer$ListenerConsumer.doInvokeOnMessage(KafkaMessageListenerContainer.java:3018) ~[spring-kafka-4.1.0.jar:4.1.0]
-	at org.springframework.kafka.listener.KafkaMessageListenerContainer$ListenerConsumer.invokeOnMessage(KafkaMessageListenerContainer.java:2997) ~[spring-kafka-4.1.0.jar:4.1.0]
-	at org.springframework.kafka.listener.KafkaMessageListenerContainer$ListenerConsumer.doInvokeRecordListener(KafkaMessageListenerContainer.java:2907) ~[spring-kafka-4.1.0.jar:4.1.0]
-	at org.springframework.kafka.listener.KafkaMessageListenerContainer$ListenerConsumer.doInvokeWithRecords(KafkaMessageListenerContainer.java:2749) ~[spring-kafka-4.1.0.jar:4.1.0]
-	at org.springframework.kafka.listener.KafkaMessageListenerContainer$ListenerConsumer.invokeRecordListener(KafkaMessageListenerContainer.java:2643) ~[spring-kafka-4.1.0.jar:4.1.0]
-	at org.springframework.kafka.listener.KafkaMessageListenerContainer$ListenerConsumer.invokeListener(KafkaMessageListenerContainer.java:2274) ~[spring-kafka-4.1.0.jar:4.1.0]
-	at org.springframework.kafka.listener.KafkaMessageListenerContainer$ListenerConsumer.invokeIfHaveRecords(KafkaMessageListenerContainer.java:1572) ~[spring-kafka-4.1.0.jar:4.1.0]
-	at org.springframework.kafka.listener.KafkaMessageListenerContainer$ListenerConsumer.pollAndInvoke(KafkaMessageListenerContainer.java:1504) ~[spring-kafka-4.1.0.jar:4.1.0]
-	at org.springframework.kafka.listener.KafkaMessageListenerContainer$ListenerConsumer.run(KafkaMessageListenerContainer.java:1373) ~[spring-kafka-4.1.0.jar:4.1.0]
-	at java.base/java.util.concurrent.CompletableFuture$AsyncRun.run(CompletableFuture.java:1804) ~[na:na]
-	at java.base/java.lang.Thread.run(Thread.java:1570) ~[na:na]
+	at org.springframework.aop.aspectj.AbstractAspectJAdvice.invokeAdviceMethodWithGivenArgs(AbstractAspectJAdvice.java:648) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.aspectj.AbstractAspectJAdvice.invokeAdviceMethod(AbstractAspectJAdvice.java:630) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.aspectj.AspectJAroundAdvice.invoke(AspectJAroundAdvice.java:70) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:179) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.interceptor.AsyncExecutionInterceptor.lambda$invoke$0(AsyncExecutionInterceptor.java:112) ~[spring-aop-7.0.8.jar:7.0.8]
+	at java.base/java.util.concurrent.FutureTask.run(FutureTask.java:317) ~[na:na]
+	at java.base/java.lang.VirtualThread.run(VirtualThread.java:329) ~[na:na]
 
+2026-08-20T17:20:47.248+05:30 ERROR 18108 --- [CommunicationService] [   virtual-1549] .a.i.SimpleAsyncUncaughtExceptionHandler : Unexpected exception occurred invoking async method: public void com.fincore.CommunicationService.service.CommunicationAuditService.logAttempt(java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String)
 
+io.github.resilience4j.circuitbreaker.CallNotPermittedException: CircuitBreaker 'defaultService' is HALF_OPEN and does not permit further calls
+	at io.github.resilience4j.circuitbreaker.CallNotPermittedException.createCallNotPermittedException(CallNotPermittedException.java:48) ~[resilience4j-circuitbreaker-2.3.0.jar:2.3.0]
+	at io.github.resilience4j.circuitbreaker.internal.CircuitBreakerStateMachine$HalfOpenState.acquirePermission(CircuitBreakerStateMachine.java:1098) ~[resilience4j-circuitbreaker-2.3.0.jar:2.3.0]
+	at io.github.resilience4j.circuitbreaker.internal.CircuitBreakerStateMachine.acquirePermission(CircuitBreakerStateMachine.java:184) ~[resilience4j-circuitbreaker-2.3.0.jar:2.3.0]
+	at io.github.resilience4j.circuitbreaker.CircuitBreaker.lambda$decorateSupplier$5(CircuitBreaker.java:191) ~[resilience4j-circuitbreaker-2.3.0.jar:2.3.0]
+	at com.fincore.commonutilities.aspect.GlobalResilienceAspect.applyResilience(GlobalResilienceAspect.java:73) ~[classes/:na]
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:103) ~[na:na]
+	at java.base/java.lang.reflect.Method.invoke(Method.java:580) ~[na:na]
+	at org.springframework.aop.aspectj.AbstractAspectJAdvice.invokeAdviceMethodWithGivenArgs(AbstractAspectJAdvice.java:648) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.aspectj.AbstractAspectJAdvice.invokeAdviceMethod(AbstractAspectJAdvice.java:630) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.aspectj.AspectJAroundAdvice.invoke(AspectJAroundAdvice.java:70) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:179) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.interceptor.AsyncExecutionInterceptor.lambda$invoke$0(AsyncExecutionInterceptor.java:112) ~[spring-aop-7.0.8.jar:7.0.8]
+	at java.base/java.util.concurrent.FutureTask.run(FutureTask.java:317) ~[na:na]
+	at java.base/java.lang.VirtualThread.run(VirtualThread.java:329) ~[na:na]
 
+2026-08-20T17:20:47.248+05:30 ERROR 18108 --- [CommunicationService] [   virtual-1556] .a.i.SimpleAsyncUncaughtExceptionHandler : Unexpected exception occurred invoking async method: public void com.fincore.CommunicationService.service.CommunicationAuditService.logAttempt(java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String)
 
+io.github.resilience4j.circuitbreaker.CallNotPermittedException: CircuitBreaker 'defaultService' is HALF_OPEN and does not permit further calls
+	at io.github.resilience4j.circuitbreaker.CallNotPermittedException.createCallNotPermittedException(CallNotPermittedException.java:48) ~[resilience4j-circuitbreaker-2.3.0.jar:2.3.0]
+	at io.github.resilience4j.circuitbreaker.internal.CircuitBreakerStateMachine$HalfOpenState.acquirePermission(CircuitBreakerStateMachine.java:1098) ~[resilience4j-circuitbreaker-2.3.0.jar:2.3.0]
+	at io.github.resilience4j.circuitbreaker.internal.CircuitBreakerStateMachine.acquirePermission(CircuitBreakerStateMachine.java:184) ~[resilience4j-circuitbreaker-2.3.0.jar:2.3.0]
+	at io.github.resilience4j.circuitbreaker.CircuitBreaker.lambda$decorateSupplier$5(CircuitBreaker.java:191) ~[resilience4j-circuitbreaker-2.3.0.jar:2.3.0]
+	at com.fincore.commonutilities.aspect.GlobalResilienceAspect.applyResilience(GlobalResilienceAspect.java:73) ~[classes/:na]
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:103) ~[na:na]
+	at java.base/java.lang.reflect.Method.invoke(Method.java:580) ~[na:na]
+	at org.springframework.aop.aspectj.AbstractAspectJAdvice.invokeAdviceMethodWithGivenArgs(AbstractAspectJAdvice.java:648) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.aspectj.AbstractAspectJAdvice.invokeAdviceMethod(AbstractAspectJAdvice.java:630) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.aspectj.AspectJAroundAdvice.invoke(AspectJAroundAdvice.java:70) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:179) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.interceptor.AsyncExecutionInterceptor.lambda$invoke$0(AsyncExecutionInterceptor.java:112) ~[spring-aop-7.0.8.jar:7.0.8]
+	at java.base/java.util.concurrent.FutureTask.run(FutureTask.java:317) ~[na:na]
+	at java.base/java.lang.VirtualThread.run(VirtualThread.java:329) ~[na:na]
 
+2026-08-20T17:20:47.249+05:30 ERROR 18108 --- [CommunicationService] [   virtual-1564] .a.i.SimpleAsyncUncaughtExceptionHandler : Unexpected exception occurred invoking async method: public void com.fincore.CommunicationService.service.CommunicationAuditService.logAttempt(java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String)
 
+io.github.resilience4j.circuitbreaker.CallNotPermittedException: CircuitBreaker 'defaultService' is HALF_OPEN and does not permit further calls
+	at io.github.resilience4j.circuitbreaker.CallNotPermittedException.createCallNotPermittedException(CallNotPermittedException.java:48) ~[resilience4j-circuitbreaker-2.3.0.jar:2.3.0]
+	at io.github.resilience4j.circuitbreaker.internal.CircuitBreakerStateMachine$HalfOpenState.acquirePermission(CircuitBreakerStateMachine.java:1098) ~[resilience4j-circuitbreaker-2.3.0.jar:2.3.0]
+	at io.github.resilience4j.circuitbreaker.internal.CircuitBreakerStateMachine.acquirePermission(CircuitBreakerStateMachine.java:184) ~[resilience4j-circuitbreaker-2.3.0.jar:2.3.0]
+	at io.github.resilience4j.circuitbreaker.CircuitBreaker.lambda$decorateSupplier$5(CircuitBreaker.java:191) ~[resilience4j-circuitbreaker-2.3.0.jar:2.3.0]
+	at com.fincore.commonutilities.aspect.GlobalResilienceAspect.applyResilience(GlobalResilienceAspect.java:73) ~[classes/:na]
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:103) ~[na:na]
+	at java.base/java.lang.reflect.Method.invoke(Method.java:580) ~[na:na]
+	at org.springframework.aop.aspectj.AbstractAspectJAdvice.invokeAdviceMethodWithGivenArgs(AbstractAspectJAdvice.java:648) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.aspectj.AbstractAspectJAdvice.invokeAdviceMethod(AbstractAspectJAdvice.java:630) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.aspectj.AspectJAroundAdvice.invoke(AspectJAroundAdvice.java:70) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:179) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.interceptor.AsyncExecutionInterceptor.lambda$invoke$0(AsyncExecutionInterceptor.java:112) ~[spring-aop-7.0.8.jar:7.0.8]
+	at java.base/java.util.concurrent.FutureTask.run(FutureTask.java:317) ~[na:na]
+	at java.base/java.lang.VirtualThread.run(VirtualThread.java:329) ~[na:na]
 
+2026-08-20T17:20:47.249+05:30 ERROR 18108 --- [CommunicationService] [   virtual-1560] .a.i.SimpleAsyncUncaughtExceptionHandler : Unexpected exception occurred invoking async method: public void com.fincore.CommunicationService.service.CommunicationAuditService.logAttempt(java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String)
 
+io.github.resilience4j.circuitbreaker.CallNotPermittedException: CircuitBreaker 'defaultService' is HALF_OPEN and does not permit further calls
+	at io.github.resilience4j.circuitbreaker.CallNotPermittedException.createCallNotPermittedException(CallNotPermittedException.java:48) ~[resilience4j-circuitbreaker-2.3.0.jar:2.3.0]
+	at io.github.resilience4j.circuitbreaker.internal.CircuitBreakerStateMachine$HalfOpenState.acquirePermission(CircuitBreakerStateMachine.java:1098) ~[resilience4j-circuitbreaker-2.3.0.jar:2.3.0]
+	at io.github.resilience4j.circuitbreaker.internal.CircuitBreakerStateMachine.acquirePermission(CircuitBreakerStateMachine.java:184) ~[resilience4j-circuitbreaker-2.3.0.jar:2.3.0]
+	at io.github.resilience4j.circuitbreaker.CircuitBreaker.lambda$decorateSupplier$5(CircuitBreaker.java:191) ~[resilience4j-circuitbreaker-2.3.0.jar:2.3.0]
+	at com.fincore.commonutilities.aspect.GlobalResilienceAspect.applyResilience(GlobalResilienceAspect.java:73) ~[classes/:na]
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:103) ~[na:na]
+	at java.base/java.lang.reflect.Method.invoke(Method.java:580) ~[na:na]
+	at org.springframework.aop.aspectj.AbstractAspectJAdvice.invokeAdviceMethodWithGivenArgs(AbstractAspectJAdvice.java:648) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.aspectj.AbstractAspectJAdvice.invokeAdviceMethod(AbstractAspectJAdvice.java:630) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.aspectj.AspectJAroundAdvice.invoke(AspectJAroundAdvice.java:70) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:179) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.interceptor.AsyncExecutionInterceptor.lambda$invoke$0(AsyncExecutionInterceptor.java:112) ~[spring-aop-7.0.8.jar:7.0.8]
+	at java.base/java.util.concurrent.FutureTask.run(FutureTask.java:317) ~[na:na]
+	at java.base/java.lang.VirtualThread.run(VirtualThread.java:329) ~[na:na]
 
-package com.fincore.CommunicationService.client;
+2026-08-20T17:20:47.249+05:30 ERROR 18108 --- [CommunicationService] [   virtual-1569] .a.i.SimpleAsyncUncaughtExceptionHandler : Unexpected exception occurred invoking async method: public void com.fincore.CommunicationService.service.CommunicationAuditService.logAttempt(java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String)
 
-import com.fincore.CommunicationService.dto.ApiResponse;
-import com.fincore.CommunicationService.dto.attachment.AttachmentDownloadRequest;
-import com.fincore.CommunicationService.dto.attachment.AttachmentDownloadResponse;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.core.ParameterizedTypeReference;
-import org.springframework.stereotype.Component;
-import org.springframework.web.client.RestClient;
-import org.springframework.web.client.RestClientException;
+io.github.resilience4j.circuitbreaker.CallNotPermittedException: CircuitBreaker 'defaultService' is HALF_OPEN and does not permit further calls
+	at io.github.resilience4j.circuitbreaker.CallNotPermittedException.createCallNotPermittedException(CallNotPermittedException.java:48) ~[resilience4j-circuitbreaker-2.3.0.jar:2.3.0]
+	at io.github.resilience4j.circuitbreaker.internal.CircuitBreakerStateMachine$HalfOpenState.acquirePermission(CircuitBreakerStateMachine.java:1098) ~[resilience4j-circuitbreaker-2.3.0.jar:2.3.0]
+	at io.github.resilience4j.circuitbreaker.internal.CircuitBreakerStateMachine.acquirePermission(CircuitBreakerStateMachine.java:184) ~[resilience4j-circuitbreaker-2.3.0.jar:2.3.0]
+	at io.github.resilience4j.circuitbreaker.CircuitBreaker.lambda$decorateSupplier$5(CircuitBreaker.java:191) ~[resilience4j-circuitbreaker-2.3.0.jar:2.3.0]
+	at com.fincore.commonutilities.aspect.GlobalResilienceAspect.applyResilience(GlobalResilienceAspect.java:73) ~[classes/:na]
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:103) ~[na:na]
+	at java.base/java.lang.reflect.Method.invoke(Method.java:580) ~[na:na]
+	at org.springframework.aop.aspectj.AbstractAspectJAdvice.invokeAdviceMethodWithGivenArgs(AbstractAspectJAdvice.java:648) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.aspectj.AbstractAspectJAdvice.invokeAdviceMethod(AbstractAspectJAdvice.java:630) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.aspectj.AspectJAroundAdvice.invoke(AspectJAroundAdvice.java:70) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:179) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.interceptor.AsyncExecutionInterceptor.lambda$invoke$0(AsyncExecutionInterceptor.java:112) ~[spring-aop-7.0.8.jar:7.0.8]
+	at java.base/java.util.concurrent.FutureTask.run(FutureTask.java:317) ~[na:na]
+	at java.base/java.lang.VirtualThread.run(VirtualThread.java:329) ~[na:na]
 
-/**
- * <p>HTTP Client for upstream Report Service interactions.</p>
- *
- * @author MADHAVI, SHUBHANKAR
- * @since 2026-07
- */
-@Slf4j
-@Component
-@RequiredArgsConstructor
-public class ReportServiceClient {
+2026-08-20T17:20:47.249+05:30 ERROR 18108 --- [CommunicationService] [   virtual-1567] .a.i.SimpleAsyncUncaughtExceptionHandler : Unexpected exception occurred invoking async method: public void com.fincore.CommunicationService.service.CommunicationAuditService.logAttempt(java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String)
 
-    // Injected automatically from common-utilities (S2SRestClientConfig)
-    private final RestClient interServiceClient;
+io.github.resilience4j.circuitbreaker.CallNotPermittedException: CircuitBreaker 'defaultService' is HALF_OPEN and does not permit further calls
+	at io.github.resilience4j.circuitbreaker.CallNotPermittedException.createCallNotPermittedException(CallNotPermittedException.java:48) ~[resilience4j-circuitbreaker-2.3.0.jar:2.3.0]
+	at io.github.resilience4j.circuitbreaker.internal.CircuitBreakerStateMachine$HalfOpenState.acquirePermission(CircuitBreakerStateMachine.java:1098) ~[resilience4j-circuitbreaker-2.3.0.jar:2.3.0]
+	at io.github.resilience4j.circuitbreaker.internal.CircuitBreakerStateMachine.acquirePermission(CircuitBreakerStateMachine.java:184) ~[resilience4j-circuitbreaker-2.3.0.jar:2.3.0]
+	at io.github.resilience4j.circuitbreaker.CircuitBreaker.lambda$decorateSupplier$5(CircuitBreaker.java:191) ~[resilience4j-circuitbreaker-2.3.0.jar:2.3.0]
+	at com.fincore.commonutilities.aspect.GlobalResilienceAspect.applyResilience(GlobalResilienceAspect.java:73) ~[classes/:na]
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:103) ~[na:na]
+	at java.base/java.lang.reflect.Method.invoke(Method.java:580) ~[na:na]
+	at org.springframework.aop.aspectj.AbstractAspectJAdvice.invokeAdviceMethodWithGivenArgs(AbstractAspectJAdvice.java:648) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.aspectj.AbstractAspectJAdvice.invokeAdviceMethod(AbstractAspectJAdvice.java:630) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.aspectj.AspectJAroundAdvice.invoke(AspectJAroundAdvice.java:70) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:179) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.interceptor.AsyncExecutionInterceptor.lambda$invoke$0(AsyncExecutionInterceptor.java:112) ~[spring-aop-7.0.8.jar:7.0.8]
+	at java.base/java.util.concurrent.FutureTask.run(FutureTask.java:317) ~[na:na]
+	at java.base/java.lang.VirtualThread.run(VirtualThread.java:329) ~[na:na]
 
-    @Value("${report.service.url}")
-    private String reportServiceUrl;
+2026-08-20T17:20:47.249+05:30 ERROR 18108 --- [CommunicationService] [   virtual-1568] .a.i.SimpleAsyncUncaughtExceptionHandler : Unexpected exception occurred invoking async method: public void com.fincore.CommunicationService.service.CommunicationAuditService.logAttempt(java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String)
 
-    @Value("${security.internal.report-service-token:TEST_TOKEN_123}")
-    private String internalServiceToken;
+io.github.resilience4j.circuitbreaker.CallNotPermittedException: CircuitBreaker 'defaultService' is HALF_OPEN and does not permit further calls
+	at io.github.resilience4j.circuitbreaker.CallNotPermittedException.createCallNotPermittedException(CallNotPermittedException.java:48) ~[resilience4j-circuitbreaker-2.3.0.jar:2.3.0]
+	at io.github.resilience4j.circuitbreaker.internal.CircuitBreakerStateMachine$HalfOpenState.acquirePermission(CircuitBreakerStateMachine.java:1098) ~[resilience4j-circuitbreaker-2.3.0.jar:2.3.0]
+	at io.github.resilience4j.circuitbreaker.internal.CircuitBreakerStateMachine.acquirePermission(CircuitBreakerStateMachine.java:184) ~[resilience4j-circuitbreaker-2.3.0.jar:2.3.0]
+	at io.github.resilience4j.circuitbreaker.CircuitBreaker.lambda$decorateSupplier$5(CircuitBreaker.java:191) ~[resilience4j-circuitbreaker-2.3.0.jar:2.3.0]
+	at com.fincore.commonutilities.aspect.GlobalResilienceAspect.applyResilience(GlobalResilienceAspect.java:73) ~[classes/:na]
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:103) ~[na:na]
+	at java.base/java.lang.reflect.Method.invoke(Method.java:580) ~[na:na]
+	at org.springframework.aop.aspectj.AbstractAspectJAdvice.invokeAdviceMethodWithGivenArgs(AbstractAspectJAdvice.java:648) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.aspectj.AbstractAspectJAdvice.invokeAdviceMethod(AbstractAspectJAdvice.java:630) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.aspectj.AspectJAroundAdvice.invoke(AspectJAroundAdvice.java:70) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:179) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.interceptor.AsyncExecutionInterceptor.lambda$invoke$0(AsyncExecutionInterceptor.java:112) ~[spring-aop-7.0.8.jar:7.0.8]
+	at java.base/java.util.concurrent.FutureTask.run(FutureTask.java:317) ~[na:na]
+	at java.base/java.lang.VirtualThread.run(VirtualThread.java:329) ~[na:na]
 
-    public AttachmentDownloadResponse downloadAttachments(AttachmentDownloadRequest request) {
-        String endpoint = reportServiceUrl + "/api/reports/attachment/download";
-        log.debug("Initiating upstream request to Report Service: {}", endpoint);
+2026-08-20T17:20:47.250+05:30 ERROR 18108 --- [CommunicationService] [   virtual-1565] .a.i.SimpleAsyncUncaughtExceptionHandler : Unexpected exception occurred invoking async method: public void com.fincore.CommunicationService.service.CommunicationAuditService.logAttempt(java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String)
 
-        try {
-            ApiResponse<AttachmentDownloadResponse> response = interServiceClient.post()
-                    .uri(endpoint)
-                    .body(request)
-                    .retrieve()
-                    .body(new ParameterizedTypeReference<ApiResponse<AttachmentDownloadResponse>>() {
-                    });
+io.github.resilience4j.circuitbreaker.CallNotPermittedException: CircuitBreaker 'defaultService' is HALF_OPEN and does not permit further calls
+	at io.github.resilience4j.circuitbreaker.CallNotPermittedException.createCallNotPermittedException(CallNotPermittedException.java:48) ~[resilience4j-circuitbreaker-2.3.0.jar:2.3.0]
+	at io.github.resilience4j.circuitbreaker.internal.CircuitBreakerStateMachine$HalfOpenState.acquirePermission(CircuitBreakerStateMachine.java:1098) ~[resilience4j-circuitbreaker-2.3.0.jar:2.3.0]
+	at io.github.resilience4j.circuitbreaker.internal.CircuitBreakerStateMachine.acquirePermission(CircuitBreakerStateMachine.java:184) ~[resilience4j-circuitbreaker-2.3.0.jar:2.3.0]
+	at io.github.resilience4j.circuitbreaker.CircuitBreaker.lambda$decorateSupplier$5(CircuitBreaker.java:191) ~[resilience4j-circuitbreaker-2.3.0.jar:2.3.0]
+	at com.fincore.commonutilities.aspect.GlobalResilienceAspect.applyResilience(GlobalResilienceAspect.java:73) ~[classes/:na]
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:103) ~[na:na]
+	at java.base/java.lang.reflect.Method.invoke(Method.java:580) ~[na:na]
+	at org.springframework.aop.aspectj.AbstractAspectJAdvice.invokeAdviceMethodWithGivenArgs(AbstractAspectJAdvice.java:648) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.aspectj.AbstractAspectJAdvice.invokeAdviceMethod(AbstractAspectJAdvice.java:630) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.aspectj.AspectJAroundAdvice.invoke(AspectJAroundAdvice.java:70) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:179) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.interceptor.AsyncExecutionInterceptor.lambda$invoke$0(AsyncExecutionInterceptor.java:112) ~[spring-aop-7.0.8.jar:7.0.8]
+	at java.base/java.util.concurrent.FutureTask.run(FutureTask.java:317) ~[na:na]
+	at java.base/java.lang.VirtualThread.run(VirtualThread.java:329) ~[na:na]
 
-            if (response == null || !response.isSuccess()) {
-                String errorMsg = (response != null && response.getMessage() != null) ? response.getMessage() : "Unknown upstream error";
-                throw new RestClientException("Report Service rejected request: " + errorMsg);
-            }
+2026-08-20T17:20:47.250+05:30 ERROR 18108 --- [CommunicationService] [   virtual-1563] .a.i.SimpleAsyncUncaughtExceptionHandler : Unexpected exception occurred invoking async method: public void com.fincore.CommunicationService.service.CommunicationAuditService.logAttempt(java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String)
 
-            return response.getData();
+io.github.resilience4j.circuitbreaker.CallNotPermittedException: CircuitBreaker 'defaultService' is HALF_OPEN and does not permit further calls
+	at io.github.resilience4j.circuitbreaker.CallNotPermittedException.createCallNotPermittedException(CallNotPermittedException.java:48) ~[resilience4j-circuitbreaker-2.3.0.jar:2.3.0]
+	at io.github.resilience4j.circuitbreaker.internal.CircuitBreakerStateMachine$HalfOpenState.acquirePermission(CircuitBreakerStateMachine.java:1098) ~[resilience4j-circuitbreaker-2.3.0.jar:2.3.0]
+	at io.github.resilience4j.circuitbreaker.internal.CircuitBreakerStateMachine.acquirePermission(CircuitBreakerStateMachine.java:184) ~[resilience4j-circuitbreaker-2.3.0.jar:2.3.0]
+	at io.github.resilience4j.circuitbreaker.CircuitBreaker.lambda$decorateSupplier$5(CircuitBreaker.java:191) ~[resilience4j-circuitbreaker-2.3.0.jar:2.3.0]
+	at com.fincore.commonutilities.aspect.GlobalResilienceAspect.applyResilience(GlobalResilienceAspect.java:73) ~[classes/:na]
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:103) ~[na:na]
+	at java.base/java.lang.reflect.Method.invoke(Method.java:580) ~[na:na]
+	at org.springframework.aop.aspectj.AbstractAspectJAdvice.invokeAdviceMethodWithGivenArgs(AbstractAspectJAdvice.java:648) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.aspectj.AbstractAspectJAdvice.invokeAdviceMethod(AbstractAspectJAdvice.java:630) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.aspectj.AspectJAroundAdvice.invoke(AspectJAroundAdvice.java:70) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:179) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.interceptor.AsyncExecutionInterceptor.lambda$invoke$0(AsyncExecutionInterceptor.java:112) ~[spring-aop-7.0.8.jar:7.0.8]
+	at java.base/java.util.concurrent.FutureTask.run(FutureTask.java:317) ~[na:na]
+	at java.base/java.lang.VirtualThread.run(VirtualThread.java:329) ~[na:na]
 
-        } catch (RestClientException ex) {
-            log.error("Upstream HTTP failure communicating with Report Service.", ex);
-            throw ex;
-        }
-    }
-}
+2026-08-20T17:20:47.250+05:30 ERROR 18108 --- [CommunicationService] [   virtual-1576] .a.i.SimpleAsyncUncaughtExceptionHandler : Unexpected exception occurred invoking async method: public void com.fincore.CommunicationService.service.CommunicationAuditService.logAttempt(java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String)
 
+io.github.resilience4j.circuitbreaker.CallNotPermittedException: CircuitBreaker 'defaultService' is HALF_OPEN and does not permit further calls
+	at io.github.resilience4j.circuitbreaker.CallNotPermittedException.createCallNotPermittedException(CallNotPermittedException.java:48) ~[resilience4j-circuitbreaker-2.3.0.jar:2.3.0]
+	at io.github.resilience4j.circuitbreaker.internal.CircuitBreakerStateMachine$HalfOpenState.acquirePermission(CircuitBreakerStateMachine.java:1098) ~[resilience4j-circuitbreaker-2.3.0.jar:2.3.0]
+	at io.github.resilience4j.circuitbreaker.internal.CircuitBreakerStateMachine.acquirePermission(CircuitBreakerStateMachine.java:184) ~[resilience4j-circuitbreaker-2.3.0.jar:2.3.0]
+	at io.github.resilience4j.circuitbreaker.CircuitBreaker.lambda$decorateSupplier$5(CircuitBreaker.java:191) ~[resilience4j-circuitbreaker-2.3.0.jar:2.3.0]
+	at com.fincore.commonutilities.aspect.GlobalResilienceAspect.applyResilience(GlobalResilienceAspect.java:73) ~[classes/:na]
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:103) ~[na:na]
+	at java.base/java.lang.reflect.Method.invoke(Method.java:580) ~[na:na]
+	at org.springframework.aop.aspectj.AbstractAspectJAdvice.invokeAdviceMethodWithGivenArgs(AbstractAspectJAdvice.java:648) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.aspectj.AbstractAspectJAdvice.invokeAdviceMethod(AbstractAspectJAdvice.java:630) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.aspectj.AspectJAroundAdvice.invoke(AspectJAroundAdvice.java:70) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:179) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.interceptor.AsyncExecutionInterceptor.lambda$invoke$0(AsyncExecutionInterceptor.java:112) ~[spring-aop-7.0.8.jar:7.0.8]
+	at java.base/java.util.concurrent.FutureTask.run(FutureTask.java:317) ~[na:na]
+	at java.base/java.lang.VirtualThread.run(VirtualThread.java:329) ~[na:na]
 
+2026-08-20T17:20:47.250+05:30 ERROR 18108 --- [CommunicationService] [   virtual-1559] .a.i.SimpleAsyncUncaughtExceptionHandler : Unexpected exception occurred invoking async method: public void com.fincore.CommunicationService.service.CommunicationAuditService.logAttempt(java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String)
 
+io.github.resilience4j.circuitbreaker.CallNotPermittedException: CircuitBreaker 'defaultService' is HALF_OPEN and does not permit further calls
+	at io.github.resilience4j.circuitbreaker.CallNotPermittedException.createCallNotPermittedException(CallNotPermittedException.java:48) ~[resilience4j-circuitbreaker-2.3.0.jar:2.3.0]
+	at io.github.resilience4j.circuitbreaker.internal.CircuitBreakerStateMachine$HalfOpenState.acquirePermission(CircuitBreakerStateMachine.java:1098) ~[resilience4j-circuitbreaker-2.3.0.jar:2.3.0]
+	at io.github.resilience4j.circuitbreaker.internal.CircuitBreakerStateMachine.acquirePermission(CircuitBreakerStateMachine.java:184) ~[resilience4j-circuitbreaker-2.3.0.jar:2.3.0]
+	at io.github.resilience4j.circuitbreaker.CircuitBreaker.lambda$decorateSupplier$5(CircuitBreaker.java:191) ~[resilience4j-circuitbreaker-2.3.0.jar:2.3.0]
+	at com.fincore.commonutilities.aspect.GlobalResilienceAspect.applyResilience(GlobalResilienceAspect.java:73) ~[classes/:na]
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:103) ~[na:na]
+	at java.base/java.lang.reflect.Method.invoke(Method.java:580) ~[na:na]
+	at org.springframework.aop.aspectj.AbstractAspectJAdvice.invokeAdviceMethodWithGivenArgs(AbstractAspectJAdvice.java:648) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.aspectj.AbstractAspectJAdvice.invokeAdviceMethod(AbstractAspectJAdvice.java:630) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.aspectj.AspectJAroundAdvice.invoke(AspectJAroundAdvice.java:70) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:179) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.interceptor.AsyncExecutionInterceptor.lambda$invoke$0(AsyncExecutionInterceptor.java:112) ~[spring-aop-7.0.8.jar:7.0.8]
+	at java.base/java.util.concurrent.FutureTask.run(FutureTask.java:317) ~[na:na]
+	at java.base/java.lang.VirtualThread.run(VirtualThread.java:329) ~[na:na]
 
+2026-08-20T17:20:47.250+05:30 ERROR 18108 --- [CommunicationService] [   virtual-1542] .a.i.SimpleAsyncUncaughtExceptionHandler : Unexpected exception occurred invoking async method: public void com.fincore.CommunicationService.service.CommunicationAuditService.logAttempt(java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String)
 
+io.github.resilience4j.circuitbreaker.CallNotPermittedException: CircuitBreaker 'defaultService' is HALF_OPEN and does not permit further calls
+	at io.github.resilience4j.circuitbreaker.CallNotPermittedException.createCallNotPermittedException(CallNotPermittedException.java:48) ~[resilience4j-circuitbreaker-2.3.0.jar:2.3.0]
+	at io.github.resilience4j.circuitbreaker.internal.CircuitBreakerStateMachine$HalfOpenState.acquirePermission(CircuitBreakerStateMachine.java:1098) ~[resilience4j-circuitbreaker-2.3.0.jar:2.3.0]
+	at io.github.resilience4j.circuitbreaker.internal.CircuitBreakerStateMachine.acquirePermission(CircuitBreakerStateMachine.java:184) ~[resilience4j-circuitbreaker-2.3.0.jar:2.3.0]
+	at io.github.resilience4j.circuitbreaker.CircuitBreaker.lambda$decorateSupplier$5(CircuitBreaker.java:191) ~[resilience4j-circuitbreaker-2.3.0.jar:2.3.0]
+	at com.fincore.commonutilities.aspect.GlobalResilienceAspect.applyResilience(GlobalResilienceAspect.java:73) ~[classes/:na]
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:103) ~[na:na]
+	at java.base/java.lang.reflect.Method.invoke(Method.java:580) ~[na:na]
+	at org.springframework.aop.aspectj.AbstractAspectJAdvice.invokeAdviceMethodWithGivenArgs(AbstractAspectJAdvice.java:648) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.aspectj.AbstractAspectJAdvice.invokeAdviceMethod(AbstractAspectJAdvice.java:630) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.aspectj.AspectJAroundAdvice.invoke(AspectJAroundAdvice.java:70) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:179) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.interceptor.AsyncExecutionInterceptor.lambda$invoke$0(AsyncExecutionInterceptor.java:112) ~[spring-aop-7.0.8.jar:7.0.8]
+	at java.base/java.util.concurrent.FutureTask.run(FutureTask.java:317) ~[na:na]
+	at java.base/java.lang.VirtualThread.run(VirtualThread.java:329) ~[na:na]
 
+2026-08-20T17:20:47.250+05:30 ERROR 18108 --- [CommunicationService] [   virtual-1573] .a.i.SimpleAsyncUncaughtExceptionHandler : Unexpected exception occurred invoking async method: public void com.fincore.CommunicationService.service.CommunicationAuditService.logAttempt(java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String)
 
+io.github.resilience4j.circuitbreaker.CallNotPermittedException: CircuitBreaker 'defaultService' is HALF_OPEN and does not permit further calls
+	at io.github.resilience4j.circuitbreaker.CallNotPermittedException.createCallNotPermittedException(CallNotPermittedException.java:48) ~[resilience4j-circuitbreaker-2.3.0.jar:2.3.0]
+	at io.github.resilience4j.circuitbreaker.internal.CircuitBreakerStateMachine$HalfOpenState.acquirePermission(CircuitBreakerStateMachine.java:1098) ~[resilience4j-circuitbreaker-2.3.0.jar:2.3.0]
+	at io.github.resilience4j.circuitbreaker.internal.CircuitBreakerStateMachine.acquirePermission(CircuitBreakerStateMachine.java:184) ~[resilience4j-circuitbreaker-2.3.0.jar:2.3.0]
+	at io.github.resilience4j.circuitbreaker.CircuitBreaker.lambda$decorateSupplier$5(CircuitBreaker.java:191) ~[resilience4j-circuitbreaker-2.3.0.jar:2.3.0]
+	at com.fincore.commonutilities.aspect.GlobalResilienceAspect.applyResilience(GlobalResilienceAspect.java:73) ~[classes/:na]
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:103) ~[na:na]
+	at java.base/java.lang.reflect.Method.invoke(Method.java:580) ~[na:na]
+	at org.springframework.aop.aspectj.AbstractAspectJAdvice.invokeAdviceMethodWithGivenArgs(AbstractAspectJAdvice.java:648) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.aspectj.AbstractAspectJAdvice.invokeAdviceMethod(AbstractAspectJAdvice.java:630) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.aspectj.AspectJAroundAdvice.invoke(AspectJAroundAdvice.java:70) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:179) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.interceptor.AsyncExecutionInterceptor.lambda$invoke$0(AsyncExecutionInterceptor.java:112) ~[spring-aop-7.0.8.jar:7.0.8]
+	at java.base/java.util.concurrent.FutureTask.run(FutureTask.java:317) ~[na:na]
+	at java.base/java.lang.VirtualThread.run(VirtualThread.java:329) ~[na:na]
 
-@Slf4j
-@RestController
-@RequestMapping("/api/reports")
-public class ReportController {
+2026-08-20T17:20:47.250+05:30 ERROR 18108 --- [CommunicationService] [   virtual-1548] .a.i.SimpleAsyncUncaughtExceptionHandler : Unexpected exception occurred invoking async method: public void com.fincore.CommunicationService.service.CommunicationAuditService.logAttempt(java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String)
 
-    /**
-     * Exposes attachment download endpoint for Communication Service
-     * Downloads requested report attachments from HDFS
-     */
-    @PostMapping("/attachment/download")
-    public ResponseEntity<ApiResponse<AttachmentDownloadResponse>> downloadAttachments(@RequestBody AttachmentDownloadRequest request) throws IOException {
-        try {
-            Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-            if (auth != null) {
-                // If called by communication-service, auth.getName() will be "communication-service"
-                // and auth.getAuthorities() will contain "SERVICE".
-                log.info("Report download triggered by principal: {} with authorities: {}",
-                        auth.getName(), auth.getAuthorities());
-            }
+io.github.resilience4j.circuitbreaker.CallNotPermittedException: CircuitBreaker 'defaultService' is HALF_OPEN and does not permit further calls
+	at io.github.resilience4j.circuitbreaker.CallNotPermittedException.createCallNotPermittedException(CallNotPermittedException.java:48) ~[resilience4j-circuitbreaker-2.3.0.jar:2.3.0]
+	at io.github.resilience4j.circuitbreaker.internal.CircuitBreakerStateMachine$HalfOpenState.acquirePermission(CircuitBreakerStateMachine.java:1098) ~[resilience4j-circuitbreaker-2.3.0.jar:2.3.0]
+	at io.github.resilience4j.circuitbreaker.internal.CircuitBreakerStateMachine.acquirePermission(CircuitBreakerStateMachine.java:184) ~[resilience4j-circuitbreaker-2.3.0.jar:2.3.0]
+	at io.github.resilience4j.circuitbreaker.CircuitBreaker.lambda$decorateSupplier$5(CircuitBreaker.java:191) ~[resilience4j-circuitbreaker-2.3.0.jar:2.3.0]
+	at com.fincore.commonutilities.aspect.GlobalResilienceAspect.applyResilience(GlobalResilienceAspect.java:73) ~[classes/:na]
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:103) ~[na:na]
+	at java.base/java.lang.reflect.Method.invoke(Method.java:580) ~[na:na]
+	at org.springframework.aop.aspectj.AbstractAspectJAdvice.invokeAdviceMethodWithGivenArgs(AbstractAspectJAdvice.java:648) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.aspectj.AbstractAspectJAdvice.invokeAdviceMethod(AbstractAspectJAdvice.java:630) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.aspectj.AspectJAroundAdvice.invoke(AspectJAroundAdvice.java:70) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:179) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.interceptor.AsyncExecutionInterceptor.lambda$invoke$0(AsyncExecutionInterceptor.java:112) ~[spring-aop-7.0.8.jar:7.0.8]
+	at java.base/java.util.concurrent.FutureTask.run(FutureTask.java:317) ~[na:na]
+	at java.base/java.lang.VirtualThread.run(VirtualThread.java:329) ~[na:na]
 
-            log.info("Inside report controller attachment endpoint");
-            AttachmentDownloadResponse response = reportService.downloadAttachments(request);
-            return ResponseEntity.ok(ApiResponse.success(response, "Attachment downloaded successfully"));
-        } catch (Exception e) {
-            log.error("Attachment download failed", e);
-            return ResponseEntity.ok(
-                    ApiResponse.error(e.getMessage() == null ? "Attachment download failed." : e.getMessage())
-            );
-        }
+2026-08-20T17:20:47.250+05:30 ERROR 18108 --- [CommunicationService] [   virtual-1590] .a.i.SimpleAsyncUncaughtExceptionHandler : Unexpected exception occurred invoking async method: public void com.fincore.CommunicationService.service.CommunicationAuditService.logAttempt(java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String)
 
-    }
+io.github.resilience4j.circuitbreaker.CallNotPermittedException: CircuitBreaker 'defaultService' is HALF_OPEN and does not permit further calls
+	at io.github.resilience4j.circuitbreaker.CallNotPermittedException.createCallNotPermittedException(CallNotPermittedException.java:48) ~[resilience4j-circuitbreaker-2.3.0.jar:2.3.0]
+	at io.github.resilience4j.circuitbreaker.internal.CircuitBreakerStateMachine$HalfOpenState.acquirePermission(CircuitBreakerStateMachine.java:1098) ~[resilience4j-circuitbreaker-2.3.0.jar:2.3.0]
+	at io.github.resilience4j.circuitbreaker.internal.CircuitBreakerStateMachine.acquirePermission(CircuitBreakerStateMachine.java:184) ~[resilience4j-circuitbreaker-2.3.0.jar:2.3.0]
+	at io.github.resilience4j.circuitbreaker.CircuitBreaker.lambda$decorateSupplier$5(CircuitBreaker.java:191) ~[resilience4j-circuitbreaker-2.3.0.jar:2.3.0]
+	at com.fincore.commonutilities.aspect.GlobalResilienceAspect.applyResilience(GlobalResilienceAspect.java:73) ~[classes/:na]
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:103) ~[na:na]
+	at java.base/java.lang.reflect.Method.invoke(Method.java:580) ~[na:na]
+	at org.springframework.aop.aspectj.AbstractAspectJAdvice.invokeAdviceMethodWithGivenArgs(AbstractAspectJAdvice.java:648) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.aspectj.AbstractAspectJAdvice.invokeAdviceMethod(AbstractAspectJAdvice.java:630) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.aspectj.AspectJAroundAdvice.invoke(AspectJAroundAdvice.java:70) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:179) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.interceptor.AsyncExecutionInterceptor.lambda$invoke$0(AsyncExecutionInterceptor.java:112) ~[spring-aop-7.0.8.jar:7.0.8]
+	at java.base/java.util.concurrent.FutureTask.run(FutureTask.java:317) ~[na:na]
+	at java.base/java.lang.VirtualThread.run(VirtualThread.java:329) ~[na:na]
 
+2026-08-20T17:20:47.250+05:30 ERROR 18108 --- [CommunicationService] [   virtual-1577] .a.i.SimpleAsyncUncaughtExceptionHandler : Unexpected exception occurred invoking async method: public void com.fincore.CommunicationService.service.CommunicationAuditService.logAttempt(java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String)
 
+io.github.resilience4j.circuitbreaker.CallNotPermittedException: CircuitBreaker 'defaultService' is HALF_OPEN and does not permit further calls
+	at io.github.resilience4j.circuitbreaker.CallNotPermittedException.createCallNotPermittedException(CallNotPermittedException.java:48) ~[resilience4j-circuitbreaker-2.3.0.jar:2.3.0]
+	at io.github.resilience4j.circuitbreaker.internal.CircuitBreakerStateMachine$HalfOpenState.acquirePermission(CircuitBreakerStateMachine.java:1098) ~[resilience4j-circuitbreaker-2.3.0.jar:2.3.0]
+	at io.github.resilience4j.circuitbreaker.internal.CircuitBreakerStateMachine.acquirePermission(CircuitBreakerStateMachine.java:184) ~[resilience4j-circuitbreaker-2.3.0.jar:2.3.0]
+	at io.github.resilience4j.circuitbreaker.CircuitBreaker.lambda$decorateSupplier$5(CircuitBreaker.java:191) ~[resilience4j-circuitbreaker-2.3.0.jar:2.3.0]
+	at com.fincore.commonutilities.aspect.GlobalResilienceAspect.applyResilience(GlobalResilienceAspect.java:73) ~[classes/:na]
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:103) ~[na:na]
+	at java.base/java.lang.reflect.Method.invoke(Method.java:580) ~[na:na]
+	at org.springframework.aop.aspectj.AbstractAspectJAdvice.invokeAdviceMethodWithGivenArgs(AbstractAspectJAdvice.java:648) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.aspectj.AbstractAspectJAdvice.invokeAdviceMethod(AbstractAspectJAdvice.java:630) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.aspectj.AspectJAroundAdvice.invoke(AspectJAroundAdvice.java:70) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:179) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.interceptor.AsyncExecutionInterceptor.lambda$invoke$0(AsyncExecutionInterceptor.java:112) ~[spring-aop-7.0.8.jar:7.0.8]
+	at java.base/java.util.concurrent.FutureTask.run(FutureTask.java:317) ~[na:na]
+	at java.base/java.lang.VirtualThread.run(VirtualThread.java:329) ~[na:na]
 
+2026-08-20T17:20:47.250+05:30 ERROR 18108 --- [CommunicationService] [   virtual-1562] .a.i.SimpleAsyncUncaughtExceptionHandler : Unexpected exception occurred invoking async method: public void com.fincore.CommunicationService.service.CommunicationAuditService.logAttempt(java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String)
 
+io.github.resilience4j.circuitbreaker.CallNotPermittedException: CircuitBreaker 'defaultService' is HALF_OPEN and does not permit further calls
+	at io.github.resilience4j.circuitbreaker.CallNotPermittedException.createCallNotPermittedException(CallNotPermittedException.java:48) ~[resilience4j-circuitbreaker-2.3.0.jar:2.3.0]
+	at io.github.resilience4j.circuitbreaker.internal.CircuitBreakerStateMachine$HalfOpenState.acquirePermission(CircuitBreakerStateMachine.java:1098) ~[resilience4j-circuitbreaker-2.3.0.jar:2.3.0]
+	at io.github.resilience4j.circuitbreaker.internal.CircuitBreakerStateMachine.acquirePermission(CircuitBreakerStateMachine.java:184) ~[resilience4j-circuitbreaker-2.3.0.jar:2.3.0]
+	at io.github.resilience4j.circuitbreaker.CircuitBreaker.lambda$decorateSupplier$5(CircuitBreaker.java:191) ~[resilience4j-circuitbreaker-2.3.0.jar:2.3.0]
+	at com.fincore.commonutilities.aspect.GlobalResilienceAspect.applyResilience(GlobalResilienceAspect.java:73) ~[classes/:na]
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:103) ~[na:na]
+	at java.base/java.lang.reflect.Method.invoke(Method.java:580) ~[na:na]
+	at org.springframework.aop.aspectj.AbstractAspectJAdvice.invokeAdviceMethodWithGivenArgs(AbstractAspectJAdvice.java:648) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.aspectj.AbstractAspectJAdvice.invokeAdviceMethod(AbstractAspectJAdvice.java:630) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.aspectj.AspectJAroundAdvice.invoke(AspectJAroundAdvice.java:70) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:179) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.interceptor.AsyncExecutionInterceptor.lambda$invoke$0(AsyncExecutionInterceptor.java:112) ~[spring-aop-7.0.8.jar:7.0.8]
+	at java.base/java.util.concurrent.FutureTask.run(FutureTask.java:317) ~[na:na]
+	at java.base/java.lang.VirtualThread.run(VirtualThread.java:329) ~[na:na]
 
-package com.fincore.ReportService.config;
+2026-08-20T17:20:47.250+05:30 ERROR 18108 --- [CommunicationService] [   virtual-1585] .a.i.SimpleAsyncUncaughtExceptionHandler : Unexpected exception occurred invoking async method: public void com.fincore.CommunicationService.service.CommunicationAuditService.logAttempt(java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String)
 
-import com.fincore.commonutilities.buisnessobject.ControlDateService;
-import com.fincore.commonutilities.config.CommonSecurityConfig;
-import com.fincore.commonutilities.config.RedisConfig;
-import com.fincore.commonutilities.config.ResilienceConfig;
-import com.fincore.commonutilities.jwt.JwtUtil;
-import com.fincore.commonutilities.logging.MdcLoggingFilter;
-import com.fincore.commonutilities.security.ContextRbacFilter;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.web.servlet.FilterRegistrationBean;
-import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Configuration;
-import org.springframework.context.annotation.Import;
-import org.springframework.data.redis.core.StringRedisTemplate;
-import org.springframework.security.config.annotation.web.builders.HttpSecurity;
-import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
-import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
-import org.springframework.security.config.http.SessionCreationPolicy;
-import org.springframework.security.core.userdetails.UserDetailsService;
-import org.springframework.security.core.userdetails.UsernameNotFoundException;
-import org.springframework.security.web.SecurityFilterChain;
-import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
-import jakarta.servlet.DispatcherType; // Import this is CRITICAL
-import com.fincore.commonutilities.security.DecryptRequestBodyAdvice;
-import com.fincore.commonutilities.util.AesEncryptionUtil;
+io.github.resilience4j.circuitbreaker.CallNotPermittedException: CircuitBreaker 'defaultService' is HALF_OPEN and does not permit further calls
+	at io.github.resilience4j.circuitbreaker.CallNotPermittedException.createCallNotPermittedException(CallNotPermittedException.java:48) ~[resilience4j-circuitbreaker-2.3.0.jar:2.3.0]
+	at io.github.resilience4j.circuitbreaker.internal.CircuitBreakerStateMachine$HalfOpenState.acquirePermission(CircuitBreakerStateMachine.java:1098) ~[resilience4j-circuitbreaker-2.3.0.jar:2.3.0]
+	at io.github.resilience4j.circuitbreaker.internal.CircuitBreakerStateMachine.acquirePermission(CircuitBreakerStateMachine.java:184) ~[resilience4j-circuitbreaker-2.3.0.jar:2.3.0]
+	at io.github.resilience4j.circuitbreaker.CircuitBreaker.lambda$decorateSupplier$5(CircuitBreaker.java:191) ~[resilience4j-circuitbreaker-2.3.0.jar:2.3.0]
+	at com.fincore.commonutilities.aspect.GlobalResilienceAspect.applyResilience(GlobalResilienceAspect.java:73) ~[classes/:na]
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:103) ~[na:na]
+	at java.base/java.lang.reflect.Method.invoke(Method.java:580) ~[na:na]
+	at org.springframework.aop.aspectj.AbstractAspectJAdvice.invokeAdviceMethodWithGivenArgs(AbstractAspectJAdvice.java:648) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.aspectj.AbstractAspectJAdvice.invokeAdviceMethod(AbstractAspectJAdvice.java:630) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.aspectj.AspectJAroundAdvice.invoke(AspectJAroundAdvice.java:70) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:179) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.interceptor.AsyncExecutionInterceptor.lambda$invoke$0(AsyncExecutionInterceptor.java:112) ~[spring-aop-7.0.8.jar:7.0.8]
+	at java.base/java.util.concurrent.FutureTask.run(FutureTask.java:317) ~[na:na]
+	at java.base/java.lang.VirtualThread.run(VirtualThread.java:329) ~[na:na]
 
-/**
- * Common Security Configuration.
- * * Aligned with the "Distributed Gateway" architecture.
- * It uses the ContextRbacFilter from Common Utilities to enforce:
- * 1. Token Validity
- * 2. Single Session (Redis check)
- * 3. RBAC Permissions
- * Enforces Centralised Mdc Logging Filter, RESILIENCE4J Retry and Circuit
- * Breaker
- */
-@Configuration
-@EnableWebSecurity
-@Import({
-        RedisConfig.class,
-        JwtUtil.class,
-        CommonSecurityConfig.class,
-        ResilienceConfig.class, ControlDateService.class,
-        AesEncryptionUtil.class,
-        DecryptRequestBodyAdvice.class
-})
-public class SecurityConfig {
+2026-08-20T17:20:47.250+05:30 ERROR 18108 --- [CommunicationService] [   virtual-1547] .a.i.SimpleAsyncUncaughtExceptionHandler : Unexpected exception occurred invoking async method: public void com.fincore.CommunicationService.service.CommunicationAuditService.logAttempt(java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String)
 
-    @Autowired
-    private StringRedisTemplate redisTemplate;
+io.github.resilience4j.circuitbreaker.CallNotPermittedException: CircuitBreaker 'defaultService' is HALF_OPEN and does not permit further calls
+	at io.github.resilience4j.circuitbreaker.CallNotPermittedException.createCallNotPermittedException(CallNotPermittedException.java:48) ~[resilience4j-circuitbreaker-2.3.0.jar:2.3.0]
+	at io.github.resilience4j.circuitbreaker.internal.CircuitBreakerStateMachine$HalfOpenState.acquirePermission(CircuitBreakerStateMachine.java:1098) ~[resilience4j-circuitbreaker-2.3.0.jar:2.3.0]
+	at io.github.resilience4j.circuitbreaker.internal.CircuitBreakerStateMachine.acquirePermission(CircuitBreakerStateMachine.java:184) ~[resilience4j-circuitbreaker-2.3.0.jar:2.3.0]
+	at io.github.resilience4j.circuitbreaker.CircuitBreaker.lambda$decorateSupplier$5(CircuitBreaker.java:191) ~[resilience4j-circuitbreaker-2.3.0.jar:2.3.0]
+	at com.fincore.commonutilities.aspect.GlobalResilienceAspect.applyResilience(GlobalResilienceAspect.java:73) ~[classes/:na]
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:103) ~[na:na]
+	at java.base/java.lang.reflect.Method.invoke(Method.java:580) ~[na:na]
+	at org.springframework.aop.aspectj.AbstractAspectJAdvice.invokeAdviceMethodWithGivenArgs(AbstractAspectJAdvice.java:648) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.aspectj.AbstractAspectJAdvice.invokeAdviceMethod(AbstractAspectJAdvice.java:630) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.aspectj.AspectJAroundAdvice.invoke(AspectJAroundAdvice.java:70) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:179) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.interceptor.AsyncExecutionInterceptor.lambda$invoke$0(AsyncExecutionInterceptor.java:112) ~[spring-aop-7.0.8.jar:7.0.8]
+	at java.base/java.util.concurrent.FutureTask.run(FutureTask.java:317) ~[na:na]
+	at java.base/java.lang.VirtualThread.run(VirtualThread.java:329) ~[na:na]
 
-    @Autowired
-    private JwtUtil jwtUtil;
+2026-08-20T17:20:47.250+05:30 ERROR 18108 --- [CommunicationService] [   virtual-1586] .a.i.SimpleAsyncUncaughtExceptionHandler : Unexpected exception occurred invoking async method: public void com.fincore.CommunicationService.service.CommunicationAuditService.logAttempt(java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String)
 
-    @Autowired
-    private CommonSecurityConfig commonSecurityConfig;
+io.github.resilience4j.circuitbreaker.CallNotPermittedException: CircuitBreaker 'defaultService' is HALF_OPEN and does not permit further calls
+	at io.github.resilience4j.circuitbreaker.CallNotPermittedException.createCallNotPermittedException(CallNotPermittedException.java:48) ~[resilience4j-circuitbreaker-2.3.0.jar:2.3.0]
+	at io.github.resilience4j.circuitbreaker.internal.CircuitBreakerStateMachine$HalfOpenState.acquirePermission(CircuitBreakerStateMachine.java:1098) ~[resilience4j-circuitbreaker-2.3.0.jar:2.3.0]
+	at io.github.resilience4j.circuitbreaker.internal.CircuitBreakerStateMachine.acquirePermission(CircuitBreakerStateMachine.java:184) ~[resilience4j-circuitbreaker-2.3.0.jar:2.3.0]
+	at io.github.resilience4j.circuitbreaker.CircuitBreaker.lambda$decorateSupplier$5(CircuitBreaker.java:191) ~[resilience4j-circuitbreaker-2.3.0.jar:2.3.0]
+	at com.fincore.commonutilities.aspect.GlobalResilienceAspect.applyResilience(GlobalResilienceAspect.java:73) ~[classes/:na]
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:103) ~[na:na]
+	at java.base/java.lang.reflect.Method.invoke(Method.java:580) ~[na:na]
+	at org.springframework.aop.aspectj.AbstractAspectJAdvice.invokeAdviceMethodWithGivenArgs(AbstractAspectJAdvice.java:648) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.aspectj.AbstractAspectJAdvice.invokeAdviceMethod(AbstractAspectJAdvice.java:630) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.aspectj.AspectJAroundAdvice.invoke(AspectJAroundAdvice.java:70) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:179) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.interceptor.AsyncExecutionInterceptor.lambda$invoke$0(AsyncExecutionInterceptor.java:112) ~[spring-aop-7.0.8.jar:7.0.8]
+	at java.base/java.util.concurrent.FutureTask.run(FutureTask.java:317) ~[na:na]
+	at java.base/java.lang.VirtualThread.run(VirtualThread.java:329) ~[na:na]
 
-    // --- 1. Define Filters as Beans (Explicitly) ---
-    @Bean
-    public MdcLoggingFilter mdcLoggingFilter() {
-        return new MdcLoggingFilter(jwtUtil);
-    }
+2026-08-20T17:20:47.250+05:30 ERROR 18108 --- [CommunicationService] [   virtual-1588] .a.i.SimpleAsyncUncaughtExceptionHandler : Unexpected exception occurred invoking async method: public void com.fincore.CommunicationService.service.CommunicationAuditService.logAttempt(java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String)
 
-    @Bean
-    public ContextRbacFilter contextRbacFilter() {
-        return new ContextRbacFilter(redisTemplate, jwtUtil);
-    }
+io.github.resilience4j.circuitbreaker.CallNotPermittedException: CircuitBreaker 'defaultService' is HALF_OPEN and does not permit further calls
+	at io.github.resilience4j.circuitbreaker.CallNotPermittedException.createCallNotPermittedException(CallNotPermittedException.java:48) ~[resilience4j-circuitbreaker-2.3.0.jar:2.3.0]
+	at io.github.resilience4j.circuitbreaker.internal.CircuitBreakerStateMachine$HalfOpenState.acquirePermission(CircuitBreakerStateMachine.java:1098) ~[resilience4j-circuitbreaker-2.3.0.jar:2.3.0]
+	at io.github.resilience4j.circuitbreaker.internal.CircuitBreakerStateMachine.acquirePermission(CircuitBreakerStateMachine.java:184) ~[resilience4j-circuitbreaker-2.3.0.jar:2.3.0]
+	at io.github.resilience4j.circuitbreaker.CircuitBreaker.lambda$decorateSupplier$5(CircuitBreaker.java:191) ~[resilience4j-circuitbreaker-2.3.0.jar:2.3.0]
+	at com.fincore.commonutilities.aspect.GlobalResilienceAspect.applyResilience(GlobalResilienceAspect.java:73) ~[classes/:na]
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:103) ~[na:na]
+	at java.base/java.lang.reflect.Method.invoke(Method.java:580) ~[na:na]
+	at org.springframework.aop.aspectj.AbstractAspectJAdvice.invokeAdviceMethodWithGivenArgs(AbstractAspectJAdvice.java:648) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.aspectj.AbstractAspectJAdvice.invokeAdviceMethod(AbstractAspectJAdvice.java:630) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.aspectj.AspectJAroundAdvice.invoke(AspectJAroundAdvice.java:70) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:179) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.interceptor.AsyncExecutionInterceptor.lambda$invoke$0(AsyncExecutionInterceptor.java:112) ~[spring-aop-7.0.8.jar:7.0.8]
+	at java.base/java.util.concurrent.FutureTask.run(FutureTask.java:317) ~[na:na]
+	at java.base/java.lang.VirtualThread.run(VirtualThread.java:329) ~[na:na]
 
-    // --- 2. Prevent Global Registration ---
-    // This stops "The Filter class ... does not have a registered order" error
+2026-08-20T17:20:47.250+05:30 ERROR 18108 --- [CommunicationService] [   virtual-1582] .a.i.SimpleAsyncUncaughtExceptionHandler : Unexpected exception occurred invoking async method: public void com.fincore.CommunicationService.service.CommunicationAuditService.logAttempt(java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String)
 
-    @Bean
-    public FilterRegistrationBean<MdcLoggingFilter> mdcFilterRegistration(MdcLoggingFilter filter) {
-        FilterRegistrationBean<MdcLoggingFilter> registration = new FilterRegistrationBean<>(filter);
-        registration.setEnabled(false); // Disable global chain
-        return registration;
-    }
+io.github.resilience4j.circuitbreaker.CallNotPermittedException: CircuitBreaker 'defaultService' is HALF_OPEN and does not permit further calls
+	at io.github.resilience4j.circuitbreaker.CallNotPermittedException.createCallNotPermittedException(CallNotPermittedException.java:48) ~[resilience4j-circuitbreaker-2.3.0.jar:2.3.0]
+	at io.github.resilience4j.circuitbreaker.internal.CircuitBreakerStateMachine$HalfOpenState.acquirePermission(CircuitBreakerStateMachine.java:1098) ~[resilience4j-circuitbreaker-2.3.0.jar:2.3.0]
+	at io.github.resilience4j.circuitbreaker.internal.CircuitBreakerStateMachine.acquirePermission(CircuitBreakerStateMachine.java:184) ~[resilience4j-circuitbreaker-2.3.0.jar:2.3.0]
+	at io.github.resilience4j.circuitbreaker.CircuitBreaker.lambda$decorateSupplier$5(CircuitBreaker.java:191) ~[resilience4j-circuitbreaker-2.3.0.jar:2.3.0]
+	at com.fincore.commonutilities.aspect.GlobalResilienceAspect.applyResilience(GlobalResilienceAspect.java:73) ~[classes/:na]
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:103) ~[na:na]
+	at java.base/java.lang.reflect.Method.invoke(Method.java:580) ~[na:na]
+	at org.springframework.aop.aspectj.AbstractAspectJAdvice.invokeAdviceMethodWithGivenArgs(AbstractAspectJAdvice.java:648) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.aspectj.AbstractAspectJAdvice.invokeAdviceMethod(AbstractAspectJAdvice.java:630) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.aspectj.AspectJAroundAdvice.invoke(AspectJAroundAdvice.java:70) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:179) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.interceptor.AsyncExecutionInterceptor.lambda$invoke$0(AsyncExecutionInterceptor.java:112) ~[spring-aop-7.0.8.jar:7.0.8]
+	at java.base/java.util.concurrent.FutureTask.run(FutureTask.java:317) ~[na:na]
+	at java.base/java.lang.VirtualThread.run(VirtualThread.java:329) ~[na:na]
 
-    @Bean
-    public FilterRegistrationBean<ContextRbacFilter> rbacFilterRegistration(ContextRbacFilter filter) {
-        FilterRegistrationBean<ContextRbacFilter> registration = new FilterRegistrationBean<>(filter);
-        registration.setEnabled(false); // Disable global chain
-        return registration;
-    }
+2026-08-20T17:20:47.250+05:30 ERROR 18108 --- [CommunicationService] [   virtual-1550] .a.i.SimpleAsyncUncaughtExceptionHandler : Unexpected exception occurred invoking async method: public void com.fincore.CommunicationService.service.CommunicationAuditService.logAttempt(java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String)
 
-//    @Bean
-//    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
-//        http
-//                .csrf(csrf -> csrf.disable())
-//                .cors(cors -> cors.configurationSource(commonSecurityConfig.corsConfigurationSource()))
-//                .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-//                .authorizeHttpRequests(authz -> authz
-//                        // Allow Async Dispatches (StreamingResponseBody) to proceed without re-auth
-//                        // checks
-//                        .dispatcherTypeMatchers(DispatcherType.ASYNC).permitAll()
-//                        .requestMatchers("/actuator/**", "/api/auth/**", "/error").permitAll()
-//                        .anyRequest().authenticated())
-//                // Add Filters using the BEAN references (methods above)
-//                .addFilterBefore(mdcLoggingFilter(), UsernamePasswordAuthenticationFilter.class)
-//                .addFilterAfter(contextRbacFilter(), MdcLoggingFilter.class);
-//
-//        return http.build();
-//    }
+io.github.resilience4j.circuitbreaker.CallNotPermittedException: CircuitBreaker 'defaultService' is HALF_OPEN and does not permit further calls
+	at io.github.resilience4j.circuitbreaker.CallNotPermittedException.createCallNotPermittedException(CallNotPermittedException.java:48) ~[resilience4j-circuitbreaker-2.3.0.jar:2.3.0]
+	at io.github.resilience4j.circuitbreaker.internal.CircuitBreakerStateMachine$HalfOpenState.acquirePermission(CircuitBreakerStateMachine.java:1098) ~[resilience4j-circuitbreaker-2.3.0.jar:2.3.0]
+	at io.github.resilience4j.circuitbreaker.internal.CircuitBreakerStateMachine.acquirePermission(CircuitBreakerStateMachine.java:184) ~[resilience4j-circuitbreaker-2.3.0.jar:2.3.0]
+	at io.github.resilience4j.circuitbreaker.CircuitBreaker.lambda$decorateSupplier$5(CircuitBreaker.java:191) ~[resilience4j-circuitbreaker-2.3.0.jar:2.3.0]
+	at com.fincore.commonutilities.aspect.GlobalResilienceAspect.applyResilience(GlobalResilienceAspect.java:73) ~[classes/:na]
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:103) ~[na:na]
+	at java.base/java.lang.reflect.Method.invoke(Method.java:580) ~[na:na]
+	at org.springframework.aop.aspectj.AbstractAspectJAdvice.invokeAdviceMethodWithGivenArgs(AbstractAspectJAdvice.java:648) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.aspectj.AbstractAspectJAdvice.invokeAdviceMethod(AbstractAspectJAdvice.java:630) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.aspectj.AspectJAroundAdvice.invoke(AspectJAroundAdvice.java:70) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:179) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.interceptor.AsyncExecutionInterceptor.lambda$invoke$0(AsyncExecutionInterceptor.java:112) ~[spring-aop-7.0.8.jar:7.0.8]
+	at java.base/java.util.concurrent.FutureTask.run(FutureTask.java:317) ~[na:na]
+	at java.base/java.lang.VirtualThread.run(VirtualThread.java:329) ~[na:na]
 
-    @Bean
-    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
-        http
-                .csrf(AbstractHttpConfigurer::disable)
-                .cors(cors -> cors.configurationSource(commonSecurityConfig.corsConfigurationSource()))
+2026-08-20T17:20:47.251+05:30 ERROR 18108 --- [CommunicationService] [   virtual-1566] .a.i.SimpleAsyncUncaughtExceptionHandler : Unexpected exception occurred invoking async method: public void com.fincore.CommunicationService.service.CommunicationAuditService.logAttempt(java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String)
 
-                // --- SECURITY FIX: Content Security Policy (CSP) ---
-                // Configured to protect against XSS/Clickjacking while preserving Swagger UI functionality
-                .headers(headers -> headers
-                        .contentSecurityPolicy(csp -> csp
-                                .policyDirectives("default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self' data:; object-src 'none'; frame-ancestors 'none';")
-                        )
-                )
+io.github.resilience4j.circuitbreaker.CallNotPermittedException: CircuitBreaker 'defaultService' is HALF_OPEN and does not permit further calls
+	at io.github.resilience4j.circuitbreaker.CallNotPermittedException.createCallNotPermittedException(CallNotPermittedException.java:48) ~[resilience4j-circuitbreaker-2.3.0.jar:2.3.0]
+	at io.github.resilience4j.circuitbreaker.internal.CircuitBreakerStateMachine$HalfOpenState.acquirePermission(CircuitBreakerStateMachine.java:1098) ~[resilience4j-circuitbreaker-2.3.0.jar:2.3.0]
+	at io.github.resilience4j.circuitbreaker.internal.CircuitBreakerStateMachine.acquirePermission(CircuitBreakerStateMachine.java:184) ~[resilience4j-circuitbreaker-2.3.0.jar:2.3.0]
+	at io.github.resilience4j.circuitbreaker.CircuitBreaker.lambda$decorateSupplier$5(CircuitBreaker.java:191) ~[resilience4j-circuitbreaker-2.3.0.jar:2.3.0]
+	at com.fincore.commonutilities.aspect.GlobalResilienceAspect.applyResilience(GlobalResilienceAspect.java:73) ~[classes/:na]
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:103) ~[na:na]
+	at java.base/java.lang.reflect.Method.invoke(Method.java:580) ~[na:na]
+	at org.springframework.aop.aspectj.AbstractAspectJAdvice.invokeAdviceMethodWithGivenArgs(AbstractAspectJAdvice.java:648) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.aspectj.AbstractAspectJAdvice.invokeAdviceMethod(AbstractAspectJAdvice.java:630) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.aspectj.AspectJAroundAdvice.invoke(AspectJAroundAdvice.java:70) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:179) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.interceptor.AsyncExecutionInterceptor.lambda$invoke$0(AsyncExecutionInterceptor.java:112) ~[spring-aop-7.0.8.jar:7.0.8]
+	at java.base/java.util.concurrent.FutureTask.run(FutureTask.java:317) ~[na:na]
+	at java.base/java.lang.VirtualThread.run(VirtualThread.java:329) ~[na:na]
 
-                .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-                .authorizeHttpRequests(authz -> authz
-                        .requestMatchers("/actuator/**", "/api/auth/**", "/error", "/swagger-ui.html", "/v3/api-docs/**").permitAll()
-                        .anyRequest().permitAll()
-                )
-                // Add Filters using the BEAN references (methods above)
-                .addFilterBefore(mdcLoggingFilter(), UsernamePasswordAuthenticationFilter.class)
-                .addFilterAfter(contextRbacFilter(), MdcLoggingFilter.class);
+2026-08-20T17:20:47.251+05:30 ERROR 18108 --- [CommunicationService] [   virtual-1546] .a.i.SimpleAsyncUncaughtExceptionHandler : Unexpected exception occurred invoking async method: public void com.fincore.CommunicationService.service.CommunicationAuditService.logAttempt(java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String)
 
-        return http.build();
-    }
+io.github.resilience4j.circuitbreaker.CallNotPermittedException: CircuitBreaker 'defaultService' is HALF_OPEN and does not permit further calls
+	at io.github.resilience4j.circuitbreaker.CallNotPermittedException.createCallNotPermittedException(CallNotPermittedException.java:48) ~[resilience4j-circuitbreaker-2.3.0.jar:2.3.0]
+	at io.github.resilience4j.circuitbreaker.internal.CircuitBreakerStateMachine$HalfOpenState.acquirePermission(CircuitBreakerStateMachine.java:1098) ~[resilience4j-circuitbreaker-2.3.0.jar:2.3.0]
+	at io.github.resilience4j.circuitbreaker.internal.CircuitBreakerStateMachine.acquirePermission(CircuitBreakerStateMachine.java:184) ~[resilience4j-circuitbreaker-2.3.0.jar:2.3.0]
+	at io.github.resilience4j.circuitbreaker.CircuitBreaker.lambda$decorateSupplier$5(CircuitBreaker.java:191) ~[resilience4j-circuitbreaker-2.3.0.jar:2.3.0]
+	at com.fincore.commonutilities.aspect.GlobalResilienceAspect.applyResilience(GlobalResilienceAspect.java:73) ~[classes/:na]
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:103) ~[na:na]
+	at java.base/java.lang.reflect.Method.invoke(Method.java:580) ~[na:na]
+	at org.springframework.aop.aspectj.AbstractAspectJAdvice.invokeAdviceMethodWithGivenArgs(AbstractAspectJAdvice.java:648) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.aspectj.AbstractAspectJAdvice.invokeAdviceMethod(AbstractAspectJAdvice.java:630) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.aspectj.AspectJAroundAdvice.invoke(AspectJAroundAdvice.java:70) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:179) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.interceptor.AsyncExecutionInterceptor.lambda$invoke$0(AsyncExecutionInterceptor.java:112) ~[spring-aop-7.0.8.jar:7.0.8]
+	at java.base/java.util.concurrent.FutureTask.run(FutureTask.java:317) ~[na:na]
+	at java.base/java.lang.VirtualThread.run(VirtualThread.java:329) ~[na:na]
 
-    /**
-     * Explicitly indicate that local user lookup is not supported
-     * Authentication is handled via JWT in ContextRbacFilter
-     */
-    @Bean
-    public UserDetailsService userDetailsService() {
-        return username -> {
-            throw new UsernameNotFoundException("UserDetailsService is disabled. Use JWT authentication.");
-        };
-    }
-}
+2026-08-20T17:20:47.251+05:30 ERROR 18108 --- [CommunicationService] [   virtual-1572] .a.i.SimpleAsyncUncaughtExceptionHandler : Unexpected exception occurred invoking async method: public void com.fincore.CommunicationService.service.CommunicationAuditService.logAttempt(java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String)
 
+io.github.resilience4j.circuitbreaker.CallNotPermittedException: CircuitBreaker 'defaultService' is HALF_OPEN and does not permit further calls
+	at io.github.resilience4j.circuitbreaker.CallNotPermittedException.createCallNotPermittedException(CallNotPermittedException.java:48) ~[resilience4j-circuitbreaker-2.3.0.jar:2.3.0]
+	at io.github.resilience4j.circuitbreaker.internal.CircuitBreakerStateMachine$HalfOpenState.acquirePermission(CircuitBreakerStateMachine.java:1098) ~[resilience4j-circuitbreaker-2.3.0.jar:2.3.0]
+	at io.github.resilience4j.circuitbreaker.internal.CircuitBreakerStateMachine.acquirePermission(CircuitBreakerStateMachine.java:184) ~[resilience4j-circuitbreaker-2.3.0.jar:2.3.0]
+	at io.github.resilience4j.circuitbreaker.CircuitBreaker.lambda$decorateSupplier$5(CircuitBreaker.java:191) ~[resilience4j-circuitbreaker-2.3.0.jar:2.3.0]
+	at com.fincore.commonutilities.aspect.GlobalResilienceAspect.applyResilience(GlobalResilienceAspect.java:73) ~[classes/:na]
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:103) ~[na:na]
+	at java.base/java.lang.reflect.Method.invoke(Method.java:580) ~[na:na]
+	at org.springframework.aop.aspectj.AbstractAspectJAdvice.invokeAdviceMethodWithGivenArgs(AbstractAspectJAdvice.java:648) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.aspectj.AbstractAspectJAdvice.invokeAdviceMethod(AbstractAspectJAdvice.java:630) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.aspectj.AspectJAroundAdvice.invoke(AspectJAroundAdvice.java:70) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:179) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.interceptor.AsyncExecutionInterceptor.lambda$invoke$0(AsyncExecutionInterceptor.java:112) ~[spring-aop-7.0.8.jar:7.0.8]
+	at java.base/java.util.concurrent.FutureTask.run(FutureTask.java:317) ~[na:na]
+	at java.base/java.lang.VirtualThread.run(VirtualThread.java:329) ~[na:na]
+
+2026-08-20T17:20:47.251+05:30 ERROR 18108 --- [CommunicationService] [   virtual-1575] .a.i.SimpleAsyncUncaughtExceptionHandler : Unexpected exception occurred invoking async method: public void com.fincore.CommunicationService.service.CommunicationAuditService.logAttempt(java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String)
+
+io.github.resilience4j.circuitbreaker.CallNotPermittedException: CircuitBreaker 'defaultService' is HALF_OPEN and does not permit further calls
+	at io.github.resilience4j.circuitbreaker.CallNotPermittedException.createCallNotPermittedException(CallNotPermittedException.java:48) ~[resilience4j-circuitbreaker-2.3.0.jar:2.3.0]
+	at io.github.resilience4j.circuitbreaker.internal.CircuitBreakerStateMachine$HalfOpenState.acquirePermission(CircuitBreakerStateMachine.java:1098) ~[resilience4j-circuitbreaker-2.3.0.jar:2.3.0]
+	at io.github.resilience4j.circuitbreaker.internal.CircuitBreakerStateMachine.acquirePermission(CircuitBreakerStateMachine.java:184) ~[resilience4j-circuitbreaker-2.3.0.jar:2.3.0]
+	at io.github.resilience4j.circuitbreaker.CircuitBreaker.lambda$decorateSupplier$5(CircuitBreaker.java:191) ~[resilience4j-circuitbreaker-2.3.0.jar:2.3.0]
+	at com.fincore.commonutilities.aspect.GlobalResilienceAspect.applyResilience(GlobalResilienceAspect.java:73) ~[classes/:na]
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:103) ~[na:na]
+	at java.base/java.lang.reflect.Method.invoke(Method.java:580) ~[na:na]
+	at org.springframework.aop.aspectj.AbstractAspectJAdvice.invokeAdviceMethodWithGivenArgs(AbstractAspectJAdvice.java:648) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.aspectj.AbstractAspectJAdvice.invokeAdviceMethod(AbstractAspectJAdvice.java:630) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.aspectj.AspectJAroundAdvice.invoke(AspectJAroundAdvice.java:70) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:179) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.interceptor.AsyncExecutionInterceptor.lambda$invoke$0(AsyncExecutionInterceptor.java:112) ~[spring-aop-7.0.8.jar:7.0.8]
+	at java.base/java.util.concurrent.FutureTask.run(FutureTask.java:317) ~[na:na]
+	at java.base/java.lang.VirtualThread.run(VirtualThread.java:329) ~[na:na]
+
+2026-08-20T17:20:47.251+05:30 ERROR 18108 --- [CommunicationService] [   virtual-1571] .a.i.SimpleAsyncUncaughtExceptionHandler : Unexpected exception occurred invoking async method: public void com.fincore.CommunicationService.service.CommunicationAuditService.logAttempt(java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String)
+
+io.github.resilience4j.circuitbreaker.CallNotPermittedException: CircuitBreaker 'defaultService' is HALF_OPEN and does not permit further calls
+	at io.github.resilience4j.circuitbreaker.CallNotPermittedException.createCallNotPermittedException(CallNotPermittedException.java:48) ~[resilience4j-circuitbreaker-2.3.0.jar:2.3.0]
+	at io.github.resilience4j.circuitbreaker.internal.CircuitBreakerStateMachine$HalfOpenState.acquirePermission(CircuitBreakerStateMachine.java:1098) ~[resilience4j-circuitbreaker-2.3.0.jar:2.3.0]
+	at io.github.resilience4j.circuitbreaker.internal.CircuitBreakerStateMachine.acquirePermission(CircuitBreakerStateMachine.java:184) ~[resilience4j-circuitbreaker-2.3.0.jar:2.3.0]
+	at io.github.resilience4j.circuitbreaker.CircuitBreaker.lambda$decorateSupplier$5(CircuitBreaker.java:191) ~[resilience4j-circuitbreaker-2.3.0.jar:2.3.0]
+	at com.fincore.commonutilities.aspect.GlobalResilienceAspect.applyResilience(GlobalResilienceAspect.java:73) ~[classes/:na]
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:103) ~[na:na]
+	at java.base/java.lang.reflect.Method.invoke(Method.java:580) ~[na:na]
+	at org.springframework.aop.aspectj.AbstractAspectJAdvice.invokeAdviceMethodWithGivenArgs(AbstractAspectJAdvice.java:648) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.aspectj.AbstractAspectJAdvice.invokeAdviceMethod(AbstractAspectJAdvice.java:630) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.aspectj.AspectJAroundAdvice.invoke(AspectJAroundAdvice.java:70) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:179) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.interceptor.AsyncExecutionInterceptor.lambda$invoke$0(AsyncExecutionInterceptor.java:112) ~[spring-aop-7.0.8.jar:7.0.8]
+	at java.base/java.util.concurrent.FutureTask.run(FutureTask.java:317) ~[na:na]
+	at java.base/java.lang.VirtualThread.run(VirtualThread.java:329) ~[na:na]
+
+2026-08-20T17:20:47.251+05:30 ERROR 18108 --- [CommunicationService] [   virtual-1551] .a.i.SimpleAsyncUncaughtExceptionHandler : Unexpected exception occurred invoking async method: public void com.fincore.CommunicationService.service.CommunicationAuditService.logAttempt(java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String)
+
+io.github.resilience4j.circuitbreaker.CallNotPermittedException: CircuitBreaker 'defaultService' is HALF_OPEN and does not permit further calls
+	at io.github.resilience4j.circuitbreaker.CallNotPermittedException.createCallNotPermittedException(CallNotPermittedException.java:48) ~[resilience4j-circuitbreaker-2.3.0.jar:2.3.0]
+	at io.github.resilience4j.circuitbreaker.internal.CircuitBreakerStateMachine$HalfOpenState.acquirePermission(CircuitBreakerStateMachine.java:1098) ~[resilience4j-circuitbreaker-2.3.0.jar:2.3.0]
+	at io.github.resilience4j.circuitbreaker.internal.CircuitBreakerStateMachine.acquirePermission(CircuitBreakerStateMachine.java:184) ~[resilience4j-circuitbreaker-2.3.0.jar:2.3.0]
+	at io.github.resilience4j.circuitbreaker.CircuitBreaker.lambda$decorateSupplier$5(CircuitBreaker.java:191) ~[resilience4j-circuitbreaker-2.3.0.jar:2.3.0]
+	at com.fincore.commonutilities.aspect.GlobalResilienceAspect.applyResilience(GlobalResilienceAspect.java:73) ~[classes/:na]
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:103) ~[na:na]
+	at java.base/java.lang.reflect.Method.invoke(Method.java:580) ~[na:na]
+	at org.springframework.aop.aspectj.AbstractAspectJAdvice.invokeAdviceMethodWithGivenArgs(AbstractAspectJAdvice.java:648) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.aspectj.AbstractAspectJAdvice.invokeAdviceMethod(AbstractAspectJAdvice.java:630) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.aspectj.AspectJAroundAdvice.invoke(AspectJAroundAdvice.java:70) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:179) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.interceptor.AsyncExecutionInterceptor.lambda$invoke$0(AsyncExecutionInterceptor.java:112) ~[spring-aop-7.0.8.jar:7.0.8]
+	at java.base/java.util.concurrent.FutureTask.run(FutureTask.java:317) ~[na:na]
+	at java.base/java.lang.VirtualThread.run(VirtualThread.java:329) ~[na:na]
+
+2026-08-20T17:20:47.251+05:30 ERROR 18108 --- [CommunicationService] [   virtual-1557] .a.i.SimpleAsyncUncaughtExceptionHandler : Unexpected exception occurred invoking async method: public void com.fincore.CommunicationService.service.CommunicationAuditService.logAttempt(java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String)
+
+io.github.resilience4j.circuitbreaker.CallNotPermittedException: CircuitBreaker 'defaultService' is HALF_OPEN and does not permit further calls
+	at io.github.resilience4j.circuitbreaker.CallNotPermittedException.createCallNotPermittedException(CallNotPermittedException.java:48) ~[resilience4j-circuitbreaker-2.3.0.jar:2.3.0]
+	at io.github.resilience4j.circuitbreaker.internal.CircuitBreakerStateMachine$HalfOpenState.acquirePermission(CircuitBreakerStateMachine.java:1098) ~[resilience4j-circuitbreaker-2.3.0.jar:2.3.0]
+	at io.github.resilience4j.circuitbreaker.internal.CircuitBreakerStateMachine.acquirePermission(CircuitBreakerStateMachine.java:184) ~[resilience4j-circuitbreaker-2.3.0.jar:2.3.0]
+	at io.github.resilience4j.circuitbreaker.CircuitBreaker.lambda$decorateSupplier$5(CircuitBreaker.java:191) ~[resilience4j-circuitbreaker-2.3.0.jar:2.3.0]
+	at com.fincore.commonutilities.aspect.GlobalResilienceAspect.applyResilience(GlobalResilienceAspect.java:73) ~[classes/:na]
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:103) ~[na:na]
+	at java.base/java.lang.reflect.Method.invoke(Method.java:580) ~[na:na]
+	at org.springframework.aop.aspectj.AbstractAspectJAdvice.invokeAdviceMethodWithGivenArgs(AbstractAspectJAdvice.java:648) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.aspectj.AbstractAspectJAdvice.invokeAdviceMethod(AbstractAspectJAdvice.java:630) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.aspectj.AspectJAroundAdvice.invoke(AspectJAroundAdvice.java:70) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:179) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.interceptor.AsyncExecutionInterceptor.lambda$invoke$0(AsyncExecutionInterceptor.java:112) ~[spring-aop-7.0.8.jar:7.0.8]
+	at java.base/java.util.concurrent.FutureTask.run(FutureTask.java:317) ~[na:na]
+	at java.base/java.lang.VirtualThread.run(VirtualThread.java:329) ~[na:na]
+
+2026-08-20T17:20:47.251+05:30 ERROR 18108 --- [CommunicationService] [   virtual-1545] .a.i.SimpleAsyncUncaughtExceptionHandler : Unexpected exception occurred invoking async method: public void com.fincore.CommunicationService.service.CommunicationAuditService.logAttempt(java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String)
+
+io.github.resilience4j.circuitbreaker.CallNotPermittedException: CircuitBreaker 'defaultService' is HALF_OPEN and does not permit further calls
+	at io.github.resilience4j.circuitbreaker.CallNotPermittedException.createCallNotPermittedException(CallNotPermittedException.java:48) ~[resilience4j-circuitbreaker-2.3.0.jar:2.3.0]
+	at io.github.resilience4j.circuitbreaker.internal.CircuitBreakerStateMachine$HalfOpenState.acquirePermission(CircuitBreakerStateMachine.java:1098) ~[resilience4j-circuitbreaker-2.3.0.jar:2.3.0]
+	at io.github.resilience4j.circuitbreaker.internal.CircuitBreakerStateMachine.acquirePermission(CircuitBreakerStateMachine.java:184) ~[resilience4j-circuitbreaker-2.3.0.jar:2.3.0]
+	at io.github.resilience4j.circuitbreaker.CircuitBreaker.lambda$decorateSupplier$5(CircuitBreaker.java:191) ~[resilience4j-circuitbreaker-2.3.0.jar:2.3.0]
+	at com.fincore.commonutilities.aspect.GlobalResilienceAspect.applyResilience(GlobalResilienceAspect.java:73) ~[classes/:na]
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:103) ~[na:na]
+	at java.base/java.lang.reflect.Method.invoke(Method.java:580) ~[na:na]
+	at org.springframework.aop.aspectj.AbstractAspectJAdvice.invokeAdviceMethodWithGivenArgs(AbstractAspectJAdvice.java:648) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.aspectj.AbstractAspectJAdvice.invokeAdviceMethod(AbstractAspectJAdvice.java:630) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.aspectj.AspectJAroundAdvice.invoke(AspectJAroundAdvice.java:70) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:179) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.interceptor.AsyncExecutionInterceptor.lambda$invoke$0(AsyncExecutionInterceptor.java:112) ~[spring-aop-7.0.8.jar:7.0.8]
+	at java.base/java.util.concurrent.FutureTask.run(FutureTask.java:317) ~[na:na]
+	at java.base/java.lang.VirtualThread.run(VirtualThread.java:329) ~[na:na]
+
+2026-08-20T17:20:47.252+05:30 ERROR 18108 --- [CommunicationService] [   virtual-1570] .a.i.SimpleAsyncUncaughtExceptionHandler : Unexpected exception occurred invoking async method: public void com.fincore.CommunicationService.service.CommunicationAuditService.logAttempt(java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String)
+
+io.github.resilience4j.circuitbreaker.CallNotPermittedException: CircuitBreaker 'defaultService' is HALF_OPEN and does not permit further calls
+	at io.github.resilience4j.circuitbreaker.CallNotPermittedException.createCallNotPermittedException(CallNotPermittedException.java:48) ~[resilience4j-circuitbreaker-2.3.0.jar:2.3.0]
+	at io.github.resilience4j.circuitbreaker.internal.CircuitBreakerStateMachine$HalfOpenState.acquirePermission(CircuitBreakerStateMachine.java:1098) ~[resilience4j-circuitbreaker-2.3.0.jar:2.3.0]
+	at io.github.resilience4j.circuitbreaker.internal.CircuitBreakerStateMachine.acquirePermission(CircuitBreakerStateMachine.java:184) ~[resilience4j-circuitbreaker-2.3.0.jar:2.3.0]
+	at io.github.resilience4j.circuitbreaker.CircuitBreaker.lambda$decorateSupplier$5(CircuitBreaker.java:191) ~[resilience4j-circuitbreaker-2.3.0.jar:2.3.0]
+	at com.fincore.commonutilities.aspect.GlobalResilienceAspect.applyResilience(GlobalResilienceAspect.java:73) ~[classes/:na]
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:103) ~[na:na]
+	at java.base/java.lang.reflect.Method.invoke(Method.java:580) ~[na:na]
+	at org.springframework.aop.aspectj.AbstractAspectJAdvice.invokeAdviceMethodWithGivenArgs(AbstractAspectJAdvice.java:648) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.aspectj.AbstractAspectJAdvice.invokeAdviceMethod(AbstractAspectJAdvice.java:630) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.aspectj.AspectJAroundAdvice.invoke(AspectJAroundAdvice.java:70) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:179) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.interceptor.AsyncExecutionInterceptor.lambda$invoke$0(AsyncExecutionInterceptor.java:112) ~[spring-aop-7.0.8.jar:7.0.8]
+	at java.base/java.util.concurrent.FutureTask.run(FutureTask.java:317) ~[na:na]
+	at java.base/java.lang.VirtualThread.run(VirtualThread.java:329) ~[na:na]
+
+2026-08-20T17:20:47.252+05:30 ERROR 18108 --- [CommunicationService] [   virtual-1581] .a.i.SimpleAsyncUncaughtExceptionHandler : Unexpected exception occurred invoking async method: public void com.fincore.CommunicationService.service.CommunicationAuditService.logAttempt(java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String)
+
+io.github.resilience4j.circuitbreaker.CallNotPermittedException: CircuitBreaker 'defaultService' is HALF_OPEN and does not permit further calls
+	at io.github.resilience4j.circuitbreaker.CallNotPermittedException.createCallNotPermittedException(CallNotPermittedException.java:48) ~[resilience4j-circuitbreaker-2.3.0.jar:2.3.0]
+	at io.github.resilience4j.circuitbreaker.internal.CircuitBreakerStateMachine$HalfOpenState.acquirePermission(CircuitBreakerStateMachine.java:1098) ~[resilience4j-circuitbreaker-2.3.0.jar:2.3.0]
+	at io.github.resilience4j.circuitbreaker.internal.CircuitBreakerStateMachine.acquirePermission(CircuitBreakerStateMachine.java:184) ~[resilience4j-circuitbreaker-2.3.0.jar:2.3.0]
+	at io.github.resilience4j.circuitbreaker.CircuitBreaker.lambda$decorateSupplier$5(CircuitBreaker.java:191) ~[resilience4j-circuitbreaker-2.3.0.jar:2.3.0]
+	at com.fincore.commonutilities.aspect.GlobalResilienceAspect.applyResilience(GlobalResilienceAspect.java:73) ~[classes/:na]
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:103) ~[na:na]
+	at java.base/java.lang.reflect.Method.invoke(Method.java:580) ~[na:na]
+	at org.springframework.aop.aspectj.AbstractAspectJAdvice.invokeAdviceMethodWithGivenArgs(AbstractAspectJAdvice.java:648) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.aspectj.AbstractAspectJAdvice.invokeAdviceMethod(AbstractAspectJAdvice.java:630) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.aspectj.AspectJAroundAdvice.invoke(AspectJAroundAdvice.java:70) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:179) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.interceptor.AsyncExecutionInterceptor.lambda$invoke$0(AsyncExecutionInterceptor.java:112) ~[spring-aop-7.0.8.jar:7.0.8]
+	at java.base/java.util.concurrent.FutureTask.run(FutureTask.java:317) ~[na:na]
+	at java.base/java.lang.VirtualThread.run(VirtualThread.java:329) ~[na:na]
+
+2026-08-20T17:20:47.252+05:30 ERROR 18108 --- [CommunicationService] [   virtual-1579] .a.i.SimpleAsyncUncaughtExceptionHandler : Unexpected exception occurred invoking async method: public void com.fincore.CommunicationService.service.CommunicationAuditService.logAttempt(java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String)
+
+io.github.resilience4j.circuitbreaker.CallNotPermittedException: CircuitBreaker 'defaultService' is HALF_OPEN and does not permit further calls
+	at io.github.resilience4j.circuitbreaker.CallNotPermittedException.createCallNotPermittedException(CallNotPermittedException.java:48) ~[resilience4j-circuitbreaker-2.3.0.jar:2.3.0]
+	at io.github.resilience4j.circuitbreaker.internal.CircuitBreakerStateMachine$HalfOpenState.acquirePermission(CircuitBreakerStateMachine.java:1098) ~[resilience4j-circuitbreaker-2.3.0.jar:2.3.0]
+	at io.github.resilience4j.circuitbreaker.internal.CircuitBreakerStateMachine.acquirePermission(CircuitBreakerStateMachine.java:184) ~[resilience4j-circuitbreaker-2.3.0.jar:2.3.0]
+	at io.github.resilience4j.circuitbreaker.CircuitBreaker.lambda$decorateSupplier$5(CircuitBreaker.java:191) ~[resilience4j-circuitbreaker-2.3.0.jar:2.3.0]
+	at com.fincore.commonutilities.aspect.GlobalResilienceAspect.applyResilience(GlobalResilienceAspect.java:73) ~[classes/:na]
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:103) ~[na:na]
+	at java.base/java.lang.reflect.Method.invoke(Method.java:580) ~[na:na]
+	at org.springframework.aop.aspectj.AbstractAspectJAdvice.invokeAdviceMethodWithGivenArgs(AbstractAspectJAdvice.java:648) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.aspectj.AbstractAspectJAdvice.invokeAdviceMethod(AbstractAspectJAdvice.java:630) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.aspectj.AspectJAroundAdvice.invoke(AspectJAroundAdvice.java:70) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:179) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.interceptor.AsyncExecutionInterceptor.lambda$invoke$0(AsyncExecutionInterceptor.java:112) ~[spring-aop-7.0.8.jar:7.0.8]
+	at java.base/java.util.concurrent.FutureTask.run(FutureTask.java:317) ~[na:na]
+	at java.base/java.lang.VirtualThread.run(VirtualThread.java:329) ~[na:na]
+
+2026-08-20T17:20:47.252+05:30 ERROR 18108 --- [CommunicationService] [   virtual-1574] .a.i.SimpleAsyncUncaughtExceptionHandler : Unexpected exception occurred invoking async method: public void com.fincore.CommunicationService.service.CommunicationAuditService.logAttempt(java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String)
+
+io.github.resilience4j.circuitbreaker.CallNotPermittedException: CircuitBreaker 'defaultService' is HALF_OPEN and does not permit further calls
+	at io.github.resilience4j.circuitbreaker.CallNotPermittedException.createCallNotPermittedException(CallNotPermittedException.java:48) ~[resilience4j-circuitbreaker-2.3.0.jar:2.3.0]
+	at io.github.resilience4j.circuitbreaker.internal.CircuitBreakerStateMachine$HalfOpenState.acquirePermission(CircuitBreakerStateMachine.java:1098) ~[resilience4j-circuitbreaker-2.3.0.jar:2.3.0]
+	at io.github.resilience4j.circuitbreaker.internal.CircuitBreakerStateMachine.acquirePermission(CircuitBreakerStateMachine.java:184) ~[resilience4j-circuitbreaker-2.3.0.jar:2.3.0]
+	at io.github.resilience4j.circuitbreaker.CircuitBreaker.lambda$decorateSupplier$5(CircuitBreaker.java:191) ~[resilience4j-circuitbreaker-2.3.0.jar:2.3.0]
+	at com.fincore.commonutilities.aspect.GlobalResilienceAspect.applyResilience(GlobalResilienceAspect.java:73) ~[classes/:na]
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:103) ~[na:na]
+	at java.base/java.lang.reflect.Method.invoke(Method.java:580) ~[na:na]
+	at org.springframework.aop.aspectj.AbstractAspectJAdvice.invokeAdviceMethodWithGivenArgs(AbstractAspectJAdvice.java:648) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.aspectj.AbstractAspectJAdvice.invokeAdviceMethod(AbstractAspectJAdvice.java:630) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.aspectj.AspectJAroundAdvice.invoke(AspectJAroundAdvice.java:70) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:179) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.interceptor.AsyncExecutionInterceptor.lambda$invoke$0(AsyncExecutionInterceptor.java:112) ~[spring-aop-7.0.8.jar:7.0.8]
+	at java.base/java.util.concurrent.FutureTask.run(FutureTask.java:317) ~[na:na]
+	at java.base/java.lang.VirtualThread.run(VirtualThread.java:329) ~[na:na]
+
+2026-08-20T17:20:47.252+05:30 ERROR 18108 --- [CommunicationService] [   virtual-1580] .a.i.SimpleAsyncUncaughtExceptionHandler : Unexpected exception occurred invoking async method: public void com.fincore.CommunicationService.service.CommunicationAuditService.logAttempt(java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String)
+
+io.github.resilience4j.circuitbreaker.CallNotPermittedException: CircuitBreaker 'defaultService' is HALF_OPEN and does not permit further calls
+	at io.github.resilience4j.circuitbreaker.CallNotPermittedException.createCallNotPermittedException(CallNotPermittedException.java:48) ~[resilience4j-circuitbreaker-2.3.0.jar:2.3.0]
+	at io.github.resilience4j.circuitbreaker.internal.CircuitBreakerStateMachine$HalfOpenState.acquirePermission(CircuitBreakerStateMachine.java:1098) ~[resilience4j-circuitbreaker-2.3.0.jar:2.3.0]
+	at io.github.resilience4j.circuitbreaker.internal.CircuitBreakerStateMachine.acquirePermission(CircuitBreakerStateMachine.java:184) ~[resilience4j-circuitbreaker-2.3.0.jar:2.3.0]
+	at io.github.resilience4j.circuitbreaker.CircuitBreaker.lambda$decorateSupplier$5(CircuitBreaker.java:191) ~[resilience4j-circuitbreaker-2.3.0.jar:2.3.0]
+	at com.fincore.commonutilities.aspect.GlobalResilienceAspect.applyResilience(GlobalResilienceAspect.java:73) ~[classes/:na]
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:103) ~[na:na]
+	at java.base/java.lang.reflect.Method.invoke(Method.java:580) ~[na:na]
+	at org.springframework.aop.aspectj.AbstractAspectJAdvice.invokeAdviceMethodWithGivenArgs(AbstractAspectJAdvice.java:648) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.aspectj.AbstractAspectJAdvice.invokeAdviceMethod(AbstractAspectJAdvice.java:630) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.aspectj.AspectJAroundAdvice.invoke(AspectJAroundAdvice.java:70) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:179) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.interceptor.AsyncExecutionInterceptor.lambda$invoke$0(AsyncExecutionInterceptor.java:112) ~[spring-aop-7.0.8.jar:7.0.8]
+	at java.base/java.util.concurrent.FutureTask.run(FutureTask.java:317) ~[na:na]
+	at java.base/java.lang.VirtualThread.run(VirtualThread.java:329) ~[na:na]
+
+2026-08-20T17:20:47.252+05:30 ERROR 18108 --- [CommunicationService] [   virtual-1583] .a.i.SimpleAsyncUncaughtExceptionHandler : Unexpected exception occurred invoking async method: public void com.fincore.CommunicationService.service.CommunicationAuditService.logAttempt(java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String)
+
+io.github.resilience4j.circuitbreaker.CallNotPermittedException: CircuitBreaker 'defaultService' is HALF_OPEN and does not permit further calls
+	at io.github.resilience4j.circuitbreaker.CallNotPermittedException.createCallNotPermittedException(CallNotPermittedException.java:48) ~[resilience4j-circuitbreaker-2.3.0.jar:2.3.0]
+	at io.github.resilience4j.circuitbreaker.internal.CircuitBreakerStateMachine$HalfOpenState.acquirePermission(CircuitBreakerStateMachine.java:1098) ~[resilience4j-circuitbreaker-2.3.0.jar:2.3.0]
+	at io.github.resilience4j.circuitbreaker.internal.CircuitBreakerStateMachine.acquirePermission(CircuitBreakerStateMachine.java:184) ~[resilience4j-circuitbreaker-2.3.0.jar:2.3.0]
+	at io.github.resilience4j.circuitbreaker.CircuitBreaker.lambda$decorateSupplier$5(CircuitBreaker.java:191) ~[resilience4j-circuitbreaker-2.3.0.jar:2.3.0]
+	at com.fincore.commonutilities.aspect.GlobalResilienceAspect.applyResilience(GlobalResilienceAspect.java:73) ~[classes/:na]
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:103) ~[na:na]
+	at java.base/java.lang.reflect.Method.invoke(Method.java:580) ~[na:na]
+	at org.springframework.aop.aspectj.AbstractAspectJAdvice.invokeAdviceMethodWithGivenArgs(AbstractAspectJAdvice.java:648) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.aspectj.AbstractAspectJAdvice.invokeAdviceMethod(AbstractAspectJAdvice.java:630) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.aspectj.AspectJAroundAdvice.invoke(AspectJAroundAdvice.java:70) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:179) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.interceptor.AsyncExecutionInterceptor.lambda$invoke$0(AsyncExecutionInterceptor.java:112) ~[spring-aop-7.0.8.jar:7.0.8]
+	at java.base/java.util.concurrent.FutureTask.run(FutureTask.java:317) ~[na:na]
+	at java.base/java.lang.VirtualThread.run(VirtualThread.java:329) ~[na:na]
+
+2026-08-20T17:20:47.253+05:30 ERROR 18108 --- [CommunicationService] [   virtual-1561] .a.i.SimpleAsyncUncaughtExceptionHandler : Unexpected exception occurred invoking async method: public void com.fincore.CommunicationService.service.CommunicationAuditService.logAttempt(java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String)
+
+io.github.resilience4j.circuitbreaker.CallNotPermittedException: CircuitBreaker 'defaultService' is HALF_OPEN and does not permit further calls
+	at io.github.resilience4j.circuitbreaker.CallNotPermittedException.createCallNotPermittedException(CallNotPermittedException.java:48) ~[resilience4j-circuitbreaker-2.3.0.jar:2.3.0]
+	at io.github.resilience4j.circuitbreaker.internal.CircuitBreakerStateMachine$HalfOpenState.acquirePermission(CircuitBreakerStateMachine.java:1098) ~[resilience4j-circuitbreaker-2.3.0.jar:2.3.0]
+	at io.github.resilience4j.circuitbreaker.internal.CircuitBreakerStateMachine.acquirePermission(CircuitBreakerStateMachine.java:184) ~[resilience4j-circuitbreaker-2.3.0.jar:2.3.0]
+	at io.github.resilience4j.circuitbreaker.CircuitBreaker.lambda$decorateSupplier$5(CircuitBreaker.java:191) ~[resilience4j-circuitbreaker-2.3.0.jar:2.3.0]
+	at com.fincore.commonutilities.aspect.GlobalResilienceAspect.applyResilience(GlobalResilienceAspect.java:73) ~[classes/:na]
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:103) ~[na:na]
+	at java.base/java.lang.reflect.Method.invoke(Method.java:580) ~[na:na]
+	at org.springframework.aop.aspectj.AbstractAspectJAdvice.invokeAdviceMethodWithGivenArgs(AbstractAspectJAdvice.java:648) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.aspectj.AbstractAspectJAdvice.invokeAdviceMethod(AbstractAspectJAdvice.java:630) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.aspectj.AspectJAroundAdvice.invoke(AspectJAroundAdvice.java:70) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:179) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.interceptor.AsyncExecutionInterceptor.lambda$invoke$0(AsyncExecutionInterceptor.java:112) ~[spring-aop-7.0.8.jar:7.0.8]
+	at java.base/java.util.concurrent.FutureTask.run(FutureTask.java:317) ~[na:na]
+	at java.base/java.lang.VirtualThread.run(VirtualThread.java:329) ~[na:na]
+
+2026-08-20T17:20:47.253+05:30 ERROR 18108 --- [CommunicationService] [   virtual-1589] .a.i.SimpleAsyncUncaughtExceptionHandler : Unexpected exception occurred invoking async method: public void com.fincore.CommunicationService.service.CommunicationAuditService.logAttempt(java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String)
+
+io.github.resilience4j.circuitbreaker.CallNotPermittedException: CircuitBreaker 'defaultService' is HALF_OPEN and does not permit further calls
+	at io.github.resilience4j.circuitbreaker.CallNotPermittedException.createCallNotPermittedException(CallNotPermittedException.java:48) ~[resilience4j-circuitbreaker-2.3.0.jar:2.3.0]
+	at io.github.resilience4j.circuitbreaker.internal.CircuitBreakerStateMachine$HalfOpenState.acquirePermission(CircuitBreakerStateMachine.java:1098) ~[resilience4j-circuitbreaker-2.3.0.jar:2.3.0]
+	at io.github.resilience4j.circuitbreaker.internal.CircuitBreakerStateMachine.acquirePermission(CircuitBreakerStateMachine.java:184) ~[resilience4j-circuitbreaker-2.3.0.jar:2.3.0]
+	at io.github.resilience4j.circuitbreaker.CircuitBreaker.lambda$decorateSupplier$5(CircuitBreaker.java:191) ~[resilience4j-circuitbreaker-2.3.0.jar:2.3.0]
+	at com.fincore.commonutilities.aspect.GlobalResilienceAspect.applyResilience(GlobalResilienceAspect.java:73) ~[classes/:na]
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:103) ~[na:na]
+	at java.base/java.lang.reflect.Method.invoke(Method.java:580) ~[na:na]
+	at org.springframework.aop.aspectj.AbstractAspectJAdvice.invokeAdviceMethodWithGivenArgs(AbstractAspectJAdvice.java:648) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.aspectj.AbstractAspectJAdvice.invokeAdviceMethod(AbstractAspectJAdvice.java:630) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.aspectj.AspectJAroundAdvice.invoke(AspectJAroundAdvice.java:70) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:179) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.interceptor.AsyncExecutionInterceptor.lambda$invoke$0(AsyncExecutionInterceptor.java:112) ~[spring-aop-7.0.8.jar:7.0.8]
+	at java.base/java.util.concurrent.FutureTask.run(FutureTask.java:317) ~[na:na]
+	at java.base/java.lang.VirtualThread.run(VirtualThread.java:329) ~[na:na]
+
+2026-08-20T17:20:47.253+05:30 ERROR 18108 --- [CommunicationService] [   virtual-1554] .a.i.SimpleAsyncUncaughtExceptionHandler : Unexpected exception occurred invoking async method: public void com.fincore.CommunicationService.service.CommunicationAuditService.logAttempt(java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String)
+
+io.github.resilience4j.circuitbreaker.CallNotPermittedException: CircuitBreaker 'defaultService' is HALF_OPEN and does not permit further calls
+	at io.github.resilience4j.circuitbreaker.CallNotPermittedException.createCallNotPermittedException(CallNotPermittedException.java:48) ~[resilience4j-circuitbreaker-2.3.0.jar:2.3.0]
+	at io.github.resilience4j.circuitbreaker.internal.CircuitBreakerStateMachine$HalfOpenState.acquirePermission(CircuitBreakerStateMachine.java:1098) ~[resilience4j-circuitbreaker-2.3.0.jar:2.3.0]
+	at io.github.resilience4j.circuitbreaker.internal.CircuitBreakerStateMachine.acquirePermission(CircuitBreakerStateMachine.java:184) ~[resilience4j-circuitbreaker-2.3.0.jar:2.3.0]
+	at io.github.resilience4j.circuitbreaker.CircuitBreaker.lambda$decorateSupplier$5(CircuitBreaker.java:191) ~[resilience4j-circuitbreaker-2.3.0.jar:2.3.0]
+	at com.fincore.commonutilities.aspect.GlobalResilienceAspect.applyResilience(GlobalResilienceAspect.java:73) ~[classes/:na]
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:103) ~[na:na]
+	at java.base/java.lang.reflect.Method.invoke(Method.java:580) ~[na:na]
+	at org.springframework.aop.aspectj.AbstractAspectJAdvice.invokeAdviceMethodWithGivenArgs(AbstractAspectJAdvice.java:648) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.aspectj.AbstractAspectJAdvice.invokeAdviceMethod(AbstractAspectJAdvice.java:630) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.aspectj.AspectJAroundAdvice.invoke(AspectJAroundAdvice.java:70) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:179) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.interceptor.AsyncExecutionInterceptor.lambda$invoke$0(AsyncExecutionInterceptor.java:112) ~[spring-aop-7.0.8.jar:7.0.8]
+	at java.base/java.util.concurrent.FutureTask.run(FutureTask.java:317) ~[na:na]
+	at java.base/java.lang.VirtualThread.run(VirtualThread.java:329) ~[na:na]
+
+2026-08-20T17:20:47.253+05:30 ERROR 18108 --- [CommunicationService] [   virtual-1578] .a.i.SimpleAsyncUncaughtExceptionHandler : Unexpected exception occurred invoking async method: public void com.fincore.CommunicationService.service.CommunicationAuditService.logAttempt(java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String)
+
+io.github.resilience4j.circuitbreaker.CallNotPermittedException: CircuitBreaker 'defaultService' is HALF_OPEN and does not permit further calls
+	at io.github.resilience4j.circuitbreaker.CallNotPermittedException.createCallNotPermittedException(CallNotPermittedException.java:48) ~[resilience4j-circuitbreaker-2.3.0.jar:2.3.0]
+	at io.github.resilience4j.circuitbreaker.internal.CircuitBreakerStateMachine$HalfOpenState.acquirePermission(CircuitBreakerStateMachine.java:1098) ~[resilience4j-circuitbreaker-2.3.0.jar:2.3.0]
+	at io.github.resilience4j.circuitbreaker.internal.CircuitBreakerStateMachine.acquirePermission(CircuitBreakerStateMachine.java:184) ~[resilience4j-circuitbreaker-2.3.0.jar:2.3.0]
+	at io.github.resilience4j.circuitbreaker.CircuitBreaker.lambda$decorateSupplier$5(CircuitBreaker.java:191) ~[resilience4j-circuitbreaker-2.3.0.jar:2.3.0]
+	at com.fincore.commonutilities.aspect.GlobalResilienceAspect.applyResilience(GlobalResilienceAspect.java:73) ~[classes/:na]
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:103) ~[na:na]
+	at java.base/java.lang.reflect.Method.invoke(Method.java:580) ~[na:na]
+	at org.springframework.aop.aspectj.AbstractAspectJAdvice.invokeAdviceMethodWithGivenArgs(AbstractAspectJAdvice.java:648) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.aspectj.AbstractAspectJAdvice.invokeAdviceMethod(AbstractAspectJAdvice.java:630) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.aspectj.AspectJAroundAdvice.invoke(AspectJAroundAdvice.java:70) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:179) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.interceptor.AsyncExecutionInterceptor.lambda$invoke$0(AsyncExecutionInterceptor.java:112) ~[spring-aop-7.0.8.jar:7.0.8]
+	at java.base/java.util.concurrent.FutureTask.run(FutureTask.java:317) ~[na:na]
+	at java.base/java.lang.VirtualThread.run(VirtualThread.java:329) ~[na:na]
+
+2026-08-20T17:20:47.253+05:30 ERROR 18108 --- [CommunicationService] [   virtual-1584] .a.i.SimpleAsyncUncaughtExceptionHandler : Unexpected exception occurred invoking async method: public void com.fincore.CommunicationService.service.CommunicationAuditService.logAttempt(java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String)
+
+io.github.resilience4j.circuitbreaker.CallNotPermittedException: CircuitBreaker 'defaultService' is HALF_OPEN and does not permit further calls
+	at io.github.resilience4j.circuitbreaker.CallNotPermittedException.createCallNotPermittedException(CallNotPermittedException.java:48) ~[resilience4j-circuitbreaker-2.3.0.jar:2.3.0]
+	at io.github.resilience4j.circuitbreaker.internal.CircuitBreakerStateMachine$HalfOpenState.acquirePermission(CircuitBreakerStateMachine.java:1098) ~[resilience4j-circuitbreaker-2.3.0.jar:2.3.0]
+	at io.github.resilience4j.circuitbreaker.internal.CircuitBreakerStateMachine.acquirePermission(CircuitBreakerStateMachine.java:184) ~[resilience4j-circuitbreaker-2.3.0.jar:2.3.0]
+	at io.github.resilience4j.circuitbreaker.CircuitBreaker.lambda$decorateSupplier$5(CircuitBreaker.java:191) ~[resilience4j-circuitbreaker-2.3.0.jar:2.3.0]
+	at com.fincore.commonutilities.aspect.GlobalResilienceAspect.applyResilience(GlobalResilienceAspect.java:73) ~[classes/:na]
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:103) ~[na:na]
+	at java.base/java.lang.reflect.Method.invoke(Method.java:580) ~[na:na]
+	at org.springframework.aop.aspectj.AbstractAspectJAdvice.invokeAdviceMethodWithGivenArgs(AbstractAspectJAdvice.java:648) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.aspectj.AbstractAspectJAdvice.invokeAdviceMethod(AbstractAspectJAdvice.java:630) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.aspectj.AspectJAroundAdvice.invoke(AspectJAroundAdvice.java:70) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:179) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.interceptor.AsyncExecutionInterceptor.lambda$invoke$0(AsyncExecutionInterceptor.java:112) ~[spring-aop-7.0.8.jar:7.0.8]
+	at java.base/java.util.concurrent.FutureTask.run(FutureTask.java:317) ~[na:na]
+	at java.base/java.lang.VirtualThread.run(VirtualThread.java:329) ~[na:na]
+
+2026-08-20T17:20:47.253+05:30 ERROR 18108 --- [CommunicationService] [   virtual-1587] .a.i.SimpleAsyncUncaughtExceptionHandler : Unexpected exception occurred invoking async method: public void com.fincore.CommunicationService.service.CommunicationAuditService.logAttempt(java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String)
+
+io.github.resilience4j.circuitbreaker.CallNotPermittedException: CircuitBreaker 'defaultService' is HALF_OPEN and does not permit further calls
+	at io.github.resilience4j.circuitbreaker.CallNotPermittedException.createCallNotPermittedException(CallNotPermittedException.java:48) ~[resilience4j-circuitbreaker-2.3.0.jar:2.3.0]
+	at io.github.resilience4j.circuitbreaker.internal.CircuitBreakerStateMachine$HalfOpenState.acquirePermission(CircuitBreakerStateMachine.java:1098) ~[resilience4j-circuitbreaker-2.3.0.jar:2.3.0]
+	at io.github.resilience4j.circuitbreaker.internal.CircuitBreakerStateMachine.acquirePermission(CircuitBreakerStateMachine.java:184) ~[resilience4j-circuitbreaker-2.3.0.jar:2.3.0]
+	at io.github.resilience4j.circuitbreaker.CircuitBreaker.lambda$decorateSupplier$5(CircuitBreaker.java:191) ~[resilience4j-circuitbreaker-2.3.0.jar:2.3.0]
+	at com.fincore.commonutilities.aspect.GlobalResilienceAspect.applyResilience(GlobalResilienceAspect.java:73) ~[classes/:na]
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:103) ~[na:na]
+	at java.base/java.lang.reflect.Method.invoke(Method.java:580) ~[na:na]
+	at org.springframework.aop.aspectj.AbstractAspectJAdvice.invokeAdviceMethodWithGivenArgs(AbstractAspectJAdvice.java:648) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.aspectj.AbstractAspectJAdvice.invokeAdviceMethod(AbstractAspectJAdvice.java:630) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.aspectj.AspectJAroundAdvice.invoke(AspectJAroundAdvice.java:70) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:179) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.interceptor.AsyncExecutionInterceptor.lambda$invoke$0(AsyncExecutionInterceptor.java:112) ~[spring-aop-7.0.8.jar:7.0.8]
+	at java.base/java.util.concurrent.FutureTask.run(FutureTask.java:317) ~[na:na]
+	at java.base/java.lang.VirtualThread.run(VirtualThread.java:329) ~[na:na]
+
+2026-08-20T17:20:47.759+05:30  INFO 18108 --- [CommunicationService] [   virtual-1495] c.f.C.service.SmsServiceImpl             : Reached sendSms service. templateId=SUCCESS_EOD_TEMPLATE, mobile=******4132
+2026-08-20T17:20:47.759+05:30  INFO 18108 --- [CommunicationService] [   virtual-1478] c.f.C.service.SmsServiceImpl             : Reached sendSms service. templateId=SUCCESS_EOD_TEMPLATE, mobile=******3422
+2026-08-20T17:20:48.269+05:30  INFO 18108 --- [CommunicationService] [   virtual-1495] c.f.C.service.SmsServiceImpl             : Reached sendSms service. templateId=SUCCESS_EOD_TEMPLATE, mobile=******4132
+2026-08-20T17:20:48.269+05:30  INFO 18108 --- [CommunicationService] [   virtual-1478] c.f.C.service.SmsServiceImpl             : Reached sendSms service. templateId=SUCCESS_EOD_TEMPLATE, mobile=******3422
+2026-08-20T17:20:48.776+05:30  INFO 18108 --- [CommunicationService] [   virtual-1478] c.f.C.service.SmsServiceImpl             : Reached sendSms service. templateId=SUCCESS_EOD_TEMPLATE, mobile=******3422
+2026-08-20T17:20:48.776+05:30  INFO 18108 --- [CommunicationService] [   virtual-1495] c.f.C.service.SmsServiceImpl             : Reached sendSms service. templateId=SUCCESS_EOD_TEMPLATE, mobile=******4132
+2026-08-20T17:20:49.288+05:30  INFO 18108 --- [CommunicationService] [   virtual-1495] c.f.C.service.SmsServiceImpl             : Reached sendSms service. templateId=SUCCESS_EOD_TEMPLATE, mobile=******4132
+2026-08-20T17:20:49.288+05:30  INFO 18108 --- [CommunicationService] [   virtual-1478] c.f.C.service.SmsServiceImpl             : Reached sendSms service. templateId=SUCCESS_EOD_TEMPLATE, mobile=******3422
+2026-08-20T17:20:51.339+05:30  INFO 18108 --- [CommunicationService] [ntainer#0-0-C-1] c.f.C.o.CommunicationOrchestrator        : Event evt-55b6dcaa-b687-48e3-b7eb-e8e673a7c483 processed successfully across all chunks.
+2026-08-20T17:20:51.351+05:30 DEBUG 18108 --- [CommunicationService] [ntainer#0-0-C-1] c.f.C.o.CommunicationOrchestrator        : Successfully purged attachment I/O resources for Event: evt-55b6dcaa-b687-48e3-b7eb-e8e673a7c483
+2026-08-20T17:20:51.359+05:30  INFO 18108 --- [CommunicationService] [ntainer#0-0-C-1] c.f.C.c.GenericCommunicationConsumer     : Successfully processed Generic Communication Event : evt-55b6dcaa-b687-48e3-b7eb-e8e673a7c483
