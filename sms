@@ -1,106 +1,347 @@
-package com.fincore.CommunicationService.recipient.provider;
+ntainer#0-0-C-1] c.f.C.c.GenericCommunicationConsumer     : Received Generic Communication Event : {"eventId":"evt-722c4d96-4534-49dc-b13e-78316f250d27","traceId":"trc-428a695a-a244-4630-8f7f-84f8dbb1b72a","correlationId":"batch-01-08-26","producerService":"PROCESS_STATUS","eventType":"EOD_EVENT","priority":"NORMAL","channels":["SMS","EMAIL"],"recipients":{"roles":["10","11","51","54","60"]},"templateId":"SUCCESS_EOD_TEMPLATE","payload":{"timeTaken":null,"STATUS":"5","suspenseHeaders":["Summary"],"cibaHeaders":["Summary"],"cibaRows":null,"processDate":"01-08-26","balanceCompareRows":null,"suspenseRows":null,"startTime":null,"titles":{"balanceCompareTitle":"Balance Compare","suspenseTitle":"Suspense","cibaTitle":"CIBA"},"endTime":null,"balanceCompareHeaders":["Summary"]},"attachments":[{"attachmentId":"balance_compare_report_01082026","attachmentType":"BAL_COMP_SUMMARY","fileName":"balance_compare_report"},{"attachmentId":"intr_report_01082026","attachmentType":"INTR_SUMMARY","fileName":"intr_report"},{"attachmentId":"cntr_report_01082026","attachmentType":"CNTR_SUMMARY","fileName":"cntr_report"}],"personalized":true,"isPersonalized":true}
+2026-08-20T14:16:31.127+05:30  INFO 42932 --- [CommunicationService] [ntainer#0-0-C-1] c.f.C.c.GenericCommunicationConsumer     : Validated Generic Communication Event : evt-722c4d96-4534-49dc-b13e-78316f250d27
+2026-08-20T14:16:31.127+05:30  INFO 42932 --- [CommunicationService] [ntainer#0-0-C-1] c.f.C.o.CommunicationOrchestrator        : Orchestrator executing Event: evt-722c4d96-4534-49dc-b13e-78316f250d27 | Personalized Flag: true
+2026-08-20T14:16:31.127+05:30  INFO 42932 --- [CommunicationService] [ntainer#0-0-C-1] c.f.C.recipient.RecipientResolver        : Recipient Resolution Started.
+2026-08-20T14:16:31.128+05:30  INFO 42932 --- [CommunicationService] [ntainer#0-0-C-1] c.f.C.recipient.RecipientResolver        : Recipient Resolution Completed. Total Unique Recipients : 27
+2026-08-20T14:16:31.128+05:30  INFO 42932 --- [CommunicationService] [ntainer#0-0-C-1] c.f.C.o.CommunicationOrchestrator        : Delegating 3 attachments to AttachmentPreparationService.
+2026-08-20T14:16:31.129+05:30 DEBUG 42932 --- [CommunicationService] [ntainer#0-0-C-1] c.f.C.a.AttachmentPreparationServiceImpl : Initiating attachment preparation for 3 items.
+2026-08-20T14:16:31.129+05:30 DEBUG 42932 --- [CommunicationService] [ntainer#0-0-C-1] c.f.C.client.ReportServiceClient         : Initiating upstream request to Report Service: http://localhost:9005/api/reports/attachment/download
+2026-08-20T14:16:31.138+05:30 ERROR 42932 --- [CommunicationService] [ntainer#0-0-C-1] c.f.C.client.ReportServiceClient         : Upstream HTTP failure communicating with Report Service.
 
-import com.fincore.CommunicationService.dto.GenericCommunicationEvent;
-import com.fincore.CommunicationService.dto.ResolvedRecipient;
-import com.fincore.CommunicationService.model.Role;
-import com.fincore.CommunicationService.model.User;
-import com.fincore.CommunicationService.model.UserRole;
-import com.fincore.CommunicationService.repository.RoleRepository;
-import com.fincore.CommunicationService.repository.UserRepository;
-import com.fincore.CommunicationService.repository.UserRoleRepository;
+org.springframework.web.client.HttpClientErrorException$Unauthorized: 401 Unauthorized: "{"status": 401, "error": "MISSING_TOKEN", "message": "Authorization header missing."}"
+	at org.springframework.web.client.HttpClientErrorException.create(HttpClientErrorException.java:109) ~[spring-web-7.0.8.jar:7.0.8]
+	at org.springframework.web.client.StatusHandler.createException(StatusHandler.java:132) ~[spring-web-7.0.8.jar:7.0.8]
+	at org.springframework.web.client.StatusHandler.lambda$createDefaultStatusHandler$1(StatusHandler.java:107) ~[spring-web-7.0.8.jar:7.0.8]
+	at org.springframework.web.client.StatusHandler.handle(StatusHandler.java:75) ~[spring-web-7.0.8.jar:7.0.8]
+	at org.springframework.web.client.DefaultRestClient$DefaultResponseSpec.applyStatusHandlers(DefaultRestClient.java:943) ~[spring-web-7.0.8.jar:7.0.8]
+	at org.springframework.web.client.DefaultRestClient$DefaultResponseSpec.lambda$readBody$0(DefaultRestClient.java:932) ~[spring-web-7.0.8.jar:7.0.8]
+	at org.springframework.web.client.DefaultRestClient.readWithMessageConverters(DefaultRestClient.java:224) ~[spring-web-7.0.8.jar:7.0.8]
+	at org.springframework.web.client.DefaultRestClient$DefaultResponseSpec.readBody(DefaultRestClient.java:931) ~[spring-web-7.0.8.jar:7.0.8]
+	at org.springframework.web.client.DefaultRestClient$DefaultResponseSpec.lambda$body$1(DefaultRestClient.java:847) ~[spring-web-7.0.8.jar:7.0.8]
+	at org.springframework.web.client.DefaultRestClient$DefaultRequestBodyUriSpec.exchangeInternal(DefaultRestClient.java:617) ~[spring-web-7.0.8.jar:7.0.8]
+	at org.springframework.web.client.DefaultRestClient$DefaultRequestBodyUriSpec.exchange(DefaultRestClient.java:572) ~[spring-web-7.0.8.jar:7.0.8]
+	at org.springframework.web.client.RestClient$RequestHeadersSpec.exchange(RestClient.java:747) ~[spring-web-7.0.8.jar:7.0.8]
+	at org.springframework.web.client.DefaultRestClient$DefaultResponseSpec.executeAndExtract(DefaultRestClient.java:924) ~[spring-web-7.0.8.jar:7.0.8]
+	at org.springframework.web.client.DefaultRestClient$DefaultResponseSpec.body(DefaultRestClient.java:847) ~[spring-web-7.0.8.jar:7.0.8]
+	at com.fincore.CommunicationService.client.ReportServiceClient.downloadAttachments(ReportServiceClient.java:43) ~[classes/:na]
+	at com.fincore.CommunicationService.attachment.AttachmentPreparationServiceImpl.prepareAttachments(AttachmentPreparationServiceImpl.java:62) ~[classes/:na]
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:103) ~[na:na]
+	at java.base/java.lang.reflect.Method.invoke(Method.java:580) ~[na:na]
+	at org.springframework.aop.support.AopUtils.invokeJoinpointUsingReflection(AopUtils.java:359) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.framework.ReflectiveMethodInvocation.invokeJoinpoint(ReflectiveMethodInvocation.java:190) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:158) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.interceptor.ExposeInvocationInterceptor.invoke(ExposeInvocationInterceptor.java:96) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:179) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.aspectj.MethodInvocationProceedingJoinPoint.proceed(MethodInvocationProceedingJoinPoint.java:82) ~[spring-aop-7.0.8.jar:7.0.8]
+	at com.fincore.commonutilities.aspect.GlobalResilienceAspect.lambda$applyResilience$0(GlobalResilienceAspect.java:60) ~[classes/:na]
+	at io.github.resilience4j.retry.Retry.lambda$decorateSupplier$5(Retry.java:301) ~[resilience4j-retry-2.3.0.jar:2.3.0]
+	at io.github.resilience4j.circuitbreaker.CircuitBreaker.lambda$decorateSupplier$5(CircuitBreaker.java:194) ~[resilience4j-circuitbreaker-2.3.0.jar:2.3.0]
+	at com.fincore.commonutilities.aspect.GlobalResilienceAspect.applyResilience(GlobalResilienceAspect.java:73) ~[classes/:na]
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:103) ~[na:na]
+	at java.base/java.lang.reflect.Method.invoke(Method.java:580) ~[na:na]
+	at org.springframework.aop.aspectj.AbstractAspectJAdvice.invokeAdviceMethodWithGivenArgs(AbstractAspectJAdvice.java:648) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.aspectj.AbstractAspectJAdvice.invokeAdviceMethod(AbstractAspectJAdvice.java:630) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.aspectj.AspectJAroundAdvice.invoke(AspectJAroundAdvice.java:70) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:179) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.framework.CglibAopProxy$DynamicAdvisedInterceptor.intercept(CglibAopProxy.java:719) ~[spring-aop-7.0.8.jar:7.0.8]
+	at com.fincore.CommunicationService.attachment.AttachmentPreparationServiceImpl$$SpringCGLIB$$0.prepareAttachments(<generated>) ~[classes/:na]
+	at com.fincore.CommunicationService.orchestrator.CommunicationOrchestrator.process(CommunicationOrchestrator.java:108) ~[classes/:na]
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:103) ~[na:na]
+	at java.base/java.lang.reflect.Method.invoke(Method.java:580) ~[na:na]
+	at org.springframework.aop.support.AopUtils.invokeJoinpointUsingReflection(AopUtils.java:359) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.framework.ReflectiveMethodInvocation.invokeJoinpoint(ReflectiveMethodInvocation.java:190) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:158) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.interceptor.ExposeInvocationInterceptor.invoke(ExposeInvocationInterceptor.java:96) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:179) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.aspectj.MethodInvocationProceedingJoinPoint.proceed(MethodInvocationProceedingJoinPoint.java:82) ~[spring-aop-7.0.8.jar:7.0.8]
+	at com.fincore.commonutilities.aspect.GlobalResilienceAspect.lambda$applyResilience$0(GlobalResilienceAspect.java:60) ~[classes/:na]
+	at io.github.resilience4j.retry.Retry.lambda$decorateSupplier$5(Retry.java:301) ~[resilience4j-retry-2.3.0.jar:2.3.0]
+	at io.github.resilience4j.circuitbreaker.CircuitBreaker.lambda$decorateSupplier$5(CircuitBreaker.java:194) ~[resilience4j-circuitbreaker-2.3.0.jar:2.3.0]
+	at com.fincore.commonutilities.aspect.GlobalResilienceAspect.applyResilience(GlobalResilienceAspect.java:73) ~[classes/:na]
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:103) ~[na:na]
+	at java.base/java.lang.reflect.Method.invoke(Method.java:580) ~[na:na]
+	at org.springframework.aop.aspectj.AbstractAspectJAdvice.invokeAdviceMethodWithGivenArgs(AbstractAspectJAdvice.java:648) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.aspectj.AbstractAspectJAdvice.invokeAdviceMethod(AbstractAspectJAdvice.java:630) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.aspectj.AspectJAroundAdvice.invoke(AspectJAroundAdvice.java:70) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:179) ~[spring-aop-7.0.8.jar:7.0.8]
+	at org.springframework.aop.framework.CglibAopProxy$DynamicAdvisedInterceptor.intercept(CglibAopProxy.java:719) ~[spring-aop-7.0.8.jar:7.0.8]
+	at com.fincore.CommunicationService.orchestrator.CommunicationOrchestrator$$SpringCGLIB$$0.process(<generated>) ~[classes/:na]
+	at com.fincore.CommunicationService.consumer.GenericCommunicationConsumer.consumeGenericCommunication(GenericCommunicationConsumer.java:157) ~[classes/:na]
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:103) ~[na:na]
+	at java.base/java.lang.reflect.Method.invoke(Method.java:580) ~[na:na]
+	at org.springframework.messaging.handler.invocation.InvocableHandlerMethod.doInvoke(InvocableHandlerMethod.java:168) ~[spring-messaging-7.0.8.jar:7.0.8]
+	at org.springframework.kafka.listener.adapter.KotlinAwareInvocableHandlerMethod.doInvoke(KotlinAwareInvocableHandlerMethod.java:48) ~[spring-kafka-4.1.0.jar:4.1.0]
+	at org.springframework.messaging.handler.invocation.InvocableHandlerMethod.invoke(InvocableHandlerMethod.java:119) ~[spring-messaging-7.0.8.jar:7.0.8]
+	at org.springframework.kafka.listener.adapter.HandlerAdapter.invoke(HandlerAdapter.java:80) ~[spring-kafka-4.1.0.jar:4.1.0]
+	at org.springframework.kafka.listener.adapter.MessagingMessageListenerAdapter.invokeHandler(MessagingMessageListenerAdapter.java:489) ~[spring-kafka-4.1.0.jar:4.1.0]
+	at org.springframework.kafka.listener.adapter.MessagingMessageListenerAdapter.invoke(MessagingMessageListenerAdapter.java:426) ~[spring-kafka-4.1.0.jar:4.1.0]
+	at org.springframework.kafka.listener.adapter.RecordMessagingMessageListenerAdapter.onMessage(RecordMessagingMessageListenerAdapter.java:92) ~[spring-kafka-4.1.0.jar:4.1.0]
+	at org.springframework.kafka.listener.adapter.RecordMessagingMessageListenerAdapter.onMessage(RecordMessagingMessageListenerAdapter.java:52) ~[spring-kafka-4.1.0.jar:4.1.0]
+	at org.springframework.kafka.listener.adapter.KafkaBackoffAwareMessageListenerAdapter.invokeDelegateOnMessage(KafkaBackoffAwareMessageListenerAdapter.java:109) ~[spring-kafka-4.1.0.jar:4.1.0]
+	at org.springframework.kafka.listener.adapter.KafkaBackoffAwareMessageListenerAdapter.onMessage(KafkaBackoffAwareMessageListenerAdapter.java:100) ~[spring-kafka-4.1.0.jar:4.1.0]
+	at org.springframework.kafka.listener.adapter.KafkaBackoffAwareMessageListenerAdapter.onMessage(KafkaBackoffAwareMessageListenerAdapter.java:50) ~[spring-kafka-4.1.0.jar:4.1.0]
+	at org.springframework.kafka.listener.KafkaMessageListenerContainer$ListenerConsumer.doInvokeOnMessage(KafkaMessageListenerContainer.java:3018) ~[spring-kafka-4.1.0.jar:4.1.0]
+	at org.springframework.kafka.listener.KafkaMessageListenerContainer$ListenerConsumer.invokeOnMessage(KafkaMessageListenerContainer.java:2997) ~[spring-kafka-4.1.0.jar:4.1.0]
+	at org.springframework.kafka.listener.KafkaMessageListenerContainer$ListenerConsumer.doInvokeRecordListener(KafkaMessageListenerContainer.java:2907) ~[spring-kafka-4.1.0.jar:4.1.0]
+	at org.springframework.kafka.listener.KafkaMessageListenerContainer$ListenerConsumer.doInvokeWithRecords(KafkaMessageListenerContainer.java:2749) ~[spring-kafka-4.1.0.jar:4.1.0]
+	at org.springframework.kafka.listener.KafkaMessageListenerContainer$ListenerConsumer.invokeRecordListener(KafkaMessageListenerContainer.java:2643) ~[spring-kafka-4.1.0.jar:4.1.0]
+	at org.springframework.kafka.listener.KafkaMessageListenerContainer$ListenerConsumer.invokeListener(KafkaMessageListenerContainer.java:2274) ~[spring-kafka-4.1.0.jar:4.1.0]
+	at org.springframework.kafka.listener.KafkaMessageListenerContainer$ListenerConsumer.invokeIfHaveRecords(KafkaMessageListenerContainer.java:1572) ~[spring-kafka-4.1.0.jar:4.1.0]
+	at org.springframework.kafka.listener.KafkaMessageListenerContainer$ListenerConsumer.pollAndInvoke(KafkaMessageListenerContainer.java:1504) ~[spring-kafka-4.1.0.jar:4.1.0]
+	at org.springframework.kafka.listener.KafkaMessageListenerContainer$ListenerConsumer.run(KafkaMessageListenerContainer.java:1373) ~[spring-kafka-4.1.0.jar:4.1.0]
+	at java.base/java.util.concurrent.CompletableFuture$AsyncRun.run(CompletableFuture.java:1804) ~[na:na]
+	at java.base/java.lang.Thread.run(Thread.java:1570) ~[na:na]
+
+
+
+
+
+
+
+
+
+package com.fincore.CommunicationService.client;
+
+import com.fincore.CommunicationService.dto.ApiResponse;
+import com.fincore.CommunicationService.dto.attachment.AttachmentDownloadRequest;
+import com.fincore.CommunicationService.dto.attachment.AttachmentDownloadResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.cache.annotation.Cacheable;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.stereotype.Component;
-
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
+import org.springframework.web.client.RestClient;
+import org.springframework.web.client.RestClientException;
 
 /**
- * Resolves Role-based recipients into Email and Mobile details.
+ * <p>HTTP Client for upstream Report Service interactions.</p>
  *
- * <p><b>Fix Applied:</b>
- * Producers send Role IDs as Strings (e.g., ["10", "11"]). 
- * The logic now securely parses these to Longs and searches by ID, rather than Name.</p>
- *
+ * @author MADHAVI, SHUBHANKAR
  * @since 2026-07
  */
 @Slf4j
 @Component
 @RequiredArgsConstructor
-public class RoleRecipientProvider implements RecipientProvider {
+public class ReportServiceClient {
 
-    private static final String ACTIVE = "ACTIVE";
+    // Injected automatically from common-utilities (S2SRestClientConfig)
+    private final RestClient interServiceClient;
 
-    private final RoleRepository roleRepository;
-    private final UserRoleRepository userRoleRepository;
-    private final UserRepository userRepository;
+    @Value("${report.service.url}")
+    private String reportServiceUrl;
 
-    @Override
-    @Cacheable(value = "roles", key = "#recipients.roles")
-    public List<ResolvedRecipient> resolve(GenericCommunicationEvent.Recipients recipients) {
+    @Value("${security.internal.report-service-token:TEST_TOKEN_123}")
+    private String internalServiceToken;
 
-        if (recipients.getRoles() == null || recipients.getRoles().isEmpty()) {
-            return Collections.emptyList();
-        }
+    public AttachmentDownloadResponse downloadAttachments(AttachmentDownloadRequest request) {
+        String endpoint = reportServiceUrl + "/api/reports/attachment/download";
+        log.debug("Initiating upstream request to Report Service: {}", endpoint);
 
-        log.info("Resolving recipients for Roles: {}", recipients.getRoles());
+        try {
+            ApiResponse<AttachmentDownloadResponse> response = interServiceClient.post()
+                    .uri(endpoint)
+                    .body(request)
+                    .retrieve()
+                    .body(new ParameterizedTypeReference<ApiResponse<AttachmentDownloadResponse>>() {
+                    });
 
-        List<Long> roleIdsToSearch = new ArrayList<>();
-
-        // 1. Determine if we are fetching ALL roles or specific IDs
-        if (recipients.getRoles().contains("ALL")) {
-            log.info("Received 'ALL' Roles. Fetching all active role IDs from database.");
-            List<Role> activeRoles = roleRepository.findByRoleStatus(ACTIVE);
-            roleIdsToSearch = activeRoles.stream().map(Role::getRoleId).toList();
-        } else {
-            // Parse the Producer's String IDs into Longs safely
-            for (String roleStr : recipients.getRoles()) {
-                try {
-                    roleIdsToSearch.add(Long.parseLong(roleStr.trim()));
-                } catch (NumberFormatException e) {
-                    log.warn("Producer sent non-numeric Role ID: [{}]. Ignoring.", roleStr);
-                }
+            if (response == null || !response.isSuccess()) {
+                String errorMsg = (response != null && response.getMessage() != null) ? response.getMessage() : "Unknown upstream error";
+                throw new RestClientException("Report Service rejected request: " + errorMsg);
             }
+
+            return response.getData();
+
+        } catch (RestClientException ex) {
+            log.error("Upstream HTTP failure communicating with Report Service.", ex);
+            throw ex;
+        }
+    }
+}
+
+
+
+
+
+
+
+
+@Slf4j
+@RestController
+@RequestMapping("/api/reports")
+public class ReportController {
+
+    /**
+     * Exposes attachment download endpoint for Communication Service
+     * Downloads requested report attachments from HDFS
+     */
+    @PostMapping("/attachment/download")
+    public ResponseEntity<ApiResponse<AttachmentDownloadResponse>> downloadAttachments(@RequestBody AttachmentDownloadRequest request) throws IOException {
+        try {
+            Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+            if (auth != null) {
+                // If called by communication-service, auth.getName() will be "communication-service"
+                // and auth.getAuthorities() will contain "SERVICE".
+                log.info("Report download triggered by principal: {} with authorities: {}",
+                        auth.getName(), auth.getAuthorities());
+            }
+
+            log.info("Inside report controller attachment endpoint");
+            AttachmentDownloadResponse response = reportService.downloadAttachments(request);
+            return ResponseEntity.ok(ApiResponse.success(response, "Attachment downloaded successfully"));
+        } catch (Exception e) {
+            log.error("Attachment download failed", e);
+            return ResponseEntity.ok(
+                    ApiResponse.error(e.getMessage() == null ? "Attachment download failed." : e.getMessage())
+            );
         }
 
-        if (roleIdsToSearch.isEmpty()) {
-            log.warn("No valid numeric Role IDs resolved.");
-            return Collections.emptyList();
-        }
-
-        // 2. Fetch User-to-Role Mappings directly
-        List<UserRole> mappings = userRoleRepository.findByRoleIdIn(roleIdsToSearch);
-
-        if (mappings.isEmpty()) {
-            log.warn("No User mappings found for Role IDs: {}", roleIdsToSearch);
-            return Collections.emptyList();
-        }
-
-        // 3. Extract unique User IDs
-        List<String> userIds = mappings.stream()
-                .map(UserRole::getUserId)
-                .distinct()
-                .toList();
-
-        // 4. Fetch actual User Contact Info
-        List<User> users = userRepository.findByUserIdIn(userIds);
-
-        log.info("Successfully resolved {} User(s) from {} Role(s).", users.size(), roleIdsToSearch.size());
-
-        return users.stream()
-                .map(user -> ResolvedRecipient.builder()
-                        .userId(user.getUserId())
-                        .email(user.getEmail())
-                        .mobile(user.getPhoneNumber())
-                        .build())
-                .toList();
     }
 
-    @Override
-    public String getType() {
-        return "ROLE";
+
+
+
+
+package com.fincore.ReportService.config;
+
+import com.fincore.commonutilities.buisnessobject.ControlDateService;
+import com.fincore.commonutilities.config.CommonSecurityConfig;
+import com.fincore.commonutilities.config.RedisConfig;
+import com.fincore.commonutilities.config.ResilienceConfig;
+import com.fincore.commonutilities.jwt.JwtUtil;
+import com.fincore.commonutilities.logging.MdcLoggingFilter;
+import com.fincore.commonutilities.security.ContextRbacFilter;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.web.servlet.FilterRegistrationBean;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Import;
+import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
+import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
+import org.springframework.security.config.http.SessionCreationPolicy;
+import org.springframework.security.core.userdetails.UserDetailsService;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
+import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import jakarta.servlet.DispatcherType; // Import this is CRITICAL
+import com.fincore.commonutilities.security.DecryptRequestBodyAdvice;
+import com.fincore.commonutilities.util.AesEncryptionUtil;
+
+/**
+ * Common Security Configuration.
+ * * Aligned with the "Distributed Gateway" architecture.
+ * It uses the ContextRbacFilter from Common Utilities to enforce:
+ * 1. Token Validity
+ * 2. Single Session (Redis check)
+ * 3. RBAC Permissions
+ * Enforces Centralised Mdc Logging Filter, RESILIENCE4J Retry and Circuit
+ * Breaker
+ */
+@Configuration
+@EnableWebSecurity
+@Import({
+        RedisConfig.class,
+        JwtUtil.class,
+        CommonSecurityConfig.class,
+        ResilienceConfig.class, ControlDateService.class,
+        AesEncryptionUtil.class,
+        DecryptRequestBodyAdvice.class
+})
+public class SecurityConfig {
+
+    @Autowired
+    private StringRedisTemplate redisTemplate;
+
+    @Autowired
+    private JwtUtil jwtUtil;
+
+    @Autowired
+    private CommonSecurityConfig commonSecurityConfig;
+
+    // --- 1. Define Filters as Beans (Explicitly) ---
+    @Bean
+    public MdcLoggingFilter mdcLoggingFilter() {
+        return new MdcLoggingFilter(jwtUtil);
+    }
+
+    @Bean
+    public ContextRbacFilter contextRbacFilter() {
+        return new ContextRbacFilter(redisTemplate, jwtUtil);
+    }
+
+    // --- 2. Prevent Global Registration ---
+    // This stops "The Filter class ... does not have a registered order" error
+
+    @Bean
+    public FilterRegistrationBean<MdcLoggingFilter> mdcFilterRegistration(MdcLoggingFilter filter) {
+        FilterRegistrationBean<MdcLoggingFilter> registration = new FilterRegistrationBean<>(filter);
+        registration.setEnabled(false); // Disable global chain
+        return registration;
+    }
+
+    @Bean
+    public FilterRegistrationBean<ContextRbacFilter> rbacFilterRegistration(ContextRbacFilter filter) {
+        FilterRegistrationBean<ContextRbacFilter> registration = new FilterRegistrationBean<>(filter);
+        registration.setEnabled(false); // Disable global chain
+        return registration;
+    }
+
+//    @Bean
+//    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+//        http
+//                .csrf(csrf -> csrf.disable())
+//                .cors(cors -> cors.configurationSource(commonSecurityConfig.corsConfigurationSource()))
+//                .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+//                .authorizeHttpRequests(authz -> authz
+//                        // Allow Async Dispatches (StreamingResponseBody) to proceed without re-auth
+//                        // checks
+//                        .dispatcherTypeMatchers(DispatcherType.ASYNC).permitAll()
+//                        .requestMatchers("/actuator/**", "/api/auth/**", "/error").permitAll()
+//                        .anyRequest().authenticated())
+//                // Add Filters using the BEAN references (methods above)
+//                .addFilterBefore(mdcLoggingFilter(), UsernamePasswordAuthenticationFilter.class)
+//                .addFilterAfter(contextRbacFilter(), MdcLoggingFilter.class);
+//
+//        return http.build();
+//    }
+
+    @Bean
+    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+        http
+                .csrf(AbstractHttpConfigurer::disable)
+                .cors(cors -> cors.configurationSource(commonSecurityConfig.corsConfigurationSource()))
+
+                // --- SECURITY FIX: Content Security Policy (CSP) ---
+                // Configured to protect against XSS/Clickjacking while preserving Swagger UI functionality
+                .headers(headers -> headers
+                        .contentSecurityPolicy(csp -> csp
+                                .policyDirectives("default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self' data:; object-src 'none'; frame-ancestors 'none';")
+                        )
+                )
+
+                .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                .authorizeHttpRequests(authz -> authz
+                        .requestMatchers("/actuator/**", "/api/auth/**", "/error", "/swagger-ui.html", "/v3/api-docs/**").permitAll()
+                        .anyRequest().permitAll()
+                )
+                // Add Filters using the BEAN references (methods above)
+                .addFilterBefore(mdcLoggingFilter(), UsernamePasswordAuthenticationFilter.class)
+                .addFilterAfter(contextRbacFilter(), MdcLoggingFilter.class);
+
+        return http.build();
+    }
+
+    /**
+     * Explicitly indicate that local user lookup is not supported
+     * Authentication is handled via JWT in ContextRbacFilter
+     */
+    @Bean
+    public UserDetailsService userDetailsService() {
+        return username -> {
+            throw new UsernameNotFoundException("UserDetailsService is disabled. Use JWT authentication.");
+        };
     }
 }
 
