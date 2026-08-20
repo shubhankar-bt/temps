@@ -1,0 +1,45 @@
+=================================== DASHBOARD CHANGES ======================
+
+Total Deposits  
+Classification of deposits 
+Trend over the classification 
+MOM and YOY growth trend of the deposits 
+The prediction of the trend with respect to historical data 
+Deposits data over the geography 
+Geography wise trend | Heat map 
+Top Branches with higher growth 
+ 
+Donut Chart: Demand vs. Time 
+Gauge Chart: CASA Ratio CASA Deposits/Total Deposits % 
+Red Zone (Low): 0% – 35% 
+Yellow Zone (Moderate): 35% – 45% 
+Green Zone (Healthy): 45% – 100% 
+Stacked Bar Chart: Savings, Current, Cash Credit, Other 
+
+
+
+
+=============================================================
+
+Demand Deposit  Saving Bank A/c 
+Demand Deposit  Current A/c 
+Demand Deposit  Cash Credit Cr Balance 
+Demand Deposit  Other Demand Deposit 
+Time Deposit  Term Deposit 
+Time Deposit  Special Term Deposit 
+Time Deposit  Other Term Deposit 
+Time Deposit  Certificate of Deposit 
+
+
+
+=============================================================
+
+ 
+Loan  Bills Payable 
+Loan  Demand Loan 
+Loan  Cash Credit 
+Loan  Agri Cash Credit
+Loan  Overdraft 
+Loan  Term Loan 
+Loan  Agri Term Loan 
+
