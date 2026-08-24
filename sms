@@ -1,142 +1,214 @@
 package com.fincore.CommunicationService.client;
 
+import java.io.BufferedReader;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.io.OutputStream;
+import java.net.HttpURLConnection;
+import java.net.URL;
+import java.nio.charset.StandardCharsets;
 import java.util.Map;
+import com.fincore.CommunicationService.exception.CommunicationExceptions.VendorDeliveryException;
 
 import org.json.JSONArray;
 import org.json.JSONObject;
-import org.springframework.http.ResponseEntity;
-import org.springframework.web.client.RestClient;
 
-import com.fincore.CommunicationService.exception.CommunicationExceptions.VendorDeliveryException;
+// Required imports for SSL bypass
+import javax.net.ssl.*;
+import java.security.cert.X509Certificate;
 
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
-@RequiredArgsConstructor
 public class EmailGatewayClient {
 
-    private static final String URL = "url";
-    private static final String API_KEY = "api_key";
-    private static final String SENDER_ID = "senderId";
-    private static final String TO_EMAIL = "toEmail";
-    private static final String CC_TO_EMAIL = "ccToEmail";
-    private static final String EMAIL_BODY = "emailBody";
-    private static final String SUBJECT = "subject";
+	private static final String URL = "url";
+	private static final String API_KEY = "api_key";
+	private static final String SENDER_ID = "senderId";
+	private static final String TO_EMAIL = "toEmail";
+	private static final String CC_TO_EMAIL = "ccToEmail";
+	private static final String EMAIL_BODY = "emailBody";
+	private static final String SUBJECT = "subject";
 
-    private final RestClient restClient;
+	public static int sendEmail(Map<String, Object> emailRequest) {
 
-    public int sendEmail(Map<String, Object> emailRequest) {
-
-        try {
-
-            // Email Request Values
-            String apiUrl = (String) emailRequest.getOrDefault(URL, null);
-            String apiKey = (String) emailRequest.getOrDefault(API_KEY, null);
-            String senderEmail = (String) emailRequest.getOrDefault(SENDER_ID, null);
-            String recipientMail = (String) emailRequest.getOrDefault(TO_EMAIL, null);
-            //Object ccEmailObject = (String)emailRequest.getOrDefault("CC_TO_EMAIL");
+		HttpURLConnection emailApiConnection = null;
+		log.info("Connection created");
+		try {
+			
+			// Email Request Values
+			String apiUrl = emailRequest.get(URL).toString();
+			String apiKey = emailRequest.get(API_KEY).toString();
+			String senderEmail = emailRequest.get(SENDER_ID).toString();
+			String recipientMail = emailRequest.get(TO_EMAIL).toString();
+            Object ccEmailObject = emailRequest.get("CC_TO_EMAIL");
             // Returns the value if present, otherwise returns null
-            String ccToEmail = (String) emailRequest.getOrDefault(CC_TO_EMAIL, null);
-            String emailBody = (String) emailRequest.getOrDefault(EMAIL_BODY, null);
-            String subject = (String) emailRequest.getOrDefault(SUBJECT, null);
+            String ccToEmail = (String) emailRequest.getOrDefault("CC_TO_EMAIL", null);
+            String emailBody = emailRequest.get(EMAIL_BODY).toString();
+			String subject = emailRequest.get(SUBJECT).toString();
+			
+			// Open Connection
+			URL url = new URL(apiUrl);
+			emailApiConnection = (HttpURLConnection) url.openConnection();
+			log.info("Connection opened");
+			emailApiConnection.setRequestMethod("POST");
+			emailApiConnection.setDoOutput(true);
 
-            // Sender Details
-            JSONObject senderJson = new JSONObject();
-            senderJson.put("email", senderEmail);
-            senderJson.put("name", "FINCORE");
+			// ARCHITECTURE MANDATE: Reduced timeouts from 10s to 3s to prevent Kafka thread
+			// starvation
+			emailApiConnection.setConnectTimeout(3000);
+			emailApiConnection.setReadTimeout(3000);
 
-            // Email Content
-            JSONObject emailContentJson = new JSONObject();
-            emailContentJson.put("type", "html");
-            emailContentJson.put("value", emailBody);
+			// --- BYPASS SSL VERIFICATION FOR THIS CONNECTION ---
+			if (emailApiConnection instanceof HttpsURLConnection) {
+				HttpsURLConnection httpsConnection = (HttpsURLConnection) emailApiConnection;
+				try {
+					TrustManager[] trustAllCerts = new TrustManager[] { new X509TrustManager() {
+						public X509Certificate[] getAcceptedIssuers() {
+							return null;
+						}
 
-            JSONArray contentArray = new JSONArray();
-            contentArray.put(emailContentJson);
+						public void checkClientTrusted(X509Certificate[] certs, String authType) {
+						}
 
-            // Recipient Details
-            JSONObject recipientJson = new JSONObject();
-            recipientJson.put("email", recipientMail);
+						public void checkServerTrusted(X509Certificate[] certs, String authType) {
+						}
+					} };
+					SSLContext sc = SSLContext.getInstance("TLS");
+					sc.init(null, trustAllCerts, new java.security.SecureRandom());
+					httpsConnection.setSSLSocketFactory(sc.getSocketFactory());
+					httpsConnection.setHostnameVerifier((hostname, session) -> true);
+				} catch (Exception e) {
+					log.error("Failed to set SSL bypass: ", e);
+				}
+			}
+			// -------------------------------------------------------------
 
-            JSONArray recipientArray = new JSONArray();
-            recipientArray.put(recipientJson);
+			// Request headers
+			emailApiConnection.setRequestProperty("Content-Type", "application/json");
+			emailApiConnection.setRequestProperty("Accept", "application/json");
+			emailApiConnection.setRequestProperty("api_key", apiKey);
+			emailApiConnection.setDoOutput(true);
 
-            // Custom Attributes
-            JSONObject attributesJson = new JSONObject();
-            attributesJson.put("LEAD", "Andy Dwyer");
-            attributesJson.put("BAND", "Mouse Rat");
+			log.info("Done Setting properties");
 
-            // Personalization
-            JSONObject personalizationsJson = new JSONObject();
-            personalizationsJson.put("to", recipientArray);
-            personalizationsJson.put("attributes", attributesJson);
+			// Sender Details
+			JSONObject senderJson = new JSONObject();
+			senderJson.put("email", senderEmail);
+			senderJson.put("name", "FINCORE");
 
-            // CC details
-            if (emailRequest.containsKey("ccToEmail")) {
-                JSONObject ccRecipientJson = new JSONObject();
-                ccRecipientJson.put("email", ccToEmail);
+			// Email Content
+			JSONObject emailContentJson = new JSONObject();
+			emailContentJson.put("type", "html");
+			emailContentJson.put("value", emailBody);
 
-                JSONArray ccArray = new JSONArray();
-                ccArray.put(ccRecipientJson);
-                personalizationsJson.put("cc", ccArray);
-            }
+			JSONArray contentArray = new JSONArray();
+			contentArray.put(emailContentJson);
 
-            personalizationsJson.put("token_to", "8693839845");
-            personalizationsJson.put("token_cc", "MSGID657243");
-            personalizationsJson.put("token_bcc", "MSGID657244");
+			// Recipient Details
+			JSONObject recipientJson = new JSONObject();
+			recipientJson.put("email", recipientMail);
 
-            JSONArray personalizationsJsonArray = new JSONArray();
-            personalizationsJsonArray.put(personalizationsJson);
+			JSONArray recipientArray = new JSONArray();
+			recipientArray.put(recipientJson);
 
-            // Tracking Settings
-            JSONObject trackingSettingsJson = new JSONObject();
-            trackingSettingsJson.put("open_track", true);
-            trackingSettingsJson.put("click_track", true);
-            trackingSettingsJson.put("unsubscribe_track", true);
+			// Custom Attributes
+			JSONObject attributesJson = new JSONObject();
+			attributesJson.put("LEAD", "Andy Dwyer");
+			attributesJson.put("BAND", "Mouse Rat");
 
-            log.info("building email request json");
+			// Personalization
+			JSONObject personalizationsJson = new JSONObject();
+			personalizationsJson.put("to", recipientArray);
+			personalizationsJson.put("attributes", attributesJson);
 
-            // Final Request JSON
-            JSONObject emailRequestJson = new JSONObject();
-            emailRequestJson.put("from", senderJson);
-            emailRequestJson.put("subject", subject);
-            emailRequestJson.put("content", contentArray);
-            emailRequestJson.put("personalizations", personalizationsJsonArray);
-            emailRequestJson.put("settings", trackingSettingsJson);
+			// CC details
+			if (emailRequest.containsKey("ccToEmail")) {
+				JSONObject ccRecipientJson = new JSONObject();
+				ccRecipientJson.put("email", ccToEmail);
 
-            String finalRequestBody = emailRequestJson.toString();
+				JSONArray ccArray = new JSONArray();
+				ccArray.put(ccRecipientJson);
+				personalizationsJson.put("cc", ccArray);
+			}
 
-            log.info("finalRequestBody   " + finalRequestBody);
+			personalizationsJson.put("token_to", "8693839845");
+			personalizationsJson.put("token_cc", "MSGID657243");
+			personalizationsJson.put("token_bcc", "MSGID657244");
 
-            ResponseEntity<String> response = restClient.post()
-                    .uri(apiUrl)
-                    .header("Content-Type", "application/json")
-                    .header("Accept", "application/json")
-                    .header("api_key", apiKey)
-                    .body(finalRequestBody)
-                    .retrieve()
-                    .toEntity(String.class);
+			JSONArray personalizationsJsonArray = new JSONArray();
+			personalizationsJsonArray.put(personalizationsJson);
 
-            // Read response  
-            int responseCode = response.getStatusCode().value();
-            log.info("responseCode" + responseCode);
+			// Tracking Settings
+			JSONObject trackingSettingsJson = new JSONObject();
+			trackingSettingsJson.put("open_track", true);
+			trackingSettingsJson.put("click_track", true);
+			trackingSettingsJson.put("unsubscribe_track", true);
 
-            String responseBody = response.getBody();
+			log.info("building email request json");
 
-            log.info("Server Response : {}", responseBody);
+			// Final Request JSON
+			JSONObject emailRequestJson = new JSONObject();
+			emailRequestJson.put("from", senderJson);
+			emailRequestJson.put("subject", subject);
+			emailRequestJson.put("content", contentArray);
+			emailRequestJson.put("personalizations", personalizationsJsonArray);
+			emailRequestJson.put("settings", trackingSettingsJson);
 
-            return responseCode;
+			String finalRequestBody = emailRequestJson.toString();
 
-        } catch (Exception e) {
+			log.info("finalRequestBody   " + finalRequestBody);
 
-            log.error("Exception while calling Email Vendor API", e);
+			// Send Request
+			log.info("sending request");
+			try (OutputStream outputStream = emailApiConnection.getOutputStream()) {
+				byte[] requestBytes = finalRequestBody.getBytes(StandardCharsets.UTF_8);
+				outputStream.write(requestBytes);
+				log.info("Request sent");
+			}
+			// Read response
+			int responseCode = emailApiConnection.getResponseCode();
+			log.info("responseCode" + responseCode);
+			InputStream responseStream = (responseCode >= 200 && responseCode < 300)
+					? emailApiConnection.getInputStream()
+					: emailApiConnection.getErrorStream();
 
-            throw new VendorDeliveryException(
-                    "Error occurred while calling Email Vendor API", e);
-        }
+			if (responseStream != null) {
+				try (BufferedReader reader = new BufferedReader(
+						new InputStreamReader(responseStream, StandardCharsets.UTF_8))) {
 
-    }
+					StringBuilder responseBody = new StringBuilder();
+					String line;
+
+					while ((line = reader.readLine()) != null) {
+						responseBody.append(line).append("\n");
+					}
+
+					log.info("Server Response: " + responseBody);
+				}
+			} else {
+				log.info("No response body received. HTTP " + responseCode);
+			}
+
+			return responseCode;
+
+		} catch (Exception e) {
+
+	        log.error("Exception while calling Email Vendor API", e);
+
+	        throw new VendorDeliveryException(
+	                "Error occurred while calling Email Vendor API", e);
+	    }finally {
+			if (emailApiConnection != null) {
+				emailApiConnection.disconnect();
+			}
+		}
+		
+	}
 }
+
+
+
 
 
 
@@ -373,6 +445,3 @@ public class SmsGatewayClient {
         return response.toString();
     }
 }
-
-
-
