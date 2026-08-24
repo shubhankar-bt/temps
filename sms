@@ -69,3 +69,26 @@
 2026-08-24T10:39:09.004Z  INFO 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.client.SmsGatewayClient            : Sending SMS to ******2186
 2026-08-24T10:39:09.081Z  INFO 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.client.SmsGatewayClient            : SMS Response Code : 403
 2026-08-24T10:39:09.081Z  INFO 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.client.SmsGatewayClient            : SMS Provider Response : <solace-error-response><code>403</code><reason><![CDATA[Unauthorized]]></reason><detail><![CDATA[SMF ClientCtrl response error]]></detail><internal-use>2:14261</internal-use></solace-error-response>
+
+
+      : Exception while calling Email Vendor API
+
+org.springframework.web.client.ResourceAccessException: I/O error on POST request for "https://ebms-pepiapi.sbiuat.bank.in:443/v5/mail/send": null
+        at org.springframework.web.client.DefaultRestClient$DefaultRequestBodyUriSpec.createResourceAccessException(DefaultRestClient.java:779) ~[spring-web-7.0.8.jar!/:7.0.8]
+        at org.springframework.web.client.DefaultRestClient$DefaultRequestBodyUriSpec.exchangeInternal(DefaultRestClient.java:624) ~[spring-web-7.0.8.jar!/:7.0.8]
+        at org.springframework.web.client.DefaultRestClient$DefaultRequestBodyUriSpec.exchange(DefaultRestClient.java:572) ~[spring-web-7.0.8.jar!/:7.0.8]
+        at org.springframework.web.client.RestClient$RequestHeadersSpec.exchange(RestClient.java:747) ~[spring-web-7.0.8.jar!/:7.0.8]
+        at org.springframework.web.client.DefaultRestClient$DefaultResponseSpec.executeAndExtract(DefaultRestClient.java:924) ~[spring-web-7.0.8.jar!/:7.0.8]
+        at org.springframework.web.client.DefaultRestClient$DefaultResponseSpec.toEntityInternal(DefaultRestClient.java:870) ~[spring-web-7.0.8.jar!/:7.0.8]
+        at org.springframework.web.client.DefaultRestClient$DefaultResponseSpec.toEntity(DefaultRestClient.java:859) ~[spring-web-7.0.8.jar!/:7.0.8]
+        at com.fincore.CommunicationService.client.EmailGatewayClient.sendEmail(EmailGatewayClient.java:64) ~[!/:0.0.1-SNAPSHOT]
+        at com.fincore.CommunicationService.service.EmailServiceImpl.executeEmailDispatch(EmailServiceImpl.java:93) ~[!/:0.0.1-SNAPSHOT]
+        at com.fincore.CommunicationService.service.EmailServiceImpl.sendEmail(EmailServiceImpl.java:54) ~[!/:0.0.1-SNAPSHOT]
+        at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:103) ~[na:na]
+        at java.base/java.lang.reflect.Method.invoke(Method.java:580) ~[na:na]
+
+
+
+
+
+
