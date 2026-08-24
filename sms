@@ -1,295 +1,79 @@
+package com.fincore.CommunicationService.config;
 
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.http.client.SimpleClientHttpRequestFactory;
+import org.springframework.web.client.RestClient;
 
+import javax.net.ssl.HttpsURLConnection;
+import javax.net.ssl.SSLContext;
+import javax.net.ssl.TrustManager;
+import javax.net.ssl.X509TrustManager;
+import java.io.IOException;
+import java.net.HttpURLConnection;
+import java.security.SecureRandom;
+import java.security.cert.X509Certificate;
 
-2026-08-24T09:59:14.739Z  INFO 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.consumer.PriorityOtpConsumer       : Received raw Kafka message: {"payload":"/bzNRBxNv5lpZtRH:sm564da/Y/659QNWZDHilTOvh7vRUSC4uNaxim3HPPzmW3rXWOgC+IefMzEqxwBRYjZ62DixoSfJISXIrj3OXweam9Mtfq3eluM35BCAPaM=","priority":"CRITICAL","eventId":"evt-7afd65b4-b000-43c1-8ab1-9aa07baf1b21","eventType":"LOGIN_OTP","channel":["SMS","EMAIL"],"createdAt":"2026-08-24T09:59:14.156052740Z","txId":"054bd9c0-554f-43b9-aece-d8573cf4937d","recipient":{"email":"ebms_uat_receiver@sbiuat.bank.in","mobile":"9064632186"},"templateId":"AUTH_LOGIN_OTP_V1"}
-2026-08-24T09:59:14.782Z  INFO 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.service.SmsServiceImpl             : Reached sendSms service. templateId=AUTH_LOGIN_OTP_V1, mobile=******2186
-2026-08-24T09:59:14.831Z  INFO 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.service.TemplateCacheService       : L1 CACHE MISS: Fetching and Compiling Template AUTH_LOGIN_OTP_V1 for SMS from Oracle DB.
-2026-08-24T09:59:15.230Z ERROR 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.client.SmsGatewayClient            : Network Exception while sending SMS: 403 Unauthorized: "<solace-error-response><EOL><EOL><code>403</code><EOL><EOL><reason><![CDATA[Unauthorized]]></reason><EOL><EOL><detail><![CDATA[<EOL><EOL>SMF ClientCtrl response error<EOL><EOL>]]></detail><EOL><EOL><internal-use>2:14261</internal-use><EOL><EOL></solace-error-response><EOL><EOL>"
-2026-08-24T09:59:15.232Z ERROR 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.service.SmsServiceImpl             : CRITICAL: SMS Infrastructure Failure for ******2186. Error : SMS Provider rejected request : null
-2026-08-24T09:59:15.734Z ERROR 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.service.SmsServiceImpl             : CRITICAL: SMS Infrastructure Failure for ******2186. Error : SMS Provider rejected request : null
-2026-08-24T09:59:16.235Z ERROR 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.service.SmsServiceImpl             : CRITICAL: SMS Infrastructure Failure for ******2186. Error : SMS Provider rejected request : null
-2026-08-24T09:59:16.737Z  INFO 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.service.SmsServiceImpl             : Reached sendSms service. templateId=AUTH_LOGIN_OTP_V1, mobile=******2186
-2026-08-24T09:59:16.823Z ERROR 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.client.SmsGatewayClient            : Network Exception while sending SMS: 403 Unauthorized: "<solace-error-response><EOL><EOL><code>403</code><EOL><EOL><reason><![CDATA[Unauthorized]]></reason><EOL><EOL><detail><![CDATA[<EOL><EOL>SMF ClientCtrl response error<EOL><EOL>]]></detail><EOL><EOL><internal-use>2:14261</internal-use><EOL><EOL></solace-error-response><EOL><EOL>"
-2026-08-24T09:59:16.823Z ERROR 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.service.SmsServiceImpl             : CRITICAL: SMS Infrastructure Failure for ******2186. Error : SMS Provider rejected request : null
-2026-08-24T09:59:17.323Z ERROR 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.service.SmsServiceImpl             : CRITICAL: SMS Infrastructure Failure for ******2186. Error : SMS Provider rejected request : null
-2026-08-24T09:59:17.824Z ERROR 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.service.SmsServiceImpl             : CRITICAL: SMS Infrastructure Failure for ******2186. Error : SMS Provider rejected request : null
-2026-08-24T09:59:18.324Z  INFO 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.service.SmsServiceImpl             : Reached sendSms service. templateId=AUTH_LOGIN_OTP_V1, mobile=******2186
-2026-08-24T09:59:18.404Z ERROR 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.client.SmsGatewayClient            : Network Exception while sending SMS: 403 Unauthorized: "<solace-error-response><EOL><EOL><code>403</code><EOL><EOL><reason><![CDATA[Unauthorized]]></reason><EOL><EOL><detail><![CDATA[<EOL><EOL>SMF ClientCtrl response error<EOL><EOL>]]></detail><EOL><EOL><internal-use>2:14261</internal-use><EOL><EOL></solace-error-response><EOL><EOL>"
-2026-08-24T09:59:18.404Z ERROR 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.service.SmsServiceImpl             : CRITICAL: SMS Infrastructure Failure for ******2186. Error : SMS Provider rejected request : null
-2026-08-24T09:59:18.905Z ERROR 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.service.SmsServiceImpl             : CRITICAL: SMS Infrastructure Failure for ******2186. Error : SMS Provider rejected request : null
-2026-08-24T09:59:19.405Z ERROR 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.service.SmsServiceImpl             : CRITICAL: SMS Infrastructure Failure for ******2186. Error : SMS Provider rejected request : null
-2026-08-24T09:59:19.406Z ERROR 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.service.SmsServiceImpl             : CRITICAL: SMS Infrastructure Failure for ******2186. Error : Total SMS Infrastructure Failure
-2026-08-24T09:59:19.906Z ERROR 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.service.SmsServiceImpl             : CRITICAL: SMS Infrastructure Failure for ******2186. Error : Total SMS Infrastructure Failure
-2026-08-24T09:59:20.407Z ERROR 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.service.SmsServiceImpl             : CRITICAL: SMS Infrastructure Failure for ******2186. Error : Total SMS Infrastructure Failure
-2026-08-24T09:59:20.907Z  INFO 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.service.SmsServiceImpl             : Reached sendSms service. templateId=AUTH_LOGIN_OTP_V1, mobile=******2186
-2026-08-24T09:59:20.994Z ERROR 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.client.SmsGatewayClient            : Network Exception while sending SMS: 403 Unauthorized: "<solace-error-response><EOL><EOL><code>403</code><EOL><EOL><reason><![CDATA[Unauthorized]]></reason><EOL><EOL><detail><![CDATA[<EOL><EOL>SMF ClientCtrl response error<EOL><EOL>]]></detail><EOL><EOL><internal-use>2:14261</internal-use><EOL><EOL></solace-error-response><EOL><EOL>"
-2026-08-24T09:59:20.994Z ERROR 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.service.SmsServiceImpl             : CRITICAL: SMS Infrastructure Failure for ******2186. Error : SMS Provider rejected request : null
-2026-08-24T09:59:21.495Z ERROR 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.service.SmsServiceImpl             : CRITICAL: SMS Infrastructure Failure for ******2186. Error : SMS Provider rejected request : null
-2026-08-24T09:59:21.995Z ERROR 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.service.SmsServiceImpl             : CRITICAL: SMS Infrastructure Failure for ******2186. Error : SMS Provider rejected request : null
-2026-08-24T09:59:22.496Z  INFO 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.service.SmsServiceImpl             : Reached sendSms service. templateId=AUTH_LOGIN_OTP_V1, mobile=******2186
-2026-08-24T09:59:22.575Z ERROR 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.client.SmsGatewayClient            : Network Exception while sending SMS: 403 Unauthorized: "<solace-error-response><EOL><EOL><code>403</code><EOL><EOL><reason><![CDATA[Unauthorized]]></reason><EOL><EOL><detail><![CDATA[<EOL><EOL>SMF ClientCtrl response error<EOL><EOL>]]></detail><EOL><EOL><internal-use>2:14261</internal-use><EOL><EOL></solace-error-response><EOL><EOL>"
-2026-08-24T09:59:22.576Z ERROR 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.service.SmsServiceImpl             : CRITICAL: SMS Infrastructure Failure for ******2186. Error : SMS Provider rejected request : null
-2026-08-24T09:59:23.076Z ERROR 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.service.SmsServiceImpl             : CRITICAL: SMS Infrastructure Failure for ******2186. Error : SMS Provider rejected request : null
-2026-08-24T09:59:23.576Z ERROR 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.service.SmsServiceImpl             : CRITICAL: SMS Infrastructure Failure for ******2186. Error : SMS Provider rejected request : null
-2026-08-24T09:59:24.077Z  INFO 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.service.SmsServiceImpl             : Reached sendSms service. templateId=AUTH_LOGIN_OTP_V1, mobile=******2186
-2026-08-24T09:59:24.213Z ERROR 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.client.SmsGatewayClient            : Network Exception while sending SMS: 403 Unauthorized: "<solace-error-response><EOL><EOL><code>403</code><EOL><EOL><reason><![CDATA[Unauthorized]]></reason><EOL><EOL><detail><![CDATA[<EOL><EOL>SMF ClientCtrl response error<EOL><EOL>]]></detail><EOL><EOL><internal-use>2:14261</internal-use><EOL><EOL></solace-error-response><EOL><EOL>"
-2026-08-24T09:59:24.213Z ERROR 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.service.SmsServiceImpl             : CRITICAL: SMS Infrastructure Failure for ******2186. Error : SMS Provider rejected request : null
-2026-08-24T09:59:24.714Z ERROR 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.service.SmsServiceImpl             : CRITICAL: SMS Infrastructure Failure for ******2186. Error : SMS Provider rejected request : null
-2026-08-24T09:59:25.214Z ERROR 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.service.SmsServiceImpl             : CRITICAL: SMS Infrastructure Failure for ******2186. Error : SMS Provider rejected request : null
-2026-08-24T09:59:25.215Z ERROR 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.service.SmsServiceImpl             : CRITICAL: SMS Infrastructure Failure for ******2186. Error : Total SMS Infrastructure Failure
-2026-08-24T09:59:25.715Z ERROR 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.service.SmsServiceImpl             : CRITICAL: SMS Infrastructure Failure for ******2186. Error : Total SMS Infrastructure Failure
-2026-08-24T09:59:26.215Z ERROR 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.service.SmsServiceImpl             : CRITICAL: SMS Infrastructure Failure for ******2186. Error : Total SMS Infrastructure Failure
-2026-08-24T09:59:26.716Z  INFO 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.service.SmsServiceImpl             : Reached sendSms service. templateId=AUTH_LOGIN_OTP_V1, mobile=******2186
-2026-08-24T09:59:26.870Z ERROR 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.client.SmsGatewayClient            : Network Exception while sending SMS: 403 Unauthorized: "<solace-error-response><EOL><EOL><code>403</code><EOL><EOL><reason><![CDATA[Unauthorized]]></reason><EOL><EOL><detail><![CDATA[<EOL><EOL>SMF ClientCtrl response error<EOL><EOL>]]></detail><EOL><EOL><internal-use>2:14261</internal-use><EOL><EOL></solace-error-response><EOL><EOL>"
-2026-08-24T09:59:26.871Z ERROR 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.service.SmsServiceImpl             : CRITICAL: SMS Infrastructure Failure for ******2186. Error : SMS Provider rejected request : null
-2026-08-24T09:59:27.371Z ERROR 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.service.SmsServiceImpl             : CRITICAL: SMS Infrastructure Failure for ******2186. Error : SMS Provider rejected request : null
-2026-08-24T09:59:27.871Z ERROR 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.service.SmsServiceImpl             : CRITICAL: SMS Infrastructure Failure for ******2186. Error : SMS Provider rejected request : null
-2026-08-24T09:59:28.372Z  INFO 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.service.SmsServiceImpl             : Reached sendSms service. templateId=AUTH_LOGIN_OTP_V1, mobile=******2186
-2026-08-24T09:59:28.454Z ERROR 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.client.SmsGatewayClient            : Network Exception while sending SMS: 403 Unauthorized: "<solace-error-response><EOL><EOL><code>403</code><EOL><EOL><reason><![CDATA[Unauthorized]]></reason><EOL><EOL><detail><![CDATA[<EOL><EOL>SMF ClientCtrl response error<EOL><EOL>]]></detail><EOL><EOL><internal-use>2:14261</internal-use><EOL><EOL></solace-error-response><EOL><EOL>"
-2026-08-24T09:59:28.454Z ERROR 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.service.SmsServiceImpl             : CRITICAL: SMS Infrastructure Failure for ******2186. Error : SMS Provider rejected request : null
-2026-08-24T09:59:28.954Z ERROR 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.service.SmsServiceImpl             : CRITICAL: SMS Infrastructure Failure for ******2186. Error : SMS Provider rejected request : null
-2026-08-24T09:59:29.455Z ERROR 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.service.SmsServiceImpl             : CRITICAL: SMS Infrastructure Failure for ******2186. Error : SMS Provider rejected request : null
-2026-08-24T09:59:29.955Z  INFO 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.service.SmsServiceImpl             : Reached sendSms service. templateId=AUTH_LOGIN_OTP_V1, mobile=******2186
-2026-08-24T09:59:30.107Z ERROR 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.client.SmsGatewayClient            : Network Exception while sending SMS: 403 Unauthorized: "<solace-error-response><EOL><EOL><code>403</code><EOL><EOL><reason><![CDATA[Unauthorized]]></reason><EOL><EOL><detail><![CDATA[<EOL><EOL>SMF ClientCtrl response error<EOL><EOL>]]></detail><EOL><EOL><internal-use>2:14261</internal-use><EOL><EOL></solace-error-response><EOL><EOL>"
-2026-08-24T09:59:30.107Z ERROR 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.service.SmsServiceImpl             : CRITICAL: SMS Infrastructure Failure for ******2186. Error : SMS Provider rejected request : null
-2026-08-24T09:59:30.607Z ERROR 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.service.SmsServiceImpl             : CRITICAL: SMS Infrastructure Failure for ******2186. Error : SMS Provider rejected request : null
-2026-08-24T09:59:31.108Z ERROR 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.service.SmsServiceImpl             : CRITICAL: SMS Infrastructure Failure for ******2186. Error : SMS Provider rejected request : null
-2026-08-24T09:59:31.108Z ERROR 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.service.SmsServiceImpl             : CRITICAL: SMS Infrastructure Failure for ******2186. Error : Total SMS Infrastructure Failure
-2026-08-24T09:59:31.608Z ERROR 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.service.SmsServiceImpl             : CRITICAL: SMS Infrastructure Failure for ******2186. Error : Total SMS Infrastructure Failure
-2026-08-24T09:59:32.109Z ERROR 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.service.SmsServiceImpl             : CRITICAL: SMS Infrastructure Failure for ******2186. Error : Total SMS Infrastructure Failure
-2026-08-24T09:59:32.109Z ERROR 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.consumer.PriorityOtpConsumer       : Vendor dispatch failed for eventId=evt-7afd65b4-b000-43c1-8ab1-9aa07baf1b21 channel=SMS. Reason: Total SMS Infrastructure Failure
-2026-08-24T09:59:32.116Z  INFO 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.service.TemplateCacheService       : L1 CACHE MISS: Fetching and Compiling Template AUTH_LOGIN_OTP_V1 for EMAIL from Oracle DB.
-2026-08-24T09:59:32.191Z ERROR 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.client.EmailGatewayClient          : Network I/O Exception calling Email Vendor API: I/O error on POST request for "https://ebms-pepiapi.sbiuat.bank.in:443/v5/mail/send": Connection refused
-2026-08-24T09:59:32.192Z ERROR 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.service.EmailServiceImpl           : CRITICAL: Bank Email API unreachable for ebms_uat_receiver@sbiuat.bank.in. Error: Network communication with Email Vendor failed
-2026-08-24T09:59:32.692Z ERROR 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.service.EmailServiceImpl           : CRITICAL: Bank Email API unreachable for ebms_uat_receiver@sbiuat.bank.in. Error: Network communication with Email Vendor failed
-2026-08-24T09:59:33.192Z ERROR 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.service.EmailServiceImpl           : CRITICAL: Bank Email API unreachable for ebms_uat_receiver@sbiuat.bank.in. Error: Network communication with Email Vendor failed
-2026-08-24T09:59:33.193Z ERROR 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.service.EmailServiceImpl           : CRITICAL: Bank Email API unreachable for ebms_uat_receiver@sbiuat.bank.in. Error: Total Bank API Infrastructure Failure
-2026-08-24T09:59:33.694Z ERROR 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.service.EmailServiceImpl           : CRITICAL: Bank Email API unreachable for ebms_uat_receiver@sbiuat.bank.in. Error: Total Bank API Infrastructure Failure
-2026-08-24T09:59:34.194Z ERROR 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.service.EmailServiceImpl           : CRITICAL: Bank Email API unreachable for ebms_uat_receiver@sbiuat.bank.in. Error: Total Bank API Infrastructure Failure
-2026-08-24T09:59:34.699Z ERROR 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.client.EmailGatewayClient          : Network I/O Exception calling Email Vendor API: I/O error on POST request for "https://ebms-pepiapi.sbiuat.bank.in:443/v5/mail/send": Connection refused
-2026-08-24T09:59:34.699Z ERROR 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.service.EmailServiceImpl           : CRITICAL: Bank Email API unreachable for ebms_uat_receiver@sbiuat.bank.in. Error: Network communication with Email Vendor failed
-2026-08-24T09:59:35.199Z ERROR 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.service.EmailServiceImpl           : CRITICAL: Bank Email API unreachable for ebms_uat_receiver@sbiuat.bank.in. Error: Network communication with Email Vendor failed
-2026-08-24T09:59:35.700Z ERROR 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.service.EmailServiceImpl           : CRITICAL: Bank Email API unreachable for ebms_uat_receiver@sbiuat.bank.in. Error: Network communication with Email Vendor failed
-2026-08-24T09:59:35.700Z ERROR 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.service.EmailServiceImpl           : CRITICAL: Bank Email API unreachable for ebms_uat_receiver@sbiuat.bank.in. Error: Total Bank API Infrastructure Failure
-2026-08-24T09:59:36.200Z ERROR 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.service.EmailServiceImpl           : CRITICAL: Bank Email API unreachable for ebms_uat_receiver@sbiuat.bank.in. Error: Total Bank API Infrastructure Failure
-2026-08-24T09:59:36.701Z ERROR 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.service.EmailServiceImpl           : CRITICAL: Bank Email API unreachable for ebms_uat_receiver@sbiuat.bank.in. Error: Total Bank API Infrastructure Failure
-2026-08-24T09:59:37.205Z ERROR 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.client.EmailGatewayClient          : Network I/O Exception calling Email Vendor API: I/O error on POST request for "https://ebms-pepiapi.sbiuat.bank.in:443/v5/mail/send": Connection refused
-2026-08-24T09:59:37.205Z ERROR 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.service.EmailServiceImpl           : CRITICAL: Bank Email API unreachable for ebms_uat_receiver@sbiuat.bank.in. Error: Network communication with Email Vendor failed
-2026-08-24T09:59:37.705Z ERROR 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.service.EmailServiceImpl           : CRITICAL: Bank Email API unreachable for ebms_uat_receiver@sbiuat.bank.in. Error: Network communication with Email Vendor failed
-2026-08-24T09:59:38.206Z ERROR 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.service.EmailServiceImpl           : CRITICAL: Bank Email API unreachable for ebms_uat_receiver@sbiuat.bank.in. Error: Network communication with Email Vendor failed
-2026-08-24T09:59:38.206Z ERROR 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.service.EmailServiceImpl           : CRITICAL: Bank Email API unreachable for ebms_uat_receiver@sbiuat.bank.in. Error: Total Bank API Infrastructure Failure
-2026-08-24T09:59:38.707Z ERROR 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.service.EmailServiceImpl           : CRITICAL: Bank Email API unreachable for ebms_uat_receiver@sbiuat.bank.in. Error: Total Bank API Infrastructure Failure
-2026-08-24T09:59:39.207Z ERROR 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.service.EmailServiceImpl           : CRITICAL: Bank Email API unreachable for ebms_uat_receiver@sbiuat.bank.in. Error: Total Bank API Infrastructure Failure
-2026-08-24T09:59:39.207Z ERROR 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.consumer.PriorityOtpConsumer       : Vendor dispatch failed for eventId=evt-7afd65b4-b000-43c1-8ab1-9aa07baf1b21 channel=EMAIL. Reason: Total Bank API Infrastructure Failure
-2026-08-24T09:59:39.209Z ERROR 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.consumer.PriorityOtpConsumer       : Unexpected error processing Kafka message
+/**
+ * <p>Centralized HTTP Configuration for Vendor APIs.</p>
+ *
+ * <p><b>Architectural Mandate:</b> 
+ * Forces the modern RestClient to utilize {@link SimpleClientHttpRequestFactory}
+ * (which wraps HttpURLConnection). This ensures strict HTTP/1.1 adherence to prevent
+ * Solace API 403 errors, automatically inherits corporate proxy settings, and allows
+ * us to re-inject the UAT SSL/Hostname bypass.</p>
+ */
+@Slf4j
+@Configuration
+public class RestClientConfig {
 
-com.fincore.CommunicationService.exception.CommunicationExceptions$VendorDeliveryException: One or more channels failed to deliver. Triggering Retry.
-        at com.fincore.CommunicationService.consumer.PriorityOtpConsumer.consumeOtpEvent(PriorityOtpConsumer.java:201) ~[!/:0.0.1-SNAPSHOT]
-        at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:103) ~[na:na]
-        at java.base/java.lang.reflect.Method.invoke(Method.java:580) ~[na:na]
-        at org.springframework.messaging.handler.invocation.InvocableHandlerMethod.doInvoke(InvocableHandlerMethod.java:168) ~[spring-messaging-7.0.8.jar!/:7.0.8]
-        at org.springframework.kafka.listener.adapter.KotlinAwareInvocableHandlerMethod.doInvoke(KotlinAwareInvocableHandlerMethod.java:48) ~[spring-kafka-4.1.0.jar!/:4.1.0]
-        at org.springframework.messaging.handler.invocation.InvocableHandlerMethod.invoke(InvocableHandlerMethod.java:119) ~[spring-messaging-7.0.8.jar!/:7.0.8]
-        at org.springframework.kafka.listener.adapter.HandlerAdapter.invoke(HandlerAdapter.java:80) ~[spring-kafka-4.1.0.jar!/:4.1.0]
-        at org.springframework.kafka.listener.adapter.MessagingMessageListenerAdapter.invokeHandler(MessagingMessageListenerAdapter.java:489) ~[spring-kafka-4.1.0.jar!/:4.1.0]
-        at org.springframework.kafka.listener.adapter.MessagingMessageListenerAdapter.invoke(MessagingMessageListenerAdapter.java:426) ~[spring-kafka-4.1.0.jar!/:4.1.0]
-        at org.springframework.kafka.listener.adapter.RecordMessagingMessageListenerAdapter.onMessage(RecordMessagingMessageListenerAdapter.java:92) ~[spring-kafka-4.1.0.jar!/:4.1.0]
-        at org.springframework.kafka.listener.adapter.RecordMessagingMessageListenerAdapter.onMessage(RecordMessagingMessageListenerAdapter.java:52) ~[spring-kafka-4.1.0.jar!/:4.1.0]
-        at org.springframework.kafka.listener.adapter.KafkaBackoffAwareMessageListenerAdapter.invokeDelegateOnMessage(KafkaBackoffAwareMessageListenerAdapter.java:109) ~[spring-kafka-4.1.0.jar!/:4.1.0]
-        at org.springframework.kafka.listener.adapter.KafkaBackoffAwareMessageListenerAdapter.onMessage(KafkaBackoffAwareMessageListenerAdapter.java:100) ~[spring-kafka-4.1.0.jar!/:4.1.0]
-        at org.springframework.kafka.listener.adapter.KafkaBackoffAwareMessageListenerAdapter.onMessage(KafkaBackoffAwareMessageListenerAdapter.java:50) ~[spring-kafka-4.1.0.jar!/:4.1.0]
-        at org.springframework.kafka.listener.KafkaMessageListenerContainer$ListenerConsumer.doInvokeOnMessage(KafkaMessageListenerContainer.java:3018) ~[spring-kafka-4.1.0.jar!/:4.1.0]
-        at org.springframework.kafka.listener.KafkaMessageListenerContainer$ListenerConsumer.invokeOnMessage(KafkaMessageListenerContainer.java:2997) ~[spring-kafka-4.1.0.jar!/:4.1.0]
-        at org.springframework.kafka.listener.KafkaMessageListenerContainer$ListenerConsumer.doInvokeRecordListener(KafkaMessageListenerContainer.java:2907) ~[spring-kafka-4.1.0.jar!/:4.1.0]
-        at org.springframework.kafka.listener.KafkaMessageListenerContainer$ListenerConsumer.doInvokeWithRecords(KafkaMessageListenerContainer.java:2749) ~[spring-kafka-4.1.0.jar!/:4.1.0]
-        at org.springframework.kafka.listener.KafkaMessageListenerContainer$ListenerConsumer.invokeRecordListener(KafkaMessageListenerContainer.java:2643) ~[spring-kafka-4.1.0.jar!/:4.1.0]
-        at org.springframework.kafka.listener.KafkaMessageListenerContainer$ListenerConsumer.invokeListener(KafkaMessageListenerContainer.java:2274) ~[spring-kafka-4.1.0.jar!/:4.1.0]
-        at org.springframework.kafka.listener.KafkaMessageListenerContainer$ListenerConsumer.invokeIfHaveRecords(KafkaMessageListenerContainer.java:1572) ~[spring-kafka-4.1.0.jar!/:4.1.0]
-        at org.springframework.kafka.listener.KafkaMessageListenerContainer$ListenerConsumer.pollAndInvoke(KafkaMessageListenerContainer.java:1504) ~[spring-kafka-4.1.0.jar!/:4.1.0]
-        at org.springframework.kafka.listener.KafkaMessageListenerContainer$ListenerConsumer.run(KafkaMessageListenerContainer.java:1373) ~[spring-kafka-4.1.0.jar!/:4.1.0]
-        at java.base/java.util.concurrent.CompletableFuture$AsyncRun.run(CompletableFuture.java:1804) ~[na:na]
-        at java.base/java.lang.Thread.run(Thread.java:1570) ~[na:na]
+    @Value("${app.preIpString:UAT}")
+    private String environment;
 
-2026-08-24T09:59:39.230Z  INFO 1 --- [CommunicationService] [ntainer#1-0-C-1] o.a.kafka.common.config.AbstractConfig   : ProducerConfig values:
-        acks = -1
-        batch.size = 16384
-        bootstrap.servers = [kafka.uat-cbops1.svc.cluster.local:9092]
-        buffer.memory = 33554432
-        client.dns.lookup = use_all_dns_ips
-        client.id = CommunicationService-producer-1
-        compression.gzip.level = -1
-        compression.lz4.level = 9
-        compression.type = none
-        compression.zstd.level = 3
-        config.providers = []
-        connections.max.idle.ms = 540000
-        delivery.timeout.ms = 120000
-        enable.idempotence = true
-        enable.metrics.push = true
-        interceptor.classes = []
-        key.serializer = class org.apache.kafka.common.serialization.StringSerializer
-        linger.ms = 5
-        max.block.ms = 60000
-        max.in.flight.requests.per.connection = 5
-        max.request.size = 1048576
-        metadata.max.age.ms = 300000
-        metadata.max.idle.ms = 300000
-        metadata.recovery.rebootstrap.trigger.ms = 300000
-        metadata.recovery.strategy = rebootstrap
-        metric.reporters = [org.apache.kafka.common.metrics.JmxReporter]
-        metrics.num.samples = 2
-        metrics.recording.level = INFO
-        metrics.sample.window.ms = 30000
-        partitioner.adaptive.partitioning.enable = true
-        partitioner.availability.timeout.ms = 0
-        partitioner.class = null
-        partitioner.ignore.keys = false
-        receive.buffer.bytes = 32768
-        reconnect.backoff.max.ms = 1000
-        reconnect.backoff.ms = 50
-        request.timeout.ms = 30000
-        retries = 2147483647
-        retry.backoff.max.ms = 1000
-        retry.backoff.ms = 100
-        sasl.client.callback.handler.class = null
-        sasl.jaas.config = null
-        sasl.kerberos.kinit.cmd = /usr/bin/kinit
-        sasl.kerberos.min.time.before.relogin = 60000
-        sasl.kerberos.service.name = null
-        sasl.kerberos.ticket.renew.jitter = 0.05
-        sasl.kerberos.ticket.renew.window.factor = 0.8
-        sasl.login.callback.handler.class = null
-        sasl.login.class = null
-        sasl.login.connect.timeout.ms = null
-        sasl.login.read.timeout.ms = null
-        sasl.login.refresh.buffer.seconds = 300
-        sasl.login.refresh.min.period.seconds = 60
-        sasl.login.refresh.window.factor = 0.8
-        sasl.login.refresh.window.jitter = 0.05
-        sasl.login.retry.backoff.max.ms = 10000
-        sasl.login.retry.backoff.ms = 100
-        sasl.mechanism = GSSAPI
-        sasl.oauthbearer.assertion.algorithm = RS256
-        sasl.oauthbearer.assertion.claim.aud = null
-        sasl.oauthbearer.assertion.claim.exp.seconds = 300
-        sasl.oauthbearer.assertion.claim.iss = null
-        sasl.oauthbearer.assertion.claim.jti.include = false
-        sasl.oauthbearer.assertion.claim.nbf.seconds = 60
-        sasl.oauthbearer.assertion.claim.sub = null
-        sasl.oauthbearer.assertion.file = null
-        sasl.oauthbearer.assertion.private.key.file = null
-        sasl.oauthbearer.assertion.private.key.passphrase = null
-        sasl.oauthbearer.assertion.template.file = null
-        sasl.oauthbearer.client.credentials.client.id = null
-        sasl.oauthbearer.client.credentials.client.secret = null
-        sasl.oauthbearer.clock.skew.seconds = 30
-        sasl.oauthbearer.expected.audience = []
-        sasl.oauthbearer.expected.issuer = null
-        sasl.oauthbearer.header.urlencode = false
-        sasl.oauthbearer.jwks.endpoint.refresh.ms = 3600000
-        sasl.oauthbearer.jwks.endpoint.retry.backoff.max.ms = 10000
-        sasl.oauthbearer.jwks.endpoint.retry.backoff.ms = 100
-        sasl.oauthbearer.jwks.endpoint.url = null
-        sasl.oauthbearer.jwt.retriever.class = class org.apache.kafka.common.security.oauthbearer.DefaultJwtRetriever
-        sasl.oauthbearer.jwt.validator.class = class org.apache.kafka.common.security.oauthbearer.DefaultJwtValidator
-        sasl.oauthbearer.scope = null
-        sasl.oauthbearer.scope.claim.name = scope
-        sasl.oauthbearer.sub.claim.name = sub
-        sasl.oauthbearer.token.endpoint.url = null
-        security.protocol = PLAINTEXT
-        security.providers = null
-        send.buffer.bytes = 131072
-        socket.connection.setup.timeout.max.ms = 30000
-        socket.connection.setup.timeout.ms = 30000
-        ssl.cipher.suites = []
-        ssl.enabled.protocols = [TLSv1.2, TLSv1.3]
-        ssl.endpoint.identification.algorithm = https
-        ssl.engine.factory.class = null
-        ssl.key.password = null
-        ssl.keymanager.algorithm = SunX509
-        ssl.keystore.certificate.chain = null
-        ssl.keystore.key = null
-        ssl.keystore.location = null
-        ssl.keystore.password = null
-        ssl.keystore.type = JKS
-        ssl.protocol = TLSv1.3
-        ssl.provider = null
-        ssl.secure.random.implementation = null
-        ssl.trustmanager.algorithm = PKIX
-        ssl.truststore.certificates = null
-        ssl.truststore.location = null
-        ssl.truststore.password = null
-        ssl.truststore.type = JKS
-        transaction.timeout.ms = 60000
-        transaction.two.phase.commit.enable = false
-        transactional.id = null
-        value.serializer = class org.apache.kafka.common.serialization.StringSerializer
+    @Bean
+    public RestClient restClient(RestClient.Builder builder) {
+        log.info("Initializing RestClient with legacy HttpURLConnection bindings for strict UAT/Solace compatibility.");
 
-2026-08-24T09:59:39.231Z  INFO 1 --- [CommunicationService] [ntainer#1-0-C-1] o.a.k.c.t.i.KafkaMetricsCollector        : initializing Kafka metrics collector
-2026-08-24T09:59:39.242Z  INFO 1 --- [CommunicationService] [ntainer#1-0-C-1] o.a.k.clients.producer.KafkaProducer     : [Producer clientId=CommunicationService-producer-1] Instantiated an idempotent producer.
-2026-08-24T09:59:39.256Z  INFO 1 --- [CommunicationService] [ntainer#1-0-C-1] o.a.kafka.common.utils.AppInfoParser     : Kafka version: 4.2.1
-2026-08-24T09:59:39.256Z  INFO 1 --- [CommunicationService] [ntainer#1-0-C-1] o.a.kafka.common.utils.AppInfoParser     : Kafka commitId: 92f61c44867f39dc
-2026-08-24T09:59:39.256Z  INFO 1 --- [CommunicationService] [ntainer#1-0-C-1] o.a.kafka.common.utils.AppInfoParser     : Kafka startTimeMs: 1787565579256
-2026-08-24T09:59:39.263Z  INFO 1 --- [CommunicationService] [vice-producer-1] org.apache.kafka.clients.Metadata        : [Producer clientId=CommunicationService-producer-1] Cluster ID: jgQjUybBSACbAFjwpKFQiA
-2026-08-24T09:59:39.264Z  INFO 1 --- [CommunicationService] [vice-producer-1] o.a.k.c.p.internals.TransactionManager   : [Producer clientId=CommunicationService-producer-1] ProducerId set to 11031 with epoch 0
-2026-08-24T09:59:39.286Z  INFO 1 --- [CommunicationService] [1-retry-0-0-C-1] o.a.k.c.c.i.ClassicKafkaConsumer         : [Consumer clientId=consumer-communication-login-otp-group-v7-retry-0-46, groupId=communication-login-otp-group-v7-retry-0] Seeking to offset 53 for partition fincore.auth.otp.priority-retry-0-0
-2026-08-24T09:59:39.286Z  INFO 1 --- [CommunicationService] [1-retry-0-0-C-1] o.s.k.l.KafkaMessageListenerContainer    : Record in retry and not yet recovered
-2026-08-24T09:59:41.215Z  INFO 1 --- [CommunicationService] [1-retry-0-0-C-1] c.f.C.consumer.PriorityOtpConsumer       : Received raw Kafka message: {"payload":"/bzNRBxNv5lpZtRH:sm564da/Y/659QNWZDHilTOvh7vRUSC4uNaxim3HPPzmW3rXWOgC+IefMzEqxwBRYjZ62DixoSfJISXIrj3OXweam9Mtfq3eluM35BCAPaM=","priority":"CRITICAL","eventId":"evt-7afd65b4-b000-43c1-8ab1-9aa07baf1b21","eventType":"LOGIN_OTP","channel":["SMS","EMAIL"],"createdAt":"2026-08-24T09:59:14.156052740Z","txId":"054bd9c0-554f-43b9-aece-d8573cf4937d","recipient":{"email":"ebms_uat_receiver@sbiuat.bank.in","mobile":"9064632186"},"templateId":"AUTH_LOGIN_OTP_V1"}
-2026-08-24T09:59:41.218Z  INFO 1 --- [CommunicationService] [1-retry-0-0-C-1] c.f.C.service.SmsServiceImpl             : Reached sendSms service. templateId=AUTH_LOGIN_OTP_V1, mobile=******2186
-2026-08-24T09:59:41.297Z ERROR 1 --- [CommunicationService] [1-retry-0-0-C-1] c.f.C.client.SmsGatewayClient            : Network Exception while sending SMS: 403 Unauthorized: "<solace-error-response><EOL><EOL><code>403</code><EOL><EOL><reason><![CDATA[Unauthorized]]></reason><EOL><EOL><detail><![CDATA[<EOL><EOL>SMF ClientCtrl response error<EOL><EOL>]]></detail><EOL><EOL><internal-use>2:14261</internal-use><EOL><EOL></solace-error-response><EOL><EOL>"
-2026-08-24T09:59:41.297Z ERROR 1 --- [CommunicationService] [1-retry-0-0-C-1] c.f.C.service.SmsServiceImpl             : CRITICAL: SMS Infrastructure Failure for ******2186. Error : SMS Provider rejected request : null
-2026-08-24T09:59:41.797Z ERROR 1 --- [CommunicationService] [1-retry-0-0-C-1] c.f.C.service.SmsServiceImpl             : CRITICAL: SMS Infrastructure Failure for ******2186. Error : SMS Provider rejected request : null
-2026-08-24T09:59:42.298Z ERROR 1 --- [CommunicationService] [1-retry-0-0-C-1] c.f.C.service.SmsServiceImpl             : CRITICAL: SMS Infrastructure Failure for ******2186. Error : SMS Provider rejected request : null
-2026-08-24T09:59:42.799Z  INFO 1 --- [CommunicationService] [1-retry-0-0-C-1] c.f.C.service.SmsServiceImpl             : Reached sendSms service. templateId=AUTH_LOGIN_OTP_V1, mobile=******2186
-2026-08-24T09:59:42.878Z ERROR 1 --- [CommunicationService] [1-retry-0-0-C-1] c.f.C.client.SmsGatewayClient            : Network Exception while sending SMS: 403 Unauthorized: "<solace-error-response><EOL><EOL><code>403</code><EOL><EOL><reason><![CDATA[Unauthorized]]></reason><EOL><EOL><detail><![CDATA[<EOL><EOL>SMF ClientCtrl response error<EOL><EOL>]]></detail><EOL><EOL><internal-use>2:14261</internal-use><EOL><EOL></solace-error-response><EOL><EOL>"
-2026-08-24T09:59:42.878Z ERROR 1 --- [CommunicationService] [1-retry-0-0-C-1] c.f.C.service.SmsServiceImpl             : CRITICAL: SMS Infrastructure Failure for ******2186. Error : SMS Provider rejected request : null
-2026-08-24T09:59:43.379Z ERROR 1 --- [CommunicationService] [1-retry-0-0-C-1] c.f.C.service.SmsServiceImpl             : CRITICAL: SMS Infrastructure Failure for ******2186. Error : SMS Provider rejected request : null
-2026-08-24T09:59:43.879Z ERROR 1 --- [CommunicationService] [1-retry-0-0-C-1] c.f.C.service.SmsServiceImpl             : CRITICAL: SMS Infrastructure Failure for ******2186. Error : SMS Provider rejected request : null
-2026-08-24T09:59:44.380Z  INFO 1 --- [CommunicationService] [1-retry-0-0-C-1] c.f.C.service.SmsServiceImpl             : Reached sendSms service. templateId=AUTH_LOGIN_OTP_V1, mobile=******2186
-2026-08-24T09:59:44.459Z ERROR 1 --- [CommunicationService] [1-retry-0-0-C-1] c.f.C.client.SmsGatewayClient            : Network Exception while sending SMS: 403 Unauthorized: "<solace-error-response><EOL><EOL><code>403</code><EOL><EOL><reason><![CDATA[Unauthorized]]></reason><EOL><EOL><detail><![CDATA[<EOL><EOL>SMF ClientCtrl response error<EOL><EOL>]]></detail><EOL><EOL><internal-use>2:14261</internal-use><EOL><EOL></solace-error-response><EOL><EOL>"
-2026-08-24T09:59:44.460Z ERROR 1 --- [CommunicationService] [1-retry-0-0-C-1] c.f.C.service.SmsServiceImpl             : CRITICAL: SMS Infrastructure Failure for ******2186. Error : SMS Provider rejected request : null
-2026-08-24T09:59:44.960Z ERROR 1 --- [CommunicationService] [1-retry-0-0-C-1] c.f.C.service.SmsServiceImpl             : CRITICAL: SMS Infrastructure Failure for ******2186. Error : SMS Provider rejected request : null
-2026-08-24T09:59:45.460Z ERROR 1 --- [CommunicationService] [1-retry-0-0-C-1] c.f.C.service.SmsServiceImpl             : CRITICAL: SMS Infrastructure Failure for ******2186. Error : SMS Provider rejected request : null
-2026-08-24T09:59:45.460Z ERROR 1 --- [CommunicationService] [1-retry-0-0-C-1] c.f.C.service.SmsServiceImpl             : CRITICAL: SMS Infrastructure Failure for ******2186. Error : Total SMS Infrastructure Failure
-2026-08-24T09:59:45.961Z ERROR 1 --- [CommunicationService] [1-retry-0-0-C-1] c.f.C.service.SmsServiceImpl             : CRITICAL: SMS Infrastructure Failure for ******2186. Error : Total SMS Infrastructure Failure
-2026-08-24T09:59:46.461Z ERROR 1 --- [CommunicationService] [1-retry-0-0-C-1] c.f.C.service.SmsServiceImpl             : CRITICAL: SMS Infrastructure Failure for ******2186. Error : Total SMS Infrastructure Failure
-2026-08-24T09:59:46.962Z  INFO 1 --- [CommunicationService] [1-retry-0-0-C-1] c.f.C.service.SmsServiceImpl             : Reached sendSms service. templateId=AUTH_LOGIN_OTP_V1, mobile=******2186
-2026-08-24T09:59:47.070Z ERROR 1 --- [CommunicationService] [1-retry-0-0-C-1] c.f.C.client.SmsGatewayClient            : Network Exception while sending SMS: 403 Unauthorized: "<solace-error-response><EOL><EOL><code>403</code><EOL><EOL><reason><![CDATA[Unauthorized]]></reason><EOL><EOL><detail><![CDATA[<EOL><EOL>SMF ClientCtrl response error<EOL><EOL>]]></detail><EOL><EOL><internal-use>2:14261</internal-use><EOL><EOL></solace-error-response><EOL><EOL>"
-2026-08-24T09:59:47.070Z ERROR 1 --- [CommunicationService] [1-retry-0-0-C-1] c.f.C.service.SmsServiceImpl             : CRITICAL: SMS Infrastructure Failure for ******2186. Error : SMS Provider rejected request : null
-2026-08-24T09:59:47.570Z ERROR 1 --- [CommunicationService] [1-retry-0-0-C-1] c.f.C.service.SmsServiceImpl             : CRITICAL: SMS Infrastructure Failure for ******2186. Error : SMS Provider rejected request : null
-2026-08-24T09:59:48.071Z ERROR 1 --- [CommunicationService] [1-retry-0-0-C-1] c.f.C.service.SmsServiceImpl             : CRITICAL: SMS Infrastructure Failure for ******2186. Error : SMS Provider rejected request : null
-2026-08-24T09:59:48.571Z  INFO 1 --- [CommunicationService] [1-retry-0-0-C-1] c.f.C.service.SmsServiceImpl             : Reached sendSms service. templateId=AUTH_LOGIN_OTP_V1, mobile=******2186
-2026-08-24T09:59:48.650Z ERROR 1 --- [CommunicationService] [1-retry-0-0-C-1] c.f.C.client.SmsGatewayClient            : Network Exception while sending SMS: 403 Unauthorized: "<solace-error-response><EOL><EOL><code>403</code><EOL><EOL><reason><![CDATA[Unauthorized]]></reason><EOL><EOL><detail><![CDATA[<EOL><EOL>SMF ClientCtrl response error<EOL><EOL>]]></detail><EOL><EOL><internal-use>2:14261</internal-use><EOL><EOL></solace-error-response><EOL><EOL>"
-2026-08-24T09:59:48.650Z ERROR 1 --- [CommunicationService] [1-retry-0-0-C-1] c.f.C.service.SmsServiceImpl             : CRITICAL: SMS Infrastructure Failure for ******2186. Error : SMS Provider rejected request : null
-2026-08-24T09:59:49.150Z ERROR 1 --- [CommunicationService] [1-retry-0-0-C-1] c.f.C.service.SmsServiceImpl             : CRITICAL: SMS Infrastructure Failure for ******2186. Error : SMS Provider rejected request : null
-2026-08-24T09:59:49.651Z ERROR 1 --- [CommunicationService] [1-retry-0-0-C-1] c.f.C.service.SmsServiceImpl             : CRITICAL: SMS Infrastructure Failure for ******2186. Error : SMS Provider rejected request : null
-2026-08-24T09:59:50.151Z  INFO 1 --- [CommunicationService] [1-retry-0-0-C-1] c.f.C.service.SmsServiceImpl             : Reached sendSms service. templateId=AUTH_LOGIN_OTP_V1, mobile=******2186
-2026-08-24T09:59:50.231Z ERROR 1 --- [CommunicationService] [1-retry-0-0-C-1] c.f.C.client.SmsGatewayClient            : Network Exception while sending SMS: 403 Unauthorized: "<solace-error-response><EOL><EOL><code>403</code><EOL><EOL><reason><![CDATA[Unauthorized]]></reason><EOL><EOL><detail><![CDATA[<EOL><EOL>SMF ClientCtrl response error<EOL><EOL>]]></detail><EOL><EOL><internal-use>2:14261</internal-use><EOL><EOL></solace-error-response><EOL><EOL>"
-2026-08-24T09:59:50.232Z ERROR 1 --- [CommunicationService] [1-retry-0-0-C-1] c.f.C.service.SmsServiceImpl             : CRITICAL: SMS Infrastructure Failure for ******2186. Error : SMS Provider rejected request : null
-2026-08-24T09:59:50.732Z ERROR 1 --- [CommunicationService] [1-retry-0-0-C-1] c.f.C.service.SmsServiceImpl             : CRITICAL: SMS Infrastructure Failure for ******2186. Error : SMS Provider rejected request : null
-2026-08-24T09:59:51.232Z ERROR 1 --- [CommunicationService] [1-retry-0-0-C-1] c.f.C.service.SmsServiceImpl             : CRITICAL: SMS Infrastructure Failure for ******2186. Error : SMS Provider rejected request : null
-2026-08-24T09:59:51.233Z ERROR 1 --- [CommunicationService] [1-retry-0-0-C-1] c.f.C.service.SmsServiceImpl             : CRITICAL: SMS Infrastructure Failure for ******2186. Error : Total SMS Infrastructure Failure
-2026-08-24T09:59:51.733Z ERROR 1 --- [CommunicationService] [1-retry-0-0-C-1] c.f.C.service.SmsServiceImpl             : CRITICAL: SMS Infrastructure Failure for ******2186. Error : Total SMS Infrastructure Failure
-2026-08-24T09:59:52.233Z ERROR 1 --- [CommunicationService] [1-retry-0-0-C-1] c.f.C.service.SmsServiceImpl             : CRITICAL: SMS Infrastructure Failure for ******2186. Error : Total SMS Infrastructure Failure
-2026-08-24T09:59:52.734Z  INFO 1 --- [CommunicationService] [1-retry-0-0-C-1] c.f.C.service.SmsServiceImpl             : Reached sendSms service. templateId=AUTH_LOGIN_OTP_V1, mobile=******2186
-2026-08-24T09:59:52.813Z ERROR 1 --- [CommunicationService] [1-retry-0-0-C-1] c.f.C.client.SmsGatewayClient            : Network Exception while sending SMS: 403 Unauthorized: "<solace-error-response><EOL><EOL><code>403</code><EOL><EOL><reason><![CDATA[Unauthorized]]></reason><EOL><EOL><detail><![CDATA[<EOL><EOL>SMF ClientCtrl response error<EOL><EOL>]]></detail><EOL><EOL><internal-use>2:14261</internal-use><EOL><EOL></solace-error-response><EOL><EOL>"
-2026-08-24T09:59:52.813Z ERROR 1 --- [CommunicationService] [1-retry-0-0-C-1] c.f.C.service.SmsServiceImpl             : CRITICAL: SMS Infrastructure Failure for ******2186. Error : SMS Provider rejected request : null
-2026-08-24T09:59:53.313Z ERROR 1 --- [CommunicationService] [1-retry-0-0-C-1] c.f.C.service.SmsServiceImpl             : CRITICAL: SMS Infrastructure Failure for ******2186. Error : SMS Provider rejected request : null
-2026-08-24T09:59:53.813Z ERROR 1 --- [CommunicationService] [1-retry-0-0-C-1] c.f.C.service.SmsServiceImpl             : CRITICAL: SMS Infrastructure Failure for ******2186. Error : SMS Provider rejected request : null
-2026-08-24T09:59:54.314Z  INFO 1 --- [CommunicationService] [1-retry-0-0-C-1] c.f.C.service.SmsServiceImpl             : Reached sendSms service. templateId=AUTH_LOGIN_OTP_V1, mobile=******2186
-2026-08-24T09:59:54.395Z ERROR 1 --- [CommunicationService] [1-retry-0-0-C-1] c.f.C.client.SmsGatewayClient            : Network Exception while sending SMS: 403 Unauthorized: "<solace-error-response><EOL><EOL><code>403</code><EOL><EOL><reason><![CDATA[Unauthorized]]></reason><EOL><EOL><detail><![CDATA[<EOL><EOL>SMF ClientCtrl response error<EOL><EOL>]]></detail><EOL><EOL><internal-use>2:14261</internal-use><EOL><EOL></solace-error-response><EOL><EOL>"
-2026-08-24T09:59:54.396Z ERROR 1 --- [CommunicationService] [1-retry-0-0-C-1] c.f.C.service.SmsServiceImpl             : CRITICAL: SMS Infrastructure Failure for ******2186. Error : SMS Provider rejected request : null
-2026-08-24T09:59:54.896Z ERROR 1 --- [CommunicationService] [1-retry-0-0-C-1] c.f.C.service.SmsServiceImpl             : CRITICAL: SMS Infrastructure Failure for ******2186. Error : SMS Provider rejected request : null
-2026-08-24T09:59:55.396Z ERROR 1 --- [CommunicationService] [1-retry-0-0-C-1] c.f.C.service.SmsServiceImpl             : CRITICAL: SMS Infrastructure Failure for ******2186. Error : SMS Provider rejected request : null
-2026-08-24T09:59:55.897Z  INFO 1 --- [CommunicationService] [1-retry-0-0-C-1] c.f.C.service.SmsServiceImpl             : Reached sendSms service. templateId=AUTH_LOGIN_OTP_V1, mobile=******2186
-2026-08-24T09:59:55.977Z ERROR 1 --- [CommunicationService] [1-retry-0-0-C-1] c.f.C.client.SmsGatewayClient            : Network Exception while sending SMS: 403 Unauthorized: "<solace-error-response><EOL><EOL><code>403</code><EOL><EOL><reason><![CDATA[Unauthorized]]></reason><EOL><EOL><detail><![CDATA[<EOL><EOL>SMF ClientCtrl response error<EOL><EOL>]]></detail><EOL><EOL><internal-use>2:14261</internal-use><EOL><EOL></solace-error-response><EOL><EOL>"
-2026-08-24T09:59:55.977Z ERROR 1 --- [CommunicationService] [1-retry-0-0-C-1] c.f.C.service.SmsServiceImpl             : CRITICAL: SMS Infrastructure Failure for ******2186. Error : SMS Provider rejected request : null
-2026-08-24T09:59:56.477Z ERROR 1 --- [CommunicationService] [1-retry-0-0-C-1] c.f.C.service.SmsServiceImpl             : CRITICAL: SMS Infrastructure Failure for ******2186. Error : SMS Provider rejected request : null
-2026-08-24T09:59:56.978Z ERROR 1 --- [CommunicationService] [1-retry-0-0-C-1] c.f.C.service.SmsServiceImpl             : CRITICAL: SMS Infrastructure Failure for ******2186. Error : SMS Provider rejected request : null
-2026-08-24T09:59:56.978Z ERROR 1 --- [CommunicationService] [1-retry-0-0-C-1] c.f.C.service.SmsServiceImpl             : CRITICAL: SMS Infrastructure Failure for ******2186. Error : Total SMS Infrastructure Failure
-2026-08-24T09:59:57.478Z ERROR 1 --- [CommunicationService] [1-retry-0-0-C-1] c.f.C.service.SmsServiceImpl             : CRITICAL: SMS Infrastructure Failure for ******2186. Error : Total SMS Infrastructure Failure
-2026-08-24T09:59:57.979Z ERROR 1 --- [CommunicationService] [1-retry-0-0-C-1] c.f.C.service.SmsServiceImpl             : CRITICAL: SMS Infrastructure Failure for ******2186. Error : Total SMS Infrastructure Failure
-2026-08-24T09:59:57.980Z ERROR 1 --- [CommunicationService] [1-retry-0-0-C-1] c.f.C.consumer.PriorityOtpConsumer       : Vendor dispatch failed for eventId=evt-7afd65b4-b000-43c1-8ab1-9aa07baf1b21 channel=SMS. Reason: Total SMS Infrastructure Failure
-2026-08-24T09:59:57.987Z ERROR 1 --- [CommunicationService] [1-retry-0-0-C-1] c.f.C.client.EmailGatewayClient          : Network I/O Exception calling Email Vendor API: I/O error on POST request for "https://ebms-pepiapi.sbiuat.bank.in:443/v5/mail/send": Connection refused
-2026-08-24T09:59:57.987Z ERROR 1 --- [CommunicationService] [1-retry-0-0-C-1] c.f.C.service.EmailServiceImpl           : CRITICAL: Bank Email API unreachable for ebms_uat_receiver@sbiuat.bank.in. Error: Network communication with Email Vendor failed
-2026-08-24T09:59:58.488Z ERROR 1 --- [CommunicationService] [1-retry-0-0-C-1] c.f.C.service.EmailServiceImpl           : CRITICAL: Bank Email API unreachable for ebms_
+        SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory() {
+            @Override
+            protected void prepareConnection(HttpURLConnection connection, String httpMethod) throws IOException {
+                // Force strict timeouts to prevent thread starvation
+                connection.setConnectTimeout(3000);
+                connection.setReadTimeout(3000);
+
+                // EXACT SSL and Hostname Bypass from your old working code
+                if (connection instanceof HttpsURLConnection && !"PROD".equalsIgnoreCase(environment)) {
+                    HttpsURLConnection httpsConnection = (HttpsURLConnection) connection;
+                    try {
+                        httpsConnection.setSSLSocketFactory(insecureSslContext().getSocketFactory());
+                        // THIS IS THE CRITICAL BYPASS THAT PREVENTS THE UAT I/O ERROR
+                        httpsConnection.setHostnameVerifier((hostname, session) -> true);
+                    } catch (Exception e) {
+                        log.error("Failed to inject SSL bypass into connection.", e);
+                    }
+                }
+                super.prepareConnection(connection, httpMethod);
+            }
+        };
+
+        return builder.requestFactory(factory).build();
+    }
+
+    /**
+     * Trust manager that blindly accepts all UAT certificates.
+     */
+    private SSLContext insecureSslContext() throws Exception {
+        TrustManager[] trustAllCerts = new TrustManager[]{
+                new X509TrustManager() {
+                    public X509Certificate[] getAcceptedIssuers() { return null; }
+                    public void checkClientTrusted(X509Certificate[] certs, String authType) {}
+                    public void checkServerTrusted(X509Certificate[] certs, String authType) {}
+                }
+        };
+        SSLContext sc = SSLContext.getInstance("TLS");
+        sc.init(null, trustAllCerts, new SecureRandom());
+        return sc;
+    }
+}
