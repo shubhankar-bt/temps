@@ -196,3 +196,26 @@ java.net.ConnectException: Connection refused
 
 java.net.ConnectException: Connection refused
         at java.base/sun.nio.ch.Net.pollConnect
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// through test send sms api :
+
+{
+    "success": false,
+    "message": "SMS Sending Failed",
+    "providerResponse": "error_code=10064&error_desc=CLI_NOT_MAPPED_WITH_TEMPLATE&umid=112608251123330921062867387"
+}
+ 
