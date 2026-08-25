@@ -1,18 +1,25 @@
 
 
-
-2026-08-25T06:27:25.568Z  INFO 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.consumer.PriorityOtpConsumer       : Received raw Kafka message: {"payload":"8GtIuGkvMrFPnsXC:3tUU3ojq5Y05TWpywiwyg8RDhkShGnDXyWftZKVFm8CJZzEZrrIxjbiiq+n3bd0blEhnphAbjdPfoedHAuLCTSKsJwQSgi6P+LfaWm41wU8=","priority":"CRITICAL","eventId":"evt-6d29c9c3-fb73-4e56-a4c7-e10101b38c02","eventType":"LOGIN_OTP","channel":["SMS","EMAIL"],"createdAt":"2026-08-25T06:27:25.562642028Z","txId":"3a869026-8a34-43dc-b154-72b89ebb6239","recipient":{"email":"ebms_uat_receiver@sbiuat.bank.in","mobile":"**********"},"templateId":"AUTH_LOGIN_OTP_V1"}
-2026-08-25T06:27:25.608Z  INFO 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.service.SmsServiceImpl             : Reached sendSms service. templateId=AUTH_LOGIN_OTP_V1, mobile=******2186
-2026-08-25T06:27:25.665Z  INFO 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.service.TemplateCacheService       : L1 CACHE MISS: Fetching and Compiling Template AUTH_LOGIN_OTP_V1 for SMS from Oracle DB.
-2026-08-25T06:27:25.854Z  INFO 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.service.SmsServiceImpl             : user name : crsdomotp
-2026-08-25T06:27:25.855Z  INFO 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.service.SmsServiceImpl             : password : crsdomotp@123
-2026-08-25T06:27:25.855Z  INFO 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.service.SmsServiceImpl             : url : https://smsapipprod.sbi.co.in:9443/bmg/sms/crsdomotp
-2026-08-25T06:27:25.863Z  INFO 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.client.SmsGatewayClient            : Sending SMS to ******2186
-2026-08-25T06:27:26.046Z  INFO 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.client.SmsGatewayClient            : SMS Response Code : 200
-2026-08-25T06:27:26.046Z  INFO 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.client.SmsGatewayClient            : SMS Provider Response : error_code=0&error_desc=MESSAGE_SUBMIT_SUCCESS&umid=112608251157259941062867519
-2026-08-25T06:27:26.047Z  INFO 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.service.SmsServiceImpl             : SMS sent successfully to ******2186
-2026-08-25T06:27:26.052Z  INFO 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.service.TemplateCacheService       : L1 CACHE MISS: Fetching and Compiling Template AUTH_LOGIN_OTP_V1 for EMAIL from Oracle DB.
-2026-08-25T06:27:26.073Z  INFO 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.client.EmailGatewayClient          : finalRequestBody   {"settings":{"click_track":true,"open_track":true,"unsubscribe_track":true},"personalizations":[{"token_cc":"MSGID657243","token_to":"8693839845","attributes":{"BAND":"Mouse Rat","LEAD":"Andy Dwyer"},"to":[{"email":"ebms_uat_receiver@sbiuat.bank.in"}],"token_bcc":"MSGID657244"}],"subject":"Fincore Login Verification Code","from":{"name":"FINCORE","email":"ebms_uat_sender@sbiuat.bank.in"},"content":[{"type":"html","value":"\"<!doctype html>"}]}
-2026-08-25T06:27:26.142Z ERROR 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.client.EmailGatewayClient          : Exception while calling Email Vendor API
+2026-08-25T06:52:17.550Z  INFO 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.consumer.PriorityOtpConsumer       : Received raw Kafka message: {"payload":"kGhqcbmIt5sUJpnE:7OeCPH5ZzxSu7sM3NCQXGo8PW1MOxoDL+K0BVlwFNF+9GzB0qVFUU+Wp8xEdOZFXxWSqttkZmaSsIN3s6kPWD2JsDEa5INlIDbKj63bs4mU=","priority":"CRITICAL","eventId":"evt-879a1f0d-f5e1-462b-9e3c-71051c783617","eventType":"LOGIN_OTP","channel":["SMS","EMAIL"],"createdAt":"2026-08-25T06:52:17.546610385Z","txId":"661fd74f-3986-4c08-a603-dc7e8b612ef2","recipient":{"email":"ebms_uat_receiver@sbiuat.bank.in","mobile":"**********"},"templateId":"AUTH_LOGIN_OTP_V1"}
+2026-08-25T06:52:17.552Z  INFO 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.service.SmsServiceImpl             : Reached sendSms service. templateId=AUTH_LOGIN_OTP_V1, mobile=******2186
+2026-08-25T06:52:17.553Z  INFO 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.service.SmsServiceImpl             : user name : crsdomotp
+2026-08-25T06:52:17.553Z  INFO 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.service.SmsServiceImpl             : password : crsdomotp@123
+2026-08-25T06:52:17.553Z  INFO 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.service.SmsServiceImpl             : url : https://smsapipprod.sbi.co.in:9443/bmg/sms/crsdomotp
+2026-08-25T06:52:17.554Z  INFO 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.client.SmsGatewayClient            : Sending SMS to ******2186
+2026-08-25T06:52:17.662Z  INFO 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.client.SmsGatewayClient            : SMS Response Code : 200
+2026-08-25T06:52:17.662Z  INFO 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.client.SmsGatewayClient            : SMS Provider Response : error_code=0&error_desc=MESSAGE_SUBMIT_SUCCESS&umid=1126082512221761805788710
+2026-08-25T06:52:17.662Z  INFO 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.service.SmsServiceImpl             : SMS sent successfully to ******2186
+2026-08-25T06:52:17.665Z  INFO 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.client.EmailGatewayClient          : finalRequestBody   {"settings":{"click_track":true,"open_track":true,"unsubscribe_track":true},"personalizations":[{"token_cc":"MSGID657243","token_to":"8693839845","attributes":{"BAND":"Mouse Rat","LEAD":"Andy Dwyer"},"to":[{"email":"ebms_uat_receiver@sbiuat.bank.in"}],"token_bcc":"MSGID657244"}],"subject":"Fincore Login Verification Code","from":{"name":"FINCORE","email":"ebms_uat_sender@sbiuat.bank.in"},"content":[{"type":"html","value":"\"<!doctype html>"}]}
+2026-08-25T06:52:17.712Z ERROR 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.client.EmailGatewayClient          : Exception while calling Email Vendor API
 
 org.springframework.web.client.ResourceAccessException: I/O error on POST request for "https://ebms-pepiapi.sbiuat.bank.in:443/v5/mail/send": null
+        at org.springframework.web.client.DefaultRestClient$DefaultRequestBodyUriSpec.createResourceAccessException(DefaultRestClient.java:779) ~[spring-web-7.0.8.jar!/:7.0.8]
+        at org.springframework.web.client.DefaultRestClient$DefaultRequestBodyUriSpec.exchangeInternal(DefaultRestClient.java:624) ~[spring-web-7.0.8.jar!/:7.0.8]
+        at org.springframework.web.client.DefaultRestClient$DefaultRequestBodyUriSpec.exchange(DefaultRestClient.java:572) ~[spring-web-7.0.8.jar!/:7.0.8]
+        at org.springframework.web.client.RestClient$RequestHeadersSpec.exchange(RestClient.java:747) ~[spring-web-7.0.8.jar!/:7.0.8]
+        at org.springframework.web.client.DefaultRestClient$DefaultResponseSpec.executeAndExtract(DefaultRestClient.java:924) ~[spring-web-7.0.8.jar!/:7.0.8]
+        at org.springframework.web.client.DefaultRestClient$DefaultResponseSpec.toEntityInternal(DefaultRestClient.java:870) ~[spring-web-7.0.8.jar!/:7.0.8]
+        at org.springframework.web.client.DefaultRestClient$DefaultResponseSpec.toEntity(DefaultRestClient.java:859) ~[spring-web-7.0.8.jar!/:7.0.8]
+        at com.fincore.CommunicationService.client.EmailGatewayClient.sendEmail(EmailGatewayClient.java:62) ~[!/:0.0.1-SNAPSHOT]
+        at com.fincore.CommunicationService.service.EmailServiceImpl.executeEmailDispatch(EmailServiceImpl.java:93) ~[!/:0.0.1-SNAPSHOT]
+        at com.fincore.CommunicationService.service.EmailServiceImpl.sendEmail(EmailServiceImpl.java:54) ~[!/:0.0.1-SNAPSHOT]
