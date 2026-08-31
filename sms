@@ -1,134 +1,505 @@
 
 
-2026-08-25T07:06:29.894Z  INFO 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.consumer.PriorityOtpConsumer       : Received raw Kafka message: {"payload":"oEmH5+wumDXfiuBD:78t7nRvJcTS9fOK2kyPZVDbN3P2p71ZO5RXuNsv0plrOEx1b9SpsX706MN9agT+9AbbT0H7ALW33uyiPKngGQEwS7Lpd9YYc/xZgfAN6KP0=","priority":"CRITICAL","eventId":"evt-4b779334-9c3e-41a4-8640-540fbdac959b","eventType":"LOGIN_OTP","channel":["SMS","EMAIL"],"createdAt":"2026-08-25T07:06:29.888080386Z","txId":"0e6d3560-0d1a-40d8-be82-9c4ecb57edbe","recipient":{"email":"ebms_uat_receiver@sbiuat.bank.in","mobile":"**********"},"templateId":"AUTH_LOGIN_OTP_V1"}
-2026-08-25T07:06:29.952Z  INFO 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.service.SmsServiceImpl             : Reached sendSms service. templateId=AUTH_LOGIN_OTP_V1, mobile=******2186
-2026-08-25T07:06:30.024Z  INFO 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.service.TemplateCacheService       : L1 CACHE MISS: Fetching and Compiling Template AUTH_LOGIN_OTP_V1 for SMS from Oracle DB.
-2026-08-25T07:06:30.196Z  INFO 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.service.SmsServiceImpl             : user name : crsdomotp
-2026-08-25T07:06:30.196Z  INFO 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.service.SmsServiceImpl             : password : crsdomotp@123
-2026-08-25T07:06:30.196Z  INFO 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.service.SmsServiceImpl             : url : https://smsapipprod.sbi.co.in:9443/bmg/sms/crsdomotp
-2026-08-25T07:06:30.208Z  INFO 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.client.SmsGatewayClient            : Sending SMS to ******2186
-2026-08-25T07:06:30.473Z  INFO 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.client.SmsGatewayClient            : SMS Response Code : 200
-2026-08-25T07:06:30.473Z  INFO 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.client.SmsGatewayClient            : SMS Provider Response : error_code=0&error_desc=MESSAGE_SUBMIT_SUCCESS&umid=1126082512363042805788768
-2026-08-25T07:06:30.473Z  INFO 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.service.SmsServiceImpl             : SMS sent successfully to ******2186
-2026-08-25T07:06:30.478Z  INFO 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.service.TemplateCacheService       : L1 CACHE MISS: Fetching and Compiling Template AUTH_LOGIN_OTP_V1 for EMAIL from Oracle DB.
-2026-08-25T07:06:30.494Z  INFO 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.client.EmailGatewayClient          : Connection created
-2026-08-25T07:06:30.495Z  INFO 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.client.EmailGatewayClient          : Connection opened
-2026-08-25T07:06:30.495Z  INFO 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.client.EmailGatewayClient          : Done Setting properties
-2026-08-25T07:06:30.499Z  INFO 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.client.EmailGatewayClient          : building email request json
-2026-08-25T07:06:30.500Z  INFO 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.client.EmailGatewayClient          : finalRequestBody   {"settings":{"click_track":true,"open_track":true,"unsubscribe_track":true},"personalizations":[{"token_cc":"MSGID657243","token_to":"8693839845","attributes":{"BAND":"Mouse Rat","LEAD":"Andy Dwyer"},"to":[{"email":"ebms_uat_receiver@sbiuat.bank.in"}],"token_bcc":"MSGID657244"}],"subject":"Fincore Login Verification Code","from":{"name":"FINCORE","email":"ebms_uat_sender@sbiuat.bank.in"},"content":[{"type":"html","value":"\"<!doctype html>"}]}
-2026-08-25T07:06:30.500Z  INFO 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.client.EmailGatewayClient          : sending request
-2026-08-25T07:06:30.540Z ERROR 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.client.EmailGatewayClient          : Exception while calling Email Vendor API
+2026-08-31T09:27:11.232Z  INFO 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.consumer.PriorityOtpConsumer       : Received raw Kafka message: {"payload":"ag9qA+pp8KqW9a2D:cIYM/1moBkS9LhAIsL/+Zmjy/rhWEiIIuEY1BZ5CCUHuZXx40pVJqhdkb4oD2NB5BNqSBNAsDhLIOQKkTRFsT0U3XBzEQ/gqxRqY3o483Q8=","priority":"CRITICAL","eventId":"evt-871449f9-28e8-4bc7-9095-3ab51635afec","eventType":"LOGIN_OTP","channel":["SMS","EMAIL"],"createdAt":"2026-08-31T09:27:11.226859520Z","txId":"462ee057-0d04-4ae3-b9ab-c292d5e829c5","recipient":{"email":"ebms_uat_receiver@sbiuat.bank.in","mobile":"**********"},"templateId":"AUTH_LOGIN_OTP_V1"}
+2026-08-31T09:27:11.281Z  INFO 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.service.SmsServiceImpl             : Reached sendSms service. templateId=AUTH_LOGIN_OTP_V1, mobile=******2186
+2026-08-31T09:27:11.336Z  INFO 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.service.TemplateCacheService       : L1 CACHE MISS: Fetching and Compiling Template AUTH_LOGIN_OTP_V1 for SMS from Oracle DB.
+2026-08-31T09:27:11.525Z  INFO 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.service.SmsServiceImpl             : user name : crsdomotp
+2026-08-31T09:27:11.525Z  INFO 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.service.SmsServiceImpl             : password : crsdomotp@123
+2026-08-31T09:27:11.525Z  INFO 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.service.SmsServiceImpl             : url : https://smsapipprod.sbi.co.in:9443/bmg/sms/crsdomotp
+2026-08-31T09:27:11.540Z  INFO 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.client.SmsGatewayClient            : Sending SMS to ******2186
+2026-08-31T09:27:11.756Z  INFO 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.client.SmsGatewayClient            : SMS Response Code : 200
+2026-08-31T09:27:11.756Z  INFO 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.client.SmsGatewayClient            : SMS Provider Response : error_code=0&error_desc=MESSAGE_SUBMIT_SUCCESS&umid=1126083114571173906715921
+2026-08-31T09:27:11.757Z  INFO 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.service.SmsServiceImpl             : SMS sent successfully to ******2186
+2026-08-31T09:27:11.762Z  INFO 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.service.TemplateCacheService       : L1 CACHE MISS: Fetching and Compiling Template AUTH_LOGIN_OTP_V1 for EMAIL from Oracle DB.
+2026-08-31T09:27:11.784Z  INFO 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.client.EmailGatewayClient          : Connection created
+2026-08-31T09:27:11.784Z  INFO 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.client.EmailGatewayClient          : Connection opened
+2026-08-31T09:27:11.785Z  INFO 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.client.EmailGatewayClient          : Done Setting properties
+2026-08-31T09:27:11.790Z  INFO 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.client.EmailGatewayClient          : building email request json
+2026-08-31T09:27:11.790Z  INFO 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.client.EmailGatewayClient          : finalRequestBody   {"settings":{"click_track":true,"open_track":true,"unsubscribe_track":true},"personalizations":[{"token_cc":"MSGID657243","token_to":"8693839845","attributes":{"BAND":"Mouse Rat","LEAD":"Andy Dwyer"},"to":[{"email":"ebms_uat_receiver@sbiuat.bank.in"}],"token_bcc":"MSGID657244"}],"subject":"Fincore Login Verification Code","from":{"name":"FINCORE","email":"ebms_uat_sender@sbiuat.bank.in"},"content":[{"type":"html","value":"\"<!doctype html>"}]}
+2026-08-31T09:27:11.790Z  INFO 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.client.EmailGatewayClient          : sending request
+2026-08-31T09:27:11.866Z  INFO 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.client.EmailGatewayClient          : Request sent
+2026-08-31T09:27:11.899Z  INFO 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.client.EmailGatewayClient          : responseCode202
+2026-08-31T09:27:11.900Z  INFO 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.client.EmailGatewayClient          : Server Response: {"data":{"message_id":"d9fa89724ae40eb122666443bd8f89f8","token_bcc":["MSGID657244"],"token_cc":["MSGID657243"],"token_to":["8693839845"]},"message":"OK","status":"success"}
 
-java.net.ConnectException: Connection refused
-        at java.base/sun.nio.ch.Net.pollConnect(Native Method) ~[na:na]
-        at java.base/sun.nio.ch.Net.pollConnectNow(Net.java:682) ~[na:na]
-        at java.base/sun.nio.ch.NioSocketImpl.timedFinishConnect(NioSocketImpl.java:549) ~[na:na]
-        at java.base/sun.nio.ch.NioSocketImpl.connect(NioSocketImpl.java:592) ~[na:na]
-        at java.base/java.net.SocksSocketImpl.connect(SocksSocketImpl.java:327) ~[na:na]
-        at java.base/java.net.Socket.connect(Socket.java:752) ~[na:na]
-        at java.base/sun.security.ssl.SSLSocketImpl.connect(SSLSocketImpl.java:304) ~[na:na]
-        at java.base/sun.net.NetworkClient.doConnect(NetworkClient.java:178) ~[na:na]
-        at java.base/sun.net.www.http.HttpClient.openServer(HttpClient.java:531) ~[na:na]
-        at java.base/sun.net.www.http.HttpClient.openServer(HttpClient.java:636) ~[na:na]
-        at java.base/sun.net.www.protocol.https.HttpsClient.<init>(HttpsClient.java:264) ~[na:na]
-        at java.base/sun.net.www.protocol.https.HttpsClient.New(HttpsClient.java:377) ~[na:na]
-        at java.base/sun.net.www.protocol.https.AbstractDelegateHttpsURLConnection.getNewHttpClient(AbstractDelegateHttpsURLConnection.java:193) ~[na:na]
-        at java.base/sun.net.www.protocol.http.HttpURLConnection.plainConnect0(HttpURLConnection.java:1243) ~[na:na]
-        at java.base/sun.net.www.protocol.http.HttpURLConnection.plainConnect(HttpURLConnection.java:1129) ~[na:na]
-        at java.base/sun.net.www.protocol.https.AbstractDelegateHttpsURLConnection.connect(AbstractDelegateHttpsURLConnection.java:179) ~[na:na]
-        at java.base/sun.net.www.protocol.http.HttpURLConnection.getOutputStream0(HttpURLConnection.java:1460) ~[na:na]
-        at java.base/sun.net.www.protocol.http.HttpURLConnection.getOutputStream(HttpURLConnection.java:1423) ~[na:na]
-        at java.base/sun.net.www.protocol.https.HttpsURLConnectionImpl.getOutputStream(HttpsURLConnectionImpl.java:219) ~[na:na]
-        at com.fincore.CommunicationService.client.EmailGatewayClient.sendEmail(EmailGatewayClient.java:167) ~[!/:0.0.1-SNAPSHOT]
-        at com.fincore.CommunicationService.service.EmailServiceImpl.executeEmailDispatch(EmailServiceImpl.java:93) ~[!/:0.0.1-SNAPSHOT]
-        at com.fincore.CommunicationService.service.EmailServiceImpl.sendEmail(EmailServiceImpl.java:54) ~[!/:0.0.1-SNAPSHOT]
-        at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:103) ~[na:na]
-        at java.base/java.lang.reflect.Method.invoke(Method.java:580) ~[na:na]
-        at org.springframework.aop.support.AopUtils.invokeJoinpointUsingReflection(AopUtils.java:359) ~[spring-aop-7.0.8.jar!/:7.0.8]
-        at org.springframework.aop.framework.ReflectiveMethodInvocation.invokeJoinpoint(ReflectiveMethodInvocation.java:190) ~[spring-aop-7.0.8.jar!/:7.0.8]
-        at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:158) ~[spring-aop-7.0.8.jar!/:7.0.8]
-        at org.springframework.aop.aspectj.MethodInvocationProceedingJoinPoint.proceed(MethodInvocationProceedingJoinPoint.java:82) ~[spring-aop-7.0.8.jar!/:7.0.8]
-        at io.github.resilience4j.circuitbreaker.CircuitBreaker.lambda$decorateCheckedSupplier$0(CircuitBreaker.java:71) ~[resilience4j-circuitbreaker-2.3.0.jar!/:2.3.0]
-        at io.github.resilience4j.circuitbreaker.CircuitBreaker.executeCheckedSupplier(CircuitBreaker.java:739) ~[resilience4j-circuitbreaker-2.3.0.jar!/:2.3.0]
-        at io.github.resilience4j.spring6.circuitbreaker.configure.CircuitBreakerAspect.defaultHandling(CircuitBreakerAspect.java:179) ~[resilience4j-spring6-2.3.0.jar!/:2.3.0]
-        at io.github.resilience4j.spring6.circuitbreaker.configure.CircuitBreakerAspect.proceed(CircuitBreakerAspect.java:126) ~[resilience4j-spring6-2.3.0.jar!/:2.3.0]
-        at io.github.resilience4j.spring6.circuitbreaker.configure.CircuitBreakerAspect.lambda$circuitBreakerAroundAdvice$0(CircuitBreakerAspect.java:108) ~[resilience4j-spring6-2.3.0.jar!/:2.3.0]
-        at io.github.resilience4j.spring6.fallback.DefaultFallbackDecorator.lambda$decorate$0(DefaultFallbackDecorator.java:36) ~[resilience4j-spring6-2.3.0.jar!/:2.3.0]
-        at io.github.resilience4j.spring6.fallback.FallbackExecutor.execute(FallbackExecutor.java:39) ~[resilience4j-spring6-2.3.0.jar!/:2.3.0]
-        at io.github.resilience4j.spring6.circuitbreaker.configure.CircuitBreakerAspect.circuitBreakerAroundAdvice(CircuitBreakerAspect.java:109) ~[resilience4j-spring6-2.3.0.jar!/:2.3.0]
-        at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:103) ~[na:na]
-        at java.base/java.lang.reflect.Method.invoke(Method.java:580) ~[na:na]
-        at org.springframework.aop.aspectj.AbstractAspectJAdvice.invokeAdviceMethodWithGivenArgs(AbstractAspectJAdvice.java:648) ~[spring-aop-7.0.8.jar!/:7.0.8]
-        at org.springframework.aop.aspectj.AbstractAspectJAdvice.invokeAdviceMethod(AbstractAspectJAdvice.java:630) ~[spring-aop-7.0.8.jar!/:7.0.8]
-        at org.springframework.aop.aspectj.AspectJAroundAdvice.invoke(AspectJAroundAdvice.java:70) ~[spring-aop-7.0.8.jar!/:7.0.8]
-        at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:168) ~[spring-aop-7.0.8.jar!/:7.0.8]
-        at org.springframework.aop.aspectj.MethodInvocationProceedingJoinPoint.proceed(MethodInvocationProceedingJoinPoint.java:82) ~[spring-aop-7.0.8.jar!/:7.0.8]
-        at io.github.resilience4j.retry.Retry.lambda$decorateCheckedSupplier$1(Retry.java:152) ~[resilience4j-retry-2.3.0.jar!/:2.3.0]
-        at io.github.resilience4j.retry.Retry.executeCheckedSupplier(Retry.java:512) ~[resilience4j-retry-2.3.0.jar!/:2.3.0]
-        at io.github.resilience4j.spring6.retry.configure.RetryAspect.handleDefaultJoinPoint(RetryAspect.java:175) ~[resilience4j-spring6-2.3.0.jar!/:2.3.0]
-        at io.github.resilience4j.spring6.retry.configure.RetryAspect.proceed(RetryAspect.java:132) ~[resilience4j-spring6-2.3.0.jar!/:2.3.0]
-        at io.github.resilience4j.spring6.retry.configure.RetryAspect.lambda$retryAroundAdvice$0(RetryAspect.java:116) ~[resilience4j-spring6-2.3.0.jar!/:2.3.0]
-        at io.github.resilience4j.spring6.fallback.DefaultFallbackDecorator.lambda$decorate$0(DefaultFallbackDecorator.java:36) ~[resilience4j-spring6-2.3.0.jar!/:2.3.0]
-        at io.github.resilience4j.spring6.fallback.FallbackExecutor.execute(FallbackExecutor.java:39) ~[resilience4j-spring6-2.3.0.jar!/:2.3.0]
-        at io.github.resilience4j.spring6.retry.configure.RetryAspect.retryAroundAdvice(RetryAspect.java:117) ~[resilience4j-spring6-2.3.0.jar!/:2.3.0]
-        at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:103) ~[na:na]
-        at java.base/java.lang.reflect.Method.invoke(Method.java:580) ~[na:na]
-        at org.springframework.aop.aspectj.AbstractAspectJAdvice.invokeAdviceMethodWithGivenArgs(AbstractAspectJAdvice.java:648) ~[spring-aop-7.0.8.jar!/:7.0.8]
-        at org.springframework.aop.aspectj.AbstractAspectJAdvice.invokeAdviceMethod(AbstractAspectJAdvice.java:630) ~[spring-aop-7.0.8.jar!/:7.0.8]
-        at org.springframework.aop.aspectj.AspectJAroundAdvice.invoke(AspectJAroundAdvice.java:70) ~[spring-aop-7.0.8.jar!/:7.0.8]
-        at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:168) ~[spring-aop-7.0.8.jar!/:7.0.8]
-        at org.springframework.aop.interceptor.ExposeInvocationInterceptor.invoke(ExposeInvocationInterceptor.java:96) ~[spring-aop-7.0.8.jar!/:7.0.8]
-        at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:179) ~[spring-aop-7.0.8.jar!/:7.0.8]
-        at org.springframework.aop.aspectj.MethodInvocationProceedingJoinPoint.proceed(MethodInvocationProceedingJoinPoint.java:82) ~[spring-aop-7.0.8.jar!/:7.0.8]
-        at com.fincore.commonutilities.aspect.GlobalResilienceAspect.lambda$applyResilience$0(GlobalResilienceAspect.java:60) ~[common-utilities-1.1.0.jar!/:1.1.0]
-        at io.github.resilience4j.retry.Retry.lambda$decorateSupplier$5(Retry.java:301) ~[resilience4j-retry-2.3.0.jar!/:2.3.0]
-        at io.github.resilience4j.circuitbreaker.CircuitBreaker.lambda$decorateSupplier$5(CircuitBreaker.java:194) ~[resilience4j-circuitbreaker-2.3.0.jar!/:2.3.0]
-        at com.fincore.commonutilities.aspect.GlobalResilienceAspect.applyResilience(GlobalResilienceAspect.java:73) ~[common-utilities-1.1.0.jar!/:1.1.0]
-        at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:103) ~[na:na]
-        at java.base/java.lang.reflect.Method.invoke(Method.java:580) ~[na:na]
-        at org.springframework.aop.aspectj.AbstractAspectJAdvice.invokeAdviceMethodWithGivenArgs(AbstractAspectJAdvice.java:648) ~[spring-aop-7.0.8.jar!/:7.0.8]
-        at org.springframework.aop.aspectj.AbstractAspectJAdvice.invokeAdviceMethod(AbstractAspectJAdvice.java:630) ~[spring-aop-7.0.8.jar!/:7.0.8]
-        at org.springframework.aop.aspectj.AspectJAroundAdvice.invoke(AspectJAroundAdvice.java:70) ~[spring-aop-7.0.8.jar!/:7.0.8]
-        at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:179) ~[spring-aop-7.0.8.jar!/:7.0.8]
-        at org.springframework.aop.framework.CglibAopProxy$DynamicAdvisedInterceptor.intercept(CglibAopProxy.java:719) ~[spring-aop-7.0.8.jar!/:7.0.8]
-        at com.fincore.CommunicationService.service.EmailServiceImpl$$SpringCGLIB$$0.sendEmail(<generated>) ~[!/:0.0.1-SNAPSHOT]
-        at com.fincore.CommunicationService.consumer.PriorityOtpConsumer.consumeOtpEvent(PriorityOtpConsumer.java:181) ~[!/:0.0.1-SNAPSHOT]
-        at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:103) ~[na:na]
-        at java.base/java.lang.reflect.Method.invoke(Method.java:580) ~[na:na]
-        at org.springframework.messaging.handler.invocation.InvocableHandlerMethod.doInvoke(InvocableHandlerMethod.java:168) ~[spring-messaging-7.0.8.jar!/:7.0.8]
-        at org.springframework.kafka.listener.adapter.KotlinAwareInvocableHandlerMethod.doInvoke(KotlinAwareInvocableHandlerMethod.java:48) ~[spring-kafka-4.1.0.jar!/:4.1.0]
-        at org.springframework.messaging.handler.invocation.InvocableHandlerMethod.invoke(InvocableHandlerMethod.java:119) ~[spring-messaging-7.0.8.jar!/:7.0.8]
-        at org.springframework.kafka.listener.adapter.HandlerAdapter.invoke(HandlerAdapter.java:80) ~[spring-kafka-4.1.0.jar!/:4.1.0]
-        at org.springframework.kafka.listener.adapter.MessagingMessageListenerAdapter.invokeHandler(MessagingMessageListenerAdapter.java:489) ~[spring-kafka-4.1.0.jar!/:4.1.0]
-        at org.springframework.kafka.listener.adapter.MessagingMessageListenerAdapter.invoke(MessagingMessageListenerAdapter.java:426) ~[spring-kafka-4.1.0.jar!/:4.1.0]
-        at org.springframework.kafka.listener.adapter.RecordMessagingMessageListenerAdapter.onMessage(RecordMessagingMessageListenerAdapter.java:92) ~[spring-kafka-4.1.0.jar!/:4.1.0]
-        at org.springframework.kafka.listener.adapter.RecordMessagingMessageListenerAdapter.onMessage(RecordMessagingMessageListenerAdapter.java:52) ~[spring-kafka-4.1.0.jar!/:4.1.0]
-        at org.springframework.kafka.listener.adapter.KafkaBackoffAwareMessageListenerAdapter.invokeDelegateOnMessage(KafkaBackoffAwareMessageListenerAdapter.java:109) ~[spring-kafka-4.1.0.jar!/:4.1.0]
-        at org.springframework.kafka.listener.adapter.KafkaBackoffAwareMessageListenerAdapter.onMessage(KafkaBackoffAwareMessageListenerAdapter.java:100) ~[spring-kafka-4.1.0.jar!/:4.1.0]
-        at org.springframework.kafka.listener.adapter.KafkaBackoffAwareMessageListenerAdapter.onMessage(KafkaBackoffAwareMessageListenerAdapter.java:50) ~[spring-kafka-4.1.0.jar!/:4.1.0]
-        at org.springframework.kafka.listener.KafkaMessageListenerContainer$ListenerConsumer.doInvokeOnMessage(KafkaMessageListenerContainer.java:3018) ~[spring-kafka-4.1.0.jar!/:4.1.0]
-        at org.springframework.kafka.listener.KafkaMessageListenerContainer$ListenerConsumer.invokeOnMessage(KafkaMessageListenerContainer.java:2997) ~[spring-kafka-4.1.0.jar!/:4.1.0]
-        at org.springframework.kafka.listener.KafkaMessageListenerContainer$ListenerConsumer.doInvokeRecordListener(KafkaMessageListenerContainer.java:2907) ~[spring-kafka-4.1.0.jar!/:4.1.0]
-        at org.springframework.kafka.listener.KafkaMessageListenerContainer$ListenerConsumer.doInvokeWithRecords(KafkaMessageListenerContainer.java:2749) ~[spring-kafka-4.1.0.jar!/:4.1.0]
-        at org.springframework.kafka.listener.KafkaMessageListenerContainer$ListenerConsumer.invokeRecordListener(KafkaMessageListenerContainer.java:2643) ~[spring-kafka-4.1.0.jar!/:4.1.0]
-        at org.springframework.kafka.listener.KafkaMessageListenerContainer$ListenerConsumer.invokeListener(KafkaMessageListenerContainer.java:2274) ~[spring-kafka-4.1.0.jar!/:4.1.0]
-        at org.springframework.kafka.listener.KafkaMessageListenerContainer$ListenerConsumer.invokeIfHaveRecords(KafkaMessageListenerContainer.java:1572) ~[spring-kafka-4.1.0.jar!/:4.1.0]
-        at org.springframework.kafka.listener.KafkaMessageListenerContainer$ListenerConsumer.pollAndInvoke(KafkaMessageListenerContainer.java:1504) ~[spring-kafka-4.1.0.jar!/:4.1.0]
-        at org.springframework.kafka.listener.KafkaMessageListenerContainer$ListenerConsumer.run(KafkaMessageListenerContainer.java:1373) ~[spring-kafka-4.1.0.jar!/:4.1.0]
-        at java.base/java.util.concurrent.CompletableFuture$AsyncRun.run(CompletableFuture.java:1804) ~[na:na]
-        at java.base/java.lang.Thread.run(Thread.java:1570) ~[na:na]
+2026-08-31T09:27:11.910Z  INFO 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.consumer.PriorityOtpConsumer       : Successfully completed OTP Pipeline for eventId=evt-871449f9-28e8-4bc7-9095-3ab51635afec
 
-2026-08-25T07:06:30.546Z ERROR 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.service.EmailServiceImpl           : CRITICAL: Bank Email API unreachable for ebms_uat_receiver@sbiuat.bank.in. Error: Error occurred while calling Email Vendor API
-2026-08-25T07:06:31.048Z ERROR 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.service.EmailServiceImpl           : CRITICAL: Bank Email API unreachable for ebms_uat_receiver@sbiuat.bank.in. Error: Error occurred while calling Email Vendor API
-2026-08-25T07:06:31.548Z ERROR 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.service.EmailServiceImpl           : CRITICAL: Bank Email API unreachable for ebms_uat_receiver@sbiuat.bank.in. Error: Error occurred while calling Email Vendor API
-2026-08-25T07:06:31.550Z ERROR 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.service.EmailServiceImpl           : CRITICAL: Bank Email API unreachable for ebms_uat_receiver@sbiuat.bank.in. Error: Total Bank API Infrastructure Failure
-2026-08-25T07:06:32.051Z ERROR 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.service.EmailServiceImpl           : CRITICAL: Bank Email API unreachable for ebms_uat_receiver@sbiuat.bank.in. Error: Total Bank API Infrastructure Failure
-2026-08-25T07:06:32.551Z ERROR 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.service.EmailServiceImpl           : CRITICAL: Bank Email API unreachable for ebms_uat_receiver@sbiuat.bank.in. Error: Total Bank API Infrastructure Failure
-2026-08-25T07:06:33.053Z  INFO 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.client.EmailGatewayClient          : Connection created
-2026-08-25T07:06:33.054Z  INFO 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.client.EmailGatewayClient          : Connection opened
-2026-08-25T07:06:33.054Z  INFO 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.client.EmailGatewayClient          : Done Setting properties
-2026-08-25T07:06:33.054Z  INFO 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.client.EmailGatewayClient          : building email request json
-2026-08-25T07:06:33.054Z  INFO 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.client.EmailGatewayClient          : finalRequestBody   {"settings":{"click_track":true,"open_track":true,"unsubscribe_track":true},"personalizations":[{"token_cc":"MSGID657243","token_to":"8693839845","attributes":{"BAND":"Mouse Rat","LEAD":"Andy Dwyer"},"to":[{"email":"ebms_uat_receiver@sbiuat.bank.in"}],"token_bcc":"MSGID657244"}],"subject":"Fincore Login Verification Code","from":{"name":"FINCORE","email":"ebms_uat_sender@sbiuat.bank.in"},"content":[{"type":"html","value":"\"<!doctype html>"}]}
-2026-08-25T07:06:33.054Z  INFO 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.client.EmailGatewayClient          : sending request
-2026-08-25T07:06:33.056Z ERROR 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.client.EmailGatewayClient          : Exception while calling Email Vendor API
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+client code :
+
+package com.fincore.CommunicationService.client;
+
+
+import lombok.extern.slf4j.Slf4j;
+
+import javax.net.ssl.*;
+
+import com.fincore.CommunicationService.dto.SmsResponseDTO;
+import com.fincore.CommunicationService.model.FincoreSettings;
+import org.springframework.stereotype.Component;
+
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.io.OutputStream;
+import java.net.HttpURLConnection;
+import java.net.URL;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
+import java.security.SecureRandom;
+import java.security.cert.X509Certificate;
+import java.util.Base64;
+
+@Slf4j
+@Component
+public class SmsGatewayClient {
+
+    public SmsResponseDTO sendSms(
+            FincoreSettings config,
+            String mobileNumber,
+            String message) {
+
+        HttpURLConnection smsConnection = null;
+
+        try {
+
+            URL url = new URL(config.getUrl());
+
+            smsConnection = (HttpURLConnection) url.openConnection();
+
+            smsConnection.setRequestMethod("POST");
+            smsConnection.setDoOutput(true);
+
+            // Keep same philosophy as EmailGatewayClient
+            smsConnection.setConnectTimeout(3000);
+            smsConnection.setReadTimeout(3000);
+
+            // SSL Bypass (same as EmailGatewayClient)
+            if (smsConnection instanceof HttpsURLConnection) {
+
+                HttpsURLConnection httpsConnection = (HttpsURLConnection) smsConnection;
+
+                try {
+
+                    TrustManager[] trustAllCerts = new TrustManager[] {
+                            new X509TrustManager() {
+
+                                @Override
+                                public X509Certificate[] getAcceptedIssuers() {
+                                    return null;
+                                }
+
+                                @Override
+                                public void checkClientTrusted(
+                                        X509Certificate[] certs,
+                                        String authType) {
+                                }
+
+                                @Override
+                                public void checkServerTrusted(
+                                        X509Certificate[] certs,
+                                        String authType) {
+                                }
+                            }
+                    };
+
+                    SSLContext sslContext = SSLContext.getInstance("TLS");
+
+                    sslContext.init(
+                            null,
+                            trustAllCerts,
+                            new SecureRandom());
+
+                    httpsConnection.setSSLSocketFactory(
+                            sslContext.getSocketFactory());
+
+                    httpsConnection.setHostnameVerifier(
+                            (hostname, session) -> true);
+
+                } catch (Exception ex) {
+
+                    log.error(
+                            "Failed to configure SSL bypass",
+                            ex);
+                }
+            }
+
+            // Basic Authentication
+            if (config.getUsername() != null
+                    && config.getPassword() != null) {
+
+                String auth = config.getUsername()
+                        + ":"
+                        + config.getPassword();
+
+                String encodedAuth = Base64.getEncoder()
+                        .encodeToString(
+                                auth.getBytes(
+                                        StandardCharsets.UTF_8));
+
+                smsConnection.setRequestProperty(
+                        "Authorization",
+                        "Basic " + encodedAuth);
+            }
+
+            smsConnection.setRequestProperty(
+                    "Content-Type",
+                    "application/x-www-form-urlencoded");
+
+            smsConnection.setRequestProperty(
+                    "Accept",
+                    "application/x-www-form-urlencoded");
+
+            String payload = "content_type=text"
+                    + "&sender_id="
+                    + config.getSenderId()
+                    + "&mobile=0"
+                    + mobileNumber
+                    + "&message="
+                    + URLEncoder.encode(
+                    message,
+                    StandardCharsets.UTF_8)
+                    + "&intflag=0"
+                    + "&charging=0";
+
+            log.info(
+                    "Sending SMS to ******{}",
+                    mobileNumber.substring(
+                            Math.max(
+                                    mobileNumber.length() - 4,
+                                    0)));
+
+            try (OutputStream outputStream = smsConnection.getOutputStream()) {
+
+                outputStream.write(
+                        payload.getBytes(
+                                StandardCharsets.UTF_8));
+            }
+
+            int responseCode = smsConnection.getResponseCode();
+
+            InputStream responseStream = (responseCode >= 200
+                    && responseCode < 300)
+                    ? smsConnection.getInputStream()
+                    : smsConnection.getErrorStream();
+
+            String responseBody = readResponse(responseStream);
+
+            log.info(
+                    "SMS Response Code : {}",
+                    responseCode);
+
+            log.info(
+                    "SMS Provider Response : {}",
+                    responseBody);
+
+            boolean success = responseCode == HttpURLConnection.HTTP_OK
+                    && responseBody.contains(
+                    "MESSAGE_SUBMIT_SUCCESS");
+
+            return SmsResponseDTO.builder()
+                    .success(success)
+                    .message(
+                            success
+                                    ? "SMS Sent Successfully"
+                                    : "SMS Sending Failed")
+                    .providerResponse(responseBody)
+                    .build();
+
+        } catch (Exception ex) {
+
+            log.error(
+                    "Error while sending SMS",
+                    ex);
+
+            return SmsResponseDTO.builder()
+                    .success(false)
+                    .message(ex.getMessage())
+                    .providerResponse(null)
+                    .build();
+
+        } finally {
+
+            if (smsConnection != null) {
+                smsConnection.disconnect();
+            }
+        }
+    }
+
+    private static String readResponse(
+            InputStream responseStream)
+            throws IOException {
+
+        if (responseStream == null) {
+            return "";
+        }
+
+        StringBuilder response = new StringBuilder();
+
+        try (BufferedReader reader = new BufferedReader(
+                new InputStreamReader(
+                        responseStream,
+                        StandardCharsets.UTF_8))) {
+
+            String line;
+
+            while ((line = reader.readLine()) != null) {
+
+                response.append(line);
+            }
+        }
+
+        return response.toString();
+    }
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+package com.fincore.CommunicationService.client;
+
+import java.io.BufferedReader;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.io.OutputStream;
+import java.net.HttpURLConnection;
+import java.net.URL;
+import java.nio.charset.StandardCharsets;
+import java.util.Map;
+import com.fincore.CommunicationService.exception.CommunicationExceptions.VendorDeliveryException;
+
+import org.json.JSONArray;
+import org.json.JSONObject;
+
+// Required imports for SSL bypass
+import javax.net.ssl.*;
+import java.security.cert.X509Certificate;
+
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.core.io.Resource;
+import org.springframework.stereotype.Component;
+
+@Slf4j
+@Component
+public class EmailGatewayClient {
+
+    private static final String URL = "url";
+    private static final String API_KEY = "api_key";
+    private static final String SENDER_ID = "senderId";
+    private static final String TO_EMAIL = "toEmail";
+    private static final String CC_TO_EMAIL = "ccToEmail";
+    private static final String EMAIL_BODY = "emailBody";
+    private static final String SUBJECT = "subject";
+
+    public int sendEmail(Map<String, Object> emailRequest, Resource Attachment) {
+
+        HttpURLConnection emailApiConnection = null;
+        log.info("Connection created");
+        try {
+
+            // Email Request Values
+            String apiUrl = emailRequest.get(URL).toString();
+            String apiKey = emailRequest.get(API_KEY).toString();
+            String senderEmail = emailRequest.get(SENDER_ID).toString();
+            String recipientMail = emailRequest.get(TO_EMAIL).toString();
+            Object ccEmailObject = emailRequest.get("CC_TO_EMAIL");
+            // Returns the value if present, otherwise returns null
+            String ccToEmail = (String) emailRequest.getOrDefault("CC_TO_EMAIL", null);
+            String emailBody = emailRequest.get(EMAIL_BODY).toString();
+            String subject = emailRequest.get(SUBJECT).toString();
+
+            // Open Connection
+            URL url = new URL(apiUrl);
+            emailApiConnection = (HttpURLConnection) url.openConnection();
+            log.info("Connection opened");
+            emailApiConnection.setRequestMethod("POST");
+            emailApiConnection.setDoOutput(true);
+
+            // ARCHITECTURE MANDATE: Reduced timeouts from 10s to 3s to prevent Kafka thread
+            // starvation
+            emailApiConnection.setConnectTimeout(3000);
+            emailApiConnection.setReadTimeout(3000);
+
+            // --- BYPASS SSL VERIFICATION FOR THIS CONNECTION ---
+            if (emailApiConnection instanceof HttpsURLConnection) {
+                HttpsURLConnection httpsConnection = (HttpsURLConnection) emailApiConnection;
+                try {
+                    TrustManager[] trustAllCerts = new TrustManager[] { new X509TrustManager() {
+                        public X509Certificate[] getAcceptedIssuers() {
+                            return null;
+                        }
+
+                        public void checkClientTrusted(X509Certificate[] certs, String authType) {
+                        }
+
+                        public void checkServerTrusted(X509Certificate[] certs, String authType) {
+                        }
+                    } };
+                    SSLContext sc = SSLContext.getInstance("TLS");
+                    sc.init(null, trustAllCerts, new java.security.SecureRandom());
+                    httpsConnection.setSSLSocketFactory(sc.getSocketFactory());
+                    httpsConnection.setHostnameVerifier((hostname, session) -> true);
+                } catch (Exception e) {
+                    log.error("Failed to set SSL bypass: ", e);
+                }
+            }
+            // -------------------------------------------------------------
+
+            // Request headers
+            emailApiConnection.setRequestProperty("Content-Type", "application/json");
+            emailApiConnection.setRequestProperty("Accept", "application/json");
+            emailApiConnection.setRequestProperty("api_key", apiKey);
+            emailApiConnection.setDoOutput(true);
+
+            log.info("Done Setting properties");
+
+            // Sender Details
+            JSONObject senderJson = new JSONObject();
+            senderJson.put("email", senderEmail);
+            senderJson.put("name", "FINCORE");
+
+            // Email Content
+            JSONObject emailContentJson = new JSONObject();
+            emailContentJson.put("type", "html");
+            emailContentJson.put("value", emailBody);
+
+            JSONArray contentArray = new JSONArray();
+            contentArray.put(emailContentJson);
+
+            // Recipient Details
+            JSONObject recipientJson = new JSONObject();
+            recipientJson.put("email", recipientMail);
+
+            JSONArray recipientArray = new JSONArray();
+            recipientArray.put(recipientJson);
+
+            // Custom Attributes
+            JSONObject attributesJson = new JSONObject();
+            attributesJson.put("LEAD", "Andy Dwyer");
+            attributesJson.put("BAND", "Mouse Rat");
+
+            // Personalization
+            JSONObject personalizationsJson = new JSONObject();
+            personalizationsJson.put("to", recipientArray);
+            personalizationsJson.put("attributes", attributesJson);
+
+            // CC details
+            if (emailRequest.containsKey("ccToEmail")) {
+                JSONObject ccRecipientJson = new JSONObject();
+                ccRecipientJson.put("email", ccToEmail);
+
+                JSONArray ccArray = new JSONArray();
+                ccArray.put(ccRecipientJson);
+                personalizationsJson.put("cc", ccArray);
+            }
+
+            personalizationsJson.put("token_to", "8693839845");
+            personalizationsJson.put("token_cc", "MSGID657243");
+            personalizationsJson.put("token_bcc", "MSGID657244");
+
+            JSONArray personalizationsJsonArray = new JSONArray();
+            personalizationsJsonArray.put(personalizationsJson);
+
+            // Tracking Settings
+            JSONObject trackingSettingsJson = new JSONObject();
+            trackingSettingsJson.put("open_track", true);
+            trackingSettingsJson.put("click_track", true);
+            trackingSettingsJson.put("unsubscribe_track", true);
+
+            log.info("building email request json");
+
+            // Final Request JSON
+            JSONObject emailRequestJson = new JSONObject();
+            emailRequestJson.put("from", senderJson);
+            emailRequestJson.put("subject", subject);
+            emailRequestJson.put("content", contentArray);
+            emailRequestJson.put("personalizations", personalizationsJsonArray);
+            emailRequestJson.put("settings", trackingSettingsJson);
+
+            String finalRequestBody = emailRequestJson.toString();
+
+            log.info("finalRequestBody   " + finalRequestBody);
+
+            // Send Request
+            log.info("sending request");
+            try (OutputStream outputStream = emailApiConnection.getOutputStream()) {
+                byte[] requestBytes = finalRequestBody.getBytes(StandardCharsets.UTF_8);
+                outputStream.write(requestBytes);
+                log.info("Request sent");
+            }
+            // Read response
+            int responseCode = emailApiConnection.getResponseCode();
+            log.info("responseCode" + responseCode);
+            InputStream responseStream = (responseCode >= 200 && responseCode < 300)
+                    ? emailApiConnection.getInputStream()
+                    : emailApiConnection.getErrorStream();
+
+            if (responseStream != null) {
+                try (BufferedReader reader = new BufferedReader(
+                        new InputStreamReader(responseStream, StandardCharsets.UTF_8))) {
+
+                    StringBuilder responseBody = new StringBuilder();
+                    String line;
+
+                    while ((line = reader.readLine()) != null) {
+                        responseBody.append(line).append("\n");
+                    }
+
+                    log.info("Server Response: " + responseBody);
+                }
+            } else {
+                log.info("No response body received. HTTP " + responseCode);
+            }
+
+            return responseCode;@
+
+        } catch (Exception e) {
+
+            log.error("Exception while calling Email Vendor API", e);
+
+            throw new VendorDeliveryException(
+                    "Error occurred while calling Email Vendor API", e);
+        }finally {
+            if (emailApiConnection != null) {
+                emailApiConnection.disconnect();
+            }
+        }
+
+    }
+}
