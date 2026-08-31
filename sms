@@ -1,282 +1,65 @@
-
-
-2026-08-31T09:27:11.232Z  INFO 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.consumer.PriorityOtpConsumer       : Received raw Kafka message: {"payload":"ag9qA+pp8KqW9a2D:cIYM/1moBkS9LhAIsL/+Zmjy/rhWEiIIuEY1BZ5CCUHuZXx40pVJqhdkb4oD2NB5BNqSBNAsDhLIOQKkTRFsT0U3XBzEQ/gqxRqY3o483Q8=","priority":"CRITICAL","eventId":"evt-871449f9-28e8-4bc7-9095-3ab51635afec","eventType":"LOGIN_OTP","channel":["SMS","EMAIL"],"createdAt":"2026-08-31T09:27:11.226859520Z","txId":"462ee057-0d04-4ae3-b9ab-c292d5e829c5","recipient":{"email":"ebms_uat_receiver@sbiuat.bank.in","mobile":"**********"},"templateId":"AUTH_LOGIN_OTP_V1"}
-2026-08-31T09:27:11.281Z  INFO 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.service.SmsServiceImpl             : Reached sendSms service. templateId=AUTH_LOGIN_OTP_V1, mobile=******2186
-2026-08-31T09:27:11.336Z  INFO 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.service.TemplateCacheService       : L1 CACHE MISS: Fetching and Compiling Template AUTH_LOGIN_OTP_V1 for SMS from Oracle DB.
-2026-08-31T09:27:11.525Z  INFO 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.service.SmsServiceImpl             : user name : crsdomotp
-2026-08-31T09:27:11.525Z  INFO 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.service.SmsServiceImpl             : password : crsdomotp@123
-2026-08-31T09:27:11.525Z  INFO 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.service.SmsServiceImpl             : url : https://smsapipprod.sbi.co.in:9443/bmg/sms/crsdomotp
-2026-08-31T09:27:11.540Z  INFO 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.client.SmsGatewayClient            : Sending SMS to ******2186
-2026-08-31T09:27:11.756Z  INFO 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.client.SmsGatewayClient            : SMS Response Code : 200
-2026-08-31T09:27:11.756Z  INFO 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.client.SmsGatewayClient            : SMS Provider Response : error_code=0&error_desc=MESSAGE_SUBMIT_SUCCESS&umid=1126083114571173906715921
-2026-08-31T09:27:11.757Z  INFO 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.service.SmsServiceImpl             : SMS sent successfully to ******2186
-2026-08-31T09:27:11.762Z  INFO 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.service.TemplateCacheService       : L1 CACHE MISS: Fetching and Compiling Template AUTH_LOGIN_OTP_V1 for EMAIL from Oracle DB.
-2026-08-31T09:27:11.784Z  INFO 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.client.EmailGatewayClient          : Connection created
-2026-08-31T09:27:11.784Z  INFO 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.client.EmailGatewayClient          : Connection opened
-2026-08-31T09:27:11.785Z  INFO 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.client.EmailGatewayClient          : Done Setting properties
-2026-08-31T09:27:11.790Z  INFO 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.client.EmailGatewayClient          : building email request json
-2026-08-31T09:27:11.790Z  INFO 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.client.EmailGatewayClient          : finalRequestBody   {"settings":{"click_track":true,"open_track":true,"unsubscribe_track":true},"personalizations":[{"token_cc":"MSGID657243","token_to":"8693839845","attributes":{"BAND":"Mouse Rat","LEAD":"Andy Dwyer"},"to":[{"email":"ebms_uat_receiver@sbiuat.bank.in"}],"token_bcc":"MSGID657244"}],"subject":"Fincore Login Verification Code","from":{"name":"FINCORE","email":"ebms_uat_sender@sbiuat.bank.in"},"content":[{"type":"html","value":"\"<!doctype html>"}]}
-2026-08-31T09:27:11.790Z  INFO 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.client.EmailGatewayClient          : sending request
-2026-08-31T09:27:11.866Z  INFO 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.client.EmailGatewayClient          : Request sent
-2026-08-31T09:27:11.899Z  INFO 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.client.EmailGatewayClient          : responseCode202
-2026-08-31T09:27:11.900Z  INFO 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.client.EmailGatewayClient          : Server Response: {"data":{"message_id":"d9fa89724ae40eb122666443bd8f89f8","token_bcc":["MSGID657244"],"token_cc":["MSGID657243"],"token_to":["8693839845"]},"message":"OK","status":"success"}
-
-2026-08-31T09:27:11.910Z  INFO 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.consumer.PriorityOtpConsumer       : Successfully completed OTP Pipeline for eventId=evt-871449f9-28e8-4bc7-9095-3ab51635afec
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-client code :
-
-package com.fincore.CommunicationService.client;
-
+package com.fincore.CommunicationService.config;
 
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.http.client.SimpleClientHttpRequestFactory;
+import org.springframework.web.client.RestClient;
 
-import javax.net.ssl.*;
-
-import com.fincore.CommunicationService.dto.SmsResponseDTO;
-import com.fincore.CommunicationService.model.FincoreSettings;
-import org.springframework.stereotype.Component;
-
-import java.io.BufferedReader;
+import javax.net.ssl.HttpsURLConnection;
+import javax.net.ssl.SSLContext;
+import javax.net.ssl.TrustManager;
+import javax.net.ssl.X509TrustManager;
 import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.io.OutputStream;
 import java.net.HttpURLConnection;
-import java.net.URL;
-import java.net.URLEncoder;
-import java.nio.charset.StandardCharsets;
 import java.security.SecureRandom;
 import java.security.cert.X509Certificate;
-import java.util.Base64;
 
+/**
+ * <p>Enterprise HTTP Configuration.</p>
+ * <p>Wraps the proven HttpURLConnection (which easily bypasses UAT Proxies and SSL issues)
+ * inside the modern Spring RestClient to enable Multipart Attachment streaming.</p>
+ */
 @Slf4j
-@Component
-public class SmsGatewayClient {
+@Configuration
+public class RestClientConfig {
 
-    public SmsResponseDTO sendSms(
-            FincoreSettings config,
-            String mobileNumber,
-            String message) {
+    @Bean
+    public RestClient restClient(RestClient.Builder builder) {
+        log.info("Initializing RestClient with legacy HttpURLConnection bindings for strict UAT SSL bypass.");
 
-        HttpURLConnection smsConnection = null;
+        SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory() {
+            @Override
+            protected void prepareConnection(HttpURLConnection connection, String httpMethod) throws IOException {
+                // Strict timeouts to prevent Virtual Thread starvation
+                connection.setConnectTimeout(3000);
+                connection.setReadTimeout(3000);
 
-        try {
-
-            URL url = new URL(config.getUrl());
-
-            smsConnection = (HttpURLConnection) url.openConnection();
-
-            smsConnection.setRequestMethod("POST");
-            smsConnection.setDoOutput(true);
-
-            // Keep same philosophy as EmailGatewayClient
-            smsConnection.setConnectTimeout(3000);
-            smsConnection.setReadTimeout(3000);
-
-            // SSL Bypass (same as EmailGatewayClient)
-            if (smsConnection instanceof HttpsURLConnection) {
-
-                HttpsURLConnection httpsConnection = (HttpsURLConnection) smsConnection;
-
-                try {
-
-                    TrustManager[] trustAllCerts = new TrustManager[] {
-                            new X509TrustManager() {
-
-                                @Override
-                                public X509Certificate[] getAcceptedIssuers() {
-                                    return null;
+                // Re-injecting the exact SSL and Hostname Bypass from your working baseline
+                if (connection instanceof HttpsURLConnection) {
+                    HttpsURLConnection httpsConnection = (HttpsURLConnection) connection;
+                    try {
+                        TrustManager[] trustAllCerts = new TrustManager[]{
+                                new X509TrustManager() {
+                                    public X509Certificate[] getAcceptedIssuers() { return null; }
+                                    public void checkClientTrusted(X509Certificate[] certs, String authType) {}
+                                    public void checkServerTrusted(X509Certificate[] certs, String authType) {}
                                 }
-
-                                @Override
-                                public void checkClientTrusted(
-                                        X509Certificate[] certs,
-                                        String authType) {
-                                }
-
-                                @Override
-                                public void checkServerTrusted(
-                                        X509Certificate[] certs,
-                                        String authType) {
-                                }
-                            }
-                    };
-
-                    SSLContext sslContext = SSLContext.getInstance("TLS");
-
-                    sslContext.init(
-                            null,
-                            trustAllCerts,
-                            new SecureRandom());
-
-                    httpsConnection.setSSLSocketFactory(
-                            sslContext.getSocketFactory());
-
-                    httpsConnection.setHostnameVerifier(
-                            (hostname, session) -> true);
-
-                } catch (Exception ex) {
-
-                    log.error(
-                            "Failed to configure SSL bypass",
-                            ex);
+                        };
+                        SSLContext sc = SSLContext.getInstance("TLS");
+                        sc.init(null, trustAllCerts, new SecureRandom());
+                        
+                        httpsConnection.setSSLSocketFactory(sc.getSocketFactory());
+                        httpsConnection.setHostnameVerifier((hostname, session) -> true);
+                    } catch (Exception e) {
+                        log.error("Failed to inject SSL bypass into connection.", e);
+                    }
                 }
+                super.prepareConnection(connection, httpMethod);
             }
+        };
 
-            // Basic Authentication
-            if (config.getUsername() != null
-                    && config.getPassword() != null) {
-
-                String auth = config.getUsername()
-                        + ":"
-                        + config.getPassword();
-
-                String encodedAuth = Base64.getEncoder()
-                        .encodeToString(
-                                auth.getBytes(
-                                        StandardCharsets.UTF_8));
-
-                smsConnection.setRequestProperty(
-                        "Authorization",
-                        "Basic " + encodedAuth);
-            }
-
-            smsConnection.setRequestProperty(
-                    "Content-Type",
-                    "application/x-www-form-urlencoded");
-
-            smsConnection.setRequestProperty(
-                    "Accept",
-                    "application/x-www-form-urlencoded");
-
-            String payload = "content_type=text"
-                    + "&sender_id="
-                    + config.getSenderId()
-                    + "&mobile=0"
-                    + mobileNumber
-                    + "&message="
-                    + URLEncoder.encode(
-                    message,
-                    StandardCharsets.UTF_8)
-                    + "&intflag=0"
-                    + "&charging=0";
-
-            log.info(
-                    "Sending SMS to ******{}",
-                    mobileNumber.substring(
-                            Math.max(
-                                    mobileNumber.length() - 4,
-                                    0)));
-
-            try (OutputStream outputStream = smsConnection.getOutputStream()) {
-
-                outputStream.write(
-                        payload.getBytes(
-                                StandardCharsets.UTF_8));
-            }
-
-            int responseCode = smsConnection.getResponseCode();
-
-            InputStream responseStream = (responseCode >= 200
-                    && responseCode < 300)
-                    ? smsConnection.getInputStream()
-                    : smsConnection.getErrorStream();
-
-            String responseBody = readResponse(responseStream);
-
-            log.info(
-                    "SMS Response Code : {}",
-                    responseCode);
-
-            log.info(
-                    "SMS Provider Response : {}",
-                    responseBody);
-
-            boolean success = responseCode == HttpURLConnection.HTTP_OK
-                    && responseBody.contains(
-                    "MESSAGE_SUBMIT_SUCCESS");
-
-            return SmsResponseDTO.builder()
-                    .success(success)
-                    .message(
-                            success
-                                    ? "SMS Sent Successfully"
-                                    : "SMS Sending Failed")
-                    .providerResponse(responseBody)
-                    .build();
-
-        } catch (Exception ex) {
-
-            log.error(
-                    "Error while sending SMS",
-                    ex);
-
-            return SmsResponseDTO.builder()
-                    .success(false)
-                    .message(ex.getMessage())
-                    .providerResponse(null)
-                    .build();
-
-        } finally {
-
-            if (smsConnection != null) {
-                smsConnection.disconnect();
-            }
-        }
-    }
-
-    private static String readResponse(
-            InputStream responseStream)
-            throws IOException {
-
-        if (responseStream == null) {
-            return "";
-        }
-
-        StringBuilder response = new StringBuilder();
-
-        try (BufferedReader reader = new BufferedReader(
-                new InputStreamReader(
-                        responseStream,
-                        StandardCharsets.UTF_8))) {
-
-            String line;
-
-            while ((line = reader.readLine()) != null) {
-
-                response.append(line);
-            }
-        }
-
-        return response.toString();
+        return builder.requestFactory(factory).build();
     }
 }
 
@@ -292,31 +75,31 @@ public class SmsGatewayClient {
 
 
 
+
+
 package com.fincore.CommunicationService.client;
 
-import java.io.BufferedReader;
-import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.io.OutputStream;
-import java.net.HttpURLConnection;
-import java.net.URL;
-import java.nio.charset.StandardCharsets;
-import java.util.Map;
 import com.fincore.CommunicationService.exception.CommunicationExceptions.VendorDeliveryException;
-
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.json.JSONArray;
 import org.json.JSONObject;
-
-// Required imports for SSL bypass
-import javax.net.ssl.*;
-import java.security.cert.X509Certificate;
-
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.io.Resource;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
+import org.springframework.http.client.MultipartBodyBuilder;
 import org.springframework.stereotype.Component;
+import org.springframework.web.client.RestClient;
 
+import java.util.Map;
+
+/**
+ * <p>Upgraded Email Vendor Gateway.</p>
+ * <p>Supports dynamic routing: Pure JSON for OTPs, Multipart-Form for Generic Events.</p>
+ */
 @Slf4j
 @Component
+@RequiredArgsConstructor
 public class EmailGatewayClient {
 
     private static final String URL = "url";
@@ -327,179 +110,137 @@ public class EmailGatewayClient {
     private static final String EMAIL_BODY = "emailBody";
     private static final String SUBJECT = "subject";
 
-    public int sendEmail(Map<String, Object> emailRequest, Resource Attachment) {
+    // Injects the custom RestClient we configured in Step 1
+    private final RestClient restClient;
 
-        HttpURLConnection emailApiConnection = null;
-        log.info("Connection created");
+    public int sendEmail(Map<String, Object> emailRequest, Resource attachment) {
         try {
-
-            // Email Request Values
             String apiUrl = emailRequest.get(URL).toString();
             String apiKey = emailRequest.get(API_KEY).toString();
-            String senderEmail = emailRequest.get(SENDER_ID).toString();
-            String recipientMail = emailRequest.get(TO_EMAIL).toString();
-            Object ccEmailObject = emailRequest.get("CC_TO_EMAIL");
-            // Returns the value if present, otherwise returns null
-            String ccToEmail = (String) emailRequest.getOrDefault("CC_TO_EMAIL", null);
-            String emailBody = emailRequest.get(EMAIL_BODY).toString();
-            String subject = emailRequest.get(SUBJECT).toString();
+            
+            // Build exactly your working JSON String
+            String finalRequestBody = buildEmailJson(emailRequest);
+            log.debug("finalRequestBody: {}", finalRequestBody);
 
-            // Open Connection
-            URL url = new URL(apiUrl);
-            emailApiConnection = (HttpURLConnection) url.openConnection();
-            log.info("Connection opened");
-            emailApiConnection.setRequestMethod("POST");
-            emailApiConnection.setDoOutput(true);
+            ResponseEntity<String> response;
 
-            // ARCHITECTURE MANDATE: Reduced timeouts from 10s to 3s to prevent Kafka thread
-            // starvation
-            emailApiConnection.setConnectTimeout(3000);
-            emailApiConnection.setReadTimeout(3000);
-
-            // --- BYPASS SSL VERIFICATION FOR THIS CONNECTION ---
-            if (emailApiConnection instanceof HttpsURLConnection) {
-                HttpsURLConnection httpsConnection = (HttpsURLConnection) emailApiConnection;
-                try {
-                    TrustManager[] trustAllCerts = new TrustManager[] { new X509TrustManager() {
-                        public X509Certificate[] getAcceptedIssuers() {
-                            return null;
-                        }
-
-                        public void checkClientTrusted(X509Certificate[] certs, String authType) {
-                        }
-
-                        public void checkServerTrusted(X509Certificate[] certs, String authType) {
-                        }
-                    } };
-                    SSLContext sc = SSLContext.getInstance("TLS");
-                    sc.init(null, trustAllCerts, new java.security.SecureRandom());
-                    httpsConnection.setSSLSocketFactory(sc.getSocketFactory());
-                    httpsConnection.setHostnameVerifier((hostname, session) -> true);
-                } catch (Exception e) {
-                    log.error("Failed to set SSL bypass: ", e);
-                }
-            }
-            // -------------------------------------------------------------
-
-            // Request headers
-            emailApiConnection.setRequestProperty("Content-Type", "application/json");
-            emailApiConnection.setRequestProperty("Accept", "application/json");
-            emailApiConnection.setRequestProperty("api_key", apiKey);
-            emailApiConnection.setDoOutput(true);
-
-            log.info("Done Setting properties");
-
-            // Sender Details
-            JSONObject senderJson = new JSONObject();
-            senderJson.put("email", senderEmail);
-            senderJson.put("name", "FINCORE");
-
-            // Email Content
-            JSONObject emailContentJson = new JSONObject();
-            emailContentJson.put("type", "html");
-            emailContentJson.put("value", emailBody);
-
-            JSONArray contentArray = new JSONArray();
-            contentArray.put(emailContentJson);
-
-            // Recipient Details
-            JSONObject recipientJson = new JSONObject();
-            recipientJson.put("email", recipientMail);
-
-            JSONArray recipientArray = new JSONArray();
-            recipientArray.put(recipientJson);
-
-            // Custom Attributes
-            JSONObject attributesJson = new JSONObject();
-            attributesJson.put("LEAD", "Andy Dwyer");
-            attributesJson.put("BAND", "Mouse Rat");
-
-            // Personalization
-            JSONObject personalizationsJson = new JSONObject();
-            personalizationsJson.put("to", recipientArray);
-            personalizationsJson.put("attributes", attributesJson);
-
-            // CC details
-            if (emailRequest.containsKey("ccToEmail")) {
-                JSONObject ccRecipientJson = new JSONObject();
-                ccRecipientJson.put("email", ccToEmail);
-
-                JSONArray ccArray = new JSONArray();
-                ccArray.put(ccRecipientJson);
-                personalizationsJson.put("cc", ccArray);
-            }
-
-            personalizationsJson.put("token_to", "8693839845");
-            personalizationsJson.put("token_cc", "MSGID657243");
-            personalizationsJson.put("token_bcc", "MSGID657244");
-
-            JSONArray personalizationsJsonArray = new JSONArray();
-            personalizationsJsonArray.put(personalizationsJson);
-
-            // Tracking Settings
-            JSONObject trackingSettingsJson = new JSONObject();
-            trackingSettingsJson.put("open_track", true);
-            trackingSettingsJson.put("click_track", true);
-            trackingSettingsJson.put("unsubscribe_track", true);
-
-            log.info("building email request json");
-
-            // Final Request JSON
-            JSONObject emailRequestJson = new JSONObject();
-            emailRequestJson.put("from", senderJson);
-            emailRequestJson.put("subject", subject);
-            emailRequestJson.put("content", contentArray);
-            emailRequestJson.put("personalizations", personalizationsJsonArray);
-            emailRequestJson.put("settings", trackingSettingsJson);
-
-            String finalRequestBody = emailRequestJson.toString();
-
-            log.info("finalRequestBody   " + finalRequestBody);
-
-            // Send Request
-            log.info("sending request");
-            try (OutputStream outputStream = emailApiConnection.getOutputStream()) {
-                byte[] requestBytes = finalRequestBody.getBytes(StandardCharsets.UTF_8);
-                outputStream.write(requestBytes);
-                log.info("Request sent");
-            }
-            // Read response
-            int responseCode = emailApiConnection.getResponseCode();
-            log.info("responseCode" + responseCode);
-            InputStream responseStream = (responseCode >= 200 && responseCode < 300)
-                    ? emailApiConnection.getInputStream()
-                    : emailApiConnection.getErrorStream();
-
-            if (responseStream != null) {
-                try (BufferedReader reader = new BufferedReader(
-                        new InputStreamReader(responseStream, StandardCharsets.UTF_8))) {
-
-                    StringBuilder responseBody = new StringBuilder();
-                    String line;
-
-                    while ((line = reader.readLine()) != null) {
-                        responseBody.append(line).append("\n");
-                    }
-
-                    log.info("Server Response: " + responseBody);
-                }
+            if (attachment == null) {
+                log.info("Executing pure JSON payload dispatch (e.g. OTP)");
+                response = restClient.post()
+                        .uri(apiUrl)
+                        .header("Content-Type", "application/json")
+                        .header("Accept", "application/json")
+                        .header("api_key", apiKey)
+                        .body(finalRequestBody)
+                        .retrieve()
+                        .toEntity(String.class);
             } else {
-                log.info("No response body received. HTTP " + responseCode);
+                log.info("Executing Multipart payload dispatch for Attachment: {}", attachment.getFilename());
+                MultipartBodyBuilder multipartBuilder = new MultipartBodyBuilder();
+                
+                // The Bank API requires the JSON part to be named "payload" or similar depending on vendor docs.
+                // Assuming standard multipart contract:
+                multipartBuilder.part("payload", finalRequestBody, MediaType.APPLICATION_JSON);
+                multipartBuilder.part("attachment", attachment);
+
+                response = restClient.post()
+                        .uri(apiUrl)
+                        .header("api_key", apiKey)
+                        .contentType(MediaType.MULTIPART_FORM_DATA)
+                        .body(multipartBuilder.build())
+                        .retrieve()
+                        .toEntity(String.class);
             }
 
-            return responseCode;@
+            int responseCode = response.getStatusCode().value();
+            log.info("responseCode: {}", responseCode);
+            log.info("Server Response: {}", response.getBody());
+
+            return responseCode;
 
         } catch (Exception e) {
-
             log.error("Exception while calling Email Vendor API", e);
+            throw new VendorDeliveryException("Error occurred while calling Email Vendor API", e);
+        }
+    }
 
-            throw new VendorDeliveryException(
-                    "Error occurred while calling Email Vendor API", e);
-        }finally {
-            if (emailApiConnection != null) {
-                emailApiConnection.disconnect();
-            }
+    private String buildEmailJson(Map<String, Object> emailRequest) {
+        String senderEmail = emailRequest.get(SENDER_ID).toString();
+        String recipientMail = emailRequest.get(TO_EMAIL).toString();
+        String ccToEmail = (String) emailRequest.getOrDefault(CC_TO_EMAIL, null);
+        String emailBody = emailRequest.get(EMAIL_BODY).toString();
+        String subject = emailRequest.get(SUBJECT).toString();
+
+        JSONObject senderJson = new JSONObject();
+        senderJson.put("email", senderEmail);
+        senderJson.put("name", "FINCORE");
+
+        JSONObject emailContentJson = new JSONObject();
+        emailContentJson.put("type", "html");
+        emailContentJson.put("value", emailBody);
+
+        JSONArray contentArray = new JSONArray();
+        contentArray.put(emailContentJson);
+
+        JSONObject recipientJson = new JSONObject();
+        recipientJson.put("email", recipientMail);
+
+        JSONArray recipientArray = new JSONArray();
+        recipientArray.put(recipientJson);
+
+        JSONObject attributesJson = new JSONObject();
+        attributesJson.put("LEAD", "Andy Dwyer");
+        attributesJson.put("BAND", "Mouse Rat");
+
+        JSONObject personalizationsJson = new JSONObject();
+        personalizationsJson.put("to", recipientArray);
+        personalizationsJson.put("attributes", attributesJson);
+
+        if (emailRequest.containsKey("ccToEmail") && ccToEmail != null) {
+            JSONObject ccRecipientJson = new JSONObject();
+            ccRecipientJson.put("email", ccToEmail);
+            JSONArray ccArray = new JSONArray();
+            ccArray.put(ccRecipientJson);
+            personalizationsJson.put("cc", ccArray);
         }
 
+        personalizationsJson.put("token_to", "8693839845");
+        personalizationsJson.put("token_cc", "MSGID657243");
+        personalizationsJson.put("token_bcc", "MSGID657244");
+
+        JSONArray personalizationsJsonArray = new JSONArray();
+        personalizationsJsonArray.put(personalizationsJson);
+
+        JSONObject trackingSettingsJson = new JSONObject();
+        trackingSettingsJson.put("open_track", true);
+        trackingSettingsJson.put("click_track", true);
+        trackingSettingsJson.put("unsubscribe_track", true);
+
+        JSONObject emailRequestJson = new JSONObject();
+        emailRequestJson.put("from", senderJson);
+        emailRequestJson.put("subject", subject);
+        emailRequestJson.put("content", contentArray);
+        emailRequestJson.put("personalizations", personalizationsJsonArray);
+        emailRequestJson.put("settings", trackingSettingsJson);
+
+        return emailRequestJson.toString();
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
