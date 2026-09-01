@@ -1,50 +1,202 @@
+package com.fincore.analyticsservice.mock;
 
+import tools.jackson.core.type.TypeReference;
+import tools.jackson.databind.JsonNode;
+//import com.fasterxml.jackson.databind.JsonMapper;
+import tools.jackson.databind.json.JsonMapper;
+import com.fincore.analyticsservice.dto.DrillDownRequest;
+import com.fincore.analyticsservice.dto.DrillDownResponse;
+import com.fincore.analyticsservice.dto.FilterDto;
+import com.fincore.analyticsservice.dto.Meta;
+import jakarta.annotation.PostConstruct;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.io.ClassPathResource;
+import org.springframework.stereotype.Service;
 
-package com.fincore.analyticsservice.engine;
-
+import java.io.InputStream;
+import java.math.BigDecimal;
+import java.math.RoundingMode;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.stream.Collectors;
 
+@Slf4j
+@Service
 public class MockDruidEngine {
 
-    public List<Map<String, Object>> executeAggregation(DrillDownRequest request, List<Map<String, Object>> mockData, String physicalDimension) {
-        
-        Set<String> validHeadCodes = request.getHeadCodes();
-        String physicalHeadCodeField = resolvePhysicalHeadCodeField(request.getViewCode()); // e.g., YSA_HEADCODE
+    private final JsonMapper jsonMapper;
+    @Value("${app.mock.druid.enabled:false}")
+    private boolean mockEnabled;
+    private List<Map<String, Object>> mockData = new ArrayList<>();
 
-        // Enterprise Concurrency: Use parallelStream for the 500k rows
-        Map<String, Double> aggregatedResults = mockData.parallelStream()
-            .filter(row -> {
-                String rowHeadCode = (String) row.get(physicalHeadCodeField);
-                
-                // 1. GLOBAL FILTER: Drop row if it doesn't match the selected 5 HeadCodes
-                if (rowHeadCode == null || !validHeadCodes.contains(rowHeadCode)) {
-                    return false;
-                }
+    public MockDruidEngine(JsonMapper jsonMapper) {
+        this.jsonMapper = jsonMapper;
+    }
 
-                // 2. DRILL-DOWN FILTERS: Apply UI-clicked filters (e.g., HeadCode = HC1, Geography = North)
-                if (request.getFilters() != null) {
-                    for (FilterDTO filter : request.getFilters()) {
-                        String filterPhysicalCol = resolvePhysicalColumn(filter.getDimension());
-                        String rowVal = (String) row.get(filterPhysicalCol);
-                        
-                        // Strict equality for drill-down path
-                        if (rowVal == null || !rowVal.equals(filter.getValue())) {
-                            return false; 
-                        }
+    @PostConstruct
+    public void init() {
+        if (!mockEnabled) {
+            log.info("Mock Druid Engine is DISABLED. Routing to real Apache Druid.");
+            return;
+        }
+
+        try {
+            log.warn("⏳ ST ENVIRONMENT MOCK DETECTED: Loading mock_druid_data.json into memory...");
+            InputStream is = new ClassPathResource("report.json").getInputStream();
+
+            JsonNode rootNode = jsonMapper.readTree(is);
+            if (rootNode.isObject() && rootNode.has("rows")) {
+                mockData = jsonMapper.convertValue(rootNode.get("rows"), new TypeReference<List<Map<String, Object>>>() {
+                });
+            } else if (rootNode.isArray()) {
+                mockData = jsonMapper.convertValue(rootNode, new TypeReference<List<Map<String, Object>>>() {
+                });
+            }
+
+            log.info("✅ Mock Data Loaded Successfully. Total Rows in RAM: {}", mockData.size());
+        } catch (Exception e) {
+            log.error("❌ Failed to load mock data. Make sure report.json is in src/main/resources!", e);
+        }
+    }
+
+    public boolean isMockEnabled() {
+        return mockEnabled;
+    }
+
+    public DrillDownResponse execute(DrillDownRequest request, List<FilterDto> securedFilters) {
+        long startTime = System.currentTimeMillis();
+        String targetDim = request.dimensions().get(0);
+
+        Map<String, BigDecimal> groupedData = new HashMap<>();
+
+        mockData.stream()
+                .filter(row -> matchesFilters(row, securedFilters, request.viewCode()))
+                .forEach(row -> {
+                    String groupKey = extractDimensionValue(row, targetDim);
+                    if (groupKey == null || groupKey.trim().isEmpty() || "null".equals(groupKey)) {
+                        return;
                     }
-                }
-                return true; // Row survived all filters
-            })
-            // Aggregate using ConcurrentHashMap mechanics
-            .collect(Collectors.toConcurrentMap(
-                row -> (String) row.get(physicalDimension), // Group by the requested dimension
-                row -> getNumericValue(row.get("AMOUNT")),
-                Double::sum
-            ));
 
-        return formatAndSortResults(aggregatedResults, physicalDimension);
+                    Object balanceObj = row.get("BALANCE");
+                    BigDecimal balance = balanceObj != null ? new BigDecimal(String.valueOf(balanceObj)) : BigDecimal.ZERO;
+                    groupedData.merge(groupKey, balance, BigDecimal::add);
+                });
+
+        List<Map<String, Object>> responseData = groupedData.entrySet().stream()
+                .map(entry -> {
+                    Map<String, Object> map = new HashMap<>();
+                    map.put("id", targetDim.toLowerCase() + "_" + entry.getKey().replaceAll("[^a-zA-Z0-9]", ""));
+                    map.put("name", entry.getKey());
+                    map.put("AMOUNT", entry.getValue().setScale(2, RoundingMode.HALF_UP));
+                    map.put("hasChildren", true);
+                    return map;
+                })
+                .sorted((a, b) -> {
+                    if ("Branch-Circle".equalsIgnoreCase(targetDim)) {
+                        String nameA = (String) a.get("name");
+                        String nameB = (String) b.get("name");
+
+                        // Extreme paranoia null-safety
+                        if (nameA == null) return 1;
+                        if (nameB == null) return -1;
+
+                        // Split ONLY on the first " - " to protect against hyphens inside circle names
+                        String[] partsA = nameA.split(" - ", 2);
+                        String[] partsB = nameB.split(" - ", 2);
+
+                        if (partsA.length == 2 && partsB.length == 2) {
+                            String branchA = partsA[0].trim();
+                            String circleA = partsA[1].trim();
+                            String branchB = partsB[0].trim();
+                            String circleB = partsB[1].trim();
+
+                            // 1st Priority: Sort Alphabetically by Circle Name
+                            int circleCompare = circleA.compareToIgnoreCase(circleB);
+                            if (circleCompare != 0) {
+                                return circleCompare;
+                            }
+
+                            // 2nd Priority: Sort Alphabetically/Numerically by Branch Code
+                            return branchA.compareToIgnoreCase(branchB);
+                        }
+
+                        // Fallback if the data format is unexpected
+                        return nameA.compareToIgnoreCase(nameB);
+                    } else {
+                        // All other levels (Geography, CGL, Product) sort by AMOUNT Descending
+                        BigDecimal amountA = (BigDecimal) a.get("AMOUNT");
+                        BigDecimal amountB = (BigDecimal) b.get("AMOUNT");
+                        if (amountA == null) amountA = BigDecimal.ZERO;
+                        if (amountB == null) amountB = BigDecimal.ZERO;
+                        return amountB.compareTo(amountA);
+                    }
+                })
+                .collect(Collectors.toList());
+
+
+        long timeTaken = System.currentTimeMillis() - startTime;
+        log.info("Mock Engine aggregated {} groups in {} ms for view [{}]", responseData.size(), timeTaken, request.viewCode());
+
+        Meta meta = new Meta("SUCCESS", targetDim, responseData.size(), timeTaken);
+        return new DrillDownResponse(meta, responseData);
+    }
+
+    private boolean matchesFilters(Map<String, Object> row, List<FilterDto> filters, String viewCode) {
+        if (filters == null || filters.isEmpty()) return true;
+
+        for (FilterDto f : filters) {
+            String val = String.valueOf(f.value());
+
+            switch (f.logicalField()) {
+                case "ReportDate":
+                    if (!val.equals(String.valueOf(row.get("DATE")))) return false;
+                    break;
+                case "HeadCode":
+                    String headCol = viewCode.startsWith("YSA") ? "YSA_HEADCODE" :
+                            viewCode.startsWith("PNL") ? "PNL_HEADCODE" : "NWSA_HEADCODE";
+                    Object arrayData = row.get(headCol);
+                    // Safe evaluation if the key is missing (like PNL_HEADCODE in your snippet)
+                    if (arrayData == null || !arrayData.toString().contains(val)) return false;
+                    break;
+                case "Circle":
+                    if (!val.equals(String.valueOf(row.get("CIRCLE_CODE")))) return false;
+                    break;
+
+                case "Branch":
+                case "Branch-Circle":
+                case "BranchCode":
+                    if (!val.equals(String.valueOf(row.get("BRANCH_CODE")))) return false;
+                    break;
+                case "Geography":
+                    String geo = "D".equals(row.get("BRANCH_TYPE")) ? "Domestic" : "Foreign";
+                    if (!val.equals(geo)) return false;
+                    break;
+                case "CGL":
+                    if (!val.equals(String.valueOf(row.get("CGL")))) return false;
+                    break;
+                case "Product":
+                    if (!val.equals(String.valueOf(row.get("PRODUCT")))) return false;
+                    break;
+            }
+        }
+        return true;
+    }
+
+    private String extractDimensionValue(Map<String, Object> row, String targetDim) {
+        switch (targetDim) {
+            case "Geography":
+                return "D".equals(row.get("BRANCH_TYPE")) ? "Domestic" : "Foreign";
+            case "CGL":
+                return String.valueOf(row.get("CGL"));
+            case "Product":
+                return String.valueOf(row.get("PRODUCT"));
+            case "Branch-Circle":
+                return row.get("BRANCH_CODE") + " - " + row.get("CIRCLE_NAME");
+            default:
+                return null;
+        }
     }
 }
