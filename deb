@@ -1,100 +1,313 @@
 package com.fincore.analyticsservice.dto;
 
+import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotEmpty;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
-import lombok.Data;
 
 import java.util.List;
 import java.util.Set;
 
-@Data
-public class DrillDownRequest {
-    
-    // e.g., YSA_BANK, PNL_CIRCLE
-    private String viewCode; 
-    
-    // e.g., HeadCode, Geography, Circle
-    private String dimension; 
+public record DrillDownRequest(
+        @NotBlank(message = "viewCode is required to route the request securely")
+        @Pattern(regexp = "^[a-zA-Z0-9_-]+$", message = "Invalid viewCode format")
+        String viewCode,
 
-    // The new Multi-HeadCode global filter
-    @NotEmpty(message = "At least one Head Code must be selected.")
-    @Size(max = 5, message = "A maximum of 5 Head Codes can be analyzed simultaneously to ensure optimal performance.")
-    private Set<String> headCodes; 
+        // NEW: Global HeadCode Multi-Select (Max 5)
+        @NotEmpty(message = "At least one Head Code must be selected.")
+        @Size(max = 5, message = "A maximum of 5 Head Codes can be analyzed simultaneously.")
+        Set<String> headCodes,
 
-    // Dynamic drill-down filters from the UI clicks
-    private List<FilterDTO> filters; 
-}
+        @NotEmpty(message = "At least one logical dimension is required")
+        List<@Pattern(regexp = "^[a-zA-Z0-9_-]+$") String> dimensions,
 
+        @NotEmpty(message = "At least one logical metric is required")
+        List<@Pattern(regexp = "^[a-zA-Z0-9_-]+$") String> metrics,
 
+        @NotNull(message = "Filters array cannot be null")
+        List<FilterDto> filters
 
-
-
-
-
--- Move HeadCode to the top of the visual hierarchy (Level 5, assuming Geography is 10)
-UPDATE DR_VIEW_DIMENSION 
-SET DRILL_LEVEL = 5, 
-    IS_HIDDEN = 0 
-WHERE DIMENSION_NAME = 'HeadCode' 
-  AND VIEW_CODE IN ('YSA_BANK', 'YSA_CIRCLE', 'YSA_BRANCH', 'PNL_BANK', 'PNL_CIRCLE', 'PNL_BRANCH', 'NWSA_BANK', 'NWSA_CIRCLE', 'NWSA_BRANCH');
+) {}
 
 
 
 
 
 
+package com.fincore.analyticsservice.dto;
+
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotEmpty;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Pattern;
+import jakarta.validation.constraints.Size;
+
+import java.util.List;
+import java.util.Set;
+
+public record DrillDownRequest(
+        @NotBlank(message = "viewCode is required to route the request securely")
+        @Pattern(regexp = "^[a-zA-Z0-9_-]+$", message = "Invalid viewCode format")
+        String viewCode,
+
+        // NEW: Global HeadCode Multi-Select (Max 5)
+        @NotEmpty(message = "At least one Head Code must be selected.")
+        @Size(max = 5, message = "A maximum of 5 Head Codes can be analyzed simultaneously.")
+        Set<String> headCodes,
+
+        @NotEmpty(message = "At least one logical dimension is required")
+        List<@Pattern(regexp = "^[a-zA-Z0-9_-]+$") String> dimensions,
+
+        @NotEmpty(message = "At least one logical metric is required")
+        List<@Pattern(regexp = "^[a-zA-Z0-9_-]+$") String> metrics,
+
+        @NotNull(message = "Filters array cannot be null")
+        List<FilterDto> filters
+
+) {}
 
 
 
 
 
 
-package com.fincore.analyticsservice.engine;
 
+
+
+package com.fincore.analyticsservice.component;
+
+import com.fincore.analyticsservice.dto.DimensionConfig;
+import com.fincore.analyticsservice.dto.FilterDto;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.stereotype.Component;
+
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.stream.Collectors;
 
-public class MockDruidEngine {
+@Slf4j
+@Component
+public class DruidQueryBuilder {
 
-    public List<Map<String, Object>> executeAggregation(DrillDownRequest request, List<Map<String, Object>> mockData, String physicalDimension) {
-        
-        Set<String> validHeadCodes = request.getHeadCodes();
-        String physicalHeadCodeField = resolvePhysicalHeadCodeField(request.getViewCode()); // e.g., YSA_HEADCODE
+    public Map<String, Object> buildSqlPayload(
+            String physicalTable,
+            String logicalTargetDim,
+            DimensionConfig targetDimConfig,
+            List<String> logicalMetrics,
+            Map<String, String> resolvedMetricsSql,
+            List<FilterDto> filters,
+            Set<String> headCodes, // <-- NEW PARAMETER
+            Map<String, DimensionConfig> dimensionTranslationMap) {
 
-        // Enterprise Concurrency: Use parallelStream for the 500k rows
-        Map<String, Double> aggregatedResults = mockData.parallelStream()
-            .filter(row -> {
-                String rowHeadCode = (String) row.get(physicalHeadCodeField);
-                
-                // 1. GLOBAL FILTER: Drop row if it doesn't match the selected 5 HeadCodes
-                if (rowHeadCode == null || !validHeadCodes.contains(rowHeadCode)) {
-                    return false;
+        StringBuilder sql = new StringBuilder("SELECT ");
+
+        // 1. Grouping Column (dynamically formatted)
+        sql.append(formatDimension(targetDimConfig)).append(" AS \"").append(logicalTargetDim).append("\"");
+
+        // 2. Metrics
+        for (String logicalMetric : logicalMetrics) {
+            String rawMetricSql = resolvedMetricsSql.get(logicalMetric);
+            sql.append(", ").append(rawMetricSql).append(" AS \"").append(logicalMetric).append("\"");
+        }
+
+        // 3. From physical datasource
+        sql.append(" FROM \"").append(physicalTable).append("\" WHERE 1=1 ");
+
+        List<Map<String, String>> parameters = new ArrayList<>();
+
+        // 4. GLOBAL HEADCODE FILTER (Max 5)
+        if (headCodes != null && !headCodes.isEmpty()) {
+            DimensionConfig hcConfig = dimensionTranslationMap.get("HeadCode");
+            String formattedHcDim = formatDimension(hcConfig);
+            
+            sql.append(" AND (");
+            boolean first = true;
+            for (String hc : headCodes) {
+                if (!first) sql.append(" OR ");
+                // Multi-value Druid Array check for each headcode
+                sql.append("ARRAY_CONTAINS(").append(formattedHcDim).append(", ?)");
+                parameters.add(Map.of("type", "VARCHAR", "value", hc));
+                first = false;
+            }
+            sql.append(") ");
+        }
+
+        // 5. DRILL-DOWN FILTERS
+        if (filters != null && !filters.isEmpty()) {
+            for (FilterDto filter : filters) {
+                DimensionConfig filterDimConfig = dimensionTranslationMap.get(filter.logicalField());
+                if (filterDimConfig == null) {
+                    throw new IllegalArgumentException("Filter dimension not mapped: " + filter.logicalField());
                 }
+                appendFilterCondition(sql, parameters, filterDimConfig, filter);
+            }
+        }
 
-                // 2. DRILL-DOWN FILTERS: Apply UI-clicked filters (e.g., HeadCode = HC1, Geography = North)
-                if (request.getFilters() != null) {
-                    for (FilterDTO filter : request.getFilters()) {
-                        String filterPhysicalCol = resolvePhysicalColumn(filter.getDimension());
-                        String rowVal = (String) row.get(filterPhysicalCol);
-                        
-                        // Strict equality for drill-down path
-                        if (rowVal == null || !rowVal.equals(filter.getValue())) {
-                            return false; 
-                        }
-                    }
+        // 6. Group By
+        sql.append(" GROUP BY ").append(formatDimension(targetDimConfig));
+
+        return Map.of(
+                "query", sql.toString(),
+                "parameters", parameters
+        );
+    }
+
+    private String formatDimension(DimensionConfig config) {
+        if (config.isExpression()) {
+            return "(" + config.physicalSql() + ")";
+        } else {
+            String physicalCol = config.physicalSql();
+            if (physicalCol.startsWith("\"") && physicalCol.endsWith("\"")) {
+                return physicalCol;
+            }
+            return "\"" + physicalCol + "\"";
+        }
+    }
+
+    private void appendFilterCondition(StringBuilder sql, List<Map<String, String>> parameters, DimensionConfig config, FilterDto filter) {
+        String formattedDim = formatDimension(config);
+
+        if ("EQUALS".equalsIgnoreCase(filter.operator())) {
+            // Retained for drill-down specific clicks into HeadCodes
+            if ("HeadCode".equalsIgnoreCase(filter.logicalField())) {
+                sql.append(" AND ARRAY_CONTAINS(").append(formattedDim).append(", ?) ");
+            } else {
+                sql.append(" AND ").append(formattedDim).append(" = ? ");
+            }
+            parameters.add(Map.of("type", "VARCHAR", "value", String.valueOf(filter.value())));
+        } else {
+            throw new IllegalArgumentException("Unsupported filter operator: " + package com.fincore.analyticsservice.service;
+
+import com.fincore.analyticsservice.client.DruidRestClient;
+import com.fincore.analyticsservice.component.DruidQueryBuilder;
+import com.fincore.analyticsservice.dto.*;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.annotation.Cacheable;
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.stereotype.Service;
+import org.springframework.util.CollectionUtils;
+import com.fincore.analyticsservice.mock.MockDruidEngine;
+import java.util.*;
+
+@Slf4j
+@Service
+public class SemanticDrillDownService {
+    private static final Integer ROLE_ADMIN = 10;
+
+    private final DruidRestClient druidRestClient;
+    private final DruidQueryBuilder queryBuilder;
+    private final ReportMetadataProvider metadataProvider;
+    private final MockDruidEngine mockEngine;
+
+    public SemanticDrillDownService(
+            DruidRestClient druidRestClient,
+            DruidQueryBuilder queryBuilder,
+            ReportMetadataProvider metadataProvider, 
+            MockDruidEngine mockEngine) {
+        this.druidRestClient = druidRestClient;
+        this.queryBuilder = queryBuilder;
+        this.metadataProvider = metadataProvider;
+        this.mockEngine = mockEngine;
+    }
+
+    @Cacheable(value = "drillDownData", key = "T(java.lang.String).valueOf(#request.hashCode())")
+    public DrillDownResponse executeDrillDown(DrillDownRequest request, Integer roleId) {
+        long startTime = System.currentTimeMillis();
+        String logicalTargetDim = request.dimensions().get(0);
+
+        log.info("Executing DrillDown for view: [{}], logicalDim: [{}]", request.viewCode(), logicalTargetDim);
+
+        if (mockEngine.isMockEnabled()) {
+            log.warn("=================> ROUTING REQUEST TO MOCK DRUID ENGINE FOR ST ENVIRONMENT <=================");
+            return mockEngine.execute(request); // Passing entire request
+        }
+
+        ViewMetadataContext context = metadataProvider.getViewContext(request.viewCode());
+        validateAccess(context.requiredRoleIds(), roleId);
+
+        DimensionConfig targetDimConfig = translateDimension(logicalTargetDim, context.dimensionMap());
+        Map<String, String> resolvedMetricsSql = resolveMetrics(request.metrics(), context.metricMap());
+
+        // PASS THE HEADCODES SET TO THE QUERY BUILDER
+        Map<String, Object> druidPayload = queryBuilder.buildSqlPayload(
+                context.physicalDruidTable(),
+                logicalTargetDim,
+                targetDimConfig,
+                request.metrics(),
+                resolvedMetricsSql,
+                request.filters(),
+                request.headCodes(), // <-- Passed here
+                context.dimensionMap()
+        );
+
+        log.info("Final druid payload to be executed: {}", druidPayload);
+
+        List<Map<String, Object>> rawDruidData = druidRestClient.executeQuery(druidPayload);
+
+        if (CollectionUtils.isEmpty(rawDruidData)) {
+            return new DrillDownResponse(new Meta("SUCCESS", logicalTargetDim, 0, System.currentTimeMillis() - startTime), Collections.emptyList());
+        }
+
+        boolean hasChildren = determineIfHasChildren(logicalTargetDim, context.logicalHierarchyOrdered());
+        List<Map<String, Object>> formattedData = formatResponseData(rawDruidData, logicalTargetDim, hasChildren);
+
+        long executionTime = System.currentTimeMillis() - startTime;
+        return new DrillDownResponse(new Meta("SUCCESS", logicalTargetDim, formattedData.size(), executionTime), formattedData);
+    }
+
+    private void validateAccess(String requiredRoleIds, Integer roleId) {
+        if (ROLE_ADMIN.equals(roleId)) return;
+        if (requiredRoleIds == null || requiredRoleIds.trim().isEmpty() || "NULL".equalsIgnoreCase(requiredRoleIds.trim())) return;
+        List<String> allowedRoles = Arrays.asList(requiredRoleIds.split(","));
+        if (!allowedRoles.contains(String.valueOf(roleId))) {
+            throw new AccessDeniedException("Insufficient permissions to execute drill-down for this view.");
+        }
+    }
+
+    private DimensionConfig translateDimension(String logicalName, Map<String, DimensionConfig> dimMap) {
+        DimensionConfig config = dimMap.get(logicalName);
+        if (config == null) throw new IllegalArgumentException("Logical dimension '" + logicalName + "' is not supported.");
+        return config;
+    }
+
+    private Map<String, String> resolveMetrics(List<String> logicalMetrics, Map<String, String> metricMap) {
+        Map<String, String> resolved = new HashMap<>();
+        for (String logicalName : logicalMetrics) {
+            String sql = metricMap.get(logicalName);
+            if (sql == null || sql.isBlank()) throw new IllegalArgumentException("Logical metric '" + logicalName + "' is not supported.");
+            resolved.put(logicalName, sql);
+        }
+        return resolved;
+    }
+
+    private boolean determineIfHasChildren(String currentDim, List<String> hierarchy) {
+        int index = hierarchy.indexOf(currentDim);
+        return index != -1 && index < hierarchy.size() - 1;
+    }
+
+    private List<Map<String, Object>> formatResponseData(List<Map<String, Object>> rawData, String logicalDim, boolean hasChildren) {
+        String idPrefix = logicalDim.toLowerCase() + "_";
+        List<Map<String, Object>> result = new ArrayList<>(rawData.size());
+
+        for (Map<String, Object> row : rawData) {
+            Map<String, Object> formattedRow = new LinkedHashMap<>();
+            Object nameObj = row.get(logicalDim);
+            String nameValue = (nameObj != null && !nameObj.toString().isBlank()) ? nameObj.toString() : "Unassigned";
+
+            formattedRow.put("id", idPrefix + nameValue.toLowerCase().replaceAll("[^a-z0-9]", "_"));
+            formattedRow.put("name", nameValue);
+
+            for (Map.Entry<String, Object> entry : row.entrySet()) {
+                if (!entry.getKey().equals(logicalDim)) {
+                    formattedRow.put(entry.getKey(), entry.getValue() == null ? 0.0 : entry.getValue());
                 }
-                return true; // Row survived all filters
-            })
-            // Aggregate using ConcurrentHashMap mechanics
-            .collect(Collectors.toConcurrentMap(
-                row -> (String) row.get(physicalDimension), // Group by the requested dimension
-                row -> getNumericValue(row.get("AMOUNT")),
-                Double::sum
-            ));
-
-        return formatAndSortResults(aggregatedResults, physicalDimension);
+            }
+            formattedRow.put("hasChildren", hasChildren);
+            result.add(formattedRow);
+        }
+        return result;
     }
 }
 
@@ -105,60 +318,215 @@ public class MockDruidEngine {
 
 
 
+package com.fincore.analyticsservice.mock;
 
+import tools.jackson.core.type.TypeReference;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.json.JsonMapper;
+import com.fincore.analyticsservice.dto.DrillDownRequest;
+import com.fincore.analyticsservice.dto.DrillDownResponse;
+import com.fincore.analyticsservice.dto.FilterDto;
+import com.fincore.analyticsservice.dto.Meta;
+import jakarta.annotation.PostConstruct;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.io.ClassPathResource;
+import org.springframework.stereotype.Service;
 
+import java.io.InputStream;
+import java.math.BigDecimal;
+import java.math.RoundingMode;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.stream.Collectors;
 
+@Slf4j
+@Service
+public class MockDruidEngine {
 
+    private final JsonMapper jsonMapper;
+    @Value("${app.mock.druid.enabled:false}")
+    private boolean mockEnabled;
+    private List<Map<String, Object>> mockData = new ArrayList<>();
 
--- Step 1: Shift existing visible dimensions to a gapped sequence (20, 30, 40...)
--- We include "DRILL_LEVEL < 90" to ensure we only touch dimensions currently visible in the UI
-UPDATE DR_VIEW_DIMENSION 
-SET DRILL_LEVEL = 20 
-WHERE DIMENSION_NAME = 'Geography' AND DRILL_LEVEL < 90;
+    public MockDruidEngine(JsonMapper jsonMapper) {
+        this.jsonMapper = jsonMapper;
+    }
 
-UPDATE DR_VIEW_DIMENSION 
-SET DRILL_LEVEL = 30 
-WHERE DIMENSION_NAME = 'Circle' AND DRILL_LEVEL < 90;
+    @PostConstruct
+    public void init() {
+        if (!mockEnabled) {
+            log.info("Mock Druid Engine is DISABLED. Routing to real Apache Druid.");
+            return;
+        }
+        try {
+            log.warn("⏳ ST ENVIRONMENT MOCK DETECTED: Loading mock_druid_data.json into memory...");
+            InputStream is = new ClassPathResource("report.json").getInputStream();
+            JsonNode rootNode = jsonMapper.readTree(is);
+            if (rootNode.isObject() && rootNode.has("rows")) {
+                mockData = jsonMapper.convertValue(rootNode.get("rows"), new TypeReference<List<Map<String, Object>>>() {});
+            } else if (rootNode.isArray()) {
+                mockData = jsonMapper.convertValue(rootNode, new TypeReference<List<Map<String, Object>>>() {});
+            }
+            log.info("✅ Mock Data Loaded Successfully. Total Rows in RAM: {}", mockData.size());
+        } catch (Exception e) {
+            log.error("❌ Failed to load mock data. Make sure report.json is in src/main/resources!", e);
+        }
+    }
 
-UPDATE DR_VIEW_DIMENSION 
-SET DRILL_LEVEL = 40 
-WHERE DIMENSION_NAME = 'CGL' AND DRILL_LEVEL < 90;
+    public boolean isMockEnabled() {
+        return mockEnabled;
+    }
 
-UPDATE DR_VIEW_DIMENSION 
-SET DRILL_LEVEL = 50 
-WHERE DIMENSION_NAME = 'Product' AND DRILL_LEVEL < 90;
+    public DrillDownResponse execute(DrillDownRequest request) {
+        long startTime = System.currentTimeMillis();
+        String targetDim = request.dimensions().get(0);
 
-UPDATE DR_VIEW_DIMENSION 
-SET DRILL_LEVEL = 60 
-WHERE DIMENSION_NAME = 'Branch-Circle' AND DRILL_LEVEL < 90;
+        // Switched to parallelStream and ConcurrentHashMap for enterprise speed
+        ConcurrentHashMap<String, BigDecimal> groupedData = new ConcurrentHashMap<>();
 
--- Step 2: Promote HeadCode from a hidden filter (>= 90) to the new Root Dimension (10)
-UPDATE DR_VIEW_DIMENSION 
-SET DRILL_LEVEL = 10, 
-    IS_HIDDEN = 0 -- (Assuming 0 means visible/false in your schema)
-WHERE DIMENSION_NAME = 'HeadCode'
-  AND VIEW_CODE IN ('YSA_BANK', 'YSA_CIRCLE', 'YSA_BRANCH', 
-                    'PNL_BANK', 'PNL_CIRCLE', 'PNL_BRANCH', 
-                    'NWSA_BANK', 'NWSA_CIRCLE', 'NWSA_BRANCH');
+        mockData.parallelStream()
+                .filter(row -> matchesFilters(row, request))
+                .forEach(row -> {
+                    String groupKey = extractDimensionValue(row, targetDim);
+                    if (groupKey == null || groupKey.trim().isEmpty() || "null".equals(groupKey)) {
+                        return;
+                    }
+                    Object balanceObj = row.get("BALANCE");
+                    BigDecimal balance = balanceObj != null ? new BigDecimal(String.valueOf(balanceObj)) : BigDecimal.ZERO;
+                    // Thread-safe merge
+                    groupedData.merge(groupKey, balance, BigDecimal::add);
+                });
 
-SELECT DIMENSION_NAME, DRILL_LEVEL, IS_HIDDEN 
-FROM DR_VIEW_DIMENSION 
-WHERE VIEW_CODE = 'YSA_BANK' 
-ORDER BY DRILL_LEVEL ASC;
+        List<Map<String, Object>> responseData = groupedData.entrySet().stream()
+                .map(entry -> {
+                    Map<String, Object> map = new HashMap<>();
+                    map.put("id", targetDim.toLowerCase() + "_" + entry.getKey().replaceAll("[^a-zA-Z0-9]", ""));
+                    map.put("name", entry.getKey());
+                    map.put("AMOUNT", entry.getValue().setScale(2, RoundingMode.HALF_UP));
+                    map.put("hasChildren", true);
+                    return map;
+                })
+                .sorted((a, b) -> {
+                    if ("Branch-Circle".equalsIgnoreCase(targetDim)) {
+                        String nameA = (String) a.get("name");
+                        String nameB = (String) b.get("name");
+                        if (nameA == null) return 1;
+                        if (nameB == null) return -1;
 
+                        String[] partsA = nameA.split(" - ", 2);
+                        String[] partsB = nameB.split(" - ", 2);
 
+                        if (partsA.length == 2 && partsB.length == 2) {
+                            String branchA = partsA[0].trim();
+                            String circleA = partsA[1].trim();
+                            String branchB = partsB[0].trim();
+                            String circleB = partsB[1].trim();
 
+                            int circleCompare = circleA.compareToIgnoreCase(circleB);
+                            if (circleCompare != 0) return circleCompare;
+                            return branchA.compareToIgnoreCase(branchB);
+                        }
+                        return nameA.compareToIgnoreCase(nameB);
+                    } else {
+                        BigDecimal amountA = (BigDecimal) a.get("AMOUNT");
+                        BigDecimal amountB = (BigDecimal) b.get("AMOUNT");
+                        if (amountA == null) amountA = BigDecimal.ZERO;
+                        if (amountB == null) amountB = BigDecimal.ZERO;
+                        return amountB.compareTo(amountA);
+                    }
+                })
+                .collect(Collectors.toList());
 
+        long timeTaken = System.currentTimeMillis() - startTime;
+        log.info("Mock Engine aggregated {} groups in {} ms for view [{}]", responseData.size(), timeTaken, request.viewCode());
 
+        Meta meta = new Meta("SUCCESS", targetDim, responseData.size(), timeTaken);
+        return new DrillDownResponse(meta, responseData);
+    }
 
+    private boolean matchesFilters(Map<String, Object> row, DrillDownRequest request) {
+        String viewCode = request.viewCode();
+        Set<String> validHeadCodes = request.headCodes();
+        List<FilterDto> filters = request.filters();
 
+        // 1. GLOBAL FILTER: Ensure row belongs to one of the 1-5 selected HeadCodes
+        String headCol = viewCode.startsWith("YSA") ? "YSA_HEADCODE" :
+                         viewCode.startsWith("PNL") ? "PNL_HEADCODE" : "NWSA_HEADCODE";
+        Object arrayData = row.get(headCol);
+        if (arrayData == null) return false;
+        
+        String arrayDataStr = arrayData.toString();
+        boolean matchesGlobalHeadCode = false;
+        for (String hc : validHeadCodes) {
+            if (arrayDataStr.contains(hc)) {
+                matchesGlobalHeadCode = true;
+                break;
+            }
+        }
+        if (!matchesGlobalHeadCode) return false;
 
+        // 2. DRILL-DOWN FILTERS: Apply UI clicks
+        if (filters == null || filters.isEmpty()) return true;
 
+        for (FilterDto f : filters) {
+            String val = String.valueOf(f.value());
+            switch (f.logicalField()) {
+                case "ReportDate":
+                    if (!val.equals(String.valueOf(row.get("DATE")))) return false;
+                    break;
+                case "HeadCode":
+                    // If the user drilled DOWN into a specific HeadCode, filter on it exactly
+                    if (!arrayDataStr.contains(val)) return false;
+                    break;
+                case "Circle":
+                    if (!val.equals(String.valueOf(row.get("CIRCLE_CODE")))) return false;
+                    break;
+                case "Branch":
+                case "Branch-Circle":
+                case "BranchCode":
+                    if (!val.equals(String.valueOf(row.get("BRANCH_CODE")))) return false;
+                    break;
+                case "Geography":
+                    String geo = "D".equals(row.get("BRANCH_TYPE")) ? "Domestic" : "Foreign";
+                    if (!val.equals(geo)) return false;
+                    break;
+                case "CGL":
+                    if (!val.equals(String.valueOf(row.get("CGL")))) return false;
+                    break;
+                case "Product":
+                    if (!val.equals(String.valueOf(row.get("PRODUCT")))) return false;
+                    break;
+            }
+        }
+        return true;
+    }
 
-
-
-
-
+    private String extractDimensionValue(Map<String, Object> row, String targetDim) {
+        switch (targetDim) {
+            case "HeadCode": // Enable Group-By HeadCode
+                // For ST mock purposes, if grouped by headcode, we return the array directly
+                // (In production, Druid automatically explodes arrays into rows)
+                Object hcData = row.get(row.containsKey("YSA_HEADCODE") ? "YSA_HEADCODE" : 
+                                        row.containsKey("PNL_HEADCODE") ? "PNL_HEADCODE" : "NWSA_HEADCODE");
+                return hcData != null ? hcData.toString() : "Unknown";
+            case "Geography":
+                return "D".equals(row.get("BRANCH_TYPE")) ? "Domestic" : "Foreign";
+            case "CGL":
+                return String.valueOf(row.get("CGL"));
+            case "Product":
+                return String.valueOf(row.get("PRODUCT"));
+            case "Branch-Circle":
+                return row.get("BRANCH_CODE") + " - " + row.get("CIRCLE_NAME");
+            default:
+                return null;
+        }
+    }
+}
 
 
 
