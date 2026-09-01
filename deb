@@ -1,64 +1,100 @@
-package com.fincore.CommunicationService.config;
+package com.fincore.analyticsservice.dto;
 
-import com.fincore.CommunicationService.subscriber.CacheSyncSubscriber;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Configuration;
-import org.springframework.data.redis.connection.RedisConnectionFactory;
-import org.springframework.data.redis.listener.ChannelTopic;
-import org.springframework.data.redis.listener.RedisMessageListenerContainer;
-import org.springframework.data.redis.listener.adapter.MessageListenerAdapter;
+import jakarta.validation.constraints.NotEmpty;
+import jakarta.validation.constraints.Size;
+import lombok.Data;
 
-/**
- * <p>Enterprise Distributed Cache Synchronization Configuration.</p>
- *
- * <p><b>Architectural Context:</b>
- * To maintain sub-millisecond FreeMarker AST rendering, templates MUST remain in local RAM (Caffeine).
- * This configuration establishes a Redis Pub/Sub subscriber that listens for invalidation events.
- * When a business user updates a template, an event is published here, causing all Kubernetes pods
- * to instantly flush their local L1 caches simultaneously.</p>
- *
- * @author Principal Engineer
- * @since 2026-07
- */
-@Slf4j
-@Configuration
-public class CacheSyncConfig {
+import java.util.List;
+import java.util.Set;
 
-    /**
-     * The dedicated Redis topic for cluster-wide cache invalidation.
-     */
-    public static final String CACHE_EVICT_TOPIC = "fincore_cache_evict_topic";
+@Data
+public class DrillDownRequest {
+    
+    // e.g., YSA_BANK, PNL_CIRCLE
+    private String viewCode; 
+    
+    // e.g., HeadCode, Geography, Circle
+    private String dimension; 
 
-    @Bean
-    public ChannelTopic cacheEvictTopic() {
-        return new ChannelTopic(CACHE_EVICT_TOPIC);
-    }
+    // The new Multi-HeadCode global filter
+    @NotEmpty(message = "At least one Head Code must be selected.")
+    @Size(max = 5, message = "A maximum of 5 Head Codes can be analyzed simultaneously to ensure optimal performance.")
+    private Set<String> headCodes; 
 
-    /**
-     * Creates the container that binds the Redis connection to our specific listener.
-     */
-    @Bean
-    public RedisMessageListenerContainer redisContainer(
-            RedisConnectionFactory connectionFactory,
-            MessageListenerAdapter listenerAdapter) {
-            
-        log.info("Initializing Redis Pub/Sub Container for Distributed Cache Synchronization.");
+    // Dynamic drill-down filters from the UI clicks
+    private List<FilterDTO> filters; 
+}
+
+
+
+
+
+
+
+-- Move HeadCode to the top of the visual hierarchy (Level 5, assuming Geography is 10)
+UPDATE DR_VIEW_DIMENSION 
+SET DRILL_LEVEL = 5, 
+    IS_HIDDEN = 0 
+WHERE DIMENSION_NAME = 'HeadCode' 
+  AND VIEW_CODE IN ('YSA_BANK', 'YSA_CIRCLE', 'YSA_BRANCH', 'PNL_BANK', 'PNL_CIRCLE', 'PNL_BRANCH', 'NWSA_BANK', 'NWSA_CIRCLE', 'NWSA_BRANCH');
+
+
+
+
+
+
+
+
+
+
+
+
+package com.fincore.analyticsservice.engine;
+
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
+
+public class MockDruidEngine {
+
+    public List<Map<String, Object>> executeAggregation(DrillDownRequest request, List<Map<String, Object>> mockData, String physicalDimension) {
         
-        RedisMessageListenerContainer container = new RedisMessageListenerContainer();
-        container.setConnectionFactory(connectionFactory);
-        container.addMessageListener(listenerAdapter, cacheEvictTopic());
-        
-        return container;
-    }
+        Set<String> validHeadCodes = request.getHeadCodes();
+        String physicalHeadCodeField = resolvePhysicalHeadCodeField(request.getViewCode()); // e.g., YSA_HEADCODE
 
-    /**
-     * Adapts our custom subscriber class to the Spring Data Redis message listener interface.
-     */
-    @Bean
-    public MessageListenerAdapter listenerAdapter(CacheSyncSubscriber subscriber) {
-        // Routes incoming Redis messages directly to the 'onMessage' method of our subscriber
-        return new MessageListenerAdapter(subscriber, "onMessage");
+        // Enterprise Concurrency: Use parallelStream for the 500k rows
+        Map<String, Double> aggregatedResults = mockData.parallelStream()
+            .filter(row -> {
+                String rowHeadCode = (String) row.get(physicalHeadCodeField);
+                
+                // 1. GLOBAL FILTER: Drop row if it doesn't match the selected 5 HeadCodes
+                if (rowHeadCode == null || !validHeadCodes.contains(rowHeadCode)) {
+                    return false;
+                }
+
+                // 2. DRILL-DOWN FILTERS: Apply UI-clicked filters (e.g., HeadCode = HC1, Geography = North)
+                if (request.getFilters() != null) {
+                    for (FilterDTO filter : request.getFilters()) {
+                        String filterPhysicalCol = resolvePhysicalColumn(filter.getDimension());
+                        String rowVal = (String) row.get(filterPhysicalCol);
+                        
+                        // Strict equality for drill-down path
+                        if (rowVal == null || !rowVal.equals(filter.getValue())) {
+                            return false; 
+                        }
+                    }
+                }
+                return true; // Row survived all filters
+            })
+            // Aggregate using ConcurrentHashMap mechanics
+            .collect(Collectors.toConcurrentMap(
+                row -> (String) row.get(physicalDimension), // Group by the requested dimension
+                row -> getNumericValue(row.get("AMOUNT")),
+                Double::sum
+            ));
+
+        return formatAndSortResults(aggregatedResults, physicalDimension);
     }
 }
 
@@ -68,155 +104,6 @@ public class CacheSyncConfig {
 
 
 
-
-
-
-
-
-
-
-
-package com.fincore.CommunicationService.subscriber;
-
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.cache.Cache;
-import org.springframework.cache.CacheManager;
-import org.springframework.stereotype.Component;
-
-import java.nio.charset.StandardCharsets;
-
-/**
- * <p>Listener for Distributed Cache Eviction Events.</p>
- *
- * <p>When a message is received on the Redis Pub/Sub topic, this component
- * traverses the local Spring {@link CacheManager} and clears the Caffeine caches,
- * forcing a fresh database read on the next communication event.</p>
- *
- * @author Principal Engineer
- * @since 2026-07
- */
-@Slf4j
-@Component
-@RequiredArgsConstructor
-public class CacheSyncSubscriber {
-
-    private final CacheManager cacheManager;
-
-    /**
-     * <p>Invoked asynchronously by the RedisMessageListenerContainer when a message arrives.</p>
-     *
-     * @param message The raw message payload from Redis (e.g., "FLUSH_ALL").
-     * @param channel The Redis topic channel name.
-     */
-    public void onMessage(org.springframework.data.redis.connection.Message message, byte[] channel) {
-        String eventCommand = new String(message.getBody(), StandardCharsets.UTF_8);
-        String topic = new String(channel, StandardCharsets.UTF_8);
-        
-        log.warn("CLUSTER EVENT RECEIVED: Action [{}] detected on topic [{}]", eventCommand, topic);
-
-        try {
-            if ("FLUSH_ALL".equalsIgnoreCase(eventCommand)) {
-                evictAllCaches();
-            } else {
-                log.info("Unrecognized cache sync command: {}. Ignoring.", eventCommand);
-            }
-        } catch (IllegalStateException | IllegalArgumentException ex) {
-            log.error("Internal cache manager state error during eviction.", ex);
-        }
-    }
-
-    /**
-     * Safely clears all local caches managed by the Caffeine CacheManager.
-     */
-    private void evictAllCaches() {
-        if (cacheManager.getCacheNames().isEmpty()) {
-            log.debug("No local caches found to evict.");
-            return;
-        }
-
-        cacheManager.getCacheNames().forEach(cacheName -> {
-            Cache cache = cacheManager.getCache(cacheName);
-            if (cache != null) {
-                cache.clear();
-                log.info("Successfully evicted local L1 cache: [{}]", cacheName);
-            }
-        });
-        
-        log.info("Global Cache Synchronization completed successfully on this node.");
-    }
-}
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-package com.fincore.CommunicationService.controller;
-
-import com.fincore.CommunicationService.config.CacheSyncConfig;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.data.redis.RedisConnectionFailureException;
-import org.springframework.data.redis.core.StringRedisTemplate;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
-
-/**
- * <p>Administrative controller for managing application state.</p>
- *
- * <p><b>Security Context:</b>
- * This endpoint MUST be secured via RBAC (e.g., restricted to 'SYSTEM_ADMIN' role)
- * in the API Gateway or {@code ContextRbacFilter}.</p>
- *
- * @author Principal Engineer
- * @since 2026-07
- */
-@Slf4j
-@RestController
-@RequestMapping("/api/admin")
-@RequiredArgsConstructor
-public class AdminCacheController {
-
-    private final StringRedisTemplate redisTemplate;
-
-    /**
-     * <p>Broadcasts a cache eviction command to the entire Kubernetes cluster.</p>
-     * * <p>Used by the nightly cron job and authorized administrators when templates 
-     * or roles are updated in the database.</p>
-     *
-     * @return 200 OK if the broadcast was successful.
-     */
-    @PostMapping("/syncronizedAllCaches")
-    public ResponseEntity<String> synchronizeAllCaches() {
-        log.info("Admin action triggered: Broadcasting global FLUSH_ALL cache eviction.");
-        
-        try {
-            // Publishes the command to the Redis topic. 
-            // Redis acts as a lightweight event bus, pushing this to all subscribed pods.
-            redisTemplate.convertAndSend(CacheSyncConfig.CACHE_EVICT_TOPIC, "FLUSH_ALL");
-            
-            return ResponseEntity.ok("Cluster-wide cache eviction command broadcasted successfully.");
-            
-        } catch (RedisConnectionFailureException ex) {
-            log.error("Failed to broadcast cache eviction. Redis cluster is unreachable.", ex);
-            return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
-                    .body("Failed to sync caches. Message Broker unreachable.");
-        }
-    }
-}
 
 
 
