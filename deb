@@ -1,71 +1,39 @@
-package com.fincore.analyticsservice.dto;
-
-import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotEmpty;
-import jakarta.validation.constraints.NotNull;
-import jakarta.validation.constraints.Pattern;
-import jakarta.validation.constraints.Size;
-
-import java.util.List;
-import java.util.Set;
-
-public record DrillDownRequest(
-        @NotBlank(message = "viewCode is required to route the request securely")
-        @Pattern(regexp = "^[a-zA-Z0-9_-]+$", message = "Invalid viewCode format")
-        String viewCode,
-
-        // NEW: Global HeadCode Multi-Select (Max 5)
-        @NotEmpty(message = "At least one Head Code must be selected.")
-        @Size(max = 5, message = "A maximum of 5 Head Codes can be analyzed simultaneously.")
-        Set<String> headCodes,
-
-        @NotEmpty(message = "At least one logical dimension is required")
-        List<@Pattern(regexp = "^[a-zA-Z0-9_-]+$") String> dimensions,
-
-        @NotEmpty(message = "At least one logical metric is required")
-        List<@Pattern(regexp = "^[a-zA-Z0-9_-]+$") String> metrics,
-
-        @NotNull(message = "Filters array cannot be null")
-        List<FilterDto> filters
-
-) {}
+Frontend Implementation Guide: Multi-HeadCode Drill-Down
+1. UI Component Changes (The Search Dialog)
+ Multi-Select Dropdown: The Head Code search input must be converted from a single-select dropdown to a multi-select dropdown (e.g., using Chips or Tags).
+ Validation (Max 5): The UI must prevent the user from selecting more than 5 Head Codes. If they try to select a 6th, disable the dropdown or show a toast warning: "A maximum of 5 Head Codes can be compared simultaneously."
+ Validation (Min 1): The "Search/Submit" button must be disabled until at least 1 Head Code is selected.
+2. The New API Request Contract (JSON Payload)
+The backend ⁠DrillDownRequest⁠ has changed. The selected Head Codes must now be sent as a root-level array called ⁠headCodes⁠, not hidden inside the ⁠filters⁠ array.
+✅ Correct Initial Payload (Grid Load):
 
 
 
 
 
 
-package com.fincore.analyticsservice.dto;
+{
+  "viewCode": "YSA_BANK",
+  "headCodes": ["10001", "10002", "10003"], // <-- NEW MANDATORY FIELD
+  "dimensions": ["HeadCode"],               // <-- MUST START WITH HeadCode
+  "metrics": ["TotalAmount"],
+  "filters": []
+}
 
-import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotEmpty;
-import jakarta.validation.constraints.NotNull;
-import jakarta.validation.constraints.Pattern;
-import jakarta.validation.constraints.Size;
 
-import java.util.List;
-import java.util.Set;
 
-public record DrillDownRequest(
-        @NotBlank(message = "viewCode is required to route the request securely")
-        @Pattern(regexp = "^[a-zA-Z0-9_-]+$", message = "Invalid viewCode format")
-        String viewCode,
 
-        // NEW: Global HeadCode Multi-Select (Max 5)
-        @NotEmpty(message = "At least one Head Code must be selected.")
-        @Size(max = 5, message = "A maximum of 5 Head Codes can be analyzed simultaneously.")
-        Set<String> headCodes,
-
-        @NotEmpty(message = "At least one logical dimension is required")
-        List<@Pattern(regexp = "^[a-zA-Z0-9_-]+$") String> dimensions,
-
-        @NotEmpty(message = "At least one logical metric is required")
-        List<@Pattern(regexp = "^[a-zA-Z0-9_-]+$") String> metrics,
-
-        @NotNull(message = "Filters array cannot be null")
-        List<FilterDto> filters
-
-) {}
+3. Dynamic Hierarchy Reading (Important!)
+Because the backend is a metadata-driven Semantic Layer, we updated the Oracle DB so that ⁠HeadCode⁠ is now Level 10 (the root of the hierarchy).
+ When the UI calls ⁠/api/analytics/config⁠ on load, the ⁠hierarchy⁠ array will now look like this: ⁠["HeadCode", "Geography", "Circle", "CGL", ...]⁠.
+ The UI must blindly trust this list. The first API call it makes must pass ⁠"HeadCode"⁠ inside the ⁠dimensions⁠ array.
+4. The Drill-Down State Machine (Clicking a Row)
+This is the most critical logic change for the frontend state.
+Scenario: The user loaded the grid for 3 Head Codes. They now click on the row for Head Code ⁠"10001"⁠ to drill down into its Geography.
+Frontend Action Required: 1. Keep the global ⁠headCodes⁠ array exactly the same.
+2. Advance the ⁠dimensions⁠ array to the next level from the config (⁠["Geography"]⁠).
+3. Push the clicked Head Code into the ⁠filters⁠ array so the backend knows which specific row the user clicked.
+✅ Correct Drill-Down Payload (Level 2):
 
 
 
@@ -75,240 +43,42 @@ public record DrillDownRequest(
 
 
 
-package com.fincore.analyticsservice.component;
 
-import com.fincore.analyticsservice.dto.DimensionConfig;
-import com.fincore.analyticsservice.dto.FilterDto;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.stereotype.Component;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
 
-@Slf4j
-@Component
-public class DruidQueryBuilder {
+3. Dynamic Hierarchy Reading (Important!)
+Because the backend is a metadata-driven Semantic Layer, we updated the Oracle DB so that ⁠HeadCode⁠ is now Level 10 (the root of the hierarchy).
+ When the UI calls ⁠/api/analytics/config⁠ on load, the ⁠hierarchy⁠ array will now look like this: ⁠["HeadCode", "Geography", "Circle", "CGL", ...]⁠.
+ The UI must blindly trust this list. The first API call it makes must pass ⁠"HeadCode"⁠ inside the ⁠dimensions⁠ array.
+4. The Drill-Down State Machine (Clicking a Row)
+This is the most critical logic change for the frontend state.
+Scenario: The user loaded the grid for 3 Head Codes. They now click on the row for Head Code ⁠"10001"⁠ to drill down into its Geography.
+Frontend Action Required: 1. Keep the global ⁠headCodes⁠ array exactly the same.
+2. Advance the ⁠dimensions⁠ array to the next level from the config (⁠["Geography"]⁠).
+3. Push the clicked Head Code into the ⁠filters⁠ array so the backend knows which specific row the user clicked.
+✅ Correct Drill-Down Payload (Level 2):
 
-    public Map<String, Object> buildSqlPayload(
-            String physicalTable,
-            String logicalTargetDim,
-            DimensionConfig targetDimConfig,
-            List<String> logicalMetrics,
-            Map<String, String> resolvedMetricsSql,
-            List<FilterDto> filters,
-            Set<String> headCodes, // <-- NEW PARAMETER
-            Map<String, DimensionConfig> dimensionTranslationMap) {
 
-        StringBuilder sql = new StringBuilder("SELECT ");
 
-        // 1. Grouping Column (dynamically formatted)
-        sql.append(formatDimension(targetDimConfig)).append(" AS \"").append(logicalTargetDim).append("\"");
 
-        // 2. Metrics
-        for (String logicalMetric : logicalMetrics) {
-            String rawMetricSql = resolvedMetricsSql.get(logicalMetric);
-            sql.append(", ").append(rawMetricSql).append(" AS \"").append(logicalMetric).append("\"");
-        }
 
-        // 3. From physical datasource
-        sql.append(" FROM \"").append(physicalTable).append("\" WHERE 1=1 ");
 
-        List<Map<String, String>> parameters = new ArrayList<>();
 
-        // 4. GLOBAL HEADCODE FILTER (Max 5)
-        if (headCodes != null && !headCodes.isEmpty()) {
-            DimensionConfig hcConfig = dimensionTranslationMap.get("HeadCode");
-            String formattedHcDim = formatDimension(hcConfig);
-            
-            sql.append(" AND (");
-            boolean first = true;
-            for (String hc : headCodes) {
-                if (!first) sql.append(" OR ");
-                // Multi-value Druid Array check for each headcode
-                sql.append("ARRAY_CONTAINS(").append(formattedHcDim).append(", ?)");
-                parameters.add(Map.of("type", "VARCHAR", "value", hc));
-                first = false;
-            }
-            sql.append(") ");
-        }
 
-        // 5. DRILL-DOWN FILTERS
-        if (filters != null && !filters.isEmpty()) {
-            for (FilterDto filter : filters) {
-                DimensionConfig filterDimConfig = dimensionTranslationMap.get(filter.logicalField());
-                if (filterDimConfig == null) {
-                    throw new IllegalArgumentException("Filter dimension not mapped: " + filter.logicalField());
-                }
-                appendFilterCondition(sql, parameters, filterDimConfig, filter);
-            }
-        }
 
-        // 6. Group By
-        sql.append(" GROUP BY ").append(formatDimension(targetDimConfig));
 
-        return Map.of(
-                "query", sql.toString(),
-                "parameters", parameters
-        );
+
+{
+  "viewCode": "YSA_BANK",
+  "headCodes": ["10001", "10002", "10003"], // Global selection remains unchanged
+  "dimensions": ["Geography"],              // Advanced to the next level
+  "filters": [
+    {
+      "logicalField": "HeadCode",           // The row they just clicked
+      "operator": "EQUALS",
+      "value": "10001"
     }
-
-    private String formatDimension(DimensionConfig config) {
-        if (config.isExpression()) {
-            return "(" + config.physicalSql() + ")";
-        } else {
-            String physicalCol = config.physicalSql();
-            if (physicalCol.startsWith("\"") && physicalCol.endsWith("\"")) {
-                return physicalCol;
-            }
-            return "\"" + physicalCol + "\"";
-        }
-    }
-
-    private void appendFilterCondition(StringBuilder sql, List<Map<String, String>> parameters, DimensionConfig config, FilterDto filter) {
-        String formattedDim = formatDimension(config);
-
-        if ("EQUALS".equalsIgnoreCase(filter.operator())) {
-            // Retained for drill-down specific clicks into HeadCodes
-            if ("HeadCode".equalsIgnoreCase(filter.logicalField())) {
-                sql.append(" AND ARRAY_CONTAINS(").append(formattedDim).append(", ?) ");
-            } else {
-                sql.append(" AND ").append(formattedDim).append(" = ? ");
-            }
-            parameters.add(Map.of("type", "VARCHAR", "value", String.valueOf(filter.value())));
-        } else {
-            throw new IllegalArgumentException("Unsupported filter operator: " + package com.fincore.analyticsservice.service;
-
-import com.fincore.analyticsservice.client.DruidRestClient;
-import com.fincore.analyticsservice.component.DruidQueryBuilder;
-import com.fincore.analyticsservice.dto.*;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.cache.annotation.Cacheable;
-import org.springframework.security.access.AccessDeniedException;
-import org.springframework.stereotype.Service;
-import org.springframework.util.CollectionUtils;
-import com.fincore.analyticsservice.mock.MockDruidEngine;
-import java.util.*;
-
-@Slf4j
-@Service
-public class SemanticDrillDownService {
-    private static final Integer ROLE_ADMIN = 10;
-
-    private final DruidRestClient druidRestClient;
-    private final DruidQueryBuilder queryBuilder;
-    private final ReportMetadataProvider metadataProvider;
-    private final MockDruidEngine mockEngine;
-
-    public SemanticDrillDownService(
-            DruidRestClient druidRestClient,
-            DruidQueryBuilder queryBuilder,
-            ReportMetadataProvider metadataProvider, 
-            MockDruidEngine mockEngine) {
-        this.druidRestClient = druidRestClient;
-        this.queryBuilder = queryBuilder;
-        this.metadataProvider = metadataProvider;
-        this.mockEngine = mockEngine;
-    }
-
-    @Cacheable(value = "drillDownData", key = "T(java.lang.String).valueOf(#request.hashCode())")
-    public DrillDownResponse executeDrillDown(DrillDownRequest request, Integer roleId) {
-        long startTime = System.currentTimeMillis();
-        String logicalTargetDim = request.dimensions().get(0);
-
-        log.info("Executing DrillDown for view: [{}], logicalDim: [{}]", request.viewCode(), logicalTargetDim);
-
-        if (mockEngine.isMockEnabled()) {
-            log.warn("=================> ROUTING REQUEST TO MOCK DRUID ENGINE FOR ST ENVIRONMENT <=================");
-            return mockEngine.execute(request); // Passing entire request
-        }
-
-        ViewMetadataContext context = metadataProvider.getViewContext(request.viewCode());
-        validateAccess(context.requiredRoleIds(), roleId);
-
-        DimensionConfig targetDimConfig = translateDimension(logicalTargetDim, context.dimensionMap());
-        Map<String, String> resolvedMetricsSql = resolveMetrics(request.metrics(), context.metricMap());
-
-        // PASS THE HEADCODES SET TO THE QUERY BUILDER
-        Map<String, Object> druidPayload = queryBuilder.buildSqlPayload(
-                context.physicalDruidTable(),
-                logicalTargetDim,
-                targetDimConfig,
-                request.metrics(),
-                resolvedMetricsSql,
-                request.filters(),
-                request.headCodes(), // <-- Passed here
-                context.dimensionMap()
-        );
-
-        log.info("Final druid payload to be executed: {}", druidPayload);
-
-        List<Map<String, Object>> rawDruidData = druidRestClient.executeQuery(druidPayload);
-
-        if (CollectionUtils.isEmpty(rawDruidData)) {
-            return new DrillDownResponse(new Meta("SUCCESS", logicalTargetDim, 0, System.currentTimeMillis() - startTime), Collections.emptyList());
-        }
-
-        boolean hasChildren = determineIfHasChildren(logicalTargetDim, context.logicalHierarchyOrdered());
-        List<Map<String, Object>> formattedData = formatResponseData(rawDruidData, logicalTargetDim, hasChildren);
-
-        long executionTime = System.currentTimeMillis() - startTime;
-        return new DrillDownResponse(new Meta("SUCCESS", logicalTargetDim, formattedData.size(), executionTime), formattedData);
-    }
-
-    private void validateAccess(String requiredRoleIds, Integer roleId) {
-        if (ROLE_ADMIN.equals(roleId)) return;
-        if (requiredRoleIds == null || requiredRoleIds.trim().isEmpty() || "NULL".equalsIgnoreCase(requiredRoleIds.trim())) return;
-        List<String> allowedRoles = Arrays.asList(requiredRoleIds.split(","));
-        if (!allowedRoles.contains(String.valueOf(roleId))) {
-            throw new AccessDeniedException("Insufficient permissions to execute drill-down for this view.");
-        }
-    }
-
-    private DimensionConfig translateDimension(String logicalName, Map<String, DimensionConfig> dimMap) {
-        DimensionConfig config = dimMap.get(logicalName);
-        if (config == null) throw new IllegalArgumentException("Logical dimension '" + logicalName + "' is not supported.");
-        return config;
-    }
-
-    private Map<String, String> resolveMetrics(List<String> logicalMetrics, Map<String, String> metricMap) {
-        Map<String, String> resolved = new HashMap<>();
-        for (String logicalName : logicalMetrics) {
-            String sql = metricMap.get(logicalName);
-            if (sql == null || sql.isBlank()) throw new IllegalArgumentException("Logical metric '" + logicalName + "' is not supported.");
-            resolved.put(logicalName, sql);
-        }
-        return resolved;
-    }
-
-    private boolean determineIfHasChildren(String currentDim, List<String> hierarchy) {
-        int index = hierarchy.indexOf(currentDim);
-        return index != -1 && index < hierarchy.size() - 1;
-    }
-
-    private List<Map<String, Object>> formatResponseData(List<Map<String, Object>> rawData, String logicalDim, boolean hasChildren) {
-        String idPrefix = logicalDim.toLowerCase() + "_";
-        List<Map<String, Object>> result = new ArrayList<>(rawData.size());
-
-        for (Map<String, Object> row : rawData) {
-            Map<String, Object> formattedRow = new LinkedHashMap<>();
-            Object nameObj = row.get(logicalDim);
-            String nameValue = (nameObj != null && !nameObj.toString().isBlank()) ? nameObj.toString() : "Unassigned";
-
-            formattedRow.put("id", idPrefix + nameValue.toLowerCase().replaceAll("[^a-z0-9]", "_"));
-            formattedRow.put("name", nameValue);
-
-            for (Map.Entry<String, Object> entry : row.entrySet()) {
-                if (!entry.getKey().equals(logicalDim)) {
-                    formattedRow.put(entry.getKey(), entry.getValue() == null ? 0.0 : entry.getValue());
-                }
-            }
-            formattedRow.put("hasChildren", hasChildren);
-            result.add(formattedRow);
-        }
-        return result;
-    }
+  ]
 }
 
 
@@ -316,218 +86,11 @@ public class SemanticDrillDownService {
 
 
 
-
-
-package com.fincore.analyticsservice.mock;
-
-import tools.jackson.core.type.TypeReference;
-import tools.jackson.databind.JsonNode;
-import tools.jackson.databind.json.JsonMapper;
-import com.fincore.analyticsservice.dto.DrillDownRequest;
-import com.fincore.analyticsservice.dto.DrillDownResponse;
-import com.fincore.analyticsservice.dto.FilterDto;
-import com.fincore.analyticsservice.dto.Meta;
-import jakarta.annotation.PostConstruct;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.core.io.ClassPathResource;
-import org.springframework.stereotype.Service;
-
-import java.io.InputStream;
-import java.math.BigDecimal;
-import java.math.RoundingMode;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.stream.Collectors;
-
-@Slf4j
-@Service
-public class MockDruidEngine {
-
-    private final JsonMapper jsonMapper;
-    @Value("${app.mock.druid.enabled:false}")
-    private boolean mockEnabled;
-    private List<Map<String, Object>> mockData = new ArrayList<>();
-
-    public MockDruidEngine(JsonMapper jsonMapper) {
-        this.jsonMapper = jsonMapper;
-    }
-
-    @PostConstruct
-    public void init() {
-        if (!mockEnabled) {
-            log.info("Mock Druid Engine is DISABLED. Routing to real Apache Druid.");
-            return;
-        }
-        try {
-            log.warn("⏳ ST ENVIRONMENT MOCK DETECTED: Loading mock_druid_data.json into memory...");
-            InputStream is = new ClassPathResource("report.json").getInputStream();
-            JsonNode rootNode = jsonMapper.readTree(is);
-            if (rootNode.isObject() && rootNode.has("rows")) {
-                mockData = jsonMapper.convertValue(rootNode.get("rows"), new TypeReference<List<Map<String, Object>>>() {});
-            } else if (rootNode.isArray()) {
-                mockData = jsonMapper.convertValue(rootNode, new TypeReference<List<Map<String, Object>>>() {});
-            }
-            log.info("✅ Mock Data Loaded Successfully. Total Rows in RAM: {}", mockData.size());
-        } catch (Exception e) {
-            log.error("❌ Failed to load mock data. Make sure report.json is in src/main/resources!", e);
-        }
-    }
-
-    public boolean isMockEnabled() {
-        return mockEnabled;
-    }
-
-    public DrillDownResponse execute(DrillDownRequest request) {
-        long startTime = System.currentTimeMillis();
-        String targetDim = request.dimensions().get(0);
-
-        // Switched to parallelStream and ConcurrentHashMap for enterprise speed
-        ConcurrentHashMap<String, BigDecimal> groupedData = new ConcurrentHashMap<>();
-
-        mockData.parallelStream()
-                .filter(row -> matchesFilters(row, request))
-                .forEach(row -> {
-                    String groupKey = extractDimensionValue(row, targetDim);
-                    if (groupKey == null || groupKey.trim().isEmpty() || "null".equals(groupKey)) {
-                        return;
-                    }
-                    Object balanceObj = row.get("BALANCE");
-                    BigDecimal balance = balanceObj != null ? new BigDecimal(String.valueOf(balanceObj)) : BigDecimal.ZERO;
-                    // Thread-safe merge
-                    groupedData.merge(groupKey, balance, BigDecimal::add);
-                });
-
-        List<Map<String, Object>> responseData = groupedData.entrySet().stream()
-                .map(entry -> {
-                    Map<String, Object> map = new HashMap<>();
-                    map.put("id", targetDim.toLowerCase() + "_" + entry.getKey().replaceAll("[^a-zA-Z0-9]", ""));
-                    map.put("name", entry.getKey());
-                    map.put("AMOUNT", entry.getValue().setScale(2, RoundingMode.HALF_UP));
-                    map.put("hasChildren", true);
-                    return map;
-                })
-                .sorted((a, b) -> {
-                    if ("Branch-Circle".equalsIgnoreCase(targetDim)) {
-                        String nameA = (String) a.get("name");
-                        String nameB = (String) b.get("name");
-                        if (nameA == null) return 1;
-                        if (nameB == null) return -1;
-
-                        String[] partsA = nameA.split(" - ", 2);
-                        String[] partsB = nameB.split(" - ", 2);
-
-                        if (partsA.length == 2 && partsB.length == 2) {
-                            String branchA = partsA[0].trim();
-                            String circleA = partsA[1].trim();
-                            String branchB = partsB[0].trim();
-                            String circleB = partsB[1].trim();
-
-                            int circleCompare = circleA.compareToIgnoreCase(circleB);
-                            if (circleCompare != 0) return circleCompare;
-                            return branchA.compareToIgnoreCase(branchB);
-                        }
-                        return nameA.compareToIgnoreCase(nameB);
-                    } else {
-                        BigDecimal amountA = (BigDecimal) a.get("AMOUNT");
-                        BigDecimal amountB = (BigDecimal) b.get("AMOUNT");
-                        if (amountA == null) amountA = BigDecimal.ZERO;
-                        if (amountB == null) amountB = BigDecimal.ZERO;
-                        return amountB.compareTo(amountA);
-                    }
-                })
-                .collect(Collectors.toList());
-
-        long timeTaken = System.currentTimeMillis() - startTime;
-        log.info("Mock Engine aggregated {} groups in {} ms for view [{}]", responseData.size(), timeTaken, request.viewCode());
-
-        Meta meta = new Meta("SUCCESS", targetDim, responseData.size(), timeTaken);
-        return new DrillDownResponse(meta, responseData);
-    }
-
-    private boolean matchesFilters(Map<String, Object> row, DrillDownRequest request) {
-        String viewCode = request.viewCode();
-        Set<String> validHeadCodes = request.headCodes();
-        List<FilterDto> filters = request.filters();
-
-        // 1. GLOBAL FILTER: Ensure row belongs to one of the 1-5 selected HeadCodes
-        String headCol = viewCode.startsWith("YSA") ? "YSA_HEADCODE" :
-                         viewCode.startsWith("PNL") ? "PNL_HEADCODE" : "NWSA_HEADCODE";
-        Object arrayData = row.get(headCol);
-        if (arrayData == null) return false;
-        
-        String arrayDataStr = arrayData.toString();
-        boolean matchesGlobalHeadCode = false;
-        for (String hc : validHeadCodes) {
-            if (arrayDataStr.contains(hc)) {
-                matchesGlobalHeadCode = true;
-                break;
-            }
-        }
-        if (!matchesGlobalHeadCode) return false;
-
-        // 2. DRILL-DOWN FILTERS: Apply UI clicks
-        if (filters == null || filters.isEmpty()) return true;
-
-        for (FilterDto f : filters) {
-            String val = String.valueOf(f.value());
-            switch (f.logicalField()) {
-                case "ReportDate":
-                    if (!val.equals(String.valueOf(row.get("DATE")))) return false;
-                    break;
-                case "HeadCode":
-                    // If the user drilled DOWN into a specific HeadCode, filter on it exactly
-                    if (!arrayDataStr.contains(val)) return false;
-                    break;
-                case "Circle":
-                    if (!val.equals(String.valueOf(row.get("CIRCLE_CODE")))) return false;
-                    break;
-                case "Branch":
-                case "Branch-Circle":
-                case "BranchCode":
-                    if (!val.equals(String.valueOf(row.get("BRANCH_CODE")))) return false;
-                    break;
-                case "Geography":
-                    String geo = "D".equals(row.get("BRANCH_TYPE")) ? "Domestic" : "Foreign";
-                    if (!val.equals(geo)) return false;
-                    break;
-                case "CGL":
-                    if (!val.equals(String.valueOf(row.get("CGL")))) return false;
-                    break;
-                case "Product":
-                    if (!val.equals(String.valueOf(row.get("PRODUCT")))) return false;
-                    break;
-            }
-        }
-        return true;
-    }
-
-    private String extractDimensionValue(Map<String, Object> row, String targetDim) {
-        switch (targetDim) {
-            case "HeadCode": // Enable Group-By HeadCode
-                // For ST mock purposes, if grouped by headcode, we return the array directly
-                // (In production, Druid automatically explodes arrays into rows)
-                Object hcData = row.get(row.containsKey("YSA_HEADCODE") ? "YSA_HEADCODE" : 
-                                        row.containsKey("PNL_HEADCODE") ? "PNL_HEADCODE" : "NWSA_HEADCODE");
-                return hcData != null ? hcData.toString() : "Unknown";
-            case "Geography":
-                return "D".equals(row.get("BRANCH_TYPE")) ? "Domestic" : "Foreign";
-            case "CGL":
-                return String.valueOf(row.get("CGL"));
-            case "Product":
-                return String.valueOf(row.get("PRODUCT"));
-            case "Branch-Circle":
-                return row.get("BRANCH_CODE") + " - " + row.get("CIRCLE_NAME");
-            default:
-                return null;
-        }
-    }
-}
-
-
+5. Breadcrumb UI
+When the user clicks into ⁠"10001"⁠, the breadcrumb at the top of the grid should render:
+⁠HeadCode: 10001 > Geography⁠
+If they click "Back" on the breadcrumb to return to the HeadCode comparison view, simply clear the ⁠filters⁠ array and reset the ⁠dimensions⁠ back to ⁠["HeadCode"]⁠.
+Summary for the Frontend Lead
+"We moved HeadCode from a hidden backend filter to a first-class visual dimension. Pass the selected head codes in the new root ⁠headCodes⁠ array, start your dimension drill-down at ⁠HeadCode⁠, and when a user clicks a row, append that specific HeadCode to the ⁠filters⁠ array just like you do for Geography or Circle."
 
 
