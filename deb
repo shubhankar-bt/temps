@@ -109,3 +109,57 @@ public class MockDruidEngine {
 
 
 
+
+-- Step 1: Shift existing visible dimensions to a gapped sequence (20, 30, 40...)
+-- We include "DRILL_LEVEL < 90" to ensure we only touch dimensions currently visible in the UI
+UPDATE DR_VIEW_DIMENSION 
+SET DRILL_LEVEL = 20 
+WHERE DIMENSION_NAME = 'Geography' AND DRILL_LEVEL < 90;
+
+UPDATE DR_VIEW_DIMENSION 
+SET DRILL_LEVEL = 30 
+WHERE DIMENSION_NAME = 'Circle' AND DRILL_LEVEL < 90;
+
+UPDATE DR_VIEW_DIMENSION 
+SET DRILL_LEVEL = 40 
+WHERE DIMENSION_NAME = 'CGL' AND DRILL_LEVEL < 90;
+
+UPDATE DR_VIEW_DIMENSION 
+SET DRILL_LEVEL = 50 
+WHERE DIMENSION_NAME = 'Product' AND DRILL_LEVEL < 90;
+
+UPDATE DR_VIEW_DIMENSION 
+SET DRILL_LEVEL = 60 
+WHERE DIMENSION_NAME = 'Branch-Circle' AND DRILL_LEVEL < 90;
+
+-- Step 2: Promote HeadCode from a hidden filter (>= 90) to the new Root Dimension (10)
+UPDATE DR_VIEW_DIMENSION 
+SET DRILL_LEVEL = 10, 
+    IS_HIDDEN = 0 -- (Assuming 0 means visible/false in your schema)
+WHERE DIMENSION_NAME = 'HeadCode'
+  AND VIEW_CODE IN ('YSA_BANK', 'YSA_CIRCLE', 'YSA_BRANCH', 
+                    'PNL_BANK', 'PNL_CIRCLE', 'PNL_BRANCH', 
+                    'NWSA_BANK', 'NWSA_CIRCLE', 'NWSA_BRANCH');
+
+SELECT DIMENSION_NAME, DRILL_LEVEL, IS_HIDDEN 
+FROM DR_VIEW_DIMENSION 
+WHERE VIEW_CODE = 'YSA_BANK' 
+ORDER BY DRILL_LEVEL ASC;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
