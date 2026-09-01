@@ -1,46 +1,50 @@
--- 1. Shift Geography
-UPDATE "FINCORE"."DR_VIEW_DIMENSION" 
-SET DRILL_LEVEL = 20 
-WHERE LOGICAL_NAME = 'Geography' AND DRILL_LEVEL < 90;
-
--- 2. Shift CGL
-UPDATE "FINCORE"."DR_VIEW_DIMENSION" 
-SET DRILL_LEVEL = 30 
-WHERE LOGICAL_NAME = 'CGL' AND DRILL_LEVEL < 90;
-
--- 3. Shift Product
-UPDATE "FINCORE"."DR_VIEW_DIMENSION" 
-SET DRILL_LEVEL = 40 
-WHERE LOGICAL_NAME = 'Product' AND DRILL_LEVEL < 90;
-
--- 4. Shift Branch-Circle
-UPDATE "FINCORE"."DR_VIEW_DIMENSION" 
-SET DRILL_LEVEL = 50 
-WHERE LOGICAL_NAME = 'Branch-Circle' AND DRILL_LEVEL < 90;
-
--- 5. Promote HeadCode to the new Root Dimension
-UPDATE "FINCORE"."DR_VIEW_DIMENSION" 
-SET DRILL_LEVEL = 10 
-WHERE LOGICAL_NAME = 'HeadCode';
-
-COMMIT;
 
 
+package com.fincore.analyticsservice.engine;
 
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
 
+public class MockDruidEngine {
 
+    public List<Map<String, Object>> executeAggregation(DrillDownRequest request, List<Map<String, Object>> mockData, String physicalDimension) {
+        
+        Set<String> validHeadCodes = request.getHeadCodes();
+        String physicalHeadCodeField = resolvePhysicalHeadCodeField(request.getViewCode()); // e.g., YSA_HEADCODE
 
+        // Enterprise Concurrency: Use parallelStream for the 500k rows
+        Map<String, Double> aggregatedResults = mockData.parallelStream()
+            .filter(row -> {
+                String rowHeadCode = (String) row.get(physicalHeadCodeField);
+                
+                // 1. GLOBAL FILTER: Drop row if it doesn't match the selected 5 HeadCodes
+                if (rowHeadCode == null || !validHeadCodes.contains(rowHeadCode)) {
+                    return false;
+                }
 
+                // 2. DRILL-DOWN FILTERS: Apply UI-clicked filters (e.g., HeadCode = HC1, Geography = North)
+                if (request.getFilters() != null) {
+                    for (FilterDTO filter : request.getFilters()) {
+                        String filterPhysicalCol = resolvePhysicalColumn(filter.getDimension());
+                        String rowVal = (String) row.get(filterPhysicalCol);
+                        
+                        // Strict equality for drill-down path
+                        if (rowVal == null || !rowVal.equals(filter.getValue())) {
+                            return false; 
+                        }
+                    }
+                }
+                return true; // Row survived all filters
+            })
+            // Aggregate using ConcurrentHashMap mechanics
+            .collect(Collectors.toConcurrentMap(
+                row -> (String) row.get(physicalDimension), // Group by the requested dimension
+                row -> getNumericValue(row.get("AMOUNT")),
+                Double::sum
+            ));
 
-
-
-
-
-
-
-
-
-SELECT LOGICAL_NAME, PHYSICAL_COLUMN, DRILL_LEVEL
-FROM "FINCORE"."DR_VIEW_DIMENSION"
-WHERE VIEW_ID = 54
-ORDER BY DRILL_LEVEL ASC;
+        return formatAndSortResults(aggregatedResults, physicalDimension);
+    }
+}
