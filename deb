@@ -1,99 +1,255 @@
-{
-    "viewCode": "PNL_BANK",
-    "headCodes": [
-        "10001"
-    ],
-    "dimensions": [
-        "HeadCode"
-    ],
-    "metrics": [
-        "AMOUNT"
-    ],
-    "filters": [
-        {
-            "logicalField": "ReportDate",
-            "operator": "EQUALS",
-            "value": "29-06-2026"
+package com.fincore.analyticsservice.mock;
+
+import tools.jackson.core.type.TypeReference;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.json.JsonMapper;
+import com.fincore.analyticsservice.dto.DrillDownRequest;
+import com.fincore.analyticsservice.dto.DrillDownResponse;
+import com.fincore.analyticsservice.dto.FilterDto;
+import com.fincore.analyticsservice.dto.Meta;
+import jakarta.annotation.PostConstruct;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.io.ClassPathResource;
+import org.springframework.stereotype.Service;
+
+import java.io.InputStream;
+import java.math.BigDecimal;
+import java.math.RoundingMode;
+import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.stream.Collectors;
+
+@Slf4j
+@Service
+public class MockDruidEngine {
+
+    private final JsonMapper jsonMapper;
+    
+    @Value("${app.mock.druid.enabled:false}")
+    private boolean mockEnabled;
+    
+    private List<Map<String, Object>> mockData = new ArrayList<>();
+
+    public MockDruidEngine(JsonMapper jsonMapper) {
+        this.jsonMapper = jsonMapper;
+    }
+
+    @PostConstruct
+    public void init() {
+        if (!mockEnabled) {
+            log.info("Mock Druid Engine is DISABLED. Routing to real Apache Druid.");
+            return;
         }
-    ]
-}
 
+        try {
+            log.warn("⏳ ST ENVIRONMENT MOCK DETECTED: Loading mock_druid_data.json into memory...");
+            InputStream is = new ClassPathResource("report.json").getInputStream();
 
+            JsonNode rootNode = jsonMapper.readTree(is);
+            if (rootNode.isObject() && rootNode.has("rows")) {
+                mockData = jsonMapper.convertValue(rootNode.get("rows"), new TypeReference<List<Map<String, Object>>>() {});
+            } else if (rootNode.isArray()) {
+                mockData = jsonMapper.convertValue(rootNode, new TypeReference<List<Map<String, Object>>>() {});
+            }
 
-response : 
-
-{
-    "meta": {
-        "status": "SUCCESS",
-        "level": "HeadCode",
-        "rowCount": 1,
-        "executionTimeMs": 42
-    },
-    "data": [
-        {
-            "AMOUNT": -2213300912.26,
-            "hasChildren": true,
-            "name": "Unknown",
-            "id": "headcode_Unknown"
+            log.info("✅ Mock Data Loaded Successfully. Total Rows in RAM: {}", mockData.size());
+        } catch (Exception e) {
+            log.error("❌ Failed to load mock data. Make sure report.json is in src/main/resources!", e);
         }
-    ]
-}
- 
- 
-Response when i send 2 headcode in pnl report.
+    }
 
+    public boolean isMockEnabled() {
+        return mockEnabled;
+    }
 
+    public DrillDownResponse execute(DrillDownRequest request) {
+        long startTime = System.currentTimeMillis();
+        String targetDim = request.dimensions().get(0);
 
+        // Enterprise Concurrency: Thread-safe map for parallel stream processing
+        ConcurrentHashMap<String, BigDecimal> groupedData = new ConcurrentHashMap<>();
 
+        mockData.parallelStream()
+                .filter(row -> matchesFilters(row, request))
+                .forEach(row -> {
+                    
+                    // NEW: A row can map to MULTIPLE keys if it has a Multi-Value Dimension (Array)
+                    List<String> groupKeys = extractDimensionValues(row, targetDim, request);
+                    
+                    for (String groupKey : groupKeys) {
+                        if (groupKey == null || groupKey.trim().isEmpty() || "null".equals(groupKey)) {
+                            continue;
+                        }
 
+                        Object balanceObj = row.get("BALANCE");
+                        BigDecimal balance = balanceObj != null ? new BigDecimal(String.valueOf(balanceObj)) : BigDecimal.ZERO;
+                        
+                        // Merge thread-safely
+                        groupedData.merge(groupKey, balance, BigDecimal::add);
+                    }
+                });
 
+        List<Map<String, Object>> responseData = groupedData.entrySet().stream()
+                .map(entry -> {
+                    Map<String, Object> map = new HashMap<>();
+                    map.put("id", targetDim.toLowerCase() + "_" + entry.getKey().replaceAll("[^a-zA-Z0-9]", ""));
+                    map.put("name", entry.getKey());
+                    map.put("AMOUNT", entry.getValue().setScale(2, RoundingMode.HALF_UP));
+                    map.put("hasChildren", true);
+                    return map;
+                })
+                .sorted((a, b) -> {
+                    if ("Branch-Circle".equalsIgnoreCase(targetDim)) {
+                        String nameA = (String) a.get("name");
+                        String nameB = (String) b.get("name");
+                        if (nameA == null) return 1;
+                        if (nameB == null) return -1;
 
-// Payload using YSA report
-{
-    "viewCode": "YSA_BANK",
-    "headCodes": [
-        "01160",
-        "01011"
-    ],
-    "dimensions": [
-        "HeadCode"
-    ],
-    "metrics": [
-        "AMOUNT"
-    ],
-    "filters": [
-        {
-            "logicalField": "ReportDate",
-            "operator": "EQUALS",
-            "value": "11-05-2026"
+                        String[] partsA = nameA.split(" - ", 2);
+                        String[] partsB = nameB.split(" - ", 2);
+
+                        if (partsA.length == 2 && partsB.length == 2) {
+                            String branchA = partsA[0].trim();
+                            String circleA = partsA[1].trim();
+                            String branchB = partsB[0].trim();
+                            String circleB = partsB[1].trim();
+
+                            int circleCompare = circleA.compareToIgnoreCase(circleB);
+                            if (circleCompare != 0) return circleCompare;
+                            return branchA.compareToIgnoreCase(branchB);
+                        }
+                        return nameA.compareToIgnoreCase(nameB);
+                    } else {
+                        BigDecimal amountA = (BigDecimal) a.get("AMOUNT");
+                        BigDecimal amountB = (BigDecimal) b.get("AMOUNT");
+                        if (amountA == null) amountA = BigDecimal.ZERO;
+                        if (amountB == null) amountB = BigDecimal.ZERO;
+                        return amountB.compareTo(amountA);
+                    }
+                })
+                .collect(Collectors.toList());
+
+        long timeTaken = System.currentTimeMillis() - startTime;
+        log.info("Mock Engine aggregated {} groups in {} ms for view [{}]", responseData.size(), timeTaken, request.viewCode());
+
+        Meta meta = new Meta("SUCCESS", targetDim, responseData.size(), timeTaken);
+        return new DrillDownResponse(meta, responseData);
+    }
+
+    private boolean matchesFilters(Map<String, Object> row, DrillDownRequest request) {
+        String viewCode = request.viewCode();
+        Set<String> validHeadCodes = request.headCodes();
+        List<FilterDto> filters = request.filters();
+
+        // Dynamically resolve physical column based on viewCode
+        String headCol = viewCode.startsWith("YSA") ? "YSA_HEADCODE" :
+                         viewCode.startsWith("PNL") ? "PNL_HEADCODE" : "NWSA_HEADCODE";
+        
+        Object arrayData = row.get(headCol);
+        if (arrayData == null) return false;
+
+        // Safely parse Jackson ArrayList to Java Strings
+        List<String> rowHeadCodes = parseStringList(arrayData);
+
+        // 1. GLOBAL FILTER: Row must contain AT LEAST ONE requested headcode
+        boolean matchesGlobalHeadCode = false;
+        for (String hc : validHeadCodes) {
+            if (rowHeadCodes.contains(hc)) {
+                matchesGlobalHeadCode = true;
+                break;
+            }
         }
-    ]
-}
+        if (!matchesGlobalHeadCode) return false;
 
+        // 2. DRILL-DOWN FILTERS
+        if (filters == null || filters.isEmpty()) return true;
 
+        for (FilterDto f : filters) {
+            String val = String.valueOf(f.value());
 
-//api endpoint  Response::::::::::::---
-{
-    "meta": {
-        "status": "SUCCESS",
-        "level": "HeadCode",
-        "rowCount": 1,
-        "executionTimeMs": 4682
-    },
-    "data": [
-        {
-            "AMOUNT": 0,
-            "hasChildren": true,
-            "name": "[01160]",
-            "id": "headcode_01160"
+            switch (f.logicalField()) {
+                case "ReportDate":
+                    if (!val.equals(String.valueOf(row.get("DATE")))) return false;
+                    break;
+                case "HeadCode":
+                    // If drilling down into a specific HeadCode, filter against the parsed array
+                    if (!rowHeadCodes.contains(val)) return false;
+                    break;
+                case "Circle":
+                    if (!val.equals(String.valueOf(row.get("CIRCLE_CODE")))) return false;
+                    break;
+                case "Branch":
+                case "Branch-Circle":
+                case "BranchCode":
+                    if (!val.equals(String.valueOf(row.get("BRANCH_CODE")))) return false;
+                    break;
+                case "Geography":
+                    String geo = "D".equals(row.get("BRANCH_TYPE")) ? "Domestic" : "Foreign";
+                    if (!val.equals(geo)) return false;
+                    break;
+                case "CGL":
+                    if (!val.equals(String.valueOf(row.get("CGL")))) return false;
+                    break;
+                case "Product":
+                    if (!val.equals(String.valueOf(row.get("PRODUCT")))) return false;
+                    break;
+            }
         }
-    ]
+        return true;
+    }
+
+    /**
+     * Extracts values to group by. Returns a List to simulate Druid's Multi-Value explosion.
+     */
+    private List<String> extractDimensionValues(Map<String, Object> row, String targetDim, DrillDownRequest request) {
+        switch (targetDim) {
+            case "HeadCode":
+                // 1. Identify which physical column to read
+                String headCol = request.viewCode().startsWith("YSA") ? "YSA_HEADCODE" :
+                                 request.viewCode().startsWith("PNL") ? "PNL_HEADCODE" : "NWSA_HEADCODE";
+                
+                Object hcData = row.get(headCol);
+                if (hcData == null) return List.of("Unknown");
+
+                // 2. Parse the JSON Array
+                List<String> rowHeadCodes = parseStringList(hcData);
+                
+                // 3. EXPLOSION FILTER: Only return HeadCodes that the user actually requested.
+                // (e.g., if row has ["101", "102"] but user searched ["101"], we only want a row for "101")
+                List<String> explodedKeys = rowHeadCodes.stream()
+                        .filter(hc -> request.headCodes().contains(hc))
+                        .collect(Collectors.toList());
+
+                return explodedKeys.isEmpty() ? List.of("Unknown") : explodedKeys;
+
+            case "Geography":
+                return List.of("D".equals(row.get("BRANCH_TYPE")) ? "Domestic" : "Foreign");
+            case "CGL":
+                return List.of(String.valueOf(row.get("CGL")));
+            case "Product":
+                return List.of(String.valueOf(row.get("PRODUCT")));
+            case "Branch-Circle":
+                return List.of(row.get("BRANCH_CODE") + " - " + row.get("CIRCLE_NAME"));
+            default:
+                return List.of();
+        }
+    }
+
+    /**
+     * Fast, null-safe utility to parse Jackson ArrayNodes, Lists, or raw Strings into a clean List of Strings.
+     */
+    private List<String> parseStringList(Object arrayData) {
+        if (arrayData instanceof List) {
+            // Jackson parsed it correctly as an array list
+            return ((List<?>) arrayData).stream().map(String::valueOf).collect(Collectors.toList());
+        } else if (arrayData instanceof String) {
+            // Edge case: if data is a raw string like "[\"01001\"]"
+            String str = (String) arrayData;
+            str = str.replace("[", "").replace("]", "").replace("\"", "");
+            return Arrays.stream(str.split(",")).map(String::trim).collect(Collectors.toList());
+        }
+        // Fallback for single values
+        return List.of(String.valueOf(arrayData));
+    }
 }
- 
-
-
-
-
-sample datsa :
-
-{"rows": [{"CGL": "7041500701", "BRANCH_CODE": "00056", "CURRENCY": "INR", "PRODUCT": "97923", "TYPE": "BGL", "BALANCE": 137544.24, "DATE": "29-06-2026", "CIRCLE_CODE": "001", "CIRCLE_NAME": "KOLKATA", "NMR_CODE": "101002003", "BRANCH_TYPE": "D", "NWSA_HEADCODE": null, "YSA_HEADCODE": null, "PNL_HEADCODE": ["01001"], "_TIME": "2026-06-29T00:00:00.000Z"}, {"CGL": "7041500701", "BRANCH_CODE": "00056", "CURRENCY": "INR", "PRODUCT": "4698573", "TYPE": "BGL", "BALANCE": 151595939.9, "DATE": "29-06-2026", "CIRCLE_CODE": "001", "CIRCLE_NAME": "KOLKATA", "NMR_CODE": "101002003", "BRANCH_TYPE": "D", "NWSA_HEADCODE": null, "YSA_HEADCODE": null, "PNL_HEADCODE": ["01001"], "_TIME": "2026-06-29T00:00:00.000Z"}, }}
