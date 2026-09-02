@@ -82,7 +82,7 @@ Response when i send 2 headcode in pnl report.
     },
     "data": [
         {
-          
+            "AMOUNT": 0,
             "hasChildren": true,
             "name": "[01160]",
             "id": "headcode_01160"
