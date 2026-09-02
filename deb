@@ -72,6 +72,24 @@ Response when i send 2 headcode in pnl report.
 
 
 
+//api endpoint  Response::::::::::::---
+{
+    "meta": {
+        "status": "SUCCESS",
+        "level": "HeadCode",
+        "rowCount": 1,
+        "executionTimeMs": 4682
+    },
+    "data": [
+        {
+          
+            "hasChildren": true,
+            "name": "[01160]",
+            "id": "headcode_01160"
+        }
+    ]
+}
+ 
 
 
 
