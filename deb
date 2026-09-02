@@ -48,6 +48,28 @@ Response when i send 2 headcode in pnl report.
 
 
 
+// Payload using YSA report
+{
+    "viewCode": "YSA_BANK",
+    "headCodes": [
+        "01160",
+        "01011"
+    ],
+    "dimensions": [
+        "HeadCode"
+    ],
+    "metrics": [
+        "AMOUNT"
+    ],
+    "filters": [
+        {
+            "logicalField": "ReportDate",
+            "operator": "EQUALS",
+            "value": "11-05-2026"
+        }
+    ]
+}
+
 
 
 
