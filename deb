@@ -1,96 +1,43 @@
-Frontend Implementation Guide: Multi-HeadCode Drill-Down
-1. UI Component Changes (The Search Dialog)
- Multi-Select Dropdown: The Head Code search input must be converted from a single-select dropdown to a multi-select dropdown (e.g., using Chips or Tags).
- Validation (Max 5): The UI must prevent the user from selecting more than 5 Head Codes. If they try to select a 6th, disable the dropdown or show a toast warning: "A maximum of 5 Head Codes can be compared simultaneously."
- Validation (Min 1): The "Search/Submit" button must be disabled until at least 1 Head Code is selected.
-2. The New API Request Contract (JSON Payload)
-The backend ⁠DrillDownRequest⁠ has changed. The selected Head Codes must now be sent as a root-level array called ⁠headCodes⁠, not hidden inside the ⁠filters⁠ array.
-✅ Correct Initial Payload (Grid Load):
-
-
-
-
-
-
 {
-  "viewCode": "YSA_BANK",
-  "headCodes": ["10001", "10002", "10003"], // <-- NEW MANDATORY FIELD
-  "dimensions": ["HeadCode"],               // <-- MUST START WITH HeadCode
-  "metrics": ["TotalAmount"],
-  "filters": []
+    "viewCode": "PNL_BANK",
+    "headCodes": [
+        "10001"
+    ],
+    "dimensions": [
+        "HeadCode"
+    ],
+    "metrics": [
+        "AMOUNT"
+    ],
+    "filters": [
+        {
+            "logicalField": "ReportDate",
+            "operator": "EQUALS",
+            "value": "29-06-2026"
+        }
+    ]
 }
 
 
 
-
-3. Dynamic Hierarchy Reading (Important!)
-Because the backend is a metadata-driven Semantic Layer, we updated the Oracle DB so that ⁠HeadCode⁠ is now Level 10 (the root of the hierarchy).
- When the UI calls ⁠/api/analytics/config⁠ on load, the ⁠hierarchy⁠ array will now look like this: ⁠["HeadCode", "Geography", "Circle", "CGL", ...]⁠.
- The UI must blindly trust this list. The first API call it makes must pass ⁠"HeadCode"⁠ inside the ⁠dimensions⁠ array.
-4. The Drill-Down State Machine (Clicking a Row)
-This is the most critical logic change for the frontend state.
-Scenario: The user loaded the grid for 3 Head Codes. They now click on the row for Head Code ⁠"10001"⁠ to drill down into its Geography.
-Frontend Action Required: 1. Keep the global ⁠headCodes⁠ array exactly the same.
-2. Advance the ⁠dimensions⁠ array to the next level from the config (⁠["Geography"]⁠).
-3. Push the clicked Head Code into the ⁠filters⁠ array so the backend knows which specific row the user clicked.
-✅ Correct Drill-Down Payload (Level 2):
-
-
-
-
-
-
-
-
-
-
-
-
-3. Dynamic Hierarchy Reading (Important!)
-Because the backend is a metadata-driven Semantic Layer, we updated the Oracle DB so that ⁠HeadCode⁠ is now Level 10 (the root of the hierarchy).
- When the UI calls ⁠/api/analytics/config⁠ on load, the ⁠hierarchy⁠ array will now look like this: ⁠["HeadCode", "Geography", "Circle", "CGL", ...]⁠.
- The UI must blindly trust this list. The first API call it makes must pass ⁠"HeadCode"⁠ inside the ⁠dimensions⁠ array.
-4. The Drill-Down State Machine (Clicking a Row)
-This is the most critical logic change for the frontend state.
-Scenario: The user loaded the grid for 3 Head Codes. They now click on the row for Head Code ⁠"10001"⁠ to drill down into its Geography.
-Frontend Action Required: 1. Keep the global ⁠headCodes⁠ array exactly the same.
-2. Advance the ⁠dimensions⁠ array to the next level from the config (⁠["Geography"]⁠).
-3. Push the clicked Head Code into the ⁠filters⁠ array so the backend knows which specific row the user clicked.
-✅ Correct Drill-Down Payload (Level 2):
-
-
-
-
-
-
-
-
-
-
+response : 
 
 {
-  "viewCode": "YSA_BANK",
-  "headCodes": ["10001", "10002", "10003"], // Global selection remains unchanged
-  "dimensions": ["Geography"],              // Advanced to the next level
-  "filters": [
-    {
-      "logicalField": "HeadCode",           // The row they just clicked
-      "operator": "EQUALS",
-      "value": "10001"
-    }
-  ]
+    "meta": {
+        "status": "SUCCESS",
+        "level": "HeadCode",
+        "rowCount": 1,
+        "executionTimeMs": 42
+    },
+    "data": [
+        {
+            "AMOUNT": -2213300912.26,
+            "hasChildren": true,
+            "name": "Unknown",
+            "id": "headcode_Unknown"
+        }
+    ]
 }
-
-
-
-
-
-
-5. Breadcrumb UI
-When the user clicks into ⁠"10001"⁠, the breadcrumb at the top of the grid should render:
-⁠HeadCode: 10001 > Geography⁠
-If they click "Back" on the breadcrumb to return to the HeadCode comparison view, simply clear the ⁠filters⁠ array and reset the ⁠dimensions⁠ back to ⁠["HeadCode"]⁠.
-Summary for the Frontend Lead
-"We moved HeadCode from a hidden backend filter to a first-class visual dimension. Pass the selected head codes in the new root ⁠headCodes⁠ array, start your dimension drill-down at ⁠HeadCode⁠, and when a user clicks a row, append that specific HeadCode to the ⁠filters⁠ array just like you do for Geography or Circle."
-
-
+ 
+ 
+Response when i send 2 headcode in pnl report.
