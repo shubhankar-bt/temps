@@ -1,3 +1,211 @@
+package com.fincore.analyticsservice.service;
+
+import com.fincore.analyticsservice.client.DruidRestClient;
+import com.fincore.analyticsservice.component.DruidQueryBuilder;
+import com.fincore.analyticsservice.dto.*;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.annotation.Cacheable;
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.stereotype.Service;
+import com.fincore.analyticsservice.mock.MockDruidEngine;
+
+import java.util.*;
+
+@Slf4j
+@Service
+public class SemanticDrillDownService {
+    private static final Integer ROLE_ADMIN = 10;
+
+    private final DruidRestClient druidRestClient;
+    private final DruidQueryBuilder queryBuilder;
+    private final ReportMetadataProvider metadataProvider;
+    private final MockDruidEngine mockEngine;
+
+    public SemanticDrillDownService(
+            DruidRestClient druidRestClient,
+            DruidQueryBuilder queryBuilder,
+            ReportMetadataProvider metadataProvider, 
+            MockDruidEngine mockEngine) {
+        this.druidRestClient = druidRestClient;
+        this.queryBuilder = queryBuilder;
+        this.metadataProvider = metadataProvider;
+        this.mockEngine = mockEngine;
+    }
+
+    @Cacheable(value = "drillDownData", key = "T(java.lang.String).valueOf(#request.hashCode())")
+    public DrillDownResponse executeDrillDown(DrillDownRequest request, Integer roleId) {
+        long startTime = System.currentTimeMillis();
+        String logicalTargetDim = request.dimensions().get(0);
+
+        log.info("Executing DrillDown for view: [{}], logicalDim: [{}]", request.viewCode(), logicalTargetDim);
+
+        if (mockEngine.isMockEnabled()) {
+            log.warn("=================> ROUTING REQUEST TO MOCK DRUID ENGINE FOR ST ENVIRONMENT <=================");
+            return mockEngine.execute(request); 
+        }
+
+        ViewMetadataContext context = metadataProvider.getViewContext(request.viewCode());
+        validateAccess(context.requiredRoleIds(), roleId);
+
+        DimensionConfig targetDimConfig = translateDimension(logicalTargetDim, context.dimensionMap());
+        Map<String, String> resolvedMetricsSql = resolveMetrics(request.metrics(), context.metricMap());
+
+        Map<String, Object> druidPayload = queryBuilder.buildSqlPayload(
+                context.physicalDruidTable(),
+                logicalTargetDim,
+                targetDimConfig,
+                request.metrics(),
+                resolvedMetricsSql,
+                request.filters(),
+                request.headCodes(),
+                context.dimensionMap()
+        );
+
+        log.info("Final druid payload to be executed: {}", druidPayload);
+
+        // 1. Fetch raw data and wrap in a mutable ArrayList
+        List<Map<String, Object>> rawDruidData = druidRestClient.executeQuery(druidPayload);
+        if (rawDruidData == null) {
+            rawDruidData = new ArrayList<>();
+        } else {
+            rawDruidData = new ArrayList<>(rawDruidData);
+        }
+
+        // 2. ENTERPRISE PADDING LOGIC: Ensure missing HeadCodes are represented with 0 values
+        if ("HeadCode".equalsIgnoreCase(logicalTargetDim)) {
+            padMissingHeadCodes(rawDruidData, request);
+        }
+
+        boolean hasChildren = determineIfHasChildren(logicalTargetDim, context.logicalHierarchyOrdered());
+        List<Map<String, Object>> formattedData = formatResponseData(rawDruidData, logicalTargetDim, hasChildren);
+
+        long executionTime = System.currentTimeMillis() - startTime;
+        return new DrillDownResponse(new Meta("SUCCESS", logicalTargetDim, formattedData.size(), executionTime), formattedData);
+    }
+
+    /**
+     * Identifies which requested HeadCodes yielded no results from Druid,
+     * and injects standard 0.0 values for them.
+     */
+    private void padMissingHeadCodes(List<Map<String, Object>> rawDruidData, DrillDownRequest request) {
+        Set<String> requestedHeadCodes = request.headCodes();
+        if (requestedHeadCodes == null || requestedHeadCodes.isEmpty()) return;
+
+        // Extract the HeadCodes that Druid actually found
+        Set<String> foundHeadCodes = new HashSet<>();
+        for (Map<String, Object> row : rawDruidData) {
+            Object hcVal = row.get("HeadCode");
+            if (hcVal != null) {
+                foundHeadCodes.add(hcVal.toString());
+            }
+        }
+
+        // Determine which are missing
+        Set<String> missingHeadCodes = new HashSet<>(requestedHeadCodes);
+        missingHeadCodes.removeAll(foundHeadCodes);
+
+        if (missingHeadCodes.isEmpty()) return;
+
+        // Inject the missing rows
+        for (String missingHc : missingHeadCodes) {
+            Map<String, Object> zeroRow = new HashMap<>();
+            zeroRow.put("HeadCode", missingHc);
+            for (String metric : request.metrics()) {
+                zeroRow.put(metric, 0.0); // Zero out all requested metrics
+            }
+            rawDruidData.add(zeroRow);
+        }
+
+        // Re-sort descending based on the primary metric so 0s place correctly relative to negative numbers
+        if (!request.metrics().isEmpty()) {
+            String primaryMetric = request.metrics().get(0);
+            rawDruidData.sort((r1, r2) -> {
+                Double v1 = getNumericValue(r1.get(primaryMetric));
+                Double v2 = getNumericValue(r2.get(primaryMetric));
+                return v2.compareTo(v1);
+            });
+        }
+    }
+
+    private Double getNumericValue(Object obj) {
+        if (obj instanceof Number) return ((Number) obj).doubleValue();
+        if (obj instanceof String) {
+            try { return Double.parseDouble((String) obj); } catch (NumberFormatException ignored) {}
+        }
+        return 0.0;
+    }
+
+    private void validateAccess(String requiredRoleIds, Integer roleId) {
+        if (ROLE_ADMIN.equals(roleId)) return;
+        if (requiredRoleIds == null || requiredRoleIds.trim().isEmpty() || "NULL".equalsIgnoreCase(requiredRoleIds.trim())) return;
+        List<String> allowedRoles = Arrays.asList(requiredRoleIds.split(","));
+        if (!allowedRoles.contains(String.valueOf(roleId))) {
+            throw new AccessDeniedException("Insufficient permissions to execute drill-down for this view.");
+        }
+    }
+
+    private DimensionConfig translateDimension(String logicalName, Map<String, DimensionConfig> dimMap) {
+        DimensionConfig config = dimMap.get(logicalName);
+        if (config == null) throw new IllegalArgumentException("Logical dimension '" + logicalName + "' is not supported.");
+        return config;
+    }
+
+    private Map<String, String> resolveMetrics(List<String> logicalMetrics, Map<String, String> metricMap) {
+        Map<String, String> resolved = new HashMap<>();
+        for (String logicalName : logicalMetrics) {
+            String sql = metricMap.get(logicalName);
+            if (sql == null || sql.isBlank()) throw new IllegalArgumentException("Logical metric '" + logicalName + "' is not supported.");
+            resolved.put(logicalName, sql);
+        }
+        return resolved;
+    }
+
+    private boolean determineIfHasChildren(String currentDim, List<String> hierarchy) {
+        int index = hierarchy.indexOf(currentDim);
+        return index != -1 && index < hierarchy.size() - 1;
+    }
+
+    private List<Map<String, Object>> formatResponseData(List<Map<String, Object>> rawData, String logicalDim, boolean hasChildren) {
+        String idPrefix = logicalDim.toLowerCase() + "_";
+        List<Map<String, Object>> result = new ArrayList<>(rawData.size());
+
+        for (Map<String, Object> row : rawData) {
+            Map<String, Object> formattedRow = new LinkedHashMap<>();
+            Object nameObj = row.get(logicalDim);
+            String nameValue = (nameObj != null && !nameObj.toString().isBlank()) ? nameObj.toString() : "Unassigned";
+
+            formattedRow.put("id", idPrefix + nameValue.toLowerCase().replaceAll("[^a-z0-9]", "_"));
+            formattedRow.put("name", nameValue);
+
+            for (Map.Entry<String, Object> entry : row.entrySet()) {
+                if (!entry.getKey().equals(logicalDim)) {
+                    formattedRow.put(entry.getKey(), entry.getValue() == null ? 0.0 : entry.getValue());
+                }
+            }
+            formattedRow.put("hasChildren", hasChildren);
+            result.add(formattedRow);
+        }
+        return result;
+    }
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 package com.fincore.analyticsservice.mock;
 
 import tools.jackson.core.type.TypeReference;
@@ -67,28 +275,29 @@ public class MockDruidEngine {
         long startTime = System.currentTimeMillis();
         String targetDim = request.dimensions().get(0);
 
-        // Enterprise Concurrency: Thread-safe map for parallel stream processing
         ConcurrentHashMap<String, BigDecimal> groupedData = new ConcurrentHashMap<>();
 
         mockData.parallelStream()
                 .filter(row -> matchesFilters(row, request))
                 .forEach(row -> {
-                    
-                    // NEW: A row can map to MULTIPLE keys if it has a Multi-Value Dimension (Array)
                     List<String> groupKeys = extractDimensionValues(row, targetDim, request);
-                    
                     for (String groupKey : groupKeys) {
                         if (groupKey == null || groupKey.trim().isEmpty() || "null".equals(groupKey)) {
                             continue;
                         }
-
                         Object balanceObj = row.get("BALANCE");
                         BigDecimal balance = balanceObj != null ? new BigDecimal(String.valueOf(balanceObj)) : BigDecimal.ZERO;
-                        
-                        // Merge thread-safely
                         groupedData.merge(groupKey, balance, BigDecimal::add);
                     }
                 });
+
+        // ENTERPRISE PADDING LOGIC: Inject requested HeadCodes that yielded ZERO matching rows
+        if ("HeadCode".equalsIgnoreCase(targetDim) && request.headCodes() != null) {
+            for (String hc : request.headCodes()) {
+                // If it wasn't populated by the stream above, inject it with a 0 value
+                groupedData.putIfAbsent(hc, BigDecimal.ZERO);
+            }
+        }
 
         List<Map<String, Object>> responseData = groupedData.entrySet().stream()
                 .map(entry -> {
@@ -142,17 +351,14 @@ public class MockDruidEngine {
         Set<String> validHeadCodes = request.headCodes();
         List<FilterDto> filters = request.filters();
 
-        // Dynamically resolve physical column based on viewCode
         String headCol = viewCode.startsWith("YSA") ? "YSA_HEADCODE" :
                          viewCode.startsWith("PNL") ? "PNL_HEADCODE" : "NWSA_HEADCODE";
         
         Object arrayData = row.get(headCol);
         if (arrayData == null) return false;
 
-        // Safely parse Jackson ArrayList to Java Strings
         List<String> rowHeadCodes = parseStringList(arrayData);
 
-        // 1. GLOBAL FILTER: Row must contain AT LEAST ONE requested headcode
         boolean matchesGlobalHeadCode = false;
         for (String hc : validHeadCodes) {
             if (rowHeadCodes.contains(hc)) {
@@ -162,18 +368,15 @@ public class MockDruidEngine {
         }
         if (!matchesGlobalHeadCode) return false;
 
-        // 2. DRILL-DOWN FILTERS
         if (filters == null || filters.isEmpty()) return true;
 
         for (FilterDto f : filters) {
             String val = String.valueOf(f.value());
-
             switch (f.logicalField()) {
                 case "ReportDate":
                     if (!val.equals(String.valueOf(row.get("DATE")))) return false;
                     break;
                 case "HeadCode":
-                    // If drilling down into a specific HeadCode, filter against the parsed array
                     if (!rowHeadCodes.contains(val)) return false;
                     break;
                 case "Circle":
@@ -199,24 +402,16 @@ public class MockDruidEngine {
         return true;
     }
 
-    /**
-     * Extracts values to group by. Returns a List to simulate Druid's Multi-Value explosion.
-     */
     private List<String> extractDimensionValues(Map<String, Object> row, String targetDim, DrillDownRequest request) {
         switch (targetDim) {
             case "HeadCode":
-                // 1. Identify which physical column to read
                 String headCol = request.viewCode().startsWith("YSA") ? "YSA_HEADCODE" :
                                  request.viewCode().startsWith("PNL") ? "PNL_HEADCODE" : "NWSA_HEADCODE";
                 
                 Object hcData = row.get(headCol);
                 if (hcData == null) return List.of("Unknown");
 
-                // 2. Parse the JSON Array
                 List<String> rowHeadCodes = parseStringList(hcData);
-                
-                // 3. EXPLOSION FILTER: Only return HeadCodes that the user actually requested.
-                // (e.g., if row has ["101", "102"] but user searched ["101"], we only want a row for "101")
                 List<String> explodedKeys = rowHeadCodes.stream()
                         .filter(hc -> request.headCodes().contains(hc))
                         .collect(Collectors.toList());
@@ -236,20 +431,14 @@ public class MockDruidEngine {
         }
     }
 
-    /**
-     * Fast, null-safe utility to parse Jackson ArrayNodes, Lists, or raw Strings into a clean List of Strings.
-     */
     private List<String> parseStringList(Object arrayData) {
         if (arrayData instanceof List) {
-            // Jackson parsed it correctly as an array list
             return ((List<?>) arrayData).stream().map(String::valueOf).collect(Collectors.toList());
         } else if (arrayData instanceof String) {
-            // Edge case: if data is a raw string like "[\"01001\"]"
             String str = (String) arrayData;
             str = str.replace("[", "").replace("]", "").replace("\"", "");
             return Arrays.stream(str.split(",")).map(String::trim).collect(Collectors.toList());
         }
-        // Fallback for single values
         return List.of(String.valueOf(arrayData));
     }
 }
