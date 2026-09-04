@@ -1,4 +1,4 @@
-=================================== DASHBOARD CHANGES ======================
+              =================================== DASHBOARD ======================
 
 Total Deposits  
 Classification of deposits 
@@ -198,3 +198,63 @@ Date	Type	subtype	Description	Amount
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+---------------------------------------------------------------------------------------------
+
+SELECT SUM(BALANCE) AS TOTAL_BALANCE
+FROM "PRODUCT_WISE"
+WHERE ARRAY_OVERLAP(YSA_HEADCODE, ARRAY['01042','01043','02723','01044','01045','01046'])
+  AND "DATE" = '12-04-2026'   ;
+
+
+
+
+
+Saving Bank A/c 	Current A/c 	Cash Credit Cr Balance	other demand deposit
+01036	01042	01060   	01071
+	01043	01061	        01073
+	02723	01062	       01074
+	01044	01069       	01075
+	                   01045	
+                   	01076
+                 	01046	
+       	         01077
+	                 01059	
+                 	01078
+	
+	
+	                   01079
+	
+ 	
+                 	01080
+	
+	
+             	01081
+	
+	
+                	01082
+	
+	
+                	01083
+	
+	
+               	01084
+	
+	
+               	01085
+	
