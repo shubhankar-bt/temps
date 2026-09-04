@@ -1,444 +1,48 @@
-package com.fincore.analyticsservice.service;
 
-import com.fincore.analyticsservice.client.DruidRestClient;
-import com.fincore.analyticsservice.component.DruidQueryBuilder;
-import com.fincore.analyticsservice.dto.*;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.cache.annotation.Cacheable;
-import org.springframework.security.access.AccessDeniedException;
-import org.springframework.stereotype.Service;
-import com.fincore.analyticsservice.mock.MockDruidEngine;
 
-import java.util.*;
 
-@Slf4j
-@Service
-public class SemanticDrillDownService {
-    private static final Integer ROLE_ADMIN = 10;
 
-    private final DruidRestClient druidRestClient;
-    private final DruidQueryBuilder queryBuilder;
-    private final ReportMetadataProvider metadataProvider;
-    private final MockDruidEngine mockEngine;
-
-    public SemanticDrillDownService(
-            DruidRestClient druidRestClient,
-            DruidQueryBuilder queryBuilder,
-            ReportMetadataProvider metadataProvider, 
-            MockDruidEngine mockEngine) {
-        this.druidRestClient = druidRestClient;
-        this.queryBuilder = queryBuilder;
-        this.metadataProvider = metadataProvider;
-        this.mockEngine = mockEngine;
-    }
-
-    @Cacheable(value = "drillDownData", key = "T(java.lang.String).valueOf(#request.hashCode())")
-    public DrillDownResponse executeDrillDown(DrillDownRequest request, Integer roleId) {
-        long startTime = System.currentTimeMillis();
-        String logicalTargetDim = request.dimensions().get(0);
-
-        log.info("Executing DrillDown for view: [{}], logicalDim: [{}]", request.viewCode(), logicalTargetDim);
-
-        if (mockEngine.isMockEnabled()) {
-            log.warn("=================> ROUTING REQUEST TO MOCK DRUID ENGINE FOR ST ENVIRONMENT <=================");
-            return mockEngine.execute(request); 
-        }
-
-        ViewMetadataContext context = metadataProvider.getViewContext(request.viewCode());
-        validateAccess(context.requiredRoleIds(), roleId);
-
-        DimensionConfig targetDimConfig = translateDimension(logicalTargetDim, context.dimensionMap());
-        Map<String, String> resolvedMetricsSql = resolveMetrics(request.metrics(), context.metricMap());
-
-        Map<String, Object> druidPayload = queryBuilder.buildSqlPayload(
-                context.physicalDruidTable(),
-                logicalTargetDim,
-                targetDimConfig,
-                request.metrics(),
-                resolvedMetricsSql,
-                request.filters(),
-                request.headCodes(),
-                context.dimensionMap()
-        );
-
-        log.info("Final druid payload to be executed: {}", druidPayload);
-
-        // 1. Fetch raw data and wrap in a mutable ArrayList
-        List<Map<String, Object>> rawDruidData = druidRestClient.executeQuery(druidPayload);
-        if (rawDruidData == null) {
-            rawDruidData = new ArrayList<>();
-        } else {
-            rawDruidData = new ArrayList<>(rawDruidData);
-        }
-
-        // 2. ENTERPRISE PADDING LOGIC: Ensure missing HeadCodes are represented with 0 values
-        if ("HeadCode".equalsIgnoreCase(logicalTargetDim)) {
-            padMissingHeadCodes(rawDruidData, request);
-        }
-
-        boolean hasChildren = determineIfHasChildren(logicalTargetDim, context.logicalHierarchyOrdered());
-        List<Map<String, Object>> formattedData = formatResponseData(rawDruidData, logicalTargetDim, hasChildren);
-
-        long executionTime = System.currentTimeMillis() - startTime;
-        return new DrillDownResponse(new Meta("SUCCESS", logicalTargetDim, formattedData.size(), executionTime), formattedData);
-    }
-
-    /**
-     * Identifies which requested HeadCodes yielded no results from Druid,
-     * and injects standard 0.0 values for them.
-     */
-    private void padMissingHeadCodes(List<Map<String, Object>> rawDruidData, DrillDownRequest request) {
-        Set<String> requestedHeadCodes = request.headCodes();
-        if (requestedHeadCodes == null || requestedHeadCodes.isEmpty()) return;
-
-        // Extract the HeadCodes that Druid actually found
-        Set<String> foundHeadCodes = new HashSet<>();
-        for (Map<String, Object> row : rawDruidData) {
-            Object hcVal = row.get("HeadCode");
-            if (hcVal != null) {
-                foundHeadCodes.add(hcVal.toString());
-            }
-        }
-
-        // Determine which are missing
-        Set<String> missingHeadCodes = new HashSet<>(requestedHeadCodes);
-        missingHeadCodes.removeAll(foundHeadCodes);
-
-        if (missingHeadCodes.isEmpty()) return;
-
-        // Inject the missing rows
-        for (String missingHc : missingHeadCodes) {
-            Map<String, Object> zeroRow = new HashMap<>();
-            zeroRow.put("HeadCode", missingHc);
-            for (String metric : request.metrics()) {
-                zeroRow.put(metric, 0.0); // Zero out all requested metrics
-            }
-            rawDruidData.add(zeroRow);
-        }
-
-        // Re-sort descending based on the primary metric so 0s place correctly relative to negative numbers
-        if (!request.metrics().isEmpty()) {
-            String primaryMetric = request.metrics().get(0);
-            rawDruidData.sort((r1, r2) -> {
-                Double v1 = getNumericValue(r1.get(primaryMetric));
-                Double v2 = getNumericValue(r2.get(primaryMetric));
-                return v2.compareTo(v1);
-            });
-        }
-    }
-
-    private Double getNumericValue(Object obj) {
-        if (obj instanceof Number) return ((Number) obj).doubleValue();
-        if (obj instanceof String) {
-            try { return Double.parseDouble((String) obj); } catch (NumberFormatException ignored) {}
-        }
-        return 0.0;
-    }
-
-    private void validateAccess(String requiredRoleIds, Integer roleId) {
-        if (ROLE_ADMIN.equals(roleId)) return;
-        if (requiredRoleIds == null || requiredRoleIds.trim().isEmpty() || "NULL".equalsIgnoreCase(requiredRoleIds.trim())) return;
-        List<String> allowedRoles = Arrays.asList(requiredRoleIds.split(","));
-        if (!allowedRoles.contains(String.valueOf(roleId))) {
-            throw new AccessDeniedException("Insufficient permissions to execute drill-down for this view.");
-        }
-    }
-
-    private DimensionConfig translateDimension(String logicalName, Map<String, DimensionConfig> dimMap) {
-        DimensionConfig config = dimMap.get(logicalName);
-        if (config == null) throw new IllegalArgumentException("Logical dimension '" + logicalName + "' is not supported.");
-        return config;
-    }
-
-    private Map<String, String> resolveMetrics(List<String> logicalMetrics, Map<String, String> metricMap) {
-        Map<String, String> resolved = new HashMap<>();
-        for (String logicalName : logicalMetrics) {
-            String sql = metricMap.get(logicalName);
-            if (sql == null || sql.isBlank()) throw new IllegalArgumentException("Logical metric '" + logicalName + "' is not supported.");
-            resolved.put(logicalName, sql);
-        }
-        return resolved;
-    }
-
-    private boolean determineIfHasChildren(String currentDim, List<String> hierarchy) {
-        int index = hierarchy.indexOf(currentDim);
-        return index != -1 && index < hierarchy.size() - 1;
-    }
-
-    private List<Map<String, Object>> formatResponseData(List<Map<String, Object>> rawData, String logicalDim, boolean hasChildren) {
-        String idPrefix = logicalDim.toLowerCase() + "_";
-        List<Map<String, Object>> result = new ArrayList<>(rawData.size());
-
-        for (Map<String, Object> row : rawData) {
-            Map<String, Object> formattedRow = new LinkedHashMap<>();
-            Object nameObj = row.get(logicalDim);
-            String nameValue = (nameObj != null && !nameObj.toString().isBlank()) ? nameObj.toString() : "Unassigned";
-
-            formattedRow.put("id", idPrefix + nameValue.toLowerCase().replaceAll("[^a-z0-9]", "_"));
-            formattedRow.put("name", nameValue);
-
-            for (Map.Entry<String, Object> entry : row.entrySet()) {
-                if (!entry.getKey().equals(logicalDim)) {
-                    formattedRow.put(entry.getKey(), entry.getValue() == null ? 0.0 : entry.getValue());
-                }
-            }
-            formattedRow.put("hasChildren", hasChildren);
-            result.add(formattedRow);
-        }
-        return result;
-    }
-}
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-package com.fincore.analyticsservice.mock;
-
-import tools.jackson.core.type.TypeReference;
-import tools.jackson.databind.JsonNode;
-import tools.jackson.databind.json.JsonMapper;
-import com.fincore.analyticsservice.dto.DrillDownRequest;
-import com.fincore.analyticsservice.dto.DrillDownResponse;
-import com.fincore.analyticsservice.dto.FilterDto;
-import com.fincore.analyticsservice.dto.Meta;
-import jakarta.annotation.PostConstruct;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.core.io.ClassPathResource;
-import org.springframework.stereotype.Service;
-
-import java.io.InputStream;
-import java.math.BigDecimal;
-import java.math.RoundingMode;
-import java.util.*;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.stream.Collectors;
-
-@Slf4j
-@Service
-public class MockDruidEngine {
-
-    private final JsonMapper jsonMapper;
-    
-    @Value("${app.mock.druid.enabled:false}")
-    private boolean mockEnabled;
-    
-    private List<Map<String, Object>> mockData = new ArrayList<>();
-
-    public MockDruidEngine(JsonMapper jsonMapper) {
-        this.jsonMapper = jsonMapper;
-    }
-
-    @PostConstruct
-    public void init() {
-        if (!mockEnabled) {
-            log.info("Mock Druid Engine is DISABLED. Routing to real Apache Druid.");
-            return;
-        }
-
-        try {
-            log.warn("⏳ ST ENVIRONMENT MOCK DETECTED: Loading mock_druid_data.json into memory...");
-            InputStream is = new ClassPathResource("report.json").getInputStream();
-
-            JsonNode rootNode = jsonMapper.readTree(is);
-            if (rootNode.isObject() && rootNode.has("rows")) {
-                mockData = jsonMapper.convertValue(rootNode.get("rows"), new TypeReference<List<Map<String, Object>>>() {});
-            } else if (rootNode.isArray()) {
-                mockData = jsonMapper.convertValue(rootNode, new TypeReference<List<Map<String, Object>>>() {});
-            }
-
-            log.info("✅ Mock Data Loaded Successfully. Total Rows in RAM: {}", mockData.size());
-        } catch (Exception e) {
-            log.error("❌ Failed to load mock data. Make sure report.json is in src/main/resources!", e);
-        }
-    }
-
-    public boolean isMockEnabled() {
-        return mockEnabled;
-    }
-
-    public DrillDownResponse execute(DrillDownRequest request) {
-        long startTime = System.currentTimeMillis();
-        String targetDim = request.dimensions().get(0);
-
-        ConcurrentHashMap<String, BigDecimal> groupedData = new ConcurrentHashMap<>();
-
-        mockData.parallelStream()
-                .filter(row -> matchesFilters(row, request))
-                .forEach(row -> {
-                    List<String> groupKeys = extractDimensionValues(row, targetDim, request);
-                    for (String groupKey : groupKeys) {
-                        if (groupKey == null || groupKey.trim().isEmpty() || "null".equals(groupKey)) {
-                            continue;
-                        }
-                        Object balanceObj = row.get("BALANCE");
-                        BigDecimal balance = balanceObj != null ? new BigDecimal(String.valueOf(balanceObj)) : BigDecimal.ZERO;
-                        groupedData.merge(groupKey, balance, BigDecimal::add);
-                    }
-                });
-
-        // ENTERPRISE PADDING LOGIC: Inject requested HeadCodes that yielded ZERO matching rows
-        if ("HeadCode".equalsIgnoreCase(targetDim) && request.headCodes() != null) {
-            for (String hc : request.headCodes()) {
-                // If it wasn't populated by the stream above, inject it with a 0 value
-                groupedData.putIfAbsent(hc, BigDecimal.ZERO);
-            }
-        }
-
-        List<Map<String, Object>> responseData = groupedData.entrySet().stream()
-                .map(entry -> {
-                    Map<String, Object> map = new HashMap<>();
-                    map.put("id", targetDim.toLowerCase() + "_" + entry.getKey().replaceAll("[^a-zA-Z0-9]", ""));
-                    map.put("name", entry.getKey());
-                    map.put("AMOUNT", entry.getValue().setScale(2, RoundingMode.HALF_UP));
-                    map.put("hasChildren", true);
-                    return map;
-                })
-                .sorted((a, b) -> {
-                    if ("Branch-Circle".equalsIgnoreCase(targetDim)) {
-                        String nameA = (String) a.get("name");
-                        String nameB = (String) b.get("name");
-                        if (nameA == null) return 1;
-                        if (nameB == null) return -1;
-
-                        String[] partsA = nameA.split(" - ", 2);
-                        String[] partsB = nameB.split(" - ", 2);
-
-                        if (partsA.length == 2 && partsB.length == 2) {
-                            String branchA = partsA[0].trim();
-                            String circleA = partsA[1].trim();
-                            String branchB = partsB[0].trim();
-                            String circleB = partsB[1].trim();
-
-                            int circleCompare = circleA.compareToIgnoreCase(circleB);
-                            if (circleCompare != 0) return circleCompare;
-                            return branchA.compareToIgnoreCase(branchB);
-                        }
-                        return nameA.compareToIgnoreCase(nameB);
-                    } else {
-                        BigDecimal amountA = (BigDecimal) a.get("AMOUNT");
-                        BigDecimal amountB = (BigDecimal) b.get("AMOUNT");
-                        if (amountA == null) amountA = BigDecimal.ZERO;
-                        if (amountB == null) amountB = BigDecimal.ZERO;
-                        return amountB.compareTo(amountA);
-                    }
-                })
-                .collect(Collectors.toList());
-
-        long timeTaken = System.currentTimeMillis() - startTime;
-        log.info("Mock Engine aggregated {} groups in {} ms for view [{}]", responseData.size(), timeTaken, request.viewCode());
-
-        Meta meta = new Meta("SUCCESS", targetDim, responseData.size(), timeTaken);
-        return new DrillDownResponse(meta, responseData);
-    }
-
-    private boolean matchesFilters(Map<String, Object> row, DrillDownRequest request) {
-        String viewCode = request.viewCode();
-        Set<String> validHeadCodes = request.headCodes();
-        List<FilterDto> filters = request.filters();
-
-        String headCol = viewCode.startsWith("YSA") ? "YSA_HEADCODE" :
-                         viewCode.startsWith("PNL") ? "PNL_HEADCODE" : "NWSA_HEADCODE";
-        
-        Object arrayData = row.get(headCol);
-        if (arrayData == null) return false;
-
-        List<String> rowHeadCodes = parseStringList(arrayData);
-
-        boolean matchesGlobalHeadCode = false;
-        for (String hc : validHeadCodes) {
-            if (rowHeadCodes.contains(hc)) {
-                matchesGlobalHeadCode = true;
-                break;
-            }
-        }
-        if (!matchesGlobalHeadCode) return false;
-
-        if (filters == null || filters.isEmpty()) return true;
-
-        for (FilterDto f : filters) {
-            String val = String.valueOf(f.value());
-            switch (f.logicalField()) {
-                case "ReportDate":
-                    if (!val.equals(String.valueOf(row.get("DATE")))) return false;
-                    break;
-                case "HeadCode":
-                    if (!rowHeadCodes.contains(val)) return false;
-                    break;
-                case "Circle":
-                    if (!val.equals(String.valueOf(row.get("CIRCLE_CODE")))) return false;
-                    break;
-                case "Branch":
-                case "Branch-Circle":
-                case "BranchCode":
-                    if (!val.equals(String.valueOf(row.get("BRANCH_CODE")))) return false;
-                    break;
-                case "Geography":
-                    String geo = "D".equals(row.get("BRANCH_TYPE")) ? "Domestic" : "Foreign";
-                    if (!val.equals(geo)) return false;
-                    break;
-                case "CGL":
-                    if (!val.equals(String.valueOf(row.get("CGL")))) return false;
-                    break;
-                case "Product":
-                    if (!val.equals(String.valueOf(row.get("PRODUCT")))) return false;
-                    break;
-            }
-        }
-        return true;
-    }
-
-    private List<String> extractDimensionValues(Map<String, Object> row, String targetDim, DrillDownRequest request) {
-        switch (targetDim) {
-            case "HeadCode":
-                String headCol = request.viewCode().startsWith("YSA") ? "YSA_HEADCODE" :
-                                 request.viewCode().startsWith("PNL") ? "PNL_HEADCODE" : "NWSA_HEADCODE";
-                
-                Object hcData = row.get(headCol);
-                if (hcData == null) return List.of("Unknown");
-
-                List<String> rowHeadCodes = parseStringList(hcData);
-                List<String> explodedKeys = rowHeadCodes.stream()
-                        .filter(hc -> request.headCodes().contains(hc))
-                        .collect(Collectors.toList());
-
-                return explodedKeys.isEmpty() ? List.of("Unknown") : explodedKeys;
-
-            case "Geography":
-                return List.of("D".equals(row.get("BRANCH_TYPE")) ? "Domestic" : "Foreign");
-            case "CGL":
-                return List.of(String.valueOf(row.get("CGL")));
-            case "Product":
-                return List.of(String.valueOf(row.get("PRODUCT")));
-            case "Branch-Circle":
-                return List.of(row.get("BRANCH_CODE") + " - " + row.get("CIRCLE_NAME"));
-            default:
-                return List.of();
-        }
-    }
-
-    private List<String> parseStringList(Object arrayData) {
-        if (arrayData instanceof List) {
-            return ((List<?>) arrayData).stream().map(String::valueOf).collect(Collectors.toList());
-        } else if (arrayData instanceof String) {
-            String str = (String) arrayData;
-            str = str.replace("[", "").replace("]", "").replace("\"", "");
-            return Arrays.stream(str.split(",")).map(String::trim).collect(Collectors.toList());
-        }
-        return List.of(String.valueOf(arrayData));
-    }
-}
+---------------------------------------------------------------------------------------------
+
+SELECT SUM(BALANCE) AS TOTAL_BALANCE
+FROM "PRODUCT_WISE"
+WHERE ARRAY_OVERLAP(YSA_HEADCODE, ARRAY['01042','01043','02723','01044','01045','01046'])
+  AND "DATE" = '12-04-2026'   ;
+
+
+
+
+
+Saving Bank A/c 	Current A/c 	Cash Credit Cr Balance	other demand deposit
+01036	01042	01060   	01071
+	01043	01061	        01073
+	02723	01062	       01074
+	01044	01069       	01075
+	                   01045	
+                   	01076
+                 	01046	
+       	         01077
+	                 01059	
+                 	01078
+	
+	
+	                   01079
+	
+ 	
+                 	01080
+	
+	
+             	01081
+	
+	
+                	01082
+	
+	
+                	01083
+	
+	
+               	01084
+	
+	
+               	01085
+	
