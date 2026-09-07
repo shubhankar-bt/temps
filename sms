@@ -1,34 +1,132 @@
-flowchart LR
+Here are the production-grade Oracle DDL scripts for the foundational tables.
+This schema includes strict constraints, audit columns, performance-optimized indexing, idempotency keys, and comprehensive table/column comments as required for enterprise financial systems.
+1. The Business Translation Layer
+This table drives the PySpark classification and ensures the "Strict Reconciliation" approach. Note the UNIQUE constraint on DOMAIN and SOURCE_CODE—this guarantees that PySpark will never accidentally duplicate raw rows during the join.
+-- ==============================================================================
+-- TABLE: FINANCIAL_CATEGORY_MAPPING
+-- PURPOSE: Maps raw source/head codes to dashboard business classifications.
+-- ==============================================================================
+CREATE TABLE FINANCIAL_CATEGORY_MAPPING (
+    ID                  NUMBER GENERATED ALWAYS AS IDENTITY,
+    DOMAIN              VARCHAR2(20) NOT NULL,
+    SOURCE_CODE         VARCHAR2(50) NOT NULL,
+    TYPE                VARCHAR2(100) NOT NULL,
+    SUBTYPE             VARCHAR2(100),
+    DESCRIPTION         VARCHAR2(100) NOT NULL,
+    MULTIPLIER          NUMBER(2) DEFAULT 1 NOT NULL,
+    IS_ACTIVE           VARCHAR2(1) DEFAULT 'Y' NOT NULL,
+    CREATED_BY          VARCHAR2(50) DEFAULT 'SYSTEM' NOT NULL,
+    CREATED_TIMESTAMP   TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    UPDATED_BY          VARCHAR2(50),
+    UPDATED_TIMESTAMP   TIMESTAMP,
+    
+    -- Constraints
+    CONSTRAINT PK_FIN_CAT_MAP PRIMARY KEY (ID),
+    CONSTRAINT UQ_DOMAIN_SOURCE UNIQUE (DOMAIN, SOURCE_CODE),
+    CONSTRAINT CHK_DOMAIN CHECK (DOMAIN IN ('DEPOSIT', 'LOAN')),
+    CONSTRAINT CHK_MULTIPLIER CHECK (MULTIPLIER IN (1, -1)),
+    CONSTRAINT CHK_IS_ACTIVE CHECK (IS_ACTIVE IN ('Y', 'N'))
+);
 
-    REACT["React Frontend"]
+-- Indexes
+CREATE INDEX IDX_FIN_MAP_SEARCH ON FINANCIAL_CATEGORY_MAPPING (SOURCE_CODE, IS_ACTIVE, DOMAIN);
 
-    DASH["Dashboard Service<br/>Spring Boot"]
+-- Table & Column Comments
+COMMENT ON TABLE FINANCIAL_CATEGORY_MAPPING IS 'Central configuration table mapping raw head codes to Dashboard business categories.';
+COMMENT ON COLUMN FINANCIAL_CATEGORY_MAPPING.DOMAIN IS 'Business domain: DEPOSIT or LOAN.';
+COMMENT ON COLUMN FINANCIAL_CATEGORY_MAPPING.SOURCE_CODE IS 'Raw head code or account code from Druid/Master Source. Use ''UNMAPPED_DEFAULT'' for fallback.';
+COMMENT ON COLUMN FINANCIAL_CATEGORY_MAPPING.TYPE IS 'Major business category (e.g., DEMAND DEPOSITS).';
+COMMENT ON COLUMN FINANCIAL_CATEGORY_MAPPING.SUBTYPE IS 'Optional sub-category (e.g., CASA).';
+COMMENT ON COLUMN FINANCIAL_CATEGORY_MAPPING.DESCRIPTION IS 'Lowest level dashboard category (e.g., Saving Bank A/c).';
+COMMENT ON COLUMN FINANCIAL_CATEGORY_MAPPING.MULTIPLIER IS '1 for normal, -1 to reverse sign (Asset vs Liability normalization).';
 
-    SCOPE["Data Scope Resolver<br/>Bank / Circle / Branch"]
+-- Insert the "Strict Reconciliation" Fallbacks
+INSERT INTO FINANCIAL_CATEGORY_MAPPING (DOMAIN, SOURCE_CODE, TYPE, DESCRIPTION, MULTIPLIER) 
+VALUES ('DEPOSIT', 'UNMAPPED_DEFAULT', 'UNCLASSIFIED', 'Unclassified Deposits', 1);
 
-    REDIS[("Redis<br/>Cache")]
+INSERT INTO FINANCIAL_CATEGORY_MAPPING (DOMAIN, SOURCE_CODE, TYPE, DESCRIPTION, MULTIPLIER) 
+VALUES ('LOAN', 'UNMAPPED_DEFAULT', 'UNCLASSIFIED', 'Unclassified Loans', 1);
 
-    ANALYTICS["Analytics Service"]
+2. The Time-Series Workhorse
+This table holds the pre-calculated daily metrics.
+Architectural Highlights:
+ * Idempotency: The composite Primary Key ensures that if the PySpark job is accidentally re-run for a specific date, it will MERGE/UPSERT rather than duplicating amounts.
+ * Partitioning: List partitioning by DOMAIN and Range sub-partitioning by BUSINESS_DATE ensures that historical trend queries scanning months of data remain lightning-fast.
+-- ==============================================================================
+-- TABLE: FINANCIAL_DAILY_METRIC
+-- PURPOSE: Stores daily aggregated, business-classified metrics for the Dashboard.
+-- ==============================================================================
+CREATE TABLE FINANCIAL_DAILY_METRIC (
+    BUSINESS_DATE       DATE NOT NULL,
+    DOMAIN              VARCHAR2(20) NOT NULL,
+    TYPE                VARCHAR2(100) NOT NULL,
+    SUBTYPE             VARCHAR2(100),
+    DESCRIPTION         VARCHAR2(100) NOT NULL,
+    CIRCLE_CODE         VARCHAR2(50) NOT NULL,
+    CIRCLE_NAME         VARCHAR2(100),
+    BRANCH_CODE         VARCHAR2(50) NOT NULL,
+    BRANCH_NAME         VARCHAR2(100),
+    AMOUNT              NUMBER(24, 4) DEFAULT 0 NOT NULL,
+    LOAD_TIMESTAMP      TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    
+    -- Idempotency constraint: Prevents duplicate aggregation rows per day
+    CONSTRAINT PK_FIN_DAILY_METRIC PRIMARY KEY (BUSINESS_DATE, DOMAIN, DESCRIPTION, CIRCLE_CODE, BRANCH_CODE)
+)
+PARTITION BY LIST (DOMAIN)
+SUBPARTITION BY RANGE (BUSINESS_DATE) (
+    PARTITION P_DEPOSIT VALUES ('DEPOSIT') (
+        SUBPARTITION P_DEP_2026_Q3 VALUES LESS THAN (TO_DATE('2026-10-01', 'YYYY-MM-DD')),
+        SUBPARTITION P_DEP_2026_Q4 VALUES LESS THAN (TO_DATE('2027-01-01', 'YYYY-MM-DD')),
+        SUBPARTITION P_DEP_MAX VALUES LESS THAN (MAXVALUE)
+    ),
+    PARTITION P_LOAN VALUES ('LOAN') (
+        SUBPARTITION P_LOAN_2026_Q3 VALUES LESS THAN (TO_DATE('2026-10-01', 'YYYY-MM-DD')),
+        SUBPARTITION P_LOAN_2026_Q4 VALUES LESS THAN (TO_DATE('2027-01-01', 'YYYY-MM-DD')),
+        SUBPARTITION P_LOAN_MAX VALUES LESS THAN (MAXVALUE)
+    )
+);
 
-    DRUID[("Druid<br/>Master Data")]
+-- Local Partitioned Indexes for high-speed Trend & Scope-based queries
+CREATE INDEX IDX_FIN_DAILY_SCOPE ON FINANCIAL_DAILY_METRIC (DOMAIN, CIRCLE_CODE, BRANCH_CODE, BUSINESS_DATE) LOCAL;
 
-    ORACLE[("Oracle<br/>Prepared Data")]
+-- Table & Column Comments
+COMMENT ON TABLE FINANCIAL_DAILY_METRIC IS 'Aggregated daily time-series data for deposits and loans. Consumed by Dashboard Service API.';
+COMMENT ON COLUMN FINANCIAL_DAILY_METRIC.AMOUNT IS 'Normalized and aggregated total balance down to 4 decimal places.';
+COMMENT ON COLUMN FINANCIAL_DAILY_METRIC.CIRCLE_CODE IS 'Required for scope enforcement and drill-down.';
+COMMENT ON COLUMN FINANCIAL_DAILY_METRIC.BRANCH_CODE IS 'Required for branch-level scope enforcement and drill-down.';
 
-    PYSPARK["PySpark<br/>Batch Processing"]
+3. The Predictive Output Layer
+This table decouples the heavy ARIMA ML processing from the API requests.
+-- ==============================================================================
+-- TABLE: FINANCIAL_FORECAST
+-- PURPOSE: Stores pre-calculated predictive time-series generated by batch models.
+-- ==============================================================================
+CREATE TABLE FINANCIAL_FORECAST (
+    FORECAST_DATE       DATE NOT NULL,
+    DOMAIN              VARCHAR2(20) NOT NULL,
+    DESCRIPTION         VARCHAR2(100) NOT NULL,
+    SCOPE_LEVEL         VARCHAR2(20) NOT NULL,  -- 'BANK', 'CIRCLE', or 'BRANCH'
+    SCOPE_ID            VARCHAR2(50) NOT NULL,  -- e.g., 'C01' or 'B001'
+    PREDICTED_AMOUNT    NUMBER(24, 4) NOT NULL,
+    LOWER_BOUND         NUMBER(24, 4),          -- Confidence interval
+    UPPER_BOUND         NUMBER(24, 4),
+    MODEL_NAME          VARCHAR2(50) NOT NULL,  -- e.g., 'ARIMA'
+    MODEL_VERSION       VARCHAR2(20) NOT NULL,  
+    RUN_ID              VARCHAR2(100) NOT NULL, -- Traceability back to batch logs
+    GENERATED_AT        TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    
+    CONSTRAINT PK_FIN_FORECAST PRIMARY KEY (FORECAST_DATE, DOMAIN, DESCRIPTION, SCOPE_LEVEL, SCOPE_ID)
+)
+PARTITION BY RANGE (FORECAST_DATE) (
+    PARTITION P_FCST_2026_Q4 VALUES LESS THAN (TO_DATE('2027-01-01', 'YYYY-MM-DD')),
+    PARTITION P_FCST_MAX VALUES LESS THAN (MAXVALUE)
+);
 
-    REACT -->|"Dashboard API"| DASH
+-- Indexes
+CREATE INDEX IDX_FIN_FCST_SCOPE ON FINANCIAL_FORECAST (DOMAIN, SCOPE_LEVEL, SCOPE_ID, FORECAST_DATE) LOCAL;
 
-    DASH --> SCOPE
+-- Table & Column Comments
+COMMENT ON TABLE FINANCIAL_FORECAST IS 'Stored predictions generated by offline forecasting models (ARIMA). Read-only for Dashboard API.';
+COMMENT ON COLUMN FINANCIAL_FORECAST.SCOPE_LEVEL IS 'The organizational hierarchy level this forecast applies to.';
+COMMENT ON COLUMN FINANCIAL_FORECAST.SCOPE_ID IS 'The specific Circle Code, Branch Code, or Bank ID for this forecast.';
 
-    DASH -->|"Check Cache"| REDIS
-
-    DASH -->|"Druid-backed data"| ANALYTICS
-    ANALYTICS --> DRUID
-
-    DASH -->|"Trend / Growth / Forecast"| ORACLE
-
-    PYSPARK -->|"Prepare & Aggregate"| ORACLE
-
-    REDIS -->|"Cached Result"| DASH
-
-    DASH -->|"Dashboard Response"| REACT
