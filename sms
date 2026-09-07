@@ -1,12 +1,448 @@
+flowchart TB
 
-^R
-2026-08-31T09:48:17.554Z  INFO 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.consumer.PriorityOtpConsumer       : Received raw Kafka message: {"payload":"xhWacVGWXjm1bnWl:oNELPTwYd5vKXfbTlck89fBDf6JrbvYmcyAhEo9MvOzRmelisacc2hmfufY4OIockX+Ce9/lVZNY1nIZtzhVFsWSIhdEM/CiIXPOKPZxgx8=","priority":"CRITICAL","eventId":"evt-5c524353-128e-4c8d-8f84-c0d4c7cee073","eventType":"LOGIN_OTP","channel":["SMS","EMAIL"],"createdAt":"2026-08-31T09:48:17.551237484Z","txId":"edcf0877-6a48-4ac8-822e-3ee87ae6fad9","recipient":{"email":"ebms_uat_receiver@sbiuat.bank.in","mobile":""},"templateId":"AUTH_LOGIN_OTP_V1"}
-2026-08-31T09:48:17.556Z  INFO 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.service.SmsServiceImpl             : Reached sendSms service. templateId=AUTH_LOGIN_OTP_V1, mobile=******2186
-2026-08-31T09:48:17.557Z  INFO 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.client.SmsGatewayClient            : Sending SMS to ******2186
-2026-08-31T09:48:17.664Z  INFO 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.client.SmsGatewayClient            : SMS Response Code : 200
-2026-08-31T09:48:17.664Z  INFO 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.client.SmsGatewayClient            : SMS Provider Response : error_code=0&error_desc=MESSAGE_SUBMIT_SUCCESS&umid=1126083115181765508607995
-2026-08-31T09:48:17.664Z  INFO 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.service.SmsServiceImpl             : SMS sent successfully to ******2186
-2026-08-31T09:48:17.667Z  INFO 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.client.EmailGatewayClient          : Executing pure JSON payload dispatch (e.g. OTP)
-2026-08-31T09:48:17.758Z  INFO 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.client.EmailGatewayClient          : responseCode: 202
-2026-08-31T09:48:17.758Z  INFO 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.client.EmailGatewayClient          : Server Response: {"data":{"message_id":"e687aeae5eaf340093d2f873bc610811","token_bcc":["MSGID657244"],"token_cc":["MSGID657243"],"token_to":["8693839845"]},"message":"OK","status":"success"}
-2026-08-31T09:48:17.765Z  INFO 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.consumer.PriorityOtpConsumer       : Successfully completed OTP Pipeline for eventId=evt-5c524353-128e-4c8d-8f84-c0d4c7cee073
+    %% =========================================================
+    %% USER + CLIENT
+    %% =========================================================
+
+    USER["User"]
+
+    subgraph CLIENT["CLIENT LAYER"]
+        REACT["React Dashboard"]
+    end
+
+    USER --> REACT
+
+
+    %% =========================================================
+    %% AUTHENTICATION
+    %% =========================================================
+
+    subgraph AUTH["AUTHENTICATION"]
+        AUTH_SERVICE["Authentication Service"]
+        TOKEN["JWT / Access Token"]
+    end
+
+    REACT -->|"Login"| AUTH_SERVICE
+    AUTH_SERVICE -->|"Authentication Success"| TOKEN
+    TOKEN -->|"Token"| REACT
+
+
+    %% =========================================================
+    %% DASHBOARD SERVICE
+    %% =========================================================
+
+    subgraph DASHBOARD["DASHBOARD SERVICE - SPRING BOOT"]
+
+        SECURITY["Spring Security<br/>JWT Authentication"]
+
+        CONTROLLER["Dashboard Controllers<br/>REST APIs"]
+
+        APP["FinancialDashboardService<br/>Application / Orchestration Layer"]
+
+        DTO["Dashboard Response DTOs"]
+
+        EXCEPTION["Validation / Exception Handling<br/>Timeouts / Error Handling"]
+
+    end
+
+    REACT -->|"HTTPS + JWT"| SECURITY
+    SECURITY --> CONTROLLER
+    CONTROLLER --> APP
+
+    APP --> DTO
+    APP --> EXCEPTION
+
+
+    %% =========================================================
+    %% DATA SCOPE
+    %% =========================================================
+
+    subgraph SCOPE_LAYER["USER DATA SCOPE"]
+
+        SCOPE_RESOLVER["DataScopeResolver"]
+
+        USER_SCOPE["UserDataScope<br/><br/>BANK<br/>CIRCLE<br/>BRANCH"]
+
+    end
+
+    APP -->|"Resolve User Scope"| SCOPE_RESOLVER
+
+    SCOPE_RESOLVER -->|"Logged-in User Branch Code"| BRANCH_MASTER
+    BRANCH_MASTER --> CIRCLE_MASTER
+    CIRCLE_MASTER --> USER_SCOPE
+
+    USER_SCOPE --> APP
+
+
+    %% =========================================================
+    %% ORGANIZATIONAL MASTER DATA
+    %% =========================================================
+
+    subgraph MASTER["ORGANIZATIONAL MASTER DATA"]
+
+        BRANCH_MASTER["Branch Master"]
+
+        CIRCLE_MASTER["Circle Master"]
+
+    end
+
+
+    %% =========================================================
+    %% DASHBOARD APIs
+    %% =========================================================
+
+    subgraph APIS["DASHBOARD REST APIs"]
+
+        OVERVIEW["/api/v1/dashboard/{domain}/overview"]
+
+        TREND["/api/v1/dashboard/{domain}/trend"]
+
+        GROWTH["/api/v1/dashboard/{domain}/growth"]
+
+        FORECAST_API["/api/v1/dashboard/{domain}/forecast"]
+
+        GEOGRAPHY["/api/v1/dashboard/{domain}/geography"]
+
+        TOP_BRANCHES["/api/v1/dashboard/{domain}/top-branches"]
+
+        DRILLDOWN_API["/api/v1/dashboard/{domain}/drill-down"]
+
+    end
+
+    CONTROLLER --> OVERVIEW
+    CONTROLLER --> TREND
+    CONTROLLER --> GROWTH
+    CONTROLLER --> FORECAST_API
+    CONTROLLER --> GEOGRAPHY
+    CONTROLLER --> TOP_BRANCHES
+    CONTROLLER --> DRILLDOWN_API
+
+    OVERVIEW --> APP
+    TREND --> APP
+    GROWTH --> APP
+    FORECAST_API --> APP
+    GEOGRAPHY --> APP
+    TOP_BRANCHES --> APP
+    DRILLDOWN_API --> APP
+
+
+    %% =========================================================
+    %% REDIS CACHE
+    %% =========================================================
+
+    subgraph CACHE["CACHE LAYER"]
+
+        REDIS[("Redis<br/>Cache-Aside")]
+
+    end
+
+    APP -->|"1. Check Scope-Aware Cache"| REDIS
+
+    REDIS -->|"Cache HIT"| DTO
+
+    APP -->|"Cache MISS"| ANALYTICS
+    APP -->|"Cache MISS / Prepared Data"| DAILY_METRIC
+
+
+    %% =========================================================
+    %% EXISTING ANALYTICS SERVICE
+    %% =========================================================
+
+    subgraph ANALYTICS_LAYER["EXISTING ANALYTICS PLATFORM"]
+
+        ANALYTICS["Analytics Service<br/>Existing REST APIs"]
+
+        DRUID[("Apache Druid<br/>MASTER ANALYTICAL SOURCE")]
+
+    end
+
+    APP -->|"Internal REST API<br/>Scope-Aware Request"| ANALYTICS
+
+    ANALYTICS -->|"Druid Query"| DRUID
+
+    DRUID -->|"Query Result"| ANALYTICS
+
+    ANALYTICS -->|"Analytics Response"| APP
+
+
+    %% =========================================================
+    %% BATCH DATA PREPARATION
+    %% =========================================================
+
+    subgraph BATCH["BATCH DATA PREPARATION - PYSPARK"]
+
+        SOURCE[("Raw Source / Druid")]
+
+        PYSPARK["PySpark Pipeline"]
+
+        MAPPING[("FINANCIAL_CATEGORY_MAPPING<br/><br/>DOMAIN<br/>SOURCE_CODE<br/>TYPE<br/>SUBTYPE<br/>DESCRIPTION<br/>MULTIPLIER")]
+
+        TRANSFORM["Business Classification<br/>Sign Normalization<br/>Aggregation"]
+
+    end
+
+    SOURCE -->|"Daily Source Data"| PYSPARK
+
+    MAPPING -->|"Business Mapping"| PYSPARK
+
+    PYSPARK --> TRANSFORM
+
+
+    %% =========================================================
+    %% ORACLE PREPARED DATA
+    %% =========================================================
+
+    subgraph ORACLE["ORACLE - PREPARED / DERIVED DATA"]
+
+        DAILY_METRIC[("FINANCIAL_DAILY_METRIC<br/><br/>BUSINESS_DATE<br/>DOMAIN<br/>TYPE<br/>SUBTYPE<br/>DESCRIPTION<br/>CIRCLE<br/>BRANCH<br/>AMOUNT")]
+
+        FORECAST_TABLE[("FINANCIAL_FORECAST<br/><br/>FORECAST_DATE<br/>DOMAIN<br/>METRIC<br/>SCOPE<br/>PREDICTED_AMOUNT<br/>MODEL_VERSION<br/>GENERATED_AT<br/>RUN_ID")]
+
+    end
+
+    TRANSFORM -->|"Prepared Daily Metrics"| DAILY_METRIC
+
+    DAILY_METRIC -->|"Trend / Growth / Historical Data"| APP
+
+
+    %% =========================================================
+    %% FORECAST PROCESSING
+    %% =========================================================
+
+    subgraph FORECAST["FORECAST PROCESSING"]
+
+        ARIMA["ARIMA Forecast Logic<br/>Inside Dashboard Service<br/><br/>Scheduled / Batch Execution"]
+
+    end
+
+    DAILY_METRIC -->|"Historical Time Series"| ARIMA
+
+    ARIMA -->|"Forecast Results"| FORECAST_TABLE
+
+    FORECAST_TABLE -->|"Prepared Forecast"| APP
+
+
+    %% =========================================================
+    %% BUSINESS DOMAINS
+    %% =========================================================
+
+    subgraph BUSINESS["BUSINESS DOMAINS"]
+
+        DEPOSITS["DEPOSITS"]
+
+        DEMAND["DEMAND DEPOSITS"]
+
+        CASA["CASA"]
+
+        SAVINGS["Saving Bank A/c"]
+
+        CURRENT["Current A/c"]
+
+        CASH_CREDIT["Cash Credit Cr Balance"]
+
+        OTHER_DEMAND["Other Demand Deposit"]
+
+        TIME["TIME DEPOSITS"]
+
+        TERM["Term Deposit"]
+
+        SPECIAL_TERM["Special Term Deposit"]
+
+        OTHER_TERM["Other Term Deposit"]
+
+        COD["Certificate of Deposit"]
+
+
+        LOANS["LOANS"]
+
+        BILLS["Bills Payable"]
+
+        DEMAND_LOAN["Demand Loan"]
+
+        CC_LOAN["Cash Credit"]
+
+        AGRI_CC["Agri Cash Credit"]
+
+        OD["Overdraft"]
+
+        TERM_LOAN["Term Loan"]
+
+        AGRI_TERM["Agri Term Loan"]
+
+    end
+
+
+    DEPOSITS --> DEMAND
+    DEPOSITS --> TIME
+
+    DEMAND --> CASA
+    CASA --> SAVINGS
+    CASA --> CURRENT
+
+    DEMAND --> CASH_CREDIT
+    DEMAND --> OTHER_DEMAND
+
+    TIME --> TERM
+    TIME --> SPECIAL_TERM
+    TIME --> OTHER_TERM
+    TIME --> COD
+
+    LOANS --> BILLS
+    LOANS --> DEMAND_LOAN
+    LOANS --> CC_LOAN
+    LOANS --> AGRI_CC
+    LOANS --> OD
+    LOANS --> TERM_LOAN
+    LOANS --> AGRI_TERM
+
+
+    %% =========================================================
+    %% BUSINESS CALCULATIONS
+    %% =========================================================
+
+    subgraph CALCULATIONS["BUSINESS CALCULATIONS"]
+
+        CASA_CALC["CASA<br/>Saving + Current"]
+
+        DEMAND_CALC["Demand Deposits<br/>Saving + Current + Cash Credit + Other Demand"]
+
+        TIME_CALC["Time Deposits<br/>Term + Special Term + Other Term + COD"]
+
+        TOTAL_CALC["Total Deposits<br/>Demand + Time"]
+
+        CASA_RATIO["CASA Ratio<br/>CASA / Total Deposits × 100"]
+
+    end
+
+    SAVINGS --> CASA_CALC
+    CURRENT --> CASA_CALC
+
+    SAVINGS --> DEMAND_CALC
+    CURRENT --> DEMAND_CALC
+    CASH_CREDIT --> DEMAND_CALC
+    OTHER_DEMAND --> DEMAND_CALC
+
+    TERM --> TIME_CALC
+    SPECIAL_TERM --> TIME_CALC
+    OTHER_TERM --> TIME_CALC
+    COD --> TIME_CALC
+
+    DEMAND_CALC --> TOTAL_CALC
+    TIME_CALC --> TOTAL_CALC
+
+    CASA_CALC --> CASA_RATIO
+    TOTAL_CALC --> CASA_RATIO
+
+
+    %% =========================================================
+    %% DRILL DOWN / HIERARCHY
+    %% =========================================================
+
+    subgraph HIERARCHY["ORGANIZATIONAL DRILL-DOWN"]
+
+        BANK["BANK"]
+
+        CIRCLE["CIRCLE"]
+
+        BRANCH["BRANCH"]
+
+    end
+
+    BANK --> CIRCLE
+    CIRCLE --> BRANCH
+
+    USER_SCOPE -->|"Permitted Scope"| BANK
+    USER_SCOPE -->|"Permitted Scope"| CIRCLE
+    USER_SCOPE -->|"Permitted Scope"| BRANCH
+
+    DRILLDOWN_API -->|"Requested Drill-Down"| SCOPE_RESOLVER
+
+    SCOPE_RESOLVER -->|"Validate Requested Scope"| USER_SCOPE
+
+
+    %% =========================================================
+    %% FINAL RESPONSE
+    %% =========================================================
+
+    APP -->|"Combined Dashboard Data"| DTO
+
+    DTO -->|"JSON Response"| REACT
+
+    APP -->|"Successful Result"| REDIS
+
+
+    %% =========================================================
+    %% CLIENT DASHBOARD SECTIONS
+    %% =========================================================
+
+    subgraph UI["REACT DASHBOARD SECTIONS"]
+
+        SUMMARY["Summary / KPI"]
+
+        CLASSIFICATION["Deposit / Loan Classification"]
+
+        COMPOSITION["Composition"]
+
+        TREND_UI["Trend"]
+
+        GROWTH_UI["MoM / YoY Growth"]
+
+        FORECAST_UI["Forecast"]
+
+        GEO_UI["Geography / Heat Map"]
+
+        TOP_UI["Top Branches"]
+
+        DRILL_UI["Drill-Down"]
+
+    end
+
+    REACT --> SUMMARY
+    REACT --> CLASSIFICATION
+    REACT --> COMPOSITION
+    REACT --> TREND_UI
+    REACT --> GROWTH_UI
+    REACT --> FORECAST_UI
+    REACT --> GEO_UI
+    REACT --> TOP_UI
+    REACT --> DRILL_UI
+
+
+    %% =========================================================
+    %% MAIN FLOW HIGHLIGHT
+    %% =========================================================
+
+    REACT -.->|"Dashboard Request"| CONTROLLER
+
+    APP -.->|"Druid Data"| ANALYTICS
+
+    APP -.->|"Prepared Data"| DAILY_METRIC
+
+    APP -.->|"Forecast Data"| FORECAST_TABLE
+
+
+    %% =========================================================
+    %% STYLING
+    %% =========================================================
+
+    classDef client fill:#e3f2fd,stroke:#1565c0,stroke-width:2px
+    classDef service fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px
+    classDef database fill:#fff3e0,stroke:#ef6c00,stroke-width:2px
+    classDef security fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px
+    classDef batch fill:#fce4ec,stroke:#c2185b,stroke-width:2px
+    classDef business fill:#e0f7fa,stroke:#00838f,stroke-width:2px
+    classDef api fill:#ede7f6,stroke:#512da8,stroke-width:2px
+
+    class USER,REACT client
+
+    class AUTH_SERVICE,APP,CONTROLLER,ANALYTICS,ARIMA,PYSPARK service
+
+    class REDIS,DRUID,DAILY_METRIC,FORECAST_TABLE,MAPPING,SOURCE,BRANCH_MASTER,CIRCLE_MASTER database
+
+    class SECURITY,TOKEN,SCOPE_RESOLVER,USER_SCOPE security
+
+    class TRANSFORM batch
+
+    class DEPOSITS,DEMAND,CASA,SAVINGS,CURRENT,CASH_CREDIT,OTHER_DEMAND,TIME,TERM,SPECIAL_TERM,OTHER_TERM,COD,LOANS,BILLS,DEMAND_LOAN,CC_LOAN,AGRI_CC,OD,TERM_LOAN,AGRI_TERM,CASA_CALC,DEMAND_CALC,TIME_CALC,TOTAL_CALC,CASA_RATIO,BANK,CIRCLE,BRANCH business
+
+    class OVERVIEW,TREND,GROWTH,FORECAST_API,GEOGRAPHY,TOP_BRANCHES,DRILLDOWN_API api
