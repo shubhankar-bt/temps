@@ -1,26 +1,16 @@
+ Received raw Kafka message: {"payload":"doW2lPVnvCcjqnOF:HpKkYWRTXZTnAUn4Q5ffjiTtVQc5n+Uo2L/otFK5AYngl833N5am1oxEcQdFQCiWydX7DqTUgXPhnascrr5/osHw/M2T4zrHIZjuyMJtNF0=","priority":"CRITICAL","eventId":"evt-0f43ea57-6ead-49b4-9a19-8a0850a96822","eventType":"LOGIN_OTP","channel":["SMS","EMAIL"],"createdAt":"2026-09-09T10:26:08.077155007Z","txId":"713cee11-01b6-464d-b255-1e8377d13b55","recipient":{"email":"ebms_uat_receiver@sbiuat.bank.in","mobile":"*********"},"templateId":"AUTH_LOGIN_OTP_V1"}
+2026-09-09T10:26:08.082Z  INFO 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.service.SmsServiceImpl             : Reached sendSms service. templateId=AUTH_LOGIN_OTP_V1, mobile=******2186
+2026-09-09T10:26:08.083Z  INFO 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.client.SmsGatewayClient            : Sending SMS to ******2186
+2026-09-09T10:26:08.161Z  INFO 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.client.SmsGatewayClient            : SMS Response Code : 200
+2026-09-09T10:26:08.161Z  INFO 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.client.SmsGatewayClient            : SMS Provider Response : error_code=0&error_desc=MESSAGE_SUBMIT_SUCCESS&umid=112609091556081472480275319
+2026-09-09T10:26:08.161Z  INFO 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.service.SmsServiceImpl             : SMS sent successfully to ******2186
+2026-09-09T10:26:08.163Z  INFO 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.service.EmailServiceImpl           : Initiating Email Dispatch Pipeline for Template ID: AUTH_LOGIN_OTP_V1
+2026-09-09T10:26:08.164Z  INFO 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.client.EmailGatewayClient          : Executing pure JSON payload dispatch (e.g. OTP)
+2026-09-09T10:26:11.168Z ERROR 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.client.EmailGatewayClient          : Exception while calling Email Vendor API
 
-2026-09-07T12:14:19.702Z  INFO 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.consumer.PriorityOtpConsumer       : Received raw Kafka message: {"payload":"4T31i58URbm5T8UC:UZs53Iefm24qBlHiYtipe2HlpAbjEzdCQH3zbclwYA38layQqzzcz4WofF7tZnvUjvVm5ZHlLHigqy89owUug1tnYCW7hTVCqjMgthtTNXw=","priority":"CRITICAL","eventId":"evt-7a0a64d2-32e9-4239-9409-cb7bc3383e71","eventType":"LOGIN_OTP","channel":["SMS","EMAIL"],"createdAt":"2026-09-07T12:14:19.693700592Z","txId":"0eb926a6-74de-4672-ac8a-e0bde8652e0a","recipient":{"email":"ebms_uat_receiver@sbiuat.bank.in","mobile":"9064632186"},"templateId":"AUTH_LOGIN_OTP_V1"}
-2026-09-07T12:14:19.708Z  INFO 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.service.SmsServiceImpl             : Reached sendSms service. templateId=AUTH_LOGIN_OTP_V1, mobile=******2186
-2026-09-07T12:14:19.709Z  INFO 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.service.TemplateCacheService       : L1 CACHE MISS: Fetching and Compiling Template AUTH_LOGIN_OTP_V1 for SMS from Oracle DB.
-2026-09-07T12:14:19.786Z  INFO 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.client.SmsGatewayClient            : Sending SMS to ******2186
-2026-09-07T12:14:19.935Z  INFO 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.client.SmsGatewayClient            : SMS Response Code : 200
-2026-09-07T12:14:19.935Z  INFO 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.client.SmsGatewayClient            : SMS Provider Response : error_code=0&error_desc=MESSAGE_SUBMIT_SUCCESS&umid=1126090717441990208607979
-2026-09-07T12:14:19.935Z  INFO 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.service.SmsServiceImpl             : SMS sent successfully to ******2186
-2026-09-07T12:14:19.938Z  INFO 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.service.TemplateCacheService       : L1 CACHE MISS: Fetching and Compiling Template AUTH_LOGIN_OTP_V1 for EMAIL from Oracle DB.
-2026-09-07T12:14:19.955Z  INFO 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.client.EmailGatewayClient          : Executing pure JSON payload dispatch (e.g. OTP)
-2026-09-07T12:14:20.175Z ERROR 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.client.EmailGatewayClient          : Exception while calling Email Vendor API
-
-org.springframework.web.client.HttpClientErrorException$Unauthorized: 401 Unauthorized: [no body]
-        at org.springframework.web.client.HttpClientErrorException.create(HttpClientErrorException.java:109) ~[spring-web-7.0.8.jar!/:7.0.8]
-        at org.springframework.web.client.StatusHandler.createException(StatusHandler.java:132) ~[spring-web-7.0.8.jar!/:7.0.8]
-        at org.springframework.web.client.StatusHandler.lambda$createDefaultStatusHandler$1(StatusHandler.java:107) ~[spring-web-7.0.8.jar!/:7.0.8]
-        at org.springframework.web.client.StatusHandler.handle(StatusHandler.java:75) ~[spring-web-7.0.8.jar!/:7.0.8]
-        at org.springframework.web.client.DefaultRestClient$DefaultResponseSpec.applyStatusHandlers(DefaultRestClient.java:943) ~[spring-web-7.0.8.jar!/:7.0.8]
-        at org.springframework.web.client.DefaultRestClient$DefaultResponseSpec.lambda$readBody$0(DefaultRestClient.java:932) ~[spring-web-7.0.8.jar!/:7.0.8]
-        at org.springframework.web.client.DefaultRestClient.readWithMessageConverters(DefaultRestClient.java:224) ~[spring-web-7.0.8.jar!/:7.0.8]
-        at org.springframework.web.client.DefaultRestClient$DefaultResponseSpec.readBody(DefaultRestClient.java:931) ~[spring-web-7.0.8.jar!/:7.0.8]
-        at org.springframework.web.client.DefaultRestClient$DefaultResponseSpec.lambda$toEntityInternal$0(DefaultRestClient.java:871) ~[spring-web-7.0.8.jar!/:7.0.8]
-        at org.springframework.web.client.DefaultRestClient$DefaultRequestBodyUriSpec.exchangeInternal(DefaultRestClient.java:617) ~[spring-web-7.0.8.jar!/:7.0.8]
+org.springframework.web.client.ResourceAccessException: I/O error on POST request for "https://ebms-pepiapi.sbiuat.bank.in:443/v5/mail/send": Connect timed out
+        at org.springframework.web.client.DefaultRestClient$DefaultRequestBodyUriSpec.createResourceAccessException(DefaultRestClient.java:779) ~[spring-web-7.0.8.jar!/:7.0.8]
+        at org.springframework.web.client.DefaultRestClient$DefaultRequestBodyUriSpec.exchangeInternal(DefaultRestClient.java:624) ~[spring-web-7.0.8.jar!/:7.0.8]
         at org.springframework.web.client.DefaultRestClient$DefaultRequestBodyUriSpec.exchange(DefaultRestClient.java:572) ~[spring-web-7.0.8.jar!/:7.0.8]
         at org.springframework.web.client.RestClient$RequestHeadersSpec.exchange(RestClient.java:747) ~[spring-web-7.0.8.jar!/:7.0.8]
         at org.springframework.web.client.DefaultRestClient$DefaultResponseSpec.executeAndExtract(DefaultRestClient.java:924) ~[spring-web-7.0.8.jar!/:7.0.8]
@@ -104,18 +94,100 @@ org.springframework.web.client.HttpClientErrorException$Unauthorized: 401 Unauth
         at org.springframework.kafka.listener.KafkaMessageListenerContainer$ListenerConsumer.run(KafkaMessageListenerContainer.java:1373) ~[spring-kafka-4.1.0.jar!/:4.1.0]
         at java.base/java.util.concurrent.CompletableFuture$AsyncRun.run(CompletableFuture.java:1804) ~[na:na]
         at java.base/java.lang.Thread.run(Thread.java:1570) ~[na:na]
+Caused by: java.net.SocketTimeoutException: Connect timed out
+        at java.base/sun.nio.ch.NioSocketImpl.timedFinishConnect(NioSocketImpl.java:546) ~[na:na]
+        at java.base/sun.nio.ch.NioSocketImpl.connect(NioSocketImpl.java:592) ~[na:na]
+        at java.base/java.net.SocksSocketImpl.connect(SocksSocketImpl.java:327) ~[na:na]
+        at java.base/java.net.Socket.connect(Socket.java:752) ~[na:na]
+        at java.base/sun.security.ssl.SSLSocketImpl.connect(SSLSocketImpl.java:304) ~[na:na]
+        at java.base/sun.net.NetworkClient.doConnect(NetworkClient.java:178) ~[na:na]
+        at java.base/sun.net.www.http.HttpClient.openServer(HttpClient.java:531) ~[na:na]
+        at java.base/sun.net.www.http.HttpClient.openServer(HttpClient.java:636) ~[na:na]
+        at java.base/sun.net.www.protocol.https.HttpsClient.<init>(HttpsClient.java:264) ~[na:na]
+        at java.base/sun.net.www.protocol.https.HttpsClient.New(HttpsClient.java:377) ~[na:na]
+        at java.base/sun.net.www.protocol.https.AbstractDelegateHttpsURLConnection.getNewHttpClient(AbstractDelegateHttpsURLConnection.java:193) ~[na:na]
+        at java.base/sun.net.www.protocol.http.HttpURLConnection.plainConnect0(HttpURLConnection.java:1243) ~[na:na]
+        at java.base/sun.net.www.protocol.http.HttpURLConnection.plainConnect(HttpURLConnection.java:1129) ~[na:na]
+        at java.base/sun.net.www.protocol.https.AbstractDelegateHttpsURLConnection.connect(AbstractDelegateHttpsURLConnection.java:179) ~[na:na]
+        at java.base/sun.net.www.protocol.https.HttpsURLConnectionImpl.connect(HttpsURLConnectionImpl.java:141) ~[na:na]
+        at org.springframework.http.client.SimpleClientHttpRequest.executeInternal(SimpleClientHttpRequest.java:80) ~[spring-web-7.0.8.jar!/:7.0.8]
+        at org.springframework.http.client.AbstractStreamingClientHttpRequest.executeInternal(AbstractStreamingClientHttpRequest.java:87) ~[spring-web-7.0.8.jar!/:7.0.8]
+        at org.springframework.http.client.AbstractClientHttpRequest.execute(AbstractClientHttpRequest.java:80) ~[spring-web-7.0.8.jar!/:7.0.8]
+        at org.springframework.web.client.DefaultRestClient$DefaultRequestBodyUriSpec.exchangeInternal(DefaultRestClient.java:614) ~[spring-web-7.0.8.jar!/:7.0.8]
+        ... 83 common frames omitted
 
-2026-09-07T12:14:20.179Z ERROR 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.service.EmailServiceImpl           : CRITICAL: Bank Email API unreachable for ebms_uat_receiver@sbiuat.bank.in. Error: Error occurred while calling Email Vendor API
-2026-09-07T12:14:20.679Z ERROR 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.service.EmailServiceImpl           : CRITICAL: Bank Email API unreachable for ebms_uat_receiver@sbiuat.bank.in. Error: Error occurred while calling Email Vendor API
-2026-09-07T12:14:21.179Z ERROR 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.service.EmailServiceImpl           : CRITICAL: Bank Email API unreachable for ebms_uat_receiver@sbiuat.bank.in. Error: Error occurred while calling Email Vendor API
-2026-09-07T12:14:21.181Z ERROR 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.service.EmailServiceImpl           : CRITICAL: Bank Email API unreachable for ebms_uat_receiver@sbiuat.bank.in. Error: Total Bank API Infrastructure Failure
-2026-09-07T12:14:21.681Z ERROR 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.service.EmailServiceImpl           : CRITICAL: Bank Email API unreachable for ebms_uat_receiver@sbiuat.bank.in. Error: Total Bank API Infrastructure Failure
-2026-09-07T12:14:22.182Z ERROR 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.service.EmailServiceImpl           : CRITICAL: Bank Email API unreachable for ebms_uat_receiver@sbiuat.bank.in. Error: Total Bank API Infrastructure Failure
-2026-09-07T12:14:23.189Z ERROR 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.consumer.PriorityOtpConsumer       : Vendor dispatch failed for eventId=evt-7a0a64d2-32e9-4239-9409-cb7bc3383e71 channel=EMAIL. Reason: CircuitBreaker 'defaultService' is OPEN and does not permit further calls
-2026-09-07T12:14:23.192Z ERROR 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.consumer.PriorityOtpConsumer       : Unexpected error processing Kafka message
+2026-09-09T10:26:11.170Z ERROR 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.service.EmailServiceImpl           : CRITICAL: Bank Email API unreachable for ebms_uat_receiver@sbiuat.bank.in. Error: Error occurred while calling Email Vendor API
+2026-09-09T10:26:11.671Z ERROR 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.service.EmailServiceImpl           : CRITICAL: Bank Email API unreachable for ebms_uat_receiver@sbiuat.bank.in. Error: Error occurred while calling Email Vendor API
+2026-09-09T10:26:12.171Z ERROR 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.service.EmailServiceImpl           : CRITICAL: Bank Email API unreachable for ebms_uat_receiver@sbiuat.bank.in. Error: Error occurred while calling Email Vendor API
+2026-09-09T10:26:12.172Z ERROR 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.service.EmailServiceImpl           : CRITICAL: Bank Email API unreachable for ebms_uat_receiver@sbiuat.bank.in. Error: Total Bank API Infrastructure Failure
+2026-09-09T10:26:12.673Z ERROR 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.service.EmailServiceImpl           : CRITICAL: Bank Email API unreachable for ebms_uat_receiver@sbiuat.bank.in. Error: Total Bank API Infrastructure Failure
+2026-09-09T10:26:13.173Z ERROR 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.service.EmailServiceImpl           : CRITICAL: Bank Email API unreachable for ebms_uat_receiver@sbiuat.bank.in. Error: Total Bank API Infrastructure Failure
+2026-09-09T10:26:13.674Z  INFO 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.service.EmailServiceImpl           : Initiating Email Dispatch Pipeline for Template ID: AUTH_LOGIN_OTP_V1
+2026-09-09T10:26:13.675Z  INFO 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.client.EmailGatewayClient          : Executing pure JSON payload dispatch (e.g. OTP)
+2026-09-09T10:26:16.677Z ERROR 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.client.EmailGatewayClient          : Exception while calling Email Vendor API
 
-com.fincore.CommunicationService.exception.CommunicationExceptions$VendorDeliveryException: One or more channels failed to deliver. Triggering Retry.
-        at com.fincore.CommunicationService.consumer.PriorityOtpConsumer.consumeOtpEvent(PriorityOtpConsumer.java:201) ~[!/:0.0.1-SNAPSHOT]
+org.springframework.web.client.ResourceAccessException: I/O error on POST request for "https://ebms-pepiapi.sbiuat.bank.in:443/v5/mail/send": Connect timed out
+        at org.springframework.web.client.DefaultRestClient$DefaultRequestBodyUriSpec.createResourceAccessException(DefaultRestClient.java:779) ~[spring-web-7.0.8.jar!/:7.0.8]
+        at org.springframework.web.client.DefaultRestClient$DefaultRequestBodyUriSpec.exchangeInternal(DefaultRestClient.java:624) ~[spring-web-7.0.8.jar!/:7.0.8]
+        at org.springframework.web.client.DefaultRestClient$DefaultRequestBodyUriSpec.exchange(DefaultRestClient.java:572) ~[spring-web-7.0.8.jar!/:7.0.8]
+        at org.springframework.web.client.RestClient$RequestHeadersSpec.exchange(RestClient.java:747) ~[spring-web-7.0.8.jar!/:7.0.8]
+        at org.springframework.web.client.DefaultRestClient$DefaultResponseSpec.executeAndExtract(DefaultRestClient.java:924) ~[spring-web-7.0.8.jar!/:7.0.8]
+        at org.springframework.web.client.DefaultRestClient$DefaultResponseSpec.toEntityInternal(DefaultRestClient.java:870) ~[spring-web-7.0.8.jar!/:7.0.8]
+        at org.springframework.web.client.DefaultRestClient$DefaultResponseSpec.toEntity(DefaultRestClient.java:859) ~[spring-web-7.0.8.jar!/:7.0.8]
+        at com.fincore.CommunicationService.client.EmailGatewayClient.sendEmail(EmailGatewayClient.java:57) ~[!/:0.0.1-SNAPSHOT]
+        at com.fincore.CommunicationService.service.EmailServiceImpl.executeEmailDispatch(EmailServiceImpl.java:93) ~[!/:0.0.1-SNAPSHOT]
+        at com.fincore.CommunicationService.service.EmailServiceImpl.sendEmail(EmailServiceImpl.java:54) ~[!/:0.0.1-SNAPSHOT]
+        at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:103) ~[na:na]
+        at java.base/java.lang.reflect.Method.invoke(Method.java:580) ~[na:na]
+        at org.springframework.aop.support.AopUtils.invokeJoinpointUsingReflection(AopUtils.java:359) ~[spring-aop-7.0.8.jar!/:7.0.8]
+        at org.springframework.aop.framework.ReflectiveMethodInvocation.invokeJoinpoint(ReflectiveMethodInvocation.java:190) ~[spring-aop-7.0.8.jar!/:7.0.8]
+        at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:158) ~[spring-aop-7.0.8.jar!/:7.0.8]
+        at org.springframework.aop.aspectj.MethodInvocationProceedingJoinPoint.proceed(MethodInvocationProceedingJoinPoint.java:82) ~[spring-aop-7.0.8.jar!/:7.0.8]
+        at io.github.resilience4j.circuitbreaker.CircuitBreaker.lambda$decorateCheckedSupplier$0(CircuitBreaker.java:71) ~[resilience4j-circuitbreaker-2.3.0.jar!/:2.3.0]
+        at io.github.resilience4j.circuitbreaker.CircuitBreaker.executeCheckedSupplier(CircuitBreaker.java:739) ~[resilience4j-circuitbreaker-2.3.0.jar!/:2.3.0]
+        at io.github.resilience4j.spring6.circuitbreaker.configure.CircuitBreakerAspect.defaultHandling(CircuitBreakerAspect.java:179) ~[resilience4j-spring6-2.3.0.jar!/:2.3.0]
+        at io.github.resilience4j.spring6.circuitbreaker.configure.CircuitBreakerAspect.proceed(CircuitBreakerAspect.java:126) ~[resilience4j-spring6-2.3.0.jar!/:2.3.0]
+        at io.github.resilience4j.spring6.circuitbreaker.configure.CircuitBreakerAspect.lambda$circuitBreakerAroundAdvice$0(CircuitBreakerAspect.java:108) ~[resilience4j-spring6-2.3.0.jar!/:2.3.0]
+        at io.github.resilience4j.spring6.fallback.DefaultFallbackDecorator.lambda$decorate$0(DefaultFallbackDecorator.java:36) ~[resilience4j-spring6-2.3.0.jar!/:2.3.0]
+        at io.github.resilience4j.spring6.fallback.FallbackExecutor.execute(FallbackExecutor.java:39) ~[resilience4j-spring6-2.3.0.jar!/:2.3.0]
+        at io.github.resilience4j.spring6.circuitbreaker.configure.CircuitBreakerAspect.circuitBreakerAroundAdvice(CircuitBreakerAspect.java:109) ~[resilience4j-spring6-2.3.0.jar!/:2.3.0]
+        at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:103) ~[na:na]
+        at java.base/java.lang.reflect.Method.invoke(Method.java:580) ~[na:na]
+        at org.springframework.aop.aspectj.AbstractAspectJAdvice.invokeAdviceMethodWithGivenArgs(AbstractAspectJAdvice.java:648) ~[spring-aop-7.0.8.jar!/:7.0.8]
+        at org.springframework.aop.aspectj.AbstractAspectJAdvice.invokeAdviceMethod(AbstractAspectJAdvice.java:630) ~[spring-aop-7.0.8.jar!/:7.0.8]
+        at org.springframework.aop.aspectj.AspectJAroundAdvice.invoke(AspectJAroundAdvice.java:70) ~[spring-aop-7.0.8.jar!/:7.0.8]
+        at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:168) ~[spring-aop-7.0.8.jar!/:7.0.8]
+        at org.springframework.aop.aspectj.MethodInvocationProceedingJoinPoint.proceed(MethodInvocationProceedingJoinPoint.java:82) ~[spring-aop-7.0.8.jar!/:7.0.8]
+        at io.github.resilience4j.retry.Retry.lambda$decorateCheckedSupplier$1(Retry.java:152) ~[resilience4j-retry-2.3.0.jar!/:2.3.0]
+        at io.github.resilience4j.retry.Retry.executeCheckedSupplier(Retry.java:512) ~[resilience4j-retry-2.3.0.jar!/:2.3.0]
+        at io.github.resilience4j.spring6.retry.configure.RetryAspect.handleDefaultJoinPoint(RetryAspect.java:175) ~[resilience4j-spring6-2.3.0.jar!/:2.3.0]
+        at io.github.resilience4j.spring6.retry.configure.RetryAspect.proceed(RetryAspect.java:132) ~[resilience4j-spring6-2.3.0.jar!/:2.3.0]
+        at io.github.resilience4j.spring6.retry.configure.RetryAspect.lambda$retryAroundAdvice$0(RetryAspect.java:116) ~[resilience4j-spring6-2.3.0.jar!/:2.3.0]
+        at io.github.resilience4j.spring6.fallback.DefaultFallbackDecorator.lambda$decorate$0(DefaultFallbackDecorator.java:36) ~[resilience4j-spring6-2.3.0.jar!/:2.3.0]
+        at io.github.resilience4j.spring6.fallback.FallbackExecutor.execute(FallbackExecutor.java:39) ~[resilience4j-spring6-2.3.0.jar!/:2.3.0]
+        at io.github.resilience4j.spring6.retry.configure.RetryAspect.retryAroundAdvice(RetryAspect.java:117) ~[resilience4j-spring6-2.3.0.jar!/:2.3.0]
+        at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:103) ~[na:na]
+        at java.base/java.lang.reflect.Method.invoke(Method.java:580) ~[na:na]
+        at org.springframework.aop.aspectj.AbstractAspectJAdvice.invokeAdviceMethodWithGivenArgs(AbstractAspectJAdvice.java:648) ~[spring-aop-7.0.8.jar!/:7.0.8]
+        at org.springframework.aop.aspectj.AbstractAspectJAdvice.invokeAdviceMethod(AbstractAspectJAdvice.java:630) ~[spring-aop-7.0.8.jar!/:7.0.8]
+        at org.springframework.aop.aspectj.AspectJAroundAdvice.invoke(AspectJAroundAdvice.java:70) ~[spring-aop-7.0.8.jar!/:7.0.8]
+        at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:168) ~[spring-aop-7.0.8.jar!/:7.0.8]
+        at org.springframework.aop.interceptor.ExposeInvocationInterceptor.invoke(ExposeInvocationInterceptor.java:96) ~[spring-aop-7.0.8.jar!/:7.0.8]
+        at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:179) ~[spring-aop-7.0.8.jar!/:7.0.8]
+        at org.springframework.aop.aspectj.MethodInvocationProceedingJoinPoint.proceed(MethodInvocationProceedingJoinPoint.java:82) ~[spring-aop-7.0.8.jar!/:7.0.8]
+        at com.fincore.commonutilities.aspect.GlobalResilienceAspect.lambda$applyResilience$0(GlobalResilienceAspect.java:60) ~[common-utilities-1.1.0.jar!/:1.1.0]
+        at io.github.resilience4j.retry.Retry.lambda$decorateSupplier$5(Retry.java:301) ~[resilience4j-retry-2.3.0.jar!/:2.3.0]
+        at io.github.resilience4j.circuitbreaker.CircuitBreaker.lambda$decorateSupplier$5(CircuitBreaker.java:194) ~[resilience4j-circuitbreaker-2.3.0.jar!/:2.3.0]
+        at com.fincore.commonutilities.aspect.GlobalResilienceAspect.applyResilience(GlobalResilienceAspect.java:73) ~[common-utilities-1.1.0.jar!/:1.1.0]
+        at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:103) ~[na:na]
+        at java.base/java.lang.reflect.Method.invoke(Method.java:580) ~[na:na]
+        at org.springframework.aop.aspectj.AbstractAspectJAdvice.invokeAdviceMethodWithGivenArgs(AbstractAspectJAdvice.java:648) ~[spring-aop-7.0.8.jar!/:7.0.8]
+        at org.springframework.aop.aspectj.AbstractAspectJAdvice.invokeAdviceMethod(AbstractAspectJAdvice.java:630) ~[spring-aop-7.0.8.jar!/:7.0.8]
+        at org.springframework.aop.aspectj.AspectJAroundAdvice.invoke(AspectJAroundAdvice.java:70) ~[spring-aop-7.0.8.jar!/:7.0.8]
+        at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:179) ~[spring-aop-7.0.8.jar!/:7.0.8]
+        at org.springframework.aop.framework.CglibAopProxy$DynamicAdvisedInterceptor.intercept(CglibAopProxy.java:719) ~[spring-aop-7.0.8.jar!/:7.0.8]
+        at com.fincore.CommunicationService.service.EmailServiceImpl$$SpringCGLIB$$0.sendEmail(<generated>) ~[!/:0.0.1-SNAPSHOT]
+        at com.fincore.CommunicationService.consumer.PriorityOtpConsumer.consumeOtpEvent(PriorityOtpConsumer.java:181) ~[!/:0.0.1-SNAPSHOT]
         at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:103) ~[na:na]
         at java.base/java.lang.reflect.Method.invoke(Method.java:580) ~[na:na]
         at org.springframework.messaging.handler.invocation.InvocableHandlerMethod.doInvoke(InvocableHandlerMethod.java:168) ~[spring-messaging-7.0.8.jar!/:7.0.8]
@@ -140,150 +212,36 @@ com.fincore.CommunicationService.exception.CommunicationExceptions$VendorDeliver
         at org.springframework.kafka.listener.KafkaMessageListenerContainer$ListenerConsumer.run(KafkaMessageListenerContainer.java:1373) ~[spring-kafka-4.1.0.jar!/:4.1.0]
         at java.base/java.util.concurrent.CompletableFuture$AsyncRun.run(CompletableFuture.java:1804) ~[na:na]
         at java.base/java.lang.Thread.run(Thread.java:1570) ~[na:na]
+Caused by: java.net.SocketTimeoutException: Connect timed out
+        at java.base/sun.nio.ch.NioSocketImpl.timedFinishConnect(NioSocketImpl.java:546) ~[na:na]
+        at java.base/sun.nio.ch.NioSocketImpl.connect(NioSocketImpl.java:592) ~[na:na]
+        at java.base/java.net.SocksSocketImpl.connect(SocksSocketImpl.java:327) ~[na:na]
+        at java.base/java.net.Socket.connect(Socket.java:752) ~[na:na]
+        at java.base/sun.security.ssl.SSLSocketImpl.connect(SSLSocketImpl.java:304) ~[na:na]
+        at java.base/sun.net.NetworkClient.doConnect(NetworkClient.java:178) ~[na:na]
+        at java.base/sun.net.www.http.HttpClient.openServer(HttpClient.java:531) ~[na:na]
+        at java.base/sun.net.www.http.HttpClient.openServer(HttpClient.java:636) ~[na:na]
+        at java.base/sun.net.www.protocol.https.HttpsClient.<init>(HttpsClient.java:264) ~[na:na]
+        at java.base/sun.net.www.protocol.https.HttpsClient.New(HttpsClient.java:377) ~[na:na]
+        at java.base/sun.net.www.protocol.https.AbstractDelegateHttpsURLConnection.getNewHttpClient(AbstractDelegateHttpsURLConnection.java:193) ~[na:na]
+        at java.base/sun.net.www.protocol.http.HttpURLConnection.plainConnect0(HttpURLConnection.java:1243) ~[na:na]
+        at java.base/sun.net.www.protocol.http.HttpURLConnection.plainConnect(HttpURLConnection.java:1129) ~[na:na]
+        at java.base/sun.net.www.protocol.https.AbstractDelegateHttpsURLConnection.connect(AbstractDelegateHttpsURLConnection.java:179) ~[na:na]
+        at java.base/sun.net.www.protocol.https.HttpsURLConnectionImpl.connect(HttpsURLConnectionImpl.java:141) ~[na:na]
+        at org.springframework.http.client.SimpleClientHttpRequest.executeInternal(SimpleClientHttpRequest.java:80) ~[spring-web-7.0.8.jar!/:7.0.8]
+        at org.springframework.http.client.AbstractStreamingClientHttpRequest.executeInternal(AbstractStreamingClientHttpRequest.java:87) ~[spring-web-7.0.8.jar!/:7.0.8]
+        at org.springframework.http.client.AbstractClientHttpRequest.execute(AbstractClientHttpRequest.java:80) ~[spring-web-7.0.8.jar!/:7.0.8]
+        at org.springframework.web.client.DefaultRestClient$DefaultRequestBodyUriSpec.exchangeInternal(DefaultRestClient.java:614) ~[spring-web-7.0.8.jar!/:7.0.8]
+        ... 83 common frames omitted
 
-2026-09-07T12:14:23.204Z  INFO 1 --- [CommunicationService] [1-retry-0-0-C-1] o.a.k.c.c.i.ClassicKafkaConsumer         : [Consumer clientId=consumer-communication-login-otp-group-v7-retry-0-46, groupId=communication-login-otp-group-v7-retry-0] Seeking to offset 70 for partition fincore.auth.otp.priority-retry-0-0
-2026-09-07T12:14:23.204Z  INFO 1 --- [CommunicationService] [1-retry-0-0-C-1] o.s.k.l.KafkaMessageListenerContainer    : Record in retry and not yet recovered
-2026-09-07T12:14:25.196Z  INFO 1 --- [CommunicationService] [1-retry-0-0-C-1] c.f.C.consumer.PriorityOtpConsumer       : Received raw Kafka message: {"payload":"4T31i58URbm5T8UC:UZs53Iefm24qBlHiYtipe2HlpAbjEzdCQH3zbclwYA38layQqzzcz4WofF7tZnvUjvVm5ZHlLHigqy89owUug1tnYCW7hTVCqjMgthtTNXw=","priority":"CRITICAL","eventId":"evt-7a0a64d2-32e9-4239-9409-cb7bc3383e71","eventType":"LOGIN_OTP","channel":["SMS","EMAIL"],"createdAt":"2026-09-07T12:14:19.693700592Z","txId":"0eb926a6-74de-4672-ac8a-e0bde8652e0a","recipient":{"email":"ebms_uat_receiver@sbiuat.bank.in","mobile":"9064632186"},"templateId":"AUTH_LOGIN_OTP_V1"}
-2026-09-07T12:14:25.199Z ERROR 1 --- [CommunicationService] [1-retry-0-0-C-1] c.f.C.consumer.PriorityOtpConsumer       : Vendor dispatch failed for eventId=evt-7a0a64d2-32e9-4239-9409-cb7bc3383e71 channel=EMAIL. Reason: CircuitBreaker 'defaultService' is OPEN and does not permit further calls
-2026-09-07T12:14:25.200Z ERROR 1 --- [CommunicationService] [1-retry-0-0-C-1] c.f.C.consumer.PriorityOtpConsumer       : Unexpected error processing Kafka message
-
-com.fincore.CommunicationService.exception.CommunicationExceptions$VendorDeliveryException: One or more channels failed to deliver. Triggering Retry.
-        at com.fincore.CommunicationService.consumer.PriorityOtpConsumer.consumeOtpEvent(PriorityOtpConsumer.java:201) ~[!/:0.0.1-SNAPSHOT]
-        at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:103) ~[na:na]
-        at java.base/java.lang.reflect.Method.invoke(Method.java:580) ~[na:na]
-        at org.springframework.messaging.handler.invocation.InvocableHandlerMethod.doInvoke(InvocableHandlerMethod.java:168) ~[spring-messaging-7.0.8.jar!/:7.0.8]
-        at org.springframework.kafka.listener.adapter.KotlinAwareInvocableHandlerMethod.doInvoke(KotlinAwareInvocableHandlerMethod.java:48) ~[spring-kafka-4.1.0.jar!/:4.1.0]
-        at org.springframework.messaging.handler.invocation.InvocableHandlerMethod.invoke(InvocableHandlerMethod.java:119) ~[spring-messaging-7.0.8.jar!/:7.0.8]
-        at org.springframework.kafka.listener.adapter.HandlerAdapter.invoke(HandlerAdapter.java:80) ~[spring-kafka-4.1.0.jar!/:4.1.0]
-        at org.springframework.kafka.listener.adapter.MessagingMessageListenerAdapter.invokeHandler(MessagingMessageListenerAdapter.java:489) ~[spring-kafka-4.1.0.jar!/:4.1.0]
-        at org.springframework.kafka.listener.adapter.MessagingMessageListenerAdapter.invoke(MessagingMessageListenerAdapter.java:426) ~[spring-kafka-4.1.0.jar!/:4.1.0]
-        at org.springframework.kafka.listener.adapter.RecordMessagingMessageListenerAdapter.onMessage(RecordMessagingMessageListenerAdapter.java:92) ~[spring-kafka-4.1.0.jar!/:4.1.0]
-        at org.springframework.kafka.listener.adapter.RecordMessagingMessageListenerAdapter.onMessage(RecordMessagingMessageListenerAdapter.java:52) ~[spring-kafka-4.1.0.jar!/:4.1.0]
-        at org.springframework.kafka.listener.adapter.KafkaBackoffAwareMessageListenerAdapter.invokeDelegateOnMessage(KafkaBackoffAwareMessageListenerAdapter.java:109) ~[spring-kafka-4.1.0.jar!/:4.1.0]
-        at org.springframework.kafka.listener.adapter.KafkaBackoffAwareMessageListenerAdapter.onMessage(KafkaBackoffAwareMessageListenerAdapter.java:100) ~[spring-kafka-4.1.0.jar!/:4.1.0]
-        at org.springframework.kafka.listener.adapter.KafkaBackoffAwareMessageListenerAdapter.onMessage(KafkaBackoffAwareMessageListenerAdapter.java:50) ~[spring-kafka-4.1.0.jar!/:4.1.0]
-        at org.springframework.kafka.listener.KafkaMessageListenerContainer$ListenerConsumer.doInvokeOnMessage(KafkaMessageListenerContainer.java:3018) ~[spring-kafka-4.1.0.jar!/:4.1.0]
-        at org.springframework.kafka.listener.KafkaMessageListenerContainer$ListenerConsumer.invokeOnMessage(KafkaMessageListenerContainer.java:2997) ~[spring-kafka-4.1.0.jar!/:4.1.0]
-        at org.springframework.kafka.listener.KafkaMessageListenerContainer$ListenerConsumer.doInvokeRecordListener(KafkaMessageListenerContainer.java:2907) ~[spring-kafka-4.1.0.jar!/:4.1.0]
-        at org.springframework.kafka.listener.KafkaMessageListenerContainer$ListenerConsumer.doInvokeWithRecords(KafkaMessageListenerContainer.java:2749) ~[spring-kafka-4.1.0.jar!/:4.1.0]
-        at org.springframework.kafka.listener.KafkaMessageListenerContainer$ListenerConsumer.invokeRecordListener(KafkaMessageListenerContainer.java:2643) ~[spring-kafka-4.1.0.jar!/:4.1.0]
-        at org.springframework.kafka.listener.KafkaMessageListenerContainer$ListenerConsumer.invokeListener(KafkaMessageListenerContainer.java:2274) ~[spring-kafka-4.1.0.jar!/:4.1.0]
-        at org.springframework.kafka.listener.KafkaMessageListenerContainer$ListenerConsumer.invokeIfHaveRecords(KafkaMessageListenerContainer.java:1572) ~[spring-kafka-4.1.0.jar!/:4.1.0]
-        at org.springframework.kafka.listener.KafkaMessageListenerContainer$ListenerConsumer.pollAndInvoke(KafkaMessageListenerContainer.java:1504) ~[spring-kafka-4.1.0.jar!/:4.1.0]
-        at org.springframework.kafka.listener.KafkaMessageListenerContainer$ListenerConsumer.run(KafkaMessageListenerContainer.java:1373) ~[spring-kafka-4.1.0.jar!/:4.1.0]
-        at java.base/java.util.concurrent.CompletableFuture$AsyncRun.run(CompletableFuture.java:1804) ~[na:na]
-        at java.base/java.lang.Thread.run(Thread.java:1570) ~[na:na]
-
-2026-09-07T12:14:25.706Z  INFO 1 --- [CommunicationService] [1-retry-1-0-C-1] o.a.k.c.c.i.ClassicKafkaConsumer         : [Consumer clientId=consumer-communication-login-otp-group-v7-retry-1-56, groupId=communication-login-otp-group-v7-retry-1] Seeking to offset 69 for partition fincore.auth.otp.priority-retry-1-0
-2026-09-07T12:14:25.706Z  INFO 1 --- [CommunicationService] [1-retry-1-0-C-1] o.s.k.l.KafkaMessageListenerContainer    : Record in retry and not yet recovered
-2026-09-07T12:14:29.202Z  INFO 1 --- [CommunicationService] [1-retry-1-0-C-1] c.f.C.consumer.PriorityOtpConsumer       : Received raw Kafka message: {"payload":"4T31i58URbm5T8UC:UZs53Iefm24qBlHiYtipe2HlpAbjEzdCQH3zbclwYA38layQqzzcz4WofF7tZnvUjvVm5ZHlLHigqy89owUug1tnYCW7hTVCqjMgthtTNXw=","priority":"CRITICAL","eventId":"evt-7a0a64d2-32e9-4239-9409-cb7bc3383e71","eventType":"LOGIN_OTP","channel":["SMS","EMAIL"],"createdAt":"2026-09-07T12:14:19.693700592Z","txId":"0eb926a6-74de-4672-ac8a-e0bde8652e0a","recipient":{"email":"ebms_uat_receiver@sbiuat.bank.in","mobile":"9064632186"},"templateId":"AUTH_LOGIN_OTP_V1"}
-2026-09-07T12:14:29.206Z ERROR 1 --- [CommunicationService] [1-retry-1-0-C-1] c.f.C.consumer.PriorityOtpConsumer       : Vendor dispatch failed for eventId=evt-7a0a64d2-32e9-4239-9409-cb7bc3383e71 channel=EMAIL. Reason: CircuitBreaker 'defaultService' is OPEN and does not permit further calls
-2026-09-07T12:14:29.206Z ERROR 1 --- [CommunicationService] [1-retry-1-0-C-1] c.f.C.consumer.PriorityOtpConsumer       : Unexpected error processing Kafka message
-
-com.fincore.CommunicationService.exception.CommunicationExceptions$VendorDeliveryException: One or more channels failed to deliver. Triggering Retry.
-        at com.fincore.CommunicationService.consumer.PriorityOtpConsumer.consumeOtpEvent(PriorityOtpConsumer.java:201) ~[!/:0.0.1-SNAPSHOT]
-        at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:103) ~[na:na]
-        at java.base/java.lang.reflect.Method.invoke(Method.java:580) ~[na:na]
-        at org.springframework.messaging.handler.invocation.InvocableHandlerMethod.doInvoke(InvocableHandlerMethod.java:168) ~[spring-messaging-7.0.8.jar!/:7.0.8]
-        at org.springframework.kafka.listener.adapter.KotlinAwareInvocableHandlerMethod.doInvoke(KotlinAwareInvocableHandlerMethod.java:48) ~[spring-kafka-4.1.0.jar!/:4.1.0]
-        at org.springframework.messaging.handler.invocation.InvocableHandlerMethod.invoke(InvocableHandlerMethod.java:119) ~[spring-messaging-7.0.8.jar!/:7.0.8]
-        at org.springframework.kafka.listener.adapter.HandlerAdapter.invoke(HandlerAdapter.java:80) ~[spring-kafka-4.1.0.jar!/:4.1.0]
-        at org.springframework.kafka.listener.adapter.MessagingMessageListenerAdapter.invokeHandler(MessagingMessageListenerAdapter.java:489) ~[spring-kafka-4.1.0.jar!/:4.1.0]
-        at org.springframework.kafka.listener.adapter.MessagingMessageListenerAdapter.invoke(MessagingMessageListenerAdapter.java:426) ~[spring-kafka-4.1.0.jar!/:4.1.0]
-        at org.springframework.kafka.listener.adapter.RecordMessagingMessageListenerAdapter.onMessage(RecordMessagingMessageListenerAdapter.java:92) ~[spring-kafka-4.1.0.jar!/:4.1.0]
-        at org.springframework.kafka.listener.adapter.RecordMessagingMessageListenerAdapter.onMessage(RecordMessagingMessageListenerAdapter.java:52) ~[spring-kafka-4.1.0.jar!/:4.1.0]
-        at org.springframework.kafka.listener.adapter.KafkaBackoffAwareMessageListenerAdapter.invokeDelegateOnMessage(KafkaBackoffAwareMessageListenerAdapter.java:109) ~[spring-kafka-4.1.0.jar!/:4.1.0]
-        at org.springframework.kafka.listener.adapter.KafkaBackoffAwareMessageListenerAdapter.onMessage(KafkaBackoffAwareMessageListenerAdapter.java:100) ~[spring-kafka-4.1.0.jar!/:4.1.0]
-        at org.springframework.kafka.listener.adapter.KafkaBackoffAwareMessageListenerAdapter.onMessage(KafkaBackoffAwareMessageListenerAdapter.java:50) ~[spring-kafka-4.1.0.jar!/:4.1.0]
-        at org.springframework.kafka.listener.KafkaMessageListenerContainer$ListenerConsumer.doInvokeOnMessage(KafkaMessageListenerContainer.java:3018) ~[spring-kafka-4.1.0.jar!/:4.1.0]
-        at org.springframework.kafka.listener.KafkaMessageListenerContainer$ListenerConsumer.invokeOnMessage(KafkaMessageListenerContainer.java:2997) ~[spring-kafka-4.1.0.jar!/:4.1.0]
-        at org.springframework.kafka.listener.KafkaMessageListenerContainer$ListenerConsumer.doInvokeRecordListener(KafkaMessageListenerContainer.java:2907) ~[spring-kafka-4.1.0.jar!/:4.1.0]
-        at org.springframework.kafka.listener.KafkaMessageListenerContainer$ListenerConsumer.doInvokeWithRecords(KafkaMessageListenerContainer.java:2749) ~[spring-kafka-4.1.0.jar!/:4.1.0]
-        at org.springframework.kafka.listener.KafkaMessageListenerContainer$ListenerConsumer.invokeRecordListener(KafkaMessageListenerContainer.java:2643) ~[spring-kafka-4.1.0.jar!/:4.1.0]
-        at org.springframework.kafka.listener.KafkaMessageListenerContainer$ListenerConsumer.invokeListener(KafkaMessageListenerContainer.java:2274) ~[spring-kafka-4.1.0.jar!/:4.1.0]
-        at org.springframework.kafka.listener.KafkaMessageListenerContainer$ListenerConsumer.invokeIfHaveRecords(KafkaMessageListenerContainer.java:1572) ~[spring-kafka-4.1.0.jar!/:4.1.0]
-        at org.springframework.kafka.listener.KafkaMessageListenerContainer$ListenerConsumer.pollAndInvoke(KafkaMessageListenerContainer.java:1504) ~[spring-kafka-4.1.0.jar!/:4.1.0]
-        at org.springframework.kafka.listener.KafkaMessageListenerContainer$ListenerConsumer.run(KafkaMessageListenerContainer.java:1373) ~[spring-kafka-4.1.0.jar!/:4.1.0]
-        at java.base/java.util.concurrent.CompletableFuture$AsyncRun.run(CompletableFuture.java:1804) ~[na:na]
-        at java.base/java.lang.Thread.run(Thread.java:1570) ~[na:na]
-
-2026-09-07T12:14:29.713Z  INFO 1 --- [CommunicationService] [1-retry-2-0-C-1] o.a.k.c.c.i.ClassicKafkaConsumer         : [Consumer clientId=consumer-communication-login-otp-group-v7-retry-2-66, groupId=communication-login-otp-group-v7-retry-2] Seeking to offset 69 for partition fincore.auth.otp.priority-retry-2-0
-2026-09-07T12:14:29.714Z  INFO 1 --- [CommunicationService] [1-retry-2-0-C-1] o.s.k.l.KafkaMessageListenerContainer    : Record in retry and not yet recovered
-2026-09-07T12:14:37.209Z  INFO 1 --- [CommunicationService] [1-retry-2-0-C-1] c.f.C.consumer.PriorityOtpConsumer       : Received raw Kafka message: {"payload":"4T31i58URbm5T8UC:UZs53Iefm24qBlHiYtipe2HlpAbjEzdCQH3zbclwYA38layQqzzcz4WofF7tZnvUjvVm5ZHlLHigqy89owUug1tnYCW7hTVCqjMgthtTNXw=","priority":"CRITICAL","eventId":"evt-7a0a64d2-32e9-4239-9409-cb7bc3383e71","eventType":"LOGIN_OTP","channel":["SMS","EMAIL"],"createdAt":"2026-09-07T12:14:19.693700592Z","txId":"0eb926a6-74de-4672-ac8a-e0bde8652e0a","recipient":{"email":"ebms_uat_receiver@sbiuat.bank.in","mobile":"9064632186"},"templateId":"AUTH_LOGIN_OTP_V1"}
-2026-09-07T12:14:37.213Z ERROR 1 --- [CommunicationService] [1-retry-2-0-C-1] c.f.C.consumer.PriorityOtpConsumer       : Vendor dispatch failed for eventId=evt-7a0a64d2-32e9-4239-9409-cb7bc3383e71 channel=EMAIL. Reason: CircuitBreaker 'defaultService' is OPEN and does not permit further calls
-2026-09-07T12:14:37.214Z ERROR 1 --- [CommunicationService] [1-retry-2-0-C-1] c.f.C.consumer.PriorityOtpConsumer       : Unexpected error processing Kafka message
-
-com.fincore.CommunicationService.exception.CommunicationExceptions$VendorDeliveryException: One or more channels failed to deliver. Triggering Retry.
-        at com.fincore.CommunicationService.consumer.PriorityOtpConsumer.consumeOtpEvent(PriorityOtpConsumer.java:201) ~[!/:0.0.1-SNAPSHOT]
-        at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:103) ~[na:na]
-        at java.base/java.lang.reflect.Method.invoke(Method.java:580) ~[na:na]
-        at org.springframework.messaging.handler.invocation.InvocableHandlerMethod.doInvoke(InvocableHandlerMethod.java:168) ~[spring-messaging-7.0.8.jar!/:7.0.8]
-        at org.springframework.kafka.listener.adapter.KotlinAwareInvocableHandlerMethod.doInvoke(KotlinAwareInvocableHandlerMethod.java:48) ~[spring-kafka-4.1.0.jar!/:4.1.0]
-        at org.springframework.messaging.handler.invocation.InvocableHandlerMethod.invoke(InvocableHandlerMethod.java:119) ~[spring-messaging-7.0.8.jar!/:7.0.8]
-        at org.springframework.kafka.listener.adapter.HandlerAdapter.invoke(HandlerAdapter.java:80) ~[spring-kafka-4.1.0.jar!/:4.1.0]
-        at org.springframework.kafka.listener.adapter.MessagingMessageListenerAdapter.invokeHandler(MessagingMessageListenerAdapter.java:489) ~[spring-kafka-4.1.0.jar!/:4.1.0]
-        at org.springframework.kafka.listener.adapter.MessagingMessageListenerAdapter.invoke(MessagingMessageListenerAdapter.java:426) ~[spring-kafka-4.1.0.jar!/:4.1.0]
-        at org.springframework.kafka.listener.adapter.RecordMessagingMessageListenerAdapter.onMessage(RecordMessagingMessageListenerAdapter.java:92) ~[spring-kafka-4.1.0.jar!/:4.1.0]
-        at org.springframework.kafka.listener.adapter.RecordMessagingMessageListenerAdapter.onMessage(RecordMessagingMessageListenerAdapter.java:52) ~[spring-kafka-4.1.0.jar!/:4.1.0]
-        at org.springframework.kafka.listener.adapter.KafkaBackoffAwareMessageListenerAdapter.invokeDelegateOnMessage(KafkaBackoffAwareMessageListenerAdapter.java:109) ~[spring-kafka-4.1.0.jar!/:4.1.0]
-        at org.springframework.kafka.listener.adapter.KafkaBackoffAwareMessageListenerAdapter.onMessage(KafkaBackoffAwareMessageListenerAdapter.java:100) ~[spring-kafka-4.1.0.jar!/:4.1.0]
-        at org.springframework.kafka.listener.adapter.KafkaBackoffAwareMessageListenerAdapter.onMessage(KafkaBackoffAwareMessageListenerAdapter.java:50) ~[spring-kafka-4.1.0.jar!/:4.1.0]
-        at org.springframework.kafka.listener.KafkaMessageListenerContainer$ListenerConsumer.doInvokeOnMessage(KafkaMessageListenerContainer.java:3018) ~[spring-kafka-4.1.0.jar!/:4.1.0]
-        at org.springframework.kafka.listener.KafkaMessageListenerContainer$ListenerConsumer.invokeOnMessage(KafkaMessageListenerContainer.java:2997) ~[spring-kafka-4.1.0.jar!/:4.1.0]
-        at org.springframework.kafka.listener.KafkaMessageListenerContainer$ListenerConsumer.doInvokeRecordListener(KafkaMessageListenerContainer.java:2907) ~[spring-kafka-4.1.0.jar!/:4.1.0]
-        at org.springframework.kafka.listener.KafkaMessageListenerContainer$ListenerConsumer.doInvokeWithRecords(KafkaMessageListenerContainer.java:2749) ~[spring-kafka-4.1.0.jar!/:4.1.0]
-        at org.springframework.kafka.listener.KafkaMessageListenerContainer$ListenerConsumer.invokeRecordListener(KafkaMessageListenerContainer.java:2643) ~[spring-kafka-4.1.0.jar!/:4.1.0]
-        at org.springframework.kafka.listener.KafkaMessageListenerContainer$ListenerConsumer.invokeListener(KafkaMessageListenerContainer.java:2274) ~[spring-kafka-4.1.0.jar!/:4.1.0]
-        at org.springframework.kafka.listener.KafkaMessageListenerContainer$ListenerConsumer.invokeIfHaveRecords(KafkaMessageListenerContainer.java:1572) ~[spring-kafka-4.1.0.jar!/:4.1.0]
-        at org.springframework.kafka.listener.KafkaMessageListenerContainer$ListenerConsumer.pollAndInvoke(KafkaMessageListenerContainer.java:1504) ~[spring-kafka-4.1.0.jar!/:4.1.0]
-        at org.springframework.kafka.listener.KafkaMessageListenerContainer$ListenerConsumer.run(KafkaMessageListenerContainer.java:1373) ~[spring-kafka-4.1.0.jar!/:4.1.0]
-        at java.base/java.util.concurrent.CompletableFuture$AsyncRun.run(CompletableFuture.java:1804) ~[na:na]
-        at java.base/java.lang.Thread.run(Thread.java:1570) ~[na:na]
-
-2026-09-07T12:14:37.215Z ERROR 1 --- [CommunicationService] [1-retry-2-0-C-1] k.r.DeadLetterPublishingRecovererFactory : Record: topic = fincore.auth.otp.priority-retry-2, partition = 0, offset = 69, main topic = fincore.auth.otp.priority threw an error at topic fincore.auth.otp.priority-retry-2 and won't be retried. Sending to DLT with name fincore.auth.otp.priority-dlq.
-
-org.springframework.kafka.listener.ListenerExecutionFailedException: Listener failed
-        at org.springframework.kafka.listener.KafkaMessageListenerContainer$ListenerConsumer.decorateException(KafkaMessageListenerContainer.java:3164) ~[spring-kafka-4.1.0.jar!/:4.1.0]
-        at org.springframework.kafka.listener.KafkaMessageListenerContainer$ListenerConsumer.doInvokeOnMessage(KafkaMessageListenerContainer.java:3031) ~[spring-kafka-4.1.0.jar!/:4.1.0]
-        at org.springframework.kafka.listener.KafkaMessageListenerContainer$ListenerConsumer.invokeOnMessage(KafkaMessageListenerContainer.java:2997) ~[spring-kafka-4.1.0.jar!/:4.1.0]
-        at org.springframework.kafka.listener.KafkaMessageListenerContainer$ListenerConsumer.doInvokeRecordListener(KafkaMessageListenerContainer.java:2907) ~[spring-kafka-4.1.0.jar!/:4.1.0]
-        at org.springframework.kafka.listener.KafkaMessageListenerContainer$ListenerConsumer.doInvokeWithRecords(KafkaMessageListenerContainer.java:2749) ~[spring-kafka-4.1.0.jar!/:4.1.0]
-        at org.springframework.kafka.listener.KafkaMessageListenerContainer$ListenerConsumer.invokeRecordListener(KafkaMessageListenerContainer.java:2643) ~[spring-kafka-4.1.0.jar!/:4.1.0]
-        at org.springframework.kafka.listener.KafkaMessageListenerContainer$ListenerConsumer.invokeListener(KafkaMessageListenerContainer.java:2274) ~[spring-kafka-4.1.0.jar!/:4.1.0]
-        at org.springframework.kafka.listener.KafkaMessageListenerContainer$ListenerConsumer.invokeIfHaveRecords(KafkaMessageListenerContainer.java:1572) ~[spring-kafka-4.1.0.jar!/:4.1.0]
-        at org.springframework.kafka.listener.KafkaMessageListenerContainer$ListenerConsumer.pollAndInvoke(KafkaMessageListenerContainer.java:1504) ~[spring-kafka-4.1.0.jar!/:4.1.0]
-        at org.springframework.kafka.listener.KafkaMessageListenerContainer$ListenerConsumer.run(KafkaMessageListenerContainer.java:1373) ~[spring-kafka-4.1.0.jar!/:4.1.0]
-        at java.base/java.util.concurrent.CompletableFuture$AsyncRun.run(CompletableFuture.java:1804) ~[na:na]
-        at java.base/java.lang.Thread.run(Thread.java:1570) ~[na:na]
-Caused by: org.springframework.kafka.listener.TimestampedException: Exception thrown at 2026-09-07T12:14:37.214881255Z
-        at org.springframework.kafka.listener.adapter.KafkaBackoffAwareMessageListenerAdapter.onMessage(KafkaBackoffAwareMessageListenerAdapter.java:103) ~[spring-kafka-4.1.0.jar!/:4.1.0]
-        at org.springframework.kafka.listener.adapter.KafkaBackoffAwareMessageListenerAdapter.onMessage(KafkaBackoffAwareMessageListenerAdapter.java:50) ~[spring-kafka-4.1.0.jar!/:4.1.0]
-        at org.springframework.kafka.listener.KafkaMessageListenerContainer$ListenerConsumer.doInvokeOnMessage(KafkaMessageListenerContainer.java:3018) ~[spring-kafka-4.1.0.jar!/:4.1.0]
-        ... 10 common frames omitted
-Caused by: org.springframework.kafka.listener.ListenerExecutionFailedException: Listener method 'public void com.fincore.CommunicationService.consumer.PriorityOtpConsumer.consumeOtpEvent(java.lang.String,org.springframework.kafka.support.Acknowledgment) throws com.fasterxml.jackson.core.JsonProcessingException' threw exception
-        at org.springframework.kafka.listener.adapter.MessagingMessageListenerAdapter.invokeHandler(MessagingMessageListenerAdapter.java:514) ~[spring-kafka-4.1.0.jar!/:4.1.0]
-        at org.springframework.kafka.listener.adapter.MessagingMessageListenerAdapter.invoke(MessagingMessageListenerAdapter.java:426) ~[spring-kafka-4.1.0.jar!/:4.1.0]
-        at org.springframework.kafka.listener.adapter.RecordMessagingMessageListenerAdapter.onMessage(RecordMessagingMessageListenerAdapter.java:92) ~[spring-kafka-4.1.0.jar!/:4.1.0]
-        at org.springframework.kafka.listener.adapter.RecordMessagingMessageListenerAdapter.onMessage(RecordMessagingMessageListenerAdapter.java:52) ~[spring-kafka-4.1.0.jar!/:4.1.0]
-        at org.springframework.kafka.listener.adapter.KafkaBackoffAwareMessageListenerAdapter.invokeDelegateOnMessage(KafkaBackoffAwareMessageListenerAdapter.java:109) ~[spring-kafka-4.1.0.jar!/:4.1.0]
-        at org.springframework.kafka.listener.adapter.KafkaBackoffAwareMessageListenerAdapter.onMessage(KafkaBackoffAwareMessageListenerAdapter.java:100) ~[spring-kafka-4.1.0.jar!/:4.1.0]
-        ... 12 common frames omitted
-Caused by: com.fincore.CommunicationService.exception.CommunicationExceptions$VendorDeliveryException: One or more channels failed to deliver. Triggering Retry.
-        at com.fincore.CommunicationService.consumer.PriorityOtpConsumer.consumeOtpEvent(PriorityOtpConsumer.java:201) ~[!/:0.0.1-SNAPSHOT]
-        at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:103) ~[na:na]
-        at java.base/java.lang.reflect.Method.invoke(Method.java:580) ~[na:na]
-        at org.springframework.messaging.handler.invocation.InvocableHandlerMethod.doInvoke(InvocableHandlerMethod.java:168) ~[spring-messaging-7.0.8.jar!/:7.0.8]
-        at org.springframework.kafka.listener.adapter.KotlinAwareInvocableHandlerMethod.doInvoke(KotlinAwareInvocableHandlerMethod.java:48) ~[spring-kafka-4.1.0.jar!/:4.1.0]
-        at org.springframework.messaging.handler.invocation.InvocableHandlerMethod.invoke(InvocableHandlerMethod.java:119) ~[spring-messaging-7.0.8.jar!/:7.0.8]
-        at org.springframework.kafka.listener.adapter.HandlerAdapter.invoke(HandlerAdapter.java:80) ~[spring-kafka-4.1.0.jar!/:4.1.0]
-        at org.springframework.kafka.listener.adapter.MessagingMessageListenerAdapter.invokeHandler(MessagingMessageListenerAdapter.java:489) ~[spring-kafka-4.1.0.jar!/:4.1.0]
-        ... 17 common frames omitted
-
-2026-09-07T12:14:37.720Z ERROR 1 --- [CommunicationService] [ner#1-dlq-4-C-1] c.f.C.consumer.PriorityOtpConsumer       : =====================================================
-2026-09-07T12:14:37.720Z ERROR 1 --- [CommunicationService] [ner#1-dlq-4-C-1] c.f.C.consumer.PriorityOtpConsumer       : DLQ ALERT: OTP Delivery Permanently Failed!
-2026-09-07T12:14:37.720Z ERROR 1 --- [CommunicationService] [ner#1-dlq-4-C-1] c.f.C.consumer.PriorityOtpConsumer       : Original Topic: fincore.auth.otp.priority
-2026-09-07T12:14:37.720Z ERROR 1 --- [CommunicationService] [ner#1-dlq-4-C-1] c.f.C.consumer.PriorityOtpConsumer       : Failure Reason: Listener failed; One or more channels failed to deliver. Triggering Retry.
-2026-09-07T12:14:37.720Z ERROR 1 --- [CommunicationService] [ner#1-dlq-4-C-1] c.f.C.consumer.PriorityOtpConsumer       : Failed Message Payload: {"payload":"4T31i58URbm5T8UC:UZs53Iefm24qBlHiYtipe2HlpAbjEzdCQH3zbclwYA38layQqzzcz4WofF7tZnvUjvVm5ZHlLHigqy89owUug1tnYCW7hTVCqjMgthtTNXw=","priority":"CRITICAL","eventId":"evt-7a0a64d2-32e9-4239-9409-cb7bc3383e71","eventType":"LOGIN_OTP","channel":["SMS","EMAIL"],"createdAt":"2026-09-07T12:14:19.693700592Z","txId":"0eb926a6-74de-4672-ac8a-e0bde8652e0a","recipient":{"email":"ebms_uat_receiver@sbiuat.bank.in","mobile":"9064632186"},"templateId":"AUTH_LOGIN_OTP_V1"}
-2026-09-07T12:14:37.720Z ERROR 1 --- [CommunicationService] [ner#1-dlq-4-C-1] c.f.C.consumer.PriorityOtpConsumer       : =====================================================
-2026-09-07T12:14:37.732Z  WARN 1 --- [CommunicationService] [  virtual-11057] c.f.C.service.CommunicationAuditService  : Audit: Race condition detected. Hard-inserting FAILED status for auditId=evt-7a0a64d2-32e9-4239-9409-cb7bc3383e71
-^C[root@fcuatgateway media]#
+2026-09-09T10:26:16.678Z ERROR 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.service.EmailServiceImpl           : CRITICAL: Bank Email API unreachable for ebms_uat_receiver@sbiuat.bank.in. Error: Error occurred while calling Email Vendor API
+2026-09-09T10:26:17.178Z ERROR 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.service.EmailServiceImpl           : CRITICAL: Bank Email API unreachable for ebms_uat_receiver@sbiuat.bank.in. Error: Error occurred while calling Email Vendor API
+2026-09-09T10:26:17.679Z ERROR 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.service.EmailServiceImpl           : CRITICAL: Bank Email API unreachable for ebms_uat_receiver@sbiuat.bank.in. Error: Error occurred while calling Email Vendor API
+2026-09-09T10:26:17.679Z ERROR 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.service.EmailServiceImpl           : CRITICAL: Bank Email API unreachable for ebms_uat_receiver@sbiuat.bank.in. Error: Total Bank API Infrastructure Failure
+2026-09-09T10:26:18.179Z ERROR 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.service.EmailServiceImpl           : CRITICAL: Bank Email API unreachable for ebms_uat_receiver@sbiuat.bank.in. Error: Total Bank API Infrastructure Failure
+2026-09-09T10:26:18.680Z ERROR 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.service.EmailServiceImpl           : CRITICAL: Bank Email API unreachable for ebms_uat_receiver@sbiuat.bank.in. Error: Total Bank API Infrastructure Failure
+2026-09-09T10:26:19.180Z  INFO 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.service.EmailServiceImpl           : Initiating Email Dispatch Pipeline for Template ID: AUTH_LOGIN_OTP_V1
+2026-09-09T10:26:19.181Z  INFO 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.client.EmailGatewayClient          : Executing pure JSON payload dispatch (e.g. OTP)
+2026-09-09T10:26:19.231Z  INFO 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.client.EmailGatewayClient          : responseCode: 202
+2026-09-09T10:26:19.231Z  INFO 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.client.EmailGatewayClient          : Server Response: {"data":{"message_id":"4ce402b9faba114480cff0f99d9974a2","token_bcc":["MSGID657244"],"token_cc":["MSGID657243"],"token_to":["8693839845"]},"message":"OK","status":"success"}
+2026-09-09T10:26:19.238Z  INFO 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.consumer.PriorityOtpConsumer       : Successfully completed OTP Pipeline for eventId=evt-0f43ea57-6ead-49b4-9a19-8a0850a96822
