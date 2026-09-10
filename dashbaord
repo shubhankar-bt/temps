@@ -207,15 +207,154 @@ Date	Type	subtype	Description	Amount
 
 
 
+---------------------------------------------------------------------------------------------
+above data i already givebn you :: also decribed how tables are created  : below is the sample rersponse frontend is expecting 
+
+ 
+{
+  
+  "casaGauge": {
+   "title": "CASA Ratio",
+   "subtitle": "Current portfolio mix",
+   "value": 29.0,
+   "data": [
+     { "name": "Below", "value": "Below 30%" },
+     { "name": "Mid", "value":"30% – 50%" },
+     { "name": "Above", "value": "Above 50%" }
+   ]
+  },
+  "depositsComposition": {
+   "title": "Deposits",
+   "subtitle": "Composition by category (₹ T)",
+   "filterOptions": ["All Deposits", "Demand Deposits", "Term Deposits"],
+   "activeFilter": "All Deposits",
+   "data": [
+     { "name": "Term Deposit", "value": 19.0543},
+     { "name": "Saving Bank A/c", "value": 14.9346 },
+     { "name": "Current A/c", "value": 5.20},
+     { "name": "Cash Credit Cr Balance", "value": 3.10},
+     { "name": "Special Term Deposit", "value": 2.5434},
+     { "name": "Other Demand Deposit", "value": 2.10},
+     { "name": "Other Term Deposit", "value": 0.1493},
+     { "name": "Certificate of Deposit", "value": 0.0460 }
+   ]
+  },
+  "demandDeposits": {
+   "title": "Demand Deposits",
+   "data": [
+     { "name": "Saving Bank A/c", "value": 14.9346 },
+     { "name": "Current A/c", "value": 5.20 },
+     { "name": "Cash Credit Cr Balance", "value": 3.10 },
+     { "name": "Other Demand Deposit", "value": 2.10 }
+   ]
+  },
+  "termDeposits": {
+   "title": "Term Deposits",
+   "data": [
+     { "name": "Term Deposit", "value": 19.0543 },
+     { "name": "Special Term Deposit", "value": 2.5434 },
+     { "name": "Other Term Deposit", "value": 0.1493 },
+     { "name": "Certificate of Deposit", "value": 0.0460 }
+   ]
+  },
+
+  "Term Loan": {
+      "title": "Term Loan — By Segment",
+      "subtitle": "Detailed breakdown (₹ T)",
+      "data": [
+        { "name": "Public Sector", "value": 5.50 },
+        { "name": "Private Sector", "value": 4.50 },
+        { "name": "MSME", "value": 2.50 },
+        { "name": "Retail", "value": 1.50 }
+      ]
+    },
+    "Cash Credit": {
+      "title": "Cash Credit — By Segment",
+      "subtitle": "Detailed breakdown (₹ T)",
+      "data": [
+        { "name": "Public Sector", "value": 3.00 },
+        { "name": "Private Sector", "value": 3.50 },
+        { "name": "MSME", "value": 2.50 }
+      ]
+    },
+    "Demand Loan": {
+      "title": "Demand Loan — By Segment",
+      "subtitle": "Detailed breakdown (₹ T)",
+      "data": [
+        { "name": "Corporate", "value": 3.20 },
+        { "name": "Retail", "value": 2.00 },
+        { "name": "MSME", "value": 1.30 }
+      ]
+    },
+    "Overdraft": {
+      "title": "Overdraft — By Segment",
+      "subtitle": "Detailed breakdown (₹ T)",
+      "data": [
+        { "name": "Retail", "value": 2.20 },
+        { "name": "Corporate", "value": 1.80 },
+        { "name": "MSME", "value": 1.00 }
+      ]
+    },
+    "Agri Term Loan": {
+      "title": "Agri Term Loan — By Purpose",
+      "subtitle": "Detailed breakdown (₹ T)",
+      "data": [
+        { "name": "Crop Loan", "value": 1.80 },
+        { "name": "Farm Mechanization", "value": 0.70 },
+        { "name": "Irrigation", "value": 0.50 }
+      ]
+    },
+    "Agri Cash Credit": {
+      "title": "Agri Cash Credit — By Purpose",
+      "subtitle": "Detailed breakdown (₹ T)",
+      "data": [
+        { "name": "KCC", "value": 1.30 },
+        { "name": "Allied Activities", "value": 0.70 }
+      ]
+    },
+    "Bills Payable": {
+      "title": "Bills Payable — By Type",
+      "subtitle": "Detailed breakdown (₹ T)",
+      "data": [
+        { "name": "Inland Bills", "value": 0.30 },
+        { "name": "Foreign Bills", "value": 0.20 }
+      ]
+    }
+  }
+}
+
+for now in only need this data to show into the dashboard, other crtical things for example trend and predictions i will show later. 
+now think for this oinly, 
+
+
+Check the db configuration tables again my other team mate has created :
+
+dashboard_heads : 
+HEAD_NAME	VARCHAR2(100 BYTE)	No		1	
+HEAD_CODE	VARCHAR2(5 BYTE)	No		2	
+PRODUCT_TYPE	VARCHAR2(10 BYTE)	No		3	
+IS_CONSOLIDATED	CHAR(1 BYTE)	Yes	'N'	4	
+CREATED_AT	TIMESTAMP(6)	No	SYSTIMESTAMP 	5	
+UPDATED_AT	TIMESTAMP(6)	No	SYSTIMESTAMP 	6	
+TYPE	VARCHAR2(100 BYTE)	Yes		7	
+SUBTYPE	VARCHAR2(100 BYTE)	Yes		8	
+
+Saving Bank A/c	01039	YSA	Y	07-09-26 02:38:57.706294000 PM	07-09-26 02:38:57.706294000 PM	Deposit	Demand Deposit
+Current A/c	01059	YSA	N	07-09-26 02:38:57.733683000 PM	07-09-26 02:38:57.733683000 PM	Deposit	Demand Deposit
+Cash Credit Cr Balance	01069	YSA	N	07-09-26 02:38:57.761254000 PM	07-09-26 02:38:57.761254000 PM	Deposit	Demand Deposit
+Other Demand Deposit 	01099	YSA	N	09-09-26 12:19:30.380152000 PM	09-09-26 12:19:30.380152000 PM	Deposit	Demand Deposit
+term deposit 	01129	YSA	N	09-09-26 12:19:30.424655000 PM	09-09-26 12:19:30.424655000 PM	Deposit	Time Deposit
+Special Term Deposit 	01149	YSA	N	09-09-26 12:19:30.465645000 PM	09-09-26 12:19:30.465645000 PM	Deposit	Time Deposit
+Other Term Deposit 	01169	YSA	N	09-09-26 12:19:30.506331000 PM	09-09-26 12:19:30.506331000 PM	Deposit	Time Deposit
+Certificate of Deposit 	02767	YSA	N	09-09-26 12:19:30.547039000 PM	09-09-26 12:19:30.547039000 PM	Deposit	Time Deposit
 
 
 
-
-
-
-
-
-
+dashboard_charts_headers :- 
+1	CASA Ratio	Current portfolio mix			Casa
+2	Deposits	Composition by category (₹ T)	All Deposit,Demand Deposit,TIme Deposit	All Deposits	DASHBOAR_HEADS
+3	Demand Deposits				DASHBOAR_HEADS
+4	Time Deposits				DASHBOAR_HEADS
 
 
 
