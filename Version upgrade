@@ -189,3 +189,98 @@ public class DashboardController {
     }
 }
 
+
+
+
+
+
+
+
+----
+
+
+package com.tcs.fincore.dashboard.client;
+
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+import java.util.List;
+
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+public class BulkAnalyticsRequest {
+    
+    private List<QueryItem> queries;
+    private String asOfDate;
+    private String viewCode; // Newly added to support the API contract
+
+    @Data
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class QueryItem {
+        private String alias;
+        private List<String> headCodes;
+    }
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+package com.tcs.fincore.dashboard.client;
+
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.ParameterizedTypeReference;
+import org.springframework.stereotype.Component;
+import org.springframework.web.client.RestClient;
+import org.springframework.web.client.RestClientException;
+
+import java.math.BigDecimal;
+import java.util.Map;
+
+@Component
+@Slf4j
+public class AnalyticsClient {
+
+    private final RestClient restClient;
+
+    public AnalyticsClient(@Value("${analytics.service.url}") String baseUrl) {
+        this.restClient = RestClient.builder()
+                .baseUrl(baseUrl)
+                .build();
+    }
+
+    public Map<String, BigDecimal> fetchBulkAggregations(BulkAnalyticsRequest requestPayload) {
+        try {
+            Map<String, BigDecimal> response = restClient.post()
+                    .uri("/api/v1/dashboard/balances") // Updated strictly to the integration guide
+                    .body(requestPayload)
+                    .retrieve()
+                    .body(new ParameterizedTypeReference<Map<String, BigDecimal>>() {});
+
+            if (response == null || response.isEmpty()) {
+                throw new IllegalStateException("Received empty response from Analytics Service");
+            }
+            
+            return response;
+
+        } catch (RestClientException e) {
+            log.error("Network or HTTP error while calling Analytics Service for date: {}", requestPayload.getAsOfDate(), e);
+            throw e; 
+        }
+    }
+}
+
+
+
