@@ -415,3 +415,89 @@ ysa_report	20771	TOTAL OTHER INTEREST RECEIVABLE		TOTAL_HEAD		N			09-09-26 03:09
 ysa_report	20669	TOTAL OF PROFORMA NON-CONTINGENT LIABILITY ACCOUNTS		TOTAL_HEAD		N			09-09-26 03:09:41.086662000 PM	09-09-26 03:09:41.086662000 PM	20906+20907+20631+20632+20745+20746+20747+20748+20749+20750+20751+20752+20753+20754+20755+20756+20757+20758+20759+20760+20761+20762+20763+20764+20642+20765+20643+20840+20841+20644+20862+20863+20645+20855+20856+20646+20857+20647+20870+20871+20648+20883+20884+20649+20885+20650+20887+20888+20651+20901+20902+20652+20905+20653+20654+20655+20656+20823+20824+20825+20826+20660+20772+20773+20661+20774+20775+20662+20776+20777+20663+20781+20827
 
 pnl_report_bkp	01001	INTEREST RECEIVED ON TERM LOANS	N	NORMAL		Y	7051500102		04-08-26 03:59:22.401859000 PM	04-08-26 03:59:22.401859000 PM	
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+=============================================================================================================================
+the problem is my teasm mate is doing by his own, but he is taking too much time, so i am thinking to complete myself withput depending on him.
+I neeed to make ready the basic infra strcuture and provide frontend team the data they needed. 
+
+and also as now we have excluded manu charts  for now, it is easier o call druid for the data we will call analtycis service and fetch the data we needed. as we have to get group some of many things, i need to create may be a new api in analytics service, as my earlier api takes different payload as i already told you. 
+
+
+I hope the whole pocture is clear to you. i need fast and quick way to delivee the thing, put your all effort and prepare the code correctly. dont catch braod Exception in the code :::
+
+you can check my dashboard existing api below and complete vthe thing which we needed right now, keep correctness, robustness, optimised apporch and clean code:-
+
+
+@RestController
+@RequestMapping("/api/dashboard")
+@RequiredArgsConstructor
+public class DashboardController {
+
+    private final DashboardService dashboardService;
+
+    @GetMapping("/init")
+    public ResponseEntity<ApiResponse<DashboardResponse>> getDashboard(@RequestHeader("Authorization") String token) {
+        DashboardResponse data = dashboardService.getDashboardData(token);
+        return ResponseEntity.ok(ApiResponse.success(data, "Dashboard loaded"));
+    }
+
+
+
+
+
+
+@Service
+@RequiredArgsConstructor
+@Slf4j
+public class DashboardServiceImpl implements DashboardService {
+
+    private final PermissionRepository permissionRepo;
+    private final AnnouncementRepository announcementRepo;
+    private final UserLogsRepository userLogRepo;
+    private final DashboardStatsRepository statsRepo;
+    private final CommonReqRepository commonReqRepo;
+    private final JournalRequestRepository journalReqRepo;
+    private final JwtUtil jwtUtil;
+    private final CalenderConfigRepository calendarRepo;
+    
+    @Override
+    public DashboardResponse getDashboardData(String token) {
+        long start = System.currentTimeMillis();
+
+        // 1. EXTRACT CONTEXT (Fast, In-Memory)
+        String userId = jwtUtil.getUserIdFromToken(token);
+        int roleIdInt = jwtUtil.getUserRoleFromToken(token);
+        String roleIdStr = String.valueOf(roleIdInt);
+
+        log.info("Starting Parallel Dashboard Load for User: {}", userId);
+
+        // 2. FIRE INDEPENDENT TASKS (Async)
+
+        // 4. WAIT FOR ALL & ASSEMBLE
+        // This will block only as long as the SLOWEST task takes.
+        DashboardResponse response = new DashboardResponse();
+
+        long duration = System.currentTimeMillis() - start;
+        log.info("Dashboard Loaded in {} ms (Parallel Execution)", duration);
+
+        return response;
+    }
