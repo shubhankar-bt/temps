@@ -1,98 +1,74 @@
-package com.tcs.fincore.dashboard.repository;
-
-import com.tcs.fincore.dashboard.entity.DashboardHead;
-import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.stereotype.Repository;
-
-@Repository
-public interface DashboardHeadRepository extends JpaRepository<DashboardHead, String> {
-    // Basic CRUD provided by JpaRepository. 
-    // findById(String id) will be used to fetch the head configuration.
-}
-
-
-
-
-
-
-
-
-
-package com.tcs.fincore.dashboard.repository;
-
-import com.tcs.fincore.dashboard.entity.RbParsedTemplate;
-import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.stereotype.Repository;
-
-@Repository
-public interface RbParsedTemplateRepository extends JpaRepository<RbParsedTemplate, String> {
-    // findById(String id) will be used to fetch the AMOUNT_EXPRESSION recipe.
-}
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 package com.tcs.fincore.dashboard.client;
 
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import java.util.Set;
+import java.util.List;
 
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
 public class BulkAnalyticsRequest {
-    /**
-     * The unique, flattened set of raw Druid codes.
-     * Using a Set prevents querying the same code twice if multiple parents share a dependency.
-     */
-    private Set<String> rawHeadCodes;
     
-    /**
-     * The business date for the data being requested.
-     */
-    private String date;
+    private List<QueryItem> queries;
+    private String asOfDate;
+
+    @Data
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class QueryItem {
+        private String alias;
+        private List<String> headCodes;
+    }
 }
-
-
-
-
-
-
-
-
-
-
 
 
 
 
 package com.tcs.fincore.dashboard.client;
 
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.ParameterizedTypeReference;
+import org.springframework.stereotype.Component;
+import org.springframework.web.client.RestClient;
+import org.springframework.web.client.RestClientException;
+
 import java.math.BigDecimal;
 import java.util.Map;
 
-@Data
-@NoArgsConstructor
-public class BulkAnalyticsResponse {
-    /**
-     * A map where the Key is the raw head code and the Value is the aggregated total.
-     */
-    private Map<String, BigDecimal> data;
+@Component
+@Slf4j
+public class AnalyticsClient {
+
+    private final RestClient restClient;
+
+    public AnalyticsClient(@Value("${analytics.service.url}") String baseUrl) {
+        this.restClient = RestClient.builder()
+                .baseUrl(baseUrl)
+                .build();
+    }
+
+    public Map<String, BigDecimal> fetchBulkAggregations(BulkAnalyticsRequest requestPayload) {
+        try {
+            // Parses the flat JSON response directly into a Map
+            Map<String, BigDecimal> response = restClient.post()
+                    .uri("/api/v1/druid/bulk-aggregate")
+                    .body(requestPayload)
+                    .retrieve()
+                    .body(new ParameterizedTypeReference<Map<String, BigDecimal>>() {});
+
+            if (response == null || response.isEmpty()) {
+                throw new IllegalStateException("Received empty response from Analytics Service");
+            }
+            
+            return response;
+
+        } catch (RestClientException e) {
+            log.error("Network or HTTP error while calling Analytics Service for date: {}", requestPayload.getAsOfDate(), e);
+            throw e; 
+        }
+    }
 }
 
 
@@ -105,6 +81,64 @@ public class BulkAnalyticsResponse {
 
 
 
+
+@Service
+@RequiredArgsConstructor
+@Slf4j
+public class DashboardServiceImpl implements DashboardService {
+
+    private final JwtUtil jwtUtil;
+    private final DashboardConfigurationService configService;
+    private final AnalyticsClient analyticsClient;
+    private final DashboardFormattingFactory formattingFactory;
+
+    // Hardcoded list of top-level headers required for the current UI iteration
+    private static final List<String> REQUIRED_HEAD_CODES = List.of(
+            "01039", "01059", "01069", "01099", // Demand Deposits
+            "01129", "01149", "01169", "02767"  // Time Deposits
+    );
+
+    @Override
+    public DashboardResponse getDashboardData(String token) {
+        long start = System.currentTimeMillis();
+        String userId = jwtUtil.getUserIdFromToken(token);
+        log.info("Starting Dashboard Load for User: {}", userId);
+
+        try {
+            // 1. Build the specific payload for the Analytics Service
+            List<BulkAnalyticsRequest.QueryItem> queries = new ArrayList<>();
+            
+            for (String headCode : REQUIRED_HEAD_CODES) {
+                List<String> rawCodes = configService.getRawCodesForHead(headCode);
+                // We use the parent headCode as the alias (e.g., "01039") so the Factory can find it
+                queries.add(new BulkAnalyticsRequest.QueryItem(headCode, rawCodes));
+            }
+
+            BulkAnalyticsRequest request = new BulkAnalyticsRequest(queries, "2026-07-27");
+
+            // 2. Fetch the pre-aggregated data
+            Map<String, BigDecimal> aggregatedHeads = analyticsClient.fetchBulkAggregations(request);
+
+            // 3. Plate the data for the frontend (Factory reads keys like "01039", "01059")
+            DashboardResponse response = formattingFactory.buildDashboardResponse(aggregatedHeads);
+
+            long duration = System.currentTimeMillis() - start;
+            log.info("Dashboard Loaded in {} ms", duration);
+
+            return response;
+
+        } catch (IllegalArgumentException | IllegalStateException stateEx) {
+            log.error("Validation or state error during dashboard load", stateEx);
+            throw stateEx; 
+        } catch (DataAccessException dbEx) {
+            log.error("Database failure while resolving recipes", dbEx);
+            throw dbEx; 
+        } catch (RestClientException restEx) {
+            log.error("Failed to fetch data from Analytics service", restEx);
+            throw restEx; 
+        }
+    }
+}
 
 
 
