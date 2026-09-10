@@ -1,133 +1,33 @@
-package com.tcs.fincore.dashboard.entity;
-
-import jakarta.persistence.*;
-import lombok.Data;
-import java.time.LocalDateTime;
-
-@Entity
-@Table(name = "dashboard_heads")
-@Data
-public class DashboardHead {
-    @Id
-    @Column(name = "HEAD_CODE", length = 5, nullable = false)
-    private String headCode;
-
-    @Column(name = "HEAD_NAME", length = 100, nullable = false)
-    private String headName;
-
-    @Column(name = "PRODUCT_TYPE", length = 10, nullable = false)
-    private String productType;
-
-    @Column(name = "IS_CONSOLIDATED", length = 1)
-    private String isConsolidated;
-
-    @Column(name = "TYPE", length = 100)
-    private String type;
-
-    @Column(name = "SUBTYPE", length = 100)
-    private String subtype;
-}
-
-
-
-
-
-
-
-
-
-
-
-
-
-package com.tcs.fincore.dashboard.entity;
-
-import jakarta.persistence.*;
-import lombok.Data;
-
-@Entity
-@Table(name = "rb_parsed_template")
-@Data
-public class RbParsedTemplate {
-    @Id
-    @Column(name = "HEAD_CODE", length = 100)
-    private String headCode;
-
-    @Column(name = "AMOUNT_EXPRESSION", length = 4000)
-    private String amountExpression;
-    
-    @Column(name = "HEAD_DESC", length = 4000)
-    private String headDesc;
-}
-
-
-
-
-
-
-
-
-
-
-
-
-package com.tcs.fincore.dashboard.service;
+package com.tcs.fincore.dashboard.repository;
 
 import com.tcs.fincore.dashboard.entity.DashboardHead;
-import com.tcs.fincore.dashboard.entity.RbParsedTemplate;
-import com.tcs.fincore.dashboard.repository.DashboardHeadRepository;
-import com.tcs.fincore.dashboard.repository.RbParsedTemplateRepository;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.dao.DataAccessException;
-import org.springframework.stereotype.Service;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.stereotype.Repository;
 
-import java.util.*;
-import java.util.stream.Collectors;
-
-@Service
-@RequiredArgsConstructor
-@Slf4j
-public class DashboardConfigurationService {
-
-    private final DashboardHeadRepository headRepository;
-    private final RbParsedTemplateRepository templateRepository;
-
-    /**
-     * Identifies all raw Druid codes required to calculate a specific dashboard head.
-     */
-    public List<String> getRawCodesForHead(String headCode) {
-        try {
-            Optional<DashboardHead> headOpt = headRepository.findById(headCode);
-            if (headOpt.isEmpty()) {
-                return Collections.emptyList();
-            }
-
-            DashboardHead head = headOpt.get();
-            if ("Y".equalsIgnoreCase(head.getIsConsolidated())) {
-                return List.of(head.getHeadCode());
-            }
-
-            // If not consolidated, fetch the recipe
-            Optional<RbParsedTemplate> templateOpt = templateRepository.findById(headCode);
-            if (templateOpt.isPresent() && templateOpt.get().getAmountExpression() != null) {
-                String expression = templateOpt.get().getAmountExpression();
-                // Split by '+' and filter out '0' or empty values as seen in the sample data
-                return Arrays.stream(expression.split("\\+"))
-                        .map(String::trim)
-                        .filter(code -> !code.equals("0") && !code.isEmpty())
-                        .collect(Collectors.toList());
-            }
-            return Collections.emptyList();
-
-        } catch (DataAccessException e) {
-            log.error("Database error while fetching configuration for headCode: {}", headCode, e);
-            throw e; 
-        }
-    }
+@Repository
+public interface DashboardHeadRepository extends JpaRepository<DashboardHead, String> {
+    // Basic CRUD provided by JpaRepository. 
+    // findById(String id) will be used to fetch the head configuration.
 }
 
 
+
+
+
+
+
+
+
+package com.tcs.fincore.dashboard.repository;
+
+import com.tcs.fincore.dashboard.entity.RbParsedTemplate;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.stereotype.Repository;
+
+@Repository
+public interface RbParsedTemplateRepository extends JpaRepository<RbParsedTemplate, String> {
+    // findById(String id) will be used to fetch the AMOUNT_EXPRESSION recipe.
+}
 
 
 
@@ -145,343 +45,25 @@ public class DashboardConfigurationService {
 
 package com.tcs.fincore.dashboard.client;
 
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.stereotype.Component;
-import org.springframework.web.client.RestClientException;
-import org.springframework.web.client.RestTemplate;
-import org.springframework.beans.factory.annotation.Value;
-
-import java.math.BigDecimal;
-import java.util.Map;
-import java.util.Set;
-
-@Component
-@RequiredArgsConstructor
-@Slf4j
-public class AnalyticsClient {
-
-    private final RestTemplate restTemplate;
-    
-    @Value("${analytics.service.url}")
-    private String analyticsServiceUrl;
-
-    /**
-     * Makes a single bulk HTTP call to Druid/Analytics Service.
-     */
-    public Map<String, BigDecimal> fetchBulkAggregations(Set<String> rawHeadCodes, String date) {
-        String endpoint = analyticsServiceUrl + "/api/v1/druid/bulk-aggregate";
-        
-        BulkAnalyticsRequest request = new BulkAnalyticsRequest(rawHeadCodes, date);
-        
-        try {
-            BulkAnalyticsResponse response = restTemplate.postForObject(endpoint, request, BulkAnalyticsResponse.class);
-            if (response == null || response.getData() == null) {
-                throw new IllegalStateException("Received null response from Analytics Service");
-            }
-            return response.getData();
-        } catch (RestClientException e) {
-            log.error("Network or HTTP error while calling Analytics Service for date: {}", date, e);
-            throw e;
-        } catch (IllegalArgumentException e) {
-            log.error("Invalid arguments passed to Analytics Service client", e);
-            throw e;
-        }
-    }
-}
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-package com.tcs.fincore.dashboard.factory;
-
-import com.tcs.fincore.dashboard.dto.*;
-import org.springframework.stereotype.Component;
-
-import java.math.BigDecimal;
-import java.math.RoundingMode;
-import java.util.List;
-import java.util.Map;
-
-@Component
-public class DashboardFormattingFactory {
-
-    public DashboardResponse buildDashboardResponse(Map<String, BigDecimal> calculatedHeads) {
-        DashboardResponse response = new DashboardResponse();
-
-        // Extracting required values based on Head Codes
-        BigDecimal savingBank = calculatedHeads.getOrDefault("01039", BigDecimal.ZERO);
-        BigDecimal currentAc = calculatedHeads.getOrDefault("01059", BigDecimal.ZERO);
-        BigDecimal cashCredit = calculatedHeads.getOrDefault("01069", BigDecimal.ZERO);
-        BigDecimal otherDemand = calculatedHeads.getOrDefault("01099", BigDecimal.ZERO);
-        
-        BigDecimal termDeposit = calculatedHeads.getOrDefault("01129", BigDecimal.ZERO);
-        BigDecimal specialTerm = calculatedHeads.getOrDefault("01149", BigDecimal.ZERO);
-        BigDecimal otherTerm = calculatedHeads.getOrDefault("01169", BigDecimal.ZERO);
-        BigDecimal certDeposit = calculatedHeads.getOrDefault("02767", BigDecimal.ZERO);
-
-        // Calculate Totals for CASA
-        BigDecimal totalDemand = savingBank.add(currentAc).add(cashCredit).add(otherDemand);
-        BigDecimal totalTime = termDeposit.add(specialTerm).add(otherTerm).add(certDeposit);
-        BigDecimal totalDeposits = totalDemand.add(totalTime);
-        BigDecimal casaTotal = savingBank.add(currentAc);
-
-        // 1. Build CASA Gauge
-        double casaRatio = totalDeposits.compareTo(BigDecimal.ZERO) > 0 
-                ? casaTotal.divide(totalDeposits, 4, RoundingMode.HALF_UP).multiply(new BigDecimal("100")).doubleValue() 
-                : 0.0;
-
-        response.setCasaGauge(CasaGaugeDto.builder()
-                .title("CASA Ratio")
-                .subtitle("Current portfolio mix")
-                .value(casaRatio)
-                .data(List.of(
-                        new ChartItem("Below", "Below 30%"),
-                        new ChartItem("Mid", "30% – 50%"),
-                        new ChartItem("Above", "Above 50%")
-                )).build());
-
-        // 2. Build Deposits Composition
-        response.setDepositsComposition(CompositionDto.builder()
-                .title("Deposits")
-                .subtitle("Composition by category (₹ T)")
-                .filterOptions(List.of("All Deposits", "Demand Deposits", "Term Deposits"))
-                .activeFilter("All Deposits")
-                .data(List.of(
-                        new ChartItem("Term Deposit", formatTrillions(termDeposit)),
-                        new ChartItem("Saving Bank A/c", formatTrillions(savingBank)),
-                        new ChartItem("Current A/c", formatTrillions(currentAc)),
-                        new ChartItem("Cash Credit Cr Balance", formatTrillions(cashCredit)),
-                        new ChartItem("Special Term Deposit", formatTrillions(specialTerm)),
-                        new ChartItem("Other Demand Deposit", formatTrillions(otherDemand)),
-                        new ChartItem("Other Term Deposit", formatTrillions(otherTerm)),
-                        new ChartItem("Certificate of Deposit", formatTrillions(certDeposit))
-                )).build());
-
-        // 3. Build Demand & Term sections
-        response.setDemandDeposits(SectionDto.builder()
-                .title("Demand Deposits")
-                .data(List.of(
-                        new ChartItem("Saving Bank A/c", formatTrillions(savingBank)),
-                        new ChartItem("Current A/c", formatTrillions(currentAc)),
-                        new ChartItem("Cash Credit Cr Balance", formatTrillions(cashCredit)),
-                        new ChartItem("Other Demand Deposit", formatTrillions(otherDemand))
-                )).build());
-
-        response.setTermDeposits(SectionDto.builder()
-                .title("Term Deposits")
-                .data(List.of(
-                        new ChartItem("Term Deposit", formatTrillions(termDeposit)),
-                        new ChartItem("Special Term Deposit", formatTrillions(specialTerm)),
-                        new ChartItem("Other Term Deposit", formatTrillions(otherTerm)),
-                        new ChartItem("Certificate of Deposit", formatTrillions(certDeposit))
-                )).build());
-
-        return response;
-    }
-
-    private Double formatTrillions(BigDecimal value) {
-        // Assuming raw data is in exact units, scale down to Trillions for the UI
-        return value.divide(new BigDecimal("1000000000000"), 4, RoundingMode.HALF_UP).doubleValue();
-    }
-}
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-@Service
-@RequiredArgsConstructor
-@Slf4j
-public class DashboardServiceImpl implements DashboardService {
-
-    private final JwtUtil jwtUtil;
-    private final DashboardConfigurationService configService;
-    private final AnalyticsClient analyticsClient;
-    private final DashboardFormattingFactory formattingFactory;
-
-    // Hardcoded list of top-level headers required for the current UI iteration
-    private static final List<String> REQUIRED_HEAD_CODES = List.of(
-            "01039", "01059", "01069", "01099", // Demand Deposits
-            "01129", "01149", "01169", "02767"  // Time Deposits
-    );
-
-    @Override
-    public DashboardResponse getDashboardData(String token) {
-        long start = System.currentTimeMillis();
-        String userId = jwtUtil.getUserIdFromToken(token);
-        log.info("Starting Dashboard Load for User: {}", userId);
-
-        try {
-            // 1. Gather all required raw codes (The Menu -> The Recipe)
-            Set<String> allRequiredRawCodes = new HashSet<>();
-            Map<String, List<String>> headToRawCodeMapping = new HashMap<>();
-
-            for (String headCode : REQUIRED_HEAD_CODES) {
-                List<String> rawCodes = configService.getRawCodesForHead(headCode);
-                headToRawCodeMapping.put(headCode, rawCodes);
-                allRequiredRawCodes.addAll(rawCodes);
-            }
-
-            // 2. Fetch all raw data in ONE trip to Analytics/Druid
-            // Using a static date for now, this should ideally come from the UI request or a config
-            Map<String, BigDecimal> rawDruidData = analyticsClient.fetchBulkAggregations(allRequiredRawCodes, "2026-09-10");
-
-            // 3. Aggregate raw data back into the parent Head Codes
-            Map<String, BigDecimal> aggregatedHeads = new HashMap<>();
-            for (Map.Entry<String, List<String>> entry : headToRawCodeMapping.entrySet()) {
-                String parentHead = entry.getKey();
-                BigDecimal totalForHead = entry.getValue().stream()
-                        .map(rawCode -> rawDruidData.getOrDefault(rawCode, BigDecimal.ZERO))
-                        .reduce(BigDecimal.ZERO, BigDecimal::add);
-                aggregatedHeads.put(parentHead, totalForHead);
-            }
-
-            // 4. Plate the data for the frontend
-            DashboardResponse response = formattingFactory.buildDashboardResponse(aggregatedHeads);
-
-            long duration = System.currentTimeMillis() - start;
-            log.info("Dashboard Loaded in {} ms", duration);
-
-            return response;
-
-        } catch (IllegalArgumentException | IllegalStateException stateEx) {
-            log.error("Validation or state error during dashboard load", stateEx);
-            throw stateEx; // Let a global exception handler turn this into a 400
-        } catch (DataAccessException dbEx) {
-            log.error("Database failure while resolving recipes", dbEx);
-            throw dbEx; // 500 error
-        } catch (RestClientException restEx) {
-            log.error("Failed to fetch data from Analytics service", restEx);
-            throw restEx; // 502 Bad Gateway or 500
-        }
-    }
-}
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-package com.tcs.fincore.dashboard.exception;
-
-import com.tcs.fincore.dashboard.dto.ApiResponse;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.dao.DataAccessException;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.ExceptionHandler;
-import org.springframework.web.bind.annotation.RestControllerAdvice;
-import org.springframework.web.client.RestClientException;
-
-@RestControllerAdvice
-@Slf4j
-public class GlobalExceptionHandler {
-
-    /**
-     * Handles bad inputs, missing parameters, or invalid states (400 Bad Request)
-     */
-    @ExceptionHandler({IllegalArgumentException.class, IllegalStateException.class})
-    public ResponseEntity<ApiResponse<Void>> handleBadRequest(RuntimeException ex) {
-        log.warn("Invalid state or argument during dashboard load: {}", ex.getMessage());
-        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                .body(ApiResponse.error(HttpStatus.BAD_REQUEST.value(), "Invalid request parameters or state."));
-    }
-
-    /**
-     * Handles downstream Analytics Service/Druid failures (502 Bad Gateway)
-     */
-    @ExceptionHandler(RestClientException.class)
-    public ResponseEntity<ApiResponse<Void>> handleRestClientException(RestClientException ex) {
-        log.error("Failed to communicate with Analytics Service", ex);
-        return ResponseEntity.status(HttpStatus.BAD_GATEWAY)
-                .body(ApiResponse.error(HttpStatus.BAD_GATEWAY.value(), "Analytics service is temporarily unavailable."));
-    }
-
-    /**
-     * Handles database connection or query execution failures (500 Internal Server Error)
-     */
-    @ExceptionHandler(DataAccessException.class)
-    public ResponseEntity<ApiResponse<Void>> handleDatabaseException(DataAccessException ex) {
-        log.error("Database failure while reading configuration", ex);
-        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body(ApiResponse.error(HttpStatus.INTERNAL_SERVER_ERROR.value(), "An internal data error occurred."));
-    }
-}
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-package com.tcs.fincore.dashboard.dto;
-
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import java.util.Set;
 
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-public class ApiResponse<T> {
-    private boolean success;
-    private int statusCode;
-    private String message;
-    private T data;
-
-    public static <T> ApiResponse<T> success(T data, String message) {
-        return new ApiResponse<>(true, 200, message, data);
-    }
-
-    public static <T> ApiResponse<T> error(int statusCode, String message) {
-        return new ApiResponse<>(false, statusCode, message, null);
-    }
+public class BulkAnalyticsRequest {
+    /**
+     * The unique, flattened set of raw Druid codes.
+     * Using a Set prevents querying the same code twice if multiple parents share a dependency.
+     */
+    private Set<String> rawHeadCodes;
+    
+    /**
+     * The business date for the data being requested.
+     */
+    private String date;
 }
 
 
@@ -497,51 +79,26 @@ public class ApiResponse<T> {
 
 
 
+package com.tcs.fincore.dashboard.client;
 
-
-package com.tcs.fincore.dashboard.dto;
-
-import java.util.List;
-import lombok.Builder;
 import lombok.Data;
+import lombok.NoArgsConstructor;
+import java.math.BigDecimal;
+import java.util.Map;
 
 @Data
-public class DashboardResponse {
-    private CasaGaugeDto casaGauge;
-    private CompositionDto depositsComposition;
-    private SectionDto demandDeposits;
-    private SectionDto termDeposits;
-    // Loan sections can be added here later
+@NoArgsConstructor
+public class BulkAnalyticsResponse {
+    /**
+     * A map where the Key is the raw head code and the Value is the aggregated total.
+     */
+    private Map<String, BigDecimal> data;
 }
 
-@Data
-@Builder
-public class CasaGaugeDto {
-    private String title;
-    private String subtitle;
-    private Double value;
-    private List<ChartItem> data;
-}
 
-@Data
-@Builder
-public class CompositionDto {
-    private String title;
-    private String subtitle;
-    private List<String> filterOptions;
-    private String activeFilter;
-    private List<ChartItem> data;
-}
 
-@Data
-@Builder
-public class SectionDto {
-    private String title;
-    private List<ChartItem> data;
-}
 
-// Represents a single key-value pair for charts (e.g., "Saving Bank A/c" : 14.9346)
-public record ChartItem(String name, Object value) {}
+
 
 
 
