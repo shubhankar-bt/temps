@@ -1,151 +1,191 @@
-package com.tcs.fincore.dashboard.client;
+package com.fincore.analyticsservice.dto;
 
-import lombok.AllArgsConstructor;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotEmpty;
+import java.util.Set;
+
+public record DashboardQuery(
+        @NotBlank(message = "Alias cannot be blank")
+        String alias,
+
+        @NotEmpty(message = "At least one HeadCode must be provided for the alias")
+        Set<String> headCodes
+) {}
+
+
+
+
+
+
+
+
+
+
+
+
+
+package com.fincore.analyticsservice.dto;
+
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotEmpty;
 import java.util.List;
 
-@Data
-@NoArgsConstructor
-@AllArgsConstructor
-public class BulkAnalyticsRequest {
-    
-    private List<QueryItem> queries;
-    private String asOfDate;
+public record DashboardRequest(
+        @NotEmpty(message = "Queries list cannot be empty")
+        @Valid
+        List<DashboardQuery> queries,
 
-    @Data
-    @NoArgsConstructor
-    @AllArgsConstructor
-    public static class QueryItem {
-        private String alias;
-        private List<String> headCodes;
+        @NotBlank(message = "asOfDate is required")
+        String asOfDate,
+
+        // Optional: If not provided by frontend, the service will default to YSA_VIEW
+        String viewCode
+) {}
+
+
+
+
+
+
+
+
+
+
+package com.fincore.analyticsservice.service;
+
+import com.fincore.analyticsservice.dto.DashboardQuery;
+import com.fincore.analyticsservice.dto.DashboardRequest;
+import com.fincore.analyticsservice.dto.DrillDownRequest;
+import com.fincore.analyticsservice.dto.DrillDownResponse;
+import com.fincore.analyticsservice.dto.FilterDto;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.stereotype.Service;
+
+import java.math.BigDecimal;
+import java.math.RoundingMode;
+import java.util.*;
+import java.util.stream.Collectors;
+
+@Slf4j
+@Service
+public class DashboardService {
+
+    private final SemanticDrillDownService drillDownService;
+
+    public DashboardService(SemanticDrillDownService drillDownService) {
+        this.drillDownService = drillDownService;
+    }
+
+    public Map<String, BigDecimal> getDashboardBalances(DashboardRequest request, Integer roleId) {
+        log.info("Processing Dashboard Request for asOfDate: {}", request.asOfDate());
+
+        // 1. Flatten and collect all unique HeadCodes required across all aliases
+        Set<String> allHeadCodes = request.queries().stream()
+                .flatMap(q -> q.headCodes().stream())
+                .collect(Collectors.toSet());
+
+        // 2. Prepare filters mapping (asOfDate translates to ReportDate in the semantic layer)
+        List<FilterDto> filters = new ArrayList<>();
+        if (request.asOfDate() != null && !request.asOfDate().isBlank()) {
+            filters.add(new FilterDto("ReportDate", "EQUALS", request.asOfDate()));
+        }
+
+        // 3. Define the view context (default to YSA_VIEW if not provided)
+        String viewCode = (request.viewCode() != null && !request.viewCode().isBlank()) 
+                ? request.viewCode() 
+                : "YSA_VIEW";
+
+        // 4. Construct an internal DrillDownRequest. 
+        // Note: We bypass the @Size(max=5) validation here because we are instantiating 
+        // the object programmatically, allowing bulk data fetching for the dashboard.
+        DrillDownRequest internalRequest = new DrillDownRequest(
+                viewCode,
+                allHeadCodes,
+                List.of("HeadCode"), // Group by HeadCode
+                List.of("AMOUNT"),   // Metric to aggregate
+                filters
+        );
+
+        // 5. Execute using the robust existing pipeline (Mock/Druid routing, access control, etc.)
+        DrillDownResponse response = drillDownService.executeDrillDown(internalRequest, roleId);
+
+        // 6. Map the flattened results by HeadCode for fast O(1) lookup
+        Map<String, BigDecimal> headCodeMap = new HashMap<>();
+        if (response.data() != null) {
+            for (Map<String, Object> row : response.data()) {
+                String hc = (String) row.get("name");
+                Object amtObj = row.get("AMOUNT");
+                
+                BigDecimal amt = BigDecimal.ZERO;
+                if (amtObj != null) {
+                    try {
+                        amt = new BigDecimal(String.valueOf(amtObj));
+                    } catch (NumberFormatException ignored) {}
+                }
+                headCodeMap.put(hc, amt);
+            }
+        }
+
+        // 7. Aggregate sums back into the requested aliases
+        Map<String, BigDecimal> result = new LinkedHashMap<>();
+        for (DashboardQuery query : request.queries()) {
+            BigDecimal totalBalance = BigDecimal.ZERO;
+            
+            for (String hc : query.headCodes()) {
+                totalBalance = totalBalance.add(headCodeMap.getOrDefault(hc, BigDecimal.ZERO));
+            }
+            
+            // Scaling to 4 decimal places as per your JSON example requirements
+            result.put(query.alias(), totalBalance.setScale(4, RoundingMode.HALF_UP));
+        }
+
+        return result;
     }
 }
 
 
 
 
-package com.tcs.fincore.dashboard.client;
 
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.core.ParameterizedTypeReference;
-import org.springframework.stereotype.Component;
-import org.springframework.web.client.RestClient;
-import org.springframework.web.client.RestClientException;
+
+
+
+
+
+
+
+
+
+package com.fincore.analyticsservice.controller;
+
+import com.fincore.analyticsservice.dto.DashboardRequest;
+import com.fincore.analyticsservice.service.DashboardService;
+import jakarta.validation.Valid;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
 
 import java.math.BigDecimal;
 import java.util.Map;
 
-@Component
-@Slf4j
-public class AnalyticsClient {
+@RestController
+@RequestMapping("/api/v1/dashboard")
+public class DashboardController {
 
-    private final RestClient restClient;
+    private final DashboardService dashboardService;
 
-    public AnalyticsClient(@Value("${analytics.service.url}") String baseUrl) {
-        this.restClient = RestClient.builder()
-                .baseUrl(baseUrl)
-                .build();
+    public DashboardController(DashboardService dashboardService) {
+        this.dashboardService = dashboardService;
     }
 
-    public Map<String, BigDecimal> fetchBulkAggregations(BulkAnalyticsRequest requestPayload) {
-        try {
-            // Parses the flat JSON response directly into a Map
-            Map<String, BigDecimal> response = restClient.post()
-                    .uri("/api/v1/druid/bulk-aggregate")
-                    .body(requestPayload)
-                    .retrieve()
-                    .body(new ParameterizedTypeReference<Map<String, BigDecimal>>() {});
-
-            if (response == null || response.isEmpty()) {
-                throw new IllegalStateException("Received empty response from Analytics Service");
-            }
-            
-            return response;
-
-        } catch (RestClientException e) {
-            log.error("Network or HTTP error while calling Analytics Service for date: {}", requestPayload.getAsOfDate(), e);
-            throw e; 
-        }
+    @PostMapping("/balances")
+    public ResponseEntity<Map<String, BigDecimal>> getBalances(
+            @RequestHeader(value = "X-Role-Id", defaultValue = "10") Integer roleId,
+            @Valid @RequestBody DashboardRequest request) {
+        
+        Map<String, BigDecimal> response = dashboardService.getDashboardBalances(request, roleId);
+        
+        return ResponseEntity.ok(response);
     }
 }
-
-
-
-
-
-
-
-
-
-
-
-
-@Service
-@RequiredArgsConstructor
-@Slf4j
-public class DashboardServiceImpl implements DashboardService {
-
-    private final JwtUtil jwtUtil;
-    private final DashboardConfigurationService configService;
-    private final AnalyticsClient analyticsClient;
-    private final DashboardFormattingFactory formattingFactory;
-
-    // Hardcoded list of top-level headers required for the current UI iteration
-    private static final List<String> REQUIRED_HEAD_CODES = List.of(
-            "01039", "01059", "01069", "01099", // Demand Deposits
-            "01129", "01149", "01169", "02767"  // Time Deposits
-    );
-
-    @Override
-    public DashboardResponse getDashboardData(String token) {
-        long start = System.currentTimeMillis();
-        String userId = jwtUtil.getUserIdFromToken(token);
-        log.info("Starting Dashboard Load for User: {}", userId);
-
-        try {
-            // 1. Build the specific payload for the Analytics Service
-            List<BulkAnalyticsRequest.QueryItem> queries = new ArrayList<>();
-            
-            for (String headCode : REQUIRED_HEAD_CODES) {
-                List<String> rawCodes = configService.getRawCodesForHead(headCode);
-                // We use the parent headCode as the alias (e.g., "01039") so the Factory can find it
-                queries.add(new BulkAnalyticsRequest.QueryItem(headCode, rawCodes));
-            }
-
-            BulkAnalyticsRequest request = new BulkAnalyticsRequest(queries, "2026-07-27");
-
-            // 2. Fetch the pre-aggregated data
-            Map<String, BigDecimal> aggregatedHeads = analyticsClient.fetchBulkAggregations(request);
-
-            // 3. Plate the data for the frontend (Factory reads keys like "01039", "01059")
-            DashboardResponse response = formattingFactory.buildDashboardResponse(aggregatedHeads);
-
-            long duration = System.currentTimeMillis() - start;
-            log.info("Dashboard Loaded in {} ms", duration);
-
-            return response;
-
-        } catch (IllegalArgumentException | IllegalStateException stateEx) {
-            log.error("Validation or state error during dashboard load", stateEx);
-            throw stateEx; 
-        } catch (DataAccessException dbEx) {
-            log.error("Database failure while resolving recipes", dbEx);
-            throw dbEx; 
-        } catch (RestClientException restEx) {
-            log.error("Failed to fetch data from Analytics service", restEx);
-            throw restEx; 
-        }
-    }
-}
-
-
-
-
-
-
-
-
-
 
