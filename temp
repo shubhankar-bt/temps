@@ -1,90 +1,165 @@
-package com.fincore.dashboard.api.response;
-
-import java.time.Instant;
-
-/**
- * Standardized API envelope for all Fincore responses.
- */
-public record ApiResponse<T>(
-    boolean success,
-    String message,
-    String timestamp,
-    T data
-) {
-    public static <T> ApiResponse<T> success(T data, String message) {
-        return new ApiResponse<>(true, message, Instant.now().toString(), data);
-    }
-
-    public static <T> ApiResponse<T> error(String message) {
-        return new ApiResponse<>(false, message, Instant.now().toString(), null);
-    }
-}
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-package com.fincore.dashboard.api.exception;
-
-public abstract class DashboardBaseException extends RuntimeException {
-    protected DashboardBaseException(String message) { super(message); }
-    protected DashboardBaseException(String message, Throwable cause) { super(message, cause); }
-}
-
-public class ResourceNotFoundException extends DashboardBaseException {
-    public ResourceNotFoundException(String message) { super(message); }
-}
-
-public class DownstreamServiceException extends DashboardBaseException {
-    public DownstreamServiceException(String message, Throwable cause) { super(message, cause); }
-}
-
-public class UnauthorizedScopeException extends DashboardBaseException {
-    public UnauthorizedScopeException(String message) { super(message); }
-}
-
-
-
-
-
-
-
-
-
-
-
-
-package com.fincore.dashboard.api.exception;
+package com.fincore.DashboardService.exception;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fincore.DashboardService.dto.ApiResponse;
 
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ProblemDetail;
-import org.springframework.web.bind.annotation.ExceptionHandler;
-import org.springframework.web.bind.annotation.RestControllerAdvice;
 
 import java.net.URI;
+import java.util.stream.Collectors;
 
+import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ProblemDetail;
+import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.bind.annotation.ControllerAdvice;
+import org.springframework.web.bind.annotation.ExceptionHandler;
+import org.springframework.web.bind.annotation.ResponseStatus;
+import org.springframework.web.context.request.WebRequest;
+
+import jakarta.validation.ConstraintViolationException;
+
+/**
+ * Global exception handler for the CommonRequestService.
+ * This class uses the {@link ControllerAdvice @ControllerAdvice} annotation to
+ * provide centralized exception handling across all controllers. It logs errors
+ * and returns consistent {@link ApiResponse} objects with appropriate HTTP
+ * status codes for various exception types.
+ */
+@ControllerAdvice
 @Slf4j
-@RestControllerAdvice
 public class GlobalExceptionHandler {
 
+    /**
+     * Handles {@link ResourceNotFoundException}.
+     * Returns an HTTP 404 Not Found response.
+     *
+     * @param ex The ResourceNotFoundException instance.
+     * @param request The current web request.
+     * @return A ResponseEntity containing an ApiResponse with an error message and HTTP status 404.
+     */
     @ExceptionHandler(ResourceNotFoundException.class)
-    public ProblemDetail handleNotFound(ResourceNotFoundException ex) {
-        log.warn("Resource not found: {}", ex.getMessage());
-        ProblemDetail problemDetail = ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND, ex.getMessage());
-        problemDetail.setType(URI.create("https://api.fincore.com/errors/not-found"));
-        problemDetail.setTitle("Resource Not Found");
-        return problemDetail;
+    public ResponseEntity<ApiResponse<Object>> handleResourceNotFoundException(ResourceNotFoundException ex, WebRequest request) {
+        log.error("Resource not found: {}", ex.getMessage());
+        return new ResponseEntity<>(ApiResponse.error(ex.getMessage()), HttpStatus.NOT_FOUND);
+    }
+
+    /**
+     * Handles exceptions related to processing JSON payloads, such as malformed JSON or invalid data types.
+     * Catches {@link JsonProcessingException} and {@link HttpMessageNotReadableException}.
+     * Returns an HTTP 400 Bad Request response.
+     *
+     * @param ex The exception instance.
+     * @param request The current web request.
+     * @return A ResponseEntity containing an ApiResponse with an error message and HTTP status 400.
+     */
+    @ExceptionHandler({JsonProcessingException.class, HttpMessageNotReadableException.class})
+    public ResponseEntity<ApiResponse<Object>> handleJsonProcessingException(Exception ex, WebRequest request) {
+        log.error("Error processing JSON payload: {}", ex.getMessage());
+        return new ResponseEntity<>(ApiResponse.error("Invalid request payload format. Please check the JSON structure and data types."), HttpStatus.BAD_REQUEST);
+    }
+
+    /**
+     * Handles {@link DataIntegrityViolationException}, typically thrown when database constraints are violated.
+     * Checks for specific messages related to unique constraints or pending requests and returns a 409 Conflict status.
+     *
+     * @param ex The DataIntegrityViolationException instance.
+     * @param request The current web request.
+     * @return A ResponseEntity containing an ApiResponse with a specific or generic conflict error message and HTTP status 409.
+     */
+    @ExceptionHandler(DataIntegrityViolationException.class)
+    public ResponseEntity<ApiResponse<Object>> handleDataIntegrityViolationException(DataIntegrityViolationException ex, WebRequest request) {
+        log.error("Data integrity violation: {}", ex.getMessage());
+        // Check for common unique constraint violation message
+        log.error("error: {}",ex.getMostSpecificCause().getMessage());
+        if (ex.getMostSpecificCause().getMessage().contains("unique constraint")) {
+            return new ResponseEntity<>(ApiResponse.error("A resource with the provided identifier already exists."), HttpStatus.CONFLICT);
+        }else if(ex.getMostSpecificCause().getMessage().contains("pending request")) {
+            return new ResponseEntity<>(ApiResponse.error("A pending request is already exists."), HttpStatus.CONFLICT);
+        }
+        return new ResponseEntity<>(ApiResponse.error("Database constraint violation. A required field may be missing or a value is invalid."), HttpStatus.CONFLICT);
+    }
+
+    /**
+     * Handles general argument and state-related exceptions.
+     * Catches {@link IllegalArgumentException} and {@link IllegalStateException}.
+     * Returns an HTTP 400 Bad Request response.
+     *
+     * @param ex The runtime exception instance.
+     * @param request The current web request.
+     * @return A ResponseEntity containing an ApiResponse with the exception's message and HTTP status 400.
+     */
+    @ExceptionHandler({IllegalArgumentException.class, IllegalStateException.class})
+    public ResponseEntity<ApiResponse<Object>> handleArgumentAndStateExceptions(RuntimeException ex, WebRequest request) {
+        log.error("Illegal argument or state: {}", ex.getMessage());
+        return new ResponseEntity<>(ApiResponse.error(ex.getMessage()), HttpStatus.BAD_REQUEST);
+    }
+
+    /**
+     * A catch-all handler for any other unhandled exceptions.
+     * Ensures that unexpected errors are logged and a generic HTTP 500 Internal Server Error response is returned.
+     *
+     * @param ex The exception instance.
+     * @param request The current web request.
+     * @return A ResponseEntity containing a generic internal server error ApiResponse and HTTP status 500.
+     */
+    @ExceptionHandler(Exception.class)
+    public ResponseEntity<ApiResponse<Object>> handleGlobalException(Exception ex, WebRequest request) {
+        log.error("An unexpected error occurred: {}", ex.getMessage(), ex);
+        return new ResponseEntity<>(ApiResponse.error("An internal server error occurred."), HttpStatus.INTERNAL_SERVER_ERROR);
+    }
+
+
+    /**
+     * Handles exceptions thrown when {@link jakarta.validation.Valid @Valid} validation fails on a request body.
+     * Collects all field errors and returns a 400 Bad Request with a list of validation errors.
+     *
+     * @param ex The MethodArgumentNotValidException instance.
+     * @return A ResponseEntity containing an ApiResponse with detailed validation errors and HTTP status 400.
+     */
+    @ExceptionHandler(MethodArgumentNotValidException.class)
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    public ResponseEntity<ApiResponse<Object>> handleValidationExceptions(MethodArgumentNotValidException ex) {
+        // Collect all validation error messages into a single string.
+        String errors = ex.getBindingResult().getFieldErrors().stream()
+                .map(error -> error.getField() + ": " + error.getDefaultMessage())
+                .collect(Collectors.joining(", "));
+
+        log.warn("Validation failed for incoming request: {}", errors);
+        return new ResponseEntity<>(ApiResponse.error("Validation Failed: "+errors), HttpStatus.BAD_REQUEST);
+    }
+
+    /**
+     * Handles exceptions thrown by the Jakarta Validator, for example,
+     * when validation is manually triggered or constraints on service methods are violated.
+     * Returns a 400 Bad Request with a list of constraint violations.
+     *
+     * @param ex The ConstraintViolationException instance.
+     * @return A ResponseEntity containing an ApiResponse with detailed constraint violations and HTTP status 400.
+     */
+    @ExceptionHandler(ConstraintViolationException.class)
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    public ResponseEntity<ApiResponse<Object>> handleConstraintViolationException(ConstraintViolationException ex) {
+        String errors = ex.getConstraintViolations().stream()
+                .map(cv -> cv.getPropertyPath() + ": " + cv.getMessage())
+                .collect(Collectors.joining(", "));
+
+        log.warn("Constraint violation during processing: {}", errors);
+        return new ResponseEntity<>(ApiResponse.error("Validation Failed: "+errors), HttpStatus.BAD_REQUEST);
+    }
+
+    /**
+     * Handles {@link BusinessRuleViolationException}.
+     * Returns a 400 Bad Request response when a business logic constraint is breached.
+     *
+     * @param ex The BusinessRuleViolationException instance containing the validation failure details.
+     * @return A ResponseEntity containing an ApiResponse with the specific business error message and HTTP status 400.
+     */
+    @ExceptionHandler(BusinessRuleViolationException.class)
+    public ResponseEntity<ApiResponse<Object>> handleBusinessRuleViolationException(BusinessRuleViolationException ex) {
+        log.error("Business rule violation: {}", ex.getMessage());
+        return new ResponseEntity<>(ApiResponse.error(ex.getMessage()), HttpStatus.BAD_REQUEST);
     }
 
     @ExceptionHandler(DownstreamServiceException.class)
@@ -96,14 +171,30 @@ public class GlobalExceptionHandler {
         return problemDetail;
     }
 
-    // Catch-all for unexpected bugs (Prevents stack traces from leaking to the frontend)
-    @ExceptionHandler(Exception.class)
-    public ProblemDetail handleUnhandledException(Exception ex) {
-        log.error("Unhandled system exception occurred", ex);
-        ProblemDetail problemDetail = ProblemDetail.forStatusAndDetail(HttpStatus.INTERNAL_SERVER_ERROR, "An unexpected system error occurred.");
-        problemDetail.setType(URI.create("https://api.fincore.com/errors/internal-error"));
-        problemDetail.setTitle("Internal Server Error");
-        return problemDetail;
+}
+
+
+
+
+
+
+package com.fincore.DashboardService.exception;
+
+import org.springframework.http.HttpStatus;
+import org.springframework.web.bind.annotation.ResponseStatus;
+@ResponseStatus(HttpStatus.NOT_FOUND)
+public class ResourceNotFoundException extends RuntimeException {
+
+    /**
+     * Constructs a new ResourceNotFoundException with the specified detail message.
+     * The cause is not initialized, and may subsequently be initialized by a
+     * call to {@link Throwable#initCause}.
+     *
+     * @param message the detail message (which is saved for later retrieval by the
+     *                {@link Throwable#getMessage()} method).
+     */
+    public ResourceNotFoundException(String message) {
+        super(message);
     }
 }
 
@@ -116,68 +207,54 @@ public class GlobalExceptionHandler {
 
 
 
+package com.fincore.DashboardService.exception;
 
-package com.fincore.dashboard.api.controller;
-
-import com.fincore.dashboard.api.response.ApiResponse;
-import com.fincore.dashboard.dto.response.DashboardOverviewResponse;
-import com.fincore.dashboard.dto.response.TrendResponse;
-import com.fincore.dashboard.service.DashboardOverviewService;
-import com.fincore.dashboard.service.DashboardTrendService;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
-
-import java.time.LocalDate;
+import org.springframework.http.HttpStatus;
+import org.springframework.web.bind.annotation.ResponseStatus;
 
 /**
- * REST Controller for the Fincore Executive Dashboard.
- * 
- * ARCHITECTURE NOTE:
- * We explicitly separate the Overview (Point-in-time) from Trends (Time-series).
- * This prevents the N+1 API payload bloat and allows the React frontend to 
- * utilize Progressive Rendering (React Suspense). The overview loads instantly, 
- * while heavier historical trend charts load asynchronously.
+ * Thrown when a request violates a specific business rule
+ * (e.g., Invalid Email Format, Missing Reference Data).
  */
-@Slf4j
-@RestController
-@RequestMapping("/api/v1/dashboard")
-@RequiredArgsConstructor
-public class DashboardController {
-
-    private final DashboardOverviewService overviewService;
-    private final DashboardTrendService trendService;
-
-    /**
-     * API 1: Fast Point-in-Time Overview.
-     * Uses a single bulk Druid query internally.
-     */
-    @GetMapping("/overview")
-    public ResponseEntity<ApiResponse<DashboardOverviewResponse>> getOverview(
-            @RequestHeader("Authorization") String token,
-            @RequestParam(required = false) String asOfDate) {
-        
-        String queryDate = (asOfDate != null) ? asOfDate : LocalDate.now().toString();
-        log.info("Received request for Dashboard Overview. Date: {}", queryDate);
-        
-        DashboardOverviewResponse data = overviewService.fetchOverview(token, queryDate);
-        return ResponseEntity.ok(ApiResponse.success(data, "Overview loaded successfully"));
+@ResponseStatus(HttpStatus.BAD_REQUEST)
+public class BusinessRuleViolationException extends RuntimeException {
+    public BusinessRuleViolationException(String message) {
+        super(message);
     }
+}
 
-    /**
-     * API 2: Time-Series Trend Data (Columnar Approach B).
-     * Decoupled to prevent blocking the main dashboard render.
-     */
-    @GetMapping("/trend")
-    public ResponseEntity<ApiResponse<TrendResponse>> getTrend(
-            @RequestHeader("Authorization") String token,
-            @RequestParam(defaultValue = "7") int days) {
-        
-        log.info("Received request for Dashboard Trend. Days: {}", days);
-        
-        TrendResponse data = trendService.fetchTrend(token, days);
-        return ResponseEntity.ok(ApiResponse.success(data, days + "-Day trend loaded successfully"));
+
+
+
+package com.fincore.DashboardService.dto;
+
+
+import lombok.Data;
+import java.time.Instant;
+
+@Data
+public class ApiResponse<T> {
+    private boolean success;
+    private String message;
+    private T data;
+    private Instant timestamp;
+
+
+    public static <T> ApiResponse<T> success(T data, String msg) {
+        ApiResponse<T> r = new ApiResponse<>();
+        r.success = true;
+        r.message = msg;
+        r.data = data;
+        r.timestamp = Instant.now();
+        return r;
+    }
+    public static <T> ApiResponse<T> error(String message) {
+        ApiResponse<T> r = new ApiResponse<>();
+        r.success = false;
+        r.message = message;
+        r.data = null;
+        r.timestamp = Instant.now();
+        return r;
     }
 }
 
@@ -187,211 +264,28 @@ public class DashboardController {
 
 
 
+package com.fincore.DashboardService.dto;
+import com.fasterxml.jackson.annotation.JsonInclude;
 
+import lombok.Data;
 
+@Data
+@JsonInclude(JsonInclude.Include.NON_NULL)
+public class ChartDataItem {
+    private String name;
+    private String type;   // null for demandDeposits / termDeposits
+    private Double value;
+    private String casaValue;
 
-
-
-
-
-
-
-
-package com.fincore.dashboard.dto.response;
-
-import java.util.List;
-
-/**
- * Encapsulates the entire 7-day trend response for the dashboard.
- * Designed to separate the charts into distinct objects so the frontend 
- * can route them directly to the respective UI components.
- */
-public record TrendResponse(
-    ChartTrendDTO demandDeposits,
-    ChartTrendDTO timeDeposits,
-    ChartTrendDTO loans
-) {}
-
-
-
-
-
-
-
-
-
-
-
-package com.fincore.dashboard.dto.response;
-
-import java.util.List;
-
-/**
- * Represents a single time-series chart.
- * 
- * ARCHITECTURE NOTE (Approach B): 
- * We explicitly separate the X-axis (dates) from the Y-axis (series).
- * This drastically reduces JSON payload size over the network by preventing 
- * date and name strings from being repeated for every single data point.
- */
-public record ChartTrendDTO(
-    String title,
-    String key,
-    List<String> dates,      // The shared X-axis (e.g., ["2026-09-12", "2026-09-13"])
-    List<SeriesDTO> series   // The multiple Y-axes plotting against the dates
-) {}
-
-
-
-
-
-
-
-
-
-
-package com.fincore.dashboard.dto.response;
-
-import java.util.List;
-
-/**
- * Represents one line or bar segment in the trend chart.
- * 
- * CRITICAL RULE: The 'values' array size and index MUST perfectly match 
- * the 'dates' array in the parent ChartTrendDTO. If a value is missing 
- * for a specific date, it must be explicitly populated as 0.0.
- */
-public record SeriesDTO(
-    String name,
-    String type,
-    List<Double> values
-) {}
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-package com.fincore.dashboard.service;
-
-import com.fincore.dashboard.dto.response.ChartTrendDTO;
-import com.fincore.dashboard.dto.response.SeriesDTO;
-import com.fincore.dashboard.dto.response.TrendResponse;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.stereotype.Service;
-
-import java.time.LocalDate;
-import java.time.format.DateTimeFormatter;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Random;
-
-/**
- * Handles the retrieval and formatting of time-series trend data.
- * Currently runs in a mocked state to unblock frontend development.
- * Will be wired to Oracle/Druid via the PySpark pipeline in Phase 2.
- */
-@Slf4j
-@Service
-@RequiredArgsConstructor
-public class DashboardTrendService {
-
-    private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd");
-
-    /**
-     * Fetches the trend data for the requested number of historical days.
-     * 
-     * @param token The user's JWT token (used for scope resolution later)
-     * @param days  The number of historical days to fetch (e.g., 7)
-     * @return TrendResponse containing strictly aligned columnar data
-     */
-    public TrendResponse fetchTrend(String token, int days) {
-        // Guard clause: Protect against bad inputs that could crash the array logic
-        if (days <= 0 || days > 365) {
-            log.warn("Invalid days parameter requested: {}. Defaulting to 7.", days);
-            days = 7;
-        }
-
-        log.info("Generating {}-day columnar trend data (Approach B)", days);
-        
-        LocalDate endDate = LocalDate.now();
-        Random random = new Random();
-
-        // 1. Generate the Shared Date Axis (The X-Axis)
-        // We pre-allocate the ArrayList capacity to avoid memory resizing overhead
-        List<String> sharedDates = new ArrayList<>(days);
-        
-        // Loop backwards from (days - 1) down to 0 to ensure chronological order (oldest to newest)
-        for (int i = days - 1; i >= 0; i--) {
-            sharedDates.add(endDate.minusDays(i).format(DATE_FORMATTER));
-        }
-
-        // 2. Build the Series Data (The Y-Axes)
-        ChartTrendDTO demandTrend = buildDemandTrend(sharedDates, days, random);
-        ChartTrendDTO timeTrend = buildTimeTrend(sharedDates, days, random);
-        ChartTrendDTO loanTrend = buildLoanTrend(sharedDates, days, random);
-
-        return new TrendResponse(demandTrend, timeTrend, loanTrend);
+    public ChartDataItem(String name, String type, Double value) {
+        this.name = name;
+        this.type = type;
+        this.value = value;
     }
 
-    private ChartTrendDTO buildDemandTrend(List<String> sharedDates, int days, Random random) {
-        List<SeriesDTO> series = List.of(
-            createMockSeries("Saving Bank A/c", "Demand Deposit", 45.0, days, random),
-            createMockSeries("Current A/c", "Demand Deposit", 12.0, days, random),
-            createMockSeries("Cash Credit Cr Balance", "Demand Deposit", 78.0, days, random),
-            createMockSeries("Other Demand Deposit", "Demand Deposit", 33.0, days, random)
-        );
-        return new ChartTrendDTO("Demand Deposits", "demandDepositsTrend", sharedDates, series);
-    }
-
-    private ChartTrendDTO buildTimeTrend(List<String> sharedDates, int days, Random random) {
-        List<SeriesDTO> series = List.of(
-            createMockSeries("Term Deposit", "Time Deposit", 56.0, days, random),
-            createMockSeries("Special Term Deposit", "Time Deposit", 91.0, days, random),
-            createMockSeries("Other Term Deposit", "Time Deposit", 27.0, days, random),
-            createMockSeries("Certificate of Deposit", "Time Deposit", 64.0, days, random)
-        );
-        return new ChartTrendDTO("Time Deposits", "timeDepositsTrend", sharedDates, series);
-    }
-
-    private ChartTrendDTO buildLoanTrend(List<String> sharedDates, int days, Random random) {
-        List<SeriesDTO> series = List.of(
-            createMockSeries("Term Loan Account", "Loan", 28.0, days, random),
-            createMockSeries("Agri Cash Credit", "Loan", 55.0, days, random),
-            createMockSeries("Cash Credit", "Loan", 41.0, days, random),
-            createMockSeries("Demand Loan", "Loan", 82.0, days, random),
-            createMockSeries("Overdraft", "Loan", 73.0, days, random),
-            createMockSeries("Bills Payable", "Loan", 19.0, days, random)
-        );
-        return new ChartTrendDTO("Loans", "loansTrend", sharedDates, series);
-    }
-
-    /**
-     * Helper method to generate an array of values that perfectly aligns with the dates array.
-     */
-    private SeriesDTO createMockSeries(String name, String type, double baseValue, int days, Random random) {
-        List<Double> values = new ArrayList<>(days);
-        
-        for (int i = 0; i < days; i++) {
-            // Add a slight variance to the base value to make the chart look realistic
-            double variance = (random.nextDouble() * 10) - 5; // Variance between -5 and +5
-            double finalValue = Math.max(0, baseValue + variance); // Prevent negative balances in UI
-            
-            // Round to 2 decimal places (Standard for currency in Trillions/Billions)
-            values.add(Math.round(finalValue * 100.0) / 100.0);
-        }
-        return new SeriesDTO(name, type, values);
+    public ChartDataItem(String name, String casaValue) {
+        this.name = name;
+        this.casaValue = casaValue;
     }
 }
 
@@ -399,20 +293,94 @@ public class DashboardTrendService {
 
 
 
+package com.fincore.DashboardService.dto;
+import java.util.*;
+
+import com.fasterxml.jackson.annotation.JsonInclude;
+import lombok.Data;
+
+@Data
+@JsonInclude(JsonInclude.Include.NON_NULL)
+
+public class ChartDTO {
+    private String key;              // "depositsComposition", "demandDeposits", "termDeposits"
+    private String title;
+    private String subtitle;         // nullable
+    private List<String> filterOptions; // nullable
+    private String activeFilter;
+    private Double value;
+    // nullable
+    private List<ChartDataItem> data;
+}
+
+
+
+
+package com.fincore.DashboardService.dto;
+
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
+@Data
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
+public class DailyDataPoint {
+
+    private String date; // "2023-10-27"
+    private int created;
+    private int executed;
+
+}
+
+
+
+
+package com.fincore.DashboardService.dto;
+
+import lombok.*;
+
+import java.util.List;
+import java.util.Map;
+
+
+@Data
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
+public class DashboardDataResponse {
+    private List<Map<String, ChartDTO>> staticDashboardData;
+}
 
 
 
 
 
+package com.fincore.DashboardService.dto;
+
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+
+public record FilterDto(
+        @NotBlank String logicalField, // e.g., "Branch"
+        @NotBlank String operator,
+        @NotNull Object value
+) {}
 
 
 
 
+package com.fincore.DashboardService.dto;
 
+import java.util.List;
 
-
-
-
+public record HeadCodeGroup(
+        String name,
+        List<String> headCodes
+) {
+}
 
 
 
