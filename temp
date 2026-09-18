@@ -1,357 +1,420 @@
-Time-Series Chart API Response  
+package com.fincore.dashboard.api.response;
 
-1. Objective 
+import java.time.Instant;
 
-The dashboard needs to display multiple account categories across multiple dates. The API should minimize network payload and repeated data while keeping the backend contract clean and the React frontend easy to maintain. 
+/**
+ * Standardized API envelope for all Fincore responses.
+ */
+public record ApiResponse<T>(
+    boolean success,
+    String message,
+    String timestamp,
+    T data
+) {
+    public static <T> ApiResponse<T> success(T data, String message) {
+        return new ApiResponse<>(true, message, Instant.now().toString(), data);
+    }
 
-  
+    public static <T> ApiResponse<T> error(String message) {
+        return new ApiResponse<>(false, message, Instant.now().toString(), null);
+    }
+}
 
-2. Approach A — Dynamic Object Keys 
 
-In Approach A, each date is an object. Account names become dynamic JSON property names, and the value for that account is stored directly under that property. 
 
-{ 
 
-  "key": "demandDeposits", 
 
-  "title": "Demand Deposits", 
 
-  "type": { 
 
-    "Saving Bank A/c": " Demand Deposit ", 
 
-    "Current A/c": " Demand Deposit ", 
 
-    "Cash Credit Cr Balance": " Demand Deposit ", 
 
-    "Other Demand Deposit": "Demand Deposit" 
 
-  }, 
 
-  "data": [ 
 
-    { 
 
-      "date": "2026-07-27", 
 
-      "Saving Bank A/c": 45.0, 
+package com.fincore.dashboard.api.exception;
 
-      "Current A/c": 12.0, 
+public abstract class DashboardBaseException extends RuntimeException {
+    protected DashboardBaseException(String message) { super(message); }
+    protected DashboardBaseException(String message, Throwable cause) { super(message, cause); }
+}
 
-      "Cash Credit Cr Balance": 78.0, 
+public class ResourceNotFoundException extends DashboardBaseException {
+    public ResourceNotFoundException(String message) { super(message); }
+}
 
-      "Other Demand Deposit": 33.0 
+public class DownstreamServiceException extends DashboardBaseException {
+    public DownstreamServiceException(String message, Throwable cause) { super(message, cause); }
+}
 
-    }, 
+public class UnauthorizedScopeException extends DashboardBaseException {
+    public UnauthorizedScopeException(String message) { super(message); }
+}
 
-    { 
 
-      "date": "2026-07-28", 
 
-      "Saving Bank A/c": 46.5, 
 
-      "Current A/c": 11.5, 
 
-      "Cash Credit Cr Balance": 77.0, 
 
-      "Other Demand Deposit": 3
 
 
 
 
 
 
+package com.fincore.dashboard.api.exception;
 
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ProblemDetail;
+import org.springframework.web.bind.annotation.ExceptionHandler;
+import org.springframework.web.bind.annotation.RestControllerAdvice;
 
+import java.net.URI;
 
+@Slf4j
+@RestControllerAdvice
+public class GlobalExceptionHandler {
 
+    @ExceptionHandler(ResourceNotFoundException.class)
+    public ProblemDetail handleNotFound(ResourceNotFoundException ex) {
+        log.warn("Resource not found: {}", ex.getMessage());
+        ProblemDetail problemDetail = ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND, ex.getMessage());
+        problemDetail.setType(URI.create("https://api.fincore.com/errors/not-found"));
+        problemDetail.setTitle("Resource Not Found");
+        return problemDetail;
+    }
 
+    @ExceptionHandler(DownstreamServiceException.class)
+    public ProblemDetail handleDownstreamFailure(DownstreamServiceException ex) {
+        log.error("Downstream service failure: {}", ex.getMessage(), ex);
+        ProblemDetail problemDetail = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_GATEWAY, "A dependent service failed to respond.");
+        problemDetail.setType(URI.create("https://api.fincore.com/errors/downstream-failure"));
+        problemDetail.setTitle("Upstream Dependency Error");
+        return problemDetail;
+    }
 
+    // Catch-all for unexpected bugs (Prevents stack traces from leaking to the frontend)
+    @ExceptionHandler(Exception.class)
+    public ProblemDetail handleUnhandledException(Exception ex) {
+        log.error("Unhandled system exception occurred", ex);
+        ProblemDetail problemDetail = ProblemDetail.forStatusAndDetail(HttpStatus.INTERNAL_SERVER_ERROR, "An unexpected system error occurred.");
+        problemDetail.setType(URI.create("https://api.fincore.com/errors/internal-error"));
+        problemDetail.setTitle("Internal Server Error");
+        return problemDetail;
+    }
+}
 
 
 
-3. How Approach A Works in React 
 
-The frontend does not have to hardcode account names. It can dynamically discover the account keys using Object.keys() and create chart series from them. 
 
-const accountNames = Object.keys(response.data[0]).filter(key => key !== "date"); 
 
-{accountNames.map(name => ( 
 
-<Line 
 
-   key={name} 
 
-   dataKey={name} 
 
-   name={`${name} (${response.type[name]})`} 
 
-/> 
+package com.fincore.dashboard.api.controller;
 
-))} 
+import com.fincore.dashboard.api.response.ApiResponse;
+import com.fincore.dashboard.dto.response.DashboardOverviewResponse;
+import com.fincore.dashboard.dto.response.TrendResponse;
+import com.fincore.dashboard.service.DashboardOverviewService;
+import com.fincore.dashboard.service.DashboardTrendService;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
 
-  4. Why We Are NOT Selecting Approach A 
+import java.time.LocalDate;
 
-Repeated account-name keys: Every date row repeats the same account names as JSON property names. With many dates, this increases the uncompressed payload. 
+/**
+ * REST Controller for the Fincore Executive Dashboard.
+ * 
+ * ARCHITECTURE NOTE:
+ * We explicitly separate the Overview (Point-in-time) from Trends (Time-series).
+ * This prevents the N+1 API payload bloat and allows the React frontend to 
+ * utilize Progressive Rendering (React Suspense). The overview loads instantly, 
+ * while heavier historical trend charts load asynchronously.
+ */
+@Slf4j
+@RestController
+@RequestMapping("/api/v1/dashboard")
+@RequiredArgsConstructor
+public class DashboardController {
 
-Dynamic property names are less structured: The JSON schema changes when a business/display name changes. The account name is simultaneously being used as data and as a property identifier. 
+    private final DashboardOverviewService overviewService;
+    private final DashboardTrendService trendService;
 
-Display name becomes part of the data structure: A display label such as 'Saving Bank A/c' is better treated as metadata rather than as a structural JSON key. 
+    /**
+     * API 1: Fast Point-in-Time Overview.
+     * Uses a single bulk Druid query internally.
+     */
+    @GetMapping("/overview")
+    public ResponseEntity<ApiResponse<DashboardOverviewResponse>> getOverview(
+            @RequestHeader("Authorization") String token,
+            @RequestParam(required = false) String asOfDate) {
+        
+        String queryDate = (asOfDate != null) ? asOfDate : LocalDate.now().toString();
+        log.info("Received request for Dashboard Overview. Date: {}", queryDate);
+        
+        DashboardOverviewResponse data = overviewService.fetchOverview(token, queryDate);
+        return ResponseEntity.ok(ApiResponse.success(data, "Overview loaded successfully"));
+    }
 
-Type metadata is separate: The type map must be maintained separately and looked up using the same dynamic name. 
+    /**
+     * API 2: Time-Series Trend Data (Columnar Approach B).
+     * Decoupled to prevent blocking the main dashboard render.
+     */
+    @GetMapping("/trend")
+    public ResponseEntity<ApiResponse<TrendResponse>> getTrend(
+            @RequestHeader("Authorization") String token,
+            @RequestParam(defaultValue = "7") int days) {
+        
+        log.info("Received request for Dashboard Trend. Days: {}", days);
+        
+        TrendResponse data = trendService.fetchTrend(token, days);
+        return ResponseEntity.ok(ApiResponse.success(data, days + "-Day trend loaded successfully"));
+    }
+}
 
-Scaling becomes less efficient: As the number of dates and account categories grows, the same property-name strings are repeated in every row. 
 
-Chart-friendly, but not domain-oriented: The response is convenient for Recharts because dataKey can directly point to a property, but the API shape is influenced by how the chart consumes data. 
 
-Important: Approach A is not technically wrong. Object.keys() makes it possible to build the chart without hardcoding account names. The decision against A is primarily about reducing repeated data, creating a more explicit API contract, and scaling the time-series representation. 
 
- 
 
- 
 
-5. Approach B — Shared Dates + Series Values 
 
-Approach B stores the common date axis once. Each account/category is represented as one series, and its values are stored in the same order as the shared dates. 
 
 
 
 
 
-{ 
 
-  "key": "demandDeposits", 
 
-  "title": "Demand Deposits", 
 
-  "dates": [ 
 
-    "2026-07-27", 
 
-    "2026-07-28", 
+package com.fincore.dashboard.dto.response;
 
-    "2026-07-29" 
+import java.util.List;
 
-  ], 
+/**
+ * Encapsulates the entire 7-day trend response for the dashboard.
+ * Designed to separate the charts into distinct objects so the frontend 
+ * can route them directly to the respective UI components.
+ */
+public record TrendResponse(
+    ChartTrendDTO demandDeposits,
+    ChartTrendDTO timeDeposits,
+    ChartTrendDTO loans
+) {}
 
-  "series": [ 
 
-    { 
 
-      "name": "Saving Bank A/c", 
 
-      "type": "Demand Deposit", 
 
-      "values": [45.0, 46.5, 44.0] 
 
-    }, 
 
-    { 
 
-      "name": "Current A/c", 
 
-      "type": "Demand Deposit", 
 
-      "values": [12.0, 11.5, 12.5] 
 
-    }, 
+package com.fincore.dashboard.dto.response;
 
-    { 
+import java.util.List;
 
-      "name": "Cash Credit Cr Balance", 
+/**
+ * Represents a single time-series chart.
+ * 
+ * ARCHITECTURE NOTE (Approach B): 
+ * We explicitly separate the X-axis (dates) from the Y-axis (series).
+ * This drastically reduces JSON payload size over the network by preventing 
+ * date and name strings from being repeated for every single data point.
+ */
+public record ChartTrendDTO(
+    String title,
+    String key,
+    List<String> dates,      // The shared X-axis (e.g., ["2026-09-12", "2026-09-13"])
+    List<SeriesDTO> series   // The multiple Y-axes plotting against the dates
+) {}
 
-      "type": "Demand Deposit", 
 
-      "values": [78.0, 77.0, 79.0] 
 
-    }, 
 
-    { 
 
-      "name": "Other Demand Deposit", 
 
-      "type": "Demand Deposit", 
 
-      "values": [33.0, 34.0, 33.5] 
 
-    } 
 
-  ] 
 
-}    
+package com.fincore.dashboard.dto.response;
 
- 
+import java.util.List;
 
-6. Why B Shared Dates + Series Values Is Selected 
+/**
+ * Represents one line or bar segment in the trend chart.
+ * 
+ * CRITICAL RULE: The 'values' array size and index MUST perfectly match 
+ * the 'dates' array in the parent ChartTrendDTO. If a value is missing 
+ * for a specific date, it must be explicitly populated as 0.0.
+ */
+public record SeriesDTO(
+    String name,
+    String type,
+    List<Double> values
+) {}
 
-Dates are sent only once: All account series use the same date axis, so the API does not repeat date strings for every account. 
 
-Account names are sent only once: Each account name appears once inside its series metadata rather than once for every date. 
 
-Values are compact: The time-series measurements are represented as numeric arrays, which avoids repeating date/name/type fields for every point. 
 
-Natural time-series model: The response explicitly represents one common X-axis and multiple Y-series, matching the chart concept. 
 
-Better scalability: As the number of dates and series grows, the response avoids a large amount of repeated structural information. 
 
-Clear separation of metadata and measurements: Series metadata such as name and type is separate from the numeric values. 
 
-Chart-library independence: The API describes the data rather than returning chart-specific x/y objects. A frontend adapter can map it to Recharts or another library. 
 
-Small frontend transformation: The frontend only needs to associate dates[i] with values[i]. This is predictable and easy to test.
 
 
-  
 
-7. Frontend Processing for Approach B 
 
-The frontend reads the series dynamically. No account names are hardcoded. Each value is paired with the date at the same array index. 
 
-  
 
-const chartSeries = response.series.map(series => ({ 
 
-name: series.name, 
 
-type: series.type, 
+package com.fincore.dashboard.service;
 
-data: response.dates.map((date, index) => ({ 
+import com.fincore.dashboard.dto.response.ChartTrendDTO;
+import com.fincore.dashboard.dto.response.SeriesDTO;
+import com.fincore.dashboard.dto.response.TrendResponse;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.stereotype.Service;
 
-   x: date, 
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Random;
 
-   y: series.values[index] 
+/**
+ * Handles the retrieval and formatting of time-series trend data.
+ * Currently runs in a mocked state to unblock frontend development.
+ * Will be wired to Oracle/Druid via the PySpark pipeline in Phase 2.
+ */
+@Slf4j
+@Service
+@RequiredArgsConstructor
+public class DashboardTrendService {
 
-})) 
+    private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd");
 
-})); 
+    /**
+     * Fetches the trend data for the requested number of historical days.
+     * 
+     * @param token The user's JWT token (used for scope resolution later)
+     * @param days  The number of historical days to fetch (e.g., 7)
+     * @return TrendResponse containing strictly aligned columnar data
+     */
+    public TrendResponse fetchTrend(String token, int days) {
+        // Guard clause: Protect against bad inputs that could crash the array logic
+        if (days <= 0 || days > 365) {
+            log.warn("Invalid days parameter requested: {}. Defaulting to 7.", days);
+            days = 7;
+        }
 
-  
+        log.info("Generating {}-day columnar trend data (Approach B)", days);
+        
+        LocalDate endDate = LocalDate.now();
+        Random random = new Random();
 
-For Saving Bank A/c, the result becomes: 
+        // 1. Generate the Shared Date Axis (The X-Axis)
+        // We pre-allocate the ArrayList capacity to avoid memory resizing overhead
+        List<String> sharedDates = new ArrayList<>(days);
+        
+        // Loop backwards from (days - 1) down to 0 to ensure chronological order (oldest to newest)
+        for (int i = days - 1; i >= 0; i--) {
+            sharedDates.add(endDate.minusDays(i).format(DATE_FORMATTER));
+        }
 
-  
+        // 2. Build the Series Data (The Y-Axes)
+        ChartTrendDTO demandTrend = buildDemandTrend(sharedDates, days, random);
+        ChartTrendDTO timeTrend = buildTimeTrend(sharedDates, days, random);
+        ChartTrendDTO loanTrend = buildLoanTrend(sharedDates, days, random);
 
-[ 
+        return new TrendResponse(demandTrend, timeTrend, loanTrend);
+    }
 
-{ "x": "2026-07-27", "y": 45.0 }, 
+    private ChartTrendDTO buildDemandTrend(List<String> sharedDates, int days, Random random) {
+        List<SeriesDTO> series = List.of(
+            createMockSeries("Saving Bank A/c", "Demand Deposit", 45.0, days, random),
+            createMockSeries("Current A/c", "Demand Deposit", 12.0, days, random),
+            createMockSeries("Cash Credit Cr Balance", "Demand Deposit", 78.0, days, random),
+            createMockSeries("Other Demand Deposit", "Demand Deposit", 33.0, days, random)
+        );
+        return new ChartTrendDTO("Demand Deposits", "demandDepositsTrend", sharedDates, series);
+    }
 
-{ "x": "2026-07-28", "y": 46.5 }, 
+    private ChartTrendDTO buildTimeTrend(List<String> sharedDates, int days, Random random) {
+        List<SeriesDTO> series = List.of(
+            createMockSeries("Term Deposit", "Time Deposit", 56.0, days, random),
+            createMockSeries("Special Term Deposit", "Time Deposit", 91.0, days, random),
+            createMockSeries("Other Term Deposit", "Time Deposit", 27.0, days, random),
+            createMockSeries("Certificate of Deposit", "Time Deposit", 64.0, days, random)
+        );
+        return new ChartTrendDTO("Time Deposits", "timeDepositsTrend", sharedDates, series);
+    }
 
-{ "x": "2026-07-29", "y": 44.0 } 
+    private ChartTrendDTO buildLoanTrend(List<String> sharedDates, int days, Random random) {
+        List<SeriesDTO> series = List.of(
+            createMockSeries("Term Loan Account", "Loan", 28.0, days, random),
+            createMockSeries("Agri Cash Credit", "Loan", 55.0, days, random),
+            createMockSeries("Cash Credit", "Loan", 41.0, days, random),
+            createMockSeries("Demand Loan", "Loan", 82.0, days, random),
+            createMockSeries("Overdraft", "Loan", 73.0, days, random),
+            createMockSeries("Bills Payable", "Loan", 19.0, days, random)
+        );
+        return new ChartTrendDTO("Loans", "loansTrend", sharedDates, series);
+    }
 
-]   
+    /**
+     * Helper method to generate an array of values that perfectly aligns with the dates array.
+     */
+    private SeriesDTO createMockSeries(String name, String type, double baseValue, int days, Random random) {
+        List<Double> values = new ArrayList<>(days);
+        
+        for (int i = 0; i < days; i++) {
+            // Add a slight variance to the base value to make the chart look realistic
+            double variance = (random.nextDouble() * 10) - 5; // Variance between -5 and +5
+            double finalValue = Math.max(0, baseValue + variance); // Prevent negative balances in UI
+            
+            // Round to 2 decimal places (Standard for currency in Trillions/Billions)
+            values.add(Math.round(finalValue * 100.0) / 100.0);
+        }
+        return new SeriesDTO(name, type, values);
+    }
+}
 
-If the selected chart library can consume a shared category/X-axis plus a values array directly, the frontend can avoid creating these x/y objects and pass the arrays through an adapter. 
 
-  
 
-8. Example: Building Recharts Data 
 
-const chartData = response.dates.map((date, index) => { 
 
-const row = { date }; 
 
-  
 
-response.series.forEach(series => { 
 
-   row[series.name] = series.values[index]; 
 
-}); 
 
-  
 
-return row; 
 
-}); 
 
-  
 
-{response.series.map(series => ( 
 
-<Line 
 
-   key={series.name} 
 
-   dataKey={series.name} 
 
-   name={series.name} 
 
-/>
 
 
 
-Criteria   
 
-Approach A: Object Keys   
 
-Approach B: Shared Dates   
-
-Hardcoded account names in React   
-
-No, if Object.keys() is used   
-
-No   
-
-Repeated dates   
-
-Once per date row   
-
-Once in dates[]   
-
-Repeated account names   
-
-Once per account per row   
-
-Once per series   
-
-Network efficiency   
-
-Good for small data; less efficient as data grows   
-
-Better for regular time-series  
-
-Frontend transformation   
-
-Minimal   
-
-Small, deterministic mapping   
-
-Dynamic series   
-
-Yes   
-
-Yes   
-
-Stable identity   
-
-Less natural   
-
-Series can use name or a separate stable field if needed   
-
-Large time-series scalability   
-
-Lower   
-
-Higher Design   
-
- 
-
- 
-
- 
-
-10.Important Trade-Off B  Shared Dates +Series values is more network-efficient for a regular time series, but it introduces an index-based relationship: dates[i] corresponds to values[i]. This relationship must be validated and consistently maintained by the backend.
-
-
-10.Important Trade-Off B  Shared Dates +Series values is more network-efficient for a regular time series, but it introduces an index-based relationship: dates[i] corresponds to values[i]. This relationship must be validated and consistently maintained by the backend. 
-
-If different series can have completely different dates, or if missing dates are common and cannot be represented with null values, a per-point {date, value} structure may be safer. 
-
-11.Final Decision Selected: B Shared Dates + Series Values 
-
-For this requirement, B Shared Dates + Series Values is selected because it removes the two major sources of repetition: dates are transmitted once and account names are transmitted once. The frontend performs only a small deterministic mapping, while the backend remains independent of the charting library. 
-
-Approach A remains a valid and simple option for small datasets, particularly when direct chart rendering is the highest priority. However, when the requirement explicitly includes network optimization, reduced repetition, and scalability, B + Shared Dates provides the better overall API representation. 
-
- 
