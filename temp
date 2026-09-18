@@ -1,388 +1,195 @@
-package com.fincore.DashboardService.exception;
-import com.fasterxml.jackson.core.JsonProcessingException;
+package com.fincore.DashboardService.controller;
+
 import com.fincore.DashboardService.dto.ApiResponse;
-
+import com.fincore.DashboardService.dto.DashboardDataResponse;
+import com.fincore.DashboardService.dto.response.TrendResponse;
+import com.fincore.DashboardService.service.DashboardService;
+import com.fincore.DashboardService.service.DashboardTrendService;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-
-import java.net.URI;
-import java.util.stream.Collectors;
-
-import org.springframework.dao.DataIntegrityViolationException;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ProblemDetail;
 import org.springframework.http.ResponseEntity;
-import org.springframework.http.converter.HttpMessageNotReadableException;
-import org.springframework.web.bind.MethodArgumentNotValidException;
-import org.springframework.web.bind.annotation.ControllerAdvice;
-import org.springframework.web.bind.annotation.ExceptionHandler;
-import org.springframework.web.bind.annotation.ResponseStatus;
-import org.springframework.web.context.request.WebRequest;
-
-import jakarta.validation.ConstraintViolationException;
+import org.springframework.web.bind.annotation.*;
 
 /**
- * Global exception handler for the CommonRequestService.
- * This class uses the {@link ControllerAdvice @ControllerAdvice} annotation to
- * provide centralized exception handling across all controllers. It logs errors
- * and returns consistent {@link ApiResponse} objects with appropriate HTTP
- * status codes for various exception types.
+ * Main REST Controller for the FinCore Executive Dashboard.
+ * 
+ * This controller serves as the primary entry point for all dashboard-related UI components.
+ * It strictly acts as an HTTP routing and orchestration layer, delegating business logic 
+ * and database interactions to the underlying service layers.
+ * 
+ * Please see the comprehensive architectural documentation at the bottom of this file 
+ * regarding API separation and UI lifecycle behavior.
  */
-@ControllerAdvice
 @Slf4j
-public class GlobalExceptionHandler {
+@RestController
+@RequestMapping("/api/dashboard")
+@RequiredArgsConstructor
+public class DashboardController {
 
+    // Existing service created by team mate for Single-Day Point-In-Time Snapshot
+    private final DashboardService dashboardService;
+    
+    // New service for 7-Day Columnar Time-Series (Approach B)
+    private final DashboardTrendService dashboardTrendService;
+
+    // ===================================================================================
+    // API 1: THE OVERVIEW (Current Snapshot) - Maintained as-is
+    // ===================================================================================
     /**
-     * Handles {@link ResourceNotFoundException}.
-     * Returns an HTTP 404 Not Found response.
-     *
-     * @param ex The ResourceNotFoundException instance.
-     * @param request The current web request.
-     * @return A ResponseEntity containing an ApiResponse with an error message and HTTP status 404.
+     * Fetches the single-day snapshot for the dashboard (CASA Ratio, Composition, etc.).
+     * This API is highly optimized via a single bulk Druid query to prevent N+1 latency.
+     * 
+     * @param token JWT Authorization token containing user scope and roles.
+     * @return DashboardDataResponse containing nested JSON for the top-fold KPI charts.
      */
-    @ExceptionHandler(ResourceNotFoundException.class)
-    public ResponseEntity<ApiResponse<Object>> handleResourceNotFoundException(ResourceNotFoundException ex, WebRequest request) {
-        log.error("Resource not found: {}", ex.getMessage());
-        return new ResponseEntity<>(ApiResponse.error(ex.getMessage()), HttpStatus.NOT_FOUND);
+    @GetMapping("/dashboard-data")
+    public ResponseEntity<ApiResponse<DashboardDataResponse>> executeDashBoard(
+            @RequestHeader("Authorization") String token) {
+
+        log.info("Received request for Dashboard Overview Snapshot.");
+        
+        // Execute the existing parallel processing logic
+        DashboardDataResponse response = dashboardService.fetchDashboardData(token);
+        
+        return ResponseEntity.ok(ApiResponse.success(response, "Dashboard overview stats loaded"));
     }
 
+    // ===================================================================================
+    // API 2: THE TREND DATA (7-Day Historical) - New Implementation
+    // ===================================================================================
     /**
-     * Handles exceptions related to processing JSON payloads, such as malformed JSON or invalid data types.
-     * Catches {@link JsonProcessingException} and {@link HttpMessageNotReadableException}.
-     * Returns an HTTP 400 Bad Request response.
-     *
-     * @param ex The exception instance.
-     * @param request The current web request.
-     * @return A ResponseEntity containing an ApiResponse with an error message and HTTP status 400.
+     * Fetches the time-series trend data for the requested number of days.
+     * Utilizes a columnar JSON structure (Approach B) to drastically reduce network payload.
+     * 
+     * @param token JWT Authorization token.
+     * @param days  Number of historical days to fetch (Defaults to 7).
+     * @return TrendResponse containing flat date arrays and parallel series arrays.
      */
-    @ExceptionHandler({JsonProcessingException.class, HttpMessageNotReadableException.class})
-    public ResponseEntity<ApiResponse<Object>> handleJsonProcessingException(Exception ex, WebRequest request) {
-        log.error("Error processing JSON payload: {}", ex.getMessage());
-        return new ResponseEntity<>(ApiResponse.error("Invalid request payload format. Please check the JSON structure and data types."), HttpStatus.BAD_REQUEST);
+    @GetMapping("/trend-data")
+    public ResponseEntity<ApiResponse<TrendResponse>> getTrendData(
+            @RequestHeader("Authorization") String token,
+            @RequestParam(defaultValue = "7") int days) {
+
+        log.info("Received request for Dashboard Trend Data. Days requested: {}", days);
+
+        // Delegate to the new Trend Service
+        TrendResponse response = dashboardTrendService.fetchTrendData(days);
+
+        return ResponseEntity.ok(ApiResponse.success(response, days + "-Day trend data loaded successfully"));
     }
 
+    // ===================================================================================
+    // FUTURE API 3: FORECASTING (Predictive ML)
+    // ===================================================================================
     /**
-     * Handles {@link DataIntegrityViolationException}, typically thrown when database constraints are violated.
-     * Checks for specific messages related to unique constraints or pending requests and returns a 409 Conflict status.
-     *
-     * @param ex The DataIntegrityViolationException instance.
-     * @param request The current web request.
-     * @return A ResponseEntity containing an ApiResponse with a specific or generic conflict error message and HTTP status 409.
+     * Fetches ARIMA-based predictive trends for the next 30/60/90 days.
+     * Reads strictly from the offline-generated FINANCIAL_FORECAST Oracle table.
      */
-    @ExceptionHandler(DataIntegrityViolationException.class)
-    public ResponseEntity<ApiResponse<Object>> handleDataIntegrityViolationException(DataIntegrityViolationException ex, WebRequest request) {
-        log.error("Data integrity violation: {}", ex.getMessage());
-        // Check for common unique constraint violation message
-        log.error("error: {}",ex.getMostSpecificCause().getMessage());
-        if (ex.getMostSpecificCause().getMessage().contains("unique constraint")) {
-            return new ResponseEntity<>(ApiResponse.error("A resource with the provided identifier already exists."), HttpStatus.CONFLICT);
-        }else if(ex.getMostSpecificCause().getMessage().contains("pending request")) {
-            return new ResponseEntity<>(ApiResponse.error("A pending request is already exists."), HttpStatus.CONFLICT);
-        }
-        return new ResponseEntity<>(ApiResponse.error("Database constraint violation. A required field may be missing or a value is invalid."), HttpStatus.CONFLICT);
+    @GetMapping("/forecast-data")
+    public ResponseEntity<ApiResponse<Object>> getForecastData(
+            @RequestHeader("Authorization") String token,
+            @RequestParam(defaultValue = "30") int forecastHorizon) {
+        
+        log.info("Received request for Forecast Data. Horizon: {}", forecastHorizon);
+        return ResponseEntity.ok(ApiResponse.success(null, "Forecast API coming in Phase 3"));
     }
 
+    // ===================================================================================
+    // FUTURE API 4: GEOGRAPHY & HEATMAPS
+    // ===================================================================================
     /**
-     * Handles general argument and state-related exceptions.
-     * Catches {@link IllegalArgumentException} and {@link IllegalStateException}.
-     * Returns an HTTP 400 Bad Request response.
-     *
-     * @param ex The runtime exception instance.
-     * @param request The current web request.
-     * @return A ResponseEntity containing an ApiResponse with the exception's message and HTTP status 400.
+     * Fetches geographic distribution data for Circle/Branch heat maps.
+     * Lazy-loaded by the UI to prevent blocking the initial page render.
      */
-    @ExceptionHandler({IllegalArgumentException.class, IllegalStateException.class})
-    public ResponseEntity<ApiResponse<Object>> handleArgumentAndStateExceptions(RuntimeException ex, WebRequest request) {
-        log.error("Illegal argument or state: {}", ex.getMessage());
-        return new ResponseEntity<>(ApiResponse.error(ex.getMessage()), HttpStatus.BAD_REQUEST);
+    @GetMapping("/geography-data")
+    public ResponseEntity<ApiResponse<Object>> getGeographyData(
+            @RequestHeader("Authorization") String token,
+            @RequestParam(defaultValue = "CIRCLE") String level) {
+
+        log.info("Received request for Geography Data. Level: {}", level);
+        return ResponseEntity.ok(ApiResponse.success(null, "Geography API coming in Phase 4"));
     }
 
+    // ===================================================================================
+    // FUTURE API 5: DRILL-DOWN
+    // ===================================================================================
     /**
-     * A catch-all handler for any other unhandled exceptions.
-     * Ensures that unexpected errors are logged and a generic HTTP 500 Internal Server Error response is returned.
-     *
-     * @param ex The exception instance.
-     * @param request The current web request.
-     * @return A ResponseEntity containing a generic internal server error ApiResponse and HTTP status 500.
+     * Fetches detailed sub-ledger data when a user clicks a specific Circle or Branch.
+     * Will enforce strict DataScopeResolver security rules.
      */
-    @ExceptionHandler(Exception.class)
-    public ResponseEntity<ApiResponse<Object>> handleGlobalException(Exception ex, WebRequest request) {
-        log.error("An unexpected error occurred: {}", ex.getMessage(), ex);
-        return new ResponseEntity<>(ApiResponse.error("An internal server error occurred."), HttpStatus.INTERNAL_SERVER_ERROR);
-    }
+    @GetMapping("/drill-down")
+    public ResponseEntity<ApiResponse<Object>> getDrillDownData(
+            @RequestHeader("Authorization") String token,
+            @RequestParam String circleCode,
+            @RequestParam(required = false) String branchCode) {
 
-
-    /**
-     * Handles exceptions thrown when {@link jakarta.validation.Valid @Valid} validation fails on a request body.
-     * Collects all field errors and returns a 400 Bad Request with a list of validation errors.
-     *
-     * @param ex The MethodArgumentNotValidException instance.
-     * @return A ResponseEntity containing an ApiResponse with detailed validation errors and HTTP status 400.
-     */
-    @ExceptionHandler(MethodArgumentNotValidException.class)
-    @ResponseStatus(HttpStatus.BAD_REQUEST)
-    public ResponseEntity<ApiResponse<Object>> handleValidationExceptions(MethodArgumentNotValidException ex) {
-        // Collect all validation error messages into a single string.
-        String errors = ex.getBindingResult().getFieldErrors().stream()
-                .map(error -> error.getField() + ": " + error.getDefaultMessage())
-                .collect(Collectors.joining(", "));
-
-        log.warn("Validation failed for incoming request: {}", errors);
-        return new ResponseEntity<>(ApiResponse.error("Validation Failed: "+errors), HttpStatus.BAD_REQUEST);
-    }
-
-    /**
-     * Handles exceptions thrown by the Jakarta Validator, for example,
-     * when validation is manually triggered or constraints on service methods are violated.
-     * Returns a 400 Bad Request with a list of constraint violations.
-     *
-     * @param ex The ConstraintViolationException instance.
-     * @return A ResponseEntity containing an ApiResponse with detailed constraint violations and HTTP status 400.
-     */
-    @ExceptionHandler(ConstraintViolationException.class)
-    @ResponseStatus(HttpStatus.BAD_REQUEST)
-    public ResponseEntity<ApiResponse<Object>> handleConstraintViolationException(ConstraintViolationException ex) {
-        String errors = ex.getConstraintViolations().stream()
-                .map(cv -> cv.getPropertyPath() + ": " + cv.getMessage())
-                .collect(Collectors.joining(", "));
-
-        log.warn("Constraint violation during processing: {}", errors);
-        return new ResponseEntity<>(ApiResponse.error("Validation Failed: "+errors), HttpStatus.BAD_REQUEST);
-    }
-
-    /**
-     * Handles {@link BusinessRuleViolationException}.
-     * Returns a 400 Bad Request response when a business logic constraint is breached.
-     *
-     * @param ex The BusinessRuleViolationException instance containing the validation failure details.
-     * @return A ResponseEntity containing an ApiResponse with the specific business error message and HTTP status 400.
-     */
-    @ExceptionHandler(BusinessRuleViolationException.class)
-    public ResponseEntity<ApiResponse<Object>> handleBusinessRuleViolationException(BusinessRuleViolationException ex) {
-        log.error("Business rule violation: {}", ex.getMessage());
-        return new ResponseEntity<>(ApiResponse.error(ex.getMessage()), HttpStatus.BAD_REQUEST);
-    }
-
-    @ExceptionHandler(DownstreamServiceException.class)
-    public ProblemDetail handleDownstreamFailure(DownstreamServiceException ex) {
-        log.error("Downstream service failure: {}", ex.getMessage(), ex);
-        ProblemDetail problemDetail = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_GATEWAY, "A dependent service failed to respond.");
-        problemDetail.setType(URI.create("https://api.fincore.com/errors/downstream-failure"));
-        problemDetail.setTitle("Upstream Dependency Error");
-        return problemDetail;
-    }
-
-}
-
-
-
-
-
-
-package com.fincore.DashboardService.exception;
-
-import org.springframework.http.HttpStatus;
-import org.springframework.web.bind.annotation.ResponseStatus;
-@ResponseStatus(HttpStatus.NOT_FOUND)
-public class ResourceNotFoundException extends RuntimeException {
-
-    /**
-     * Constructs a new ResourceNotFoundException with the specified detail message.
-     * The cause is not initialized, and may subsequently be initialized by a
-     * call to {@link Throwable#initCause}.
-     *
-     * @param message the detail message (which is saved for later retrieval by the
-     *                {@link Throwable#getMessage()} method).
-     */
-    public ResourceNotFoundException(String message) {
-        super(message);
+        log.info("Received request for Drill-Down Data. Circle: {}, Branch: {}", circleCode, branchCode);
+        return ResponseEntity.ok(ApiResponse.success(null, "Drill-down API coming in Phase 5"));
     }
 }
 
-
-
-
-
-
-
-
-
-
-package com.fincore.DashboardService.exception;
-
-import org.springframework.http.HttpStatus;
-import org.springframework.web.bind.annotation.ResponseStatus;
-
-/**
- * Thrown when a request violates a specific business rule
- * (e.g., Invalid Email Format, Missing Reference Data).
+/* 
+ * ===================================================================================
+ * ARCHITECTURAL DOCUMENTATION: API STRATEGY & DASHBOARD LIFECYCLE
+ * ===================================================================================
+ * 
+ * 1. WHY SEPARATE APIS INSTEAD OF A SINGLE '/dashboard' MONOLITH?
+ * ----------------------------------------------------------------
+ * Early dashboard designs often attempt to fetch all data (KPIs, Trends, Maps, Forecasts)
+ * in a single API call. We explicitly reject that design for the following reasons:
+ * 
+ * A. Progressive Rendering (UX): 
+ *    If the Geographical Map takes 3 seconds to compute, a single API forces the user 
+ *    to stare at a blank screen for 3 seconds. By splitting the APIs, the top-fold 
+ *    KPIs (Overview) load in milliseconds, while the Trend Charts show a skeleton 
+ *    loader in the background. The user perceives the system as instantly responsive.
+ * 
+ * B. Fault Isolation (Resilience):
+ *    If the ARIMA ML model (Forecast) goes offline, or if the offline Oracle batch fails, 
+ *    only the Forecast API returns a 502/500 error. The rest of the dashboard remains 
+ *    100% functional. A single API would cause the entire dashboard to crash.
+ * 
+ * C. Caching Granularity:
+ *    The 7-Day Trend data only changes once a day at midnight. It can be cached in Redis 
+ *    with a 24-hour TTL. The Overview data might require real-time Druid querying. 
+ *    Separating them allows distinct cache strategies.
+ * 
+ * D. Payload Optimization:
+ *    Loading everything at once results in massive JSON payloads (megabytes of data). 
+ *    This spikes JVM memory on the backend and causes browser jank (stuttering) on the frontend.
+ * 
+ * 
+ * 2. THE END-TO-END DASHBOARD LIFECYCLE (How it behaves)
+ * ----------------------------------------------------------------
+ * Step 1: User Login & Context
+ *    - The user logs in via the Auth Service.
+ *    - The frontend receives a JWT. This JWT contains the User ID, Role, and Branch Code.
+ * 
+ * Step 2: The Initial Page Load (Parallel Fetch)
+ *    - The user navigates to the Dashboard route.
+ *    - The React frontend immediately fires TWO asynchronous requests simultaneously:
+ *      1) GET /api/dashboard/dashboard-data (Overview)
+ *      2) GET /api/dashboard/trend-data?days=7 (Trends)
+ * 
+ * Step 3: Progressive Display
+ *    - The 'dashboard-data' API returns almost instantly. The UI immediately renders 
+ *      the CASA Gauge, the Demand vs Time Donut chart, and the summary KPI cards.
+ *    - The 'trend-data' API arrives shortly after, and the skeleton loaders in the 
+ *      bottom half of the screen are replaced by the Stacked Bar Charts.
+ * 
+ * Step 4: Lazy Loading (Scroll Event)
+ *    - As the user scrolls down to the Map section, the frontend fires a request 
+ *      to GET /api/dashboard/geography-data. This ensures we don't query heavy 
+ *      geographic coordinates unless the user actually wants to see them.
+ * 
+ * Step 5: User Interaction (Drill-Down)
+ *    - The user (e.g., a Bank-level manager) clicks on "Circle C01" in the Heat Map.
+ *    - The frontend fires GET /api/dashboard/drill-down?circleCode=C01.
+ *    - The Backend intercepts this, verifies the user has authorization to view C01 
+ *      via the DataScopeResolver, and returns the specific branch details.
+ * 
+ * CONCLUSION:
+ * This design strictly adheres to the Single Responsibility Principle (SRP) and aligns 
+ * perfectly with modern React 'Suspense' and asynchronous data-fetching standards.
+ * ===================================================================================
  */
-@ResponseStatus(HttpStatus.BAD_REQUEST)
-public class BusinessRuleViolationException extends RuntimeException {
-    public BusinessRuleViolationException(String message) {
-        super(message);
-    }
-}
-
-
-
-
-package com.fincore.DashboardService.dto;
-
-
-import lombok.Data;
-import java.time.Instant;
-
-@Data
-public class ApiResponse<T> {
-    private boolean success;
-    private String message;
-    private T data;
-    private Instant timestamp;
-
-
-    public static <T> ApiResponse<T> success(T data, String msg) {
-        ApiResponse<T> r = new ApiResponse<>();
-        r.success = true;
-        r.message = msg;
-        r.data = data;
-        r.timestamp = Instant.now();
-        return r;
-    }
-    public static <T> ApiResponse<T> error(String message) {
-        ApiResponse<T> r = new ApiResponse<>();
-        r.success = false;
-        r.message = message;
-        r.data = null;
-        r.timestamp = Instant.now();
-        return r;
-    }
-}
-
-
-
-
-
-
-
-package com.fincore.DashboardService.dto;
-import com.fasterxml.jackson.annotation.JsonInclude;
-
-import lombok.Data;
-
-@Data
-@JsonInclude(JsonInclude.Include.NON_NULL)
-public class ChartDataItem {
-    private String name;
-    private String type;   // null for demandDeposits / termDeposits
-    private Double value;
-    private String casaValue;
-
-    public ChartDataItem(String name, String type, Double value) {
-        this.name = name;
-        this.type = type;
-        this.value = value;
-    }
-
-    public ChartDataItem(String name, String casaValue) {
-        this.name = name;
-        this.casaValue = casaValue;
-    }
-}
-
-
-
-
-
-package com.fincore.DashboardService.dto;
-import java.util.*;
-
-import com.fasterxml.jackson.annotation.JsonInclude;
-import lombok.Data;
-
-@Data
-@JsonInclude(JsonInclude.Include.NON_NULL)
-
-public class ChartDTO {
-    private String key;              // "depositsComposition", "demandDeposits", "termDeposits"
-    private String title;
-    private String subtitle;         // nullable
-    private List<String> filterOptions; // nullable
-    private String activeFilter;
-    private Double value;
-    // nullable
-    private List<ChartDataItem> data;
-}
-
-
-
-
-package com.fincore.DashboardService.dto;
-
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
-
-@Data
-@Builder
-@NoArgsConstructor
-@AllArgsConstructor
-public class DailyDataPoint {
-
-    private String date; // "2023-10-27"
-    private int created;
-    private int executed;
-
-}
-
-
-
-
-package com.fincore.DashboardService.dto;
-
-import lombok.*;
-
-import java.util.List;
-import java.util.Map;
-
-
-@Data
-@Builder
-@NoArgsConstructor
-@AllArgsConstructor
-public class DashboardDataResponse {
-    private List<Map<String, ChartDTO>> staticDashboardData;
-}
-
-
-
-
-
-package com.fincore.DashboardService.dto;
-
-import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
-
-public record FilterDto(
-        @NotBlank String logicalField, // e.g., "Branch"
-        @NotBlank String operator,
-        @NotNull Object value
-) {}
-
-
-
-
-package com.fincore.DashboardService.dto;
-
-import java.util.List;
-
-public record HeadCodeGroup(
-        String name,
-        List<String> headCodes
-) {
-}
-
-
-
-
-
