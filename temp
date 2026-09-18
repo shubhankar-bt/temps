@@ -114,3 +114,461 @@ VALUE	VARCHAR2(200 BYTE)	Yes		3
 
 
 
+
+
+
+
+
+
+package com.fincore.DashboardService.service;
+
+import com.fincore.DashboardService.client.DruidRestClient;
+import com.fincore.DashboardService.dto.ChartDTO;
+import com.fincore.DashboardService.dto.ChartDataItem;
+import com.fincore.DashboardService.dto.DashboardDataResponse;
+import com.fincore.DashboardService.dto.HeadCodeGroup;
+import com.fincore.DashboardService.exception.ResourceNotFoundException;
+import com.fincore.DashboardService.model.DashboardChartsHeaders;
+import com.fincore.DashboardService.model.DashboardHead;
+import com.fincore.DashboardService.model.RbParsedTemplate;
+import com.fincore.DashboardService.repository.CasaDataRepository;
+import com.fincore.DashboardService.repository.DashboardChartsHeadersRepository;
+import com.fincore.DashboardService.repository.DashboardHeadRepository;
+import com.fincore.DashboardService.repository.RbParsedTemplateRepository;
+import com.fincore.commonutilities.jwt.JwtUtil;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.stereotype.Service;
+
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
+import java.util.*;
+import java.util.concurrent.CompletableFuture;
+import java.util.stream.Collectors;
+
+@Service
+@RequiredArgsConstructor
+@Slf4j
+public class DashboardServiceImpl implements DashboardService {
+
+    private final JwtUtil jwtUtil;
+    private final DashboardHeadRepository dashboardHeadRepository;
+    private final RbParsedTemplateRepository rbParsedTemplateRepository;
+    private final DruidRestClient druidRestClient;
+    private final DashboardChartsHeadersRepository dashboardChartsHeadersRepository;
+    private final CasaDataRepository casaDataRepository;
+
+    private static boolean isBlank(Object s) {
+        if (s == null) return true;
+        return s.toString().isBlank();
+    }
+
+    private static String display(Object value) {
+        if (value == null) return "NULL";
+        String s = value.toString();
+        if (s.isBlank()) return "'(blank)'";
+        return "'" + s + "'";
+    }
+
+    @Override
+    public DashboardDataResponse fetchDashboardData(String token) {
+        long start = System.currentTimeMillis();
+
+        // 1. EXTRACT CONTEXT (Fast, In-Memory)
+        String userId = jwtUtil.getUserIdFromToken(token);
+        int roleIdInt = jwtUtil.getUserRoleFromToken(token);
+        String roleIdStr = String.valueOf(roleIdInt);
+
+        log.info(" Starting Parallel Dashboard Load for User: {}", userId);
+
+        // 2. FIRE INDEPENDENT TASKS (Async)
+
+        // Task A: Announcements (DB Call 1)
+        CompletableFuture<List<Map<String, ChartDTO>>> staticDashboardData = CompletableFuture.supplyAsync(() -> {
+            List<Map<String, ChartDTO>> res = staticDashboardData(roleIdInt);
+            return res;
+        });
+
+        // 4. WAIT FOR ALL & ASSEMBLE
+        // This will block only as long as the SLOWEST task takes.
+        DashboardDataResponse response = new DashboardDataResponse();
+        try {
+            CompletableFuture.allOf(
+                    staticDashboardData
+            ).join();
+            response.setStaticDashboardData(staticDashboardData.get());
+
+
+        } catch (Exception e) {
+            log.error("Error during parallel dashboard execution", e);
+            throw new RuntimeException("Failed to load dashboard data", e);
+        }
+
+        long duration = System.currentTimeMillis() - start;
+        log.info("Dashboard Loaded in {} ms (Parallel Execution)", duration);
+
+        return response;
+    }
+
+    public List<Map<String, ChartDTO>> staticDashboardData(Integer roleId) {
+
+
+        List<DashboardHead> allHeads = Optional.ofNullable(dashboardHeadRepository.findAll()).orElseGet(Collections::emptyList);
+        if (allHeads.isEmpty()) {
+            throw new ResourceNotFoundException("No Dashboard heads found ");
+        }
+
+        for (DashboardHead h : allHeads) {
+            if (isBlank(h.getProductType()) || isBlank(h.getType())
+                    || isBlank(h.getSubType()) || isBlank(h.getHeadName())
+                    || isBlank(h.getHeadCode()) || isBlank(h.getIsCasa())) {
+                throw new ResourceNotFoundException(
+                        "Dashboard head [" +
+                                "headCode=" + display(h.getHeadCode()) +
+                                ", productType=" + display(h.getProductType()) +
+                                ", type=" + display(h.getType()) +
+                                ", subType=" + display(h.getSubType()) +
+                                ", headName=" + display(h.getHeadName()) +
+                                ", isCasa=" + display(h.getIsCasa()) +
+                                "] has null/blank field(s)");
+            }
+        }
+
+        Map<String, Map<String, Map<String, Map<String, String>>>> headCodeTree = allHeads.stream()
+                .collect(Collectors.groupingBy(
+                        DashboardHead::getProductType,
+                        Collectors.groupingBy(
+                                DashboardHead::getType,
+                                Collectors.groupingBy(
+                                        DashboardHead::getSubType,
+                                        Collectors.toMap(
+                                                DashboardHead::getHeadName,
+                                                DashboardHead::getHeadCode,
+                                                (a, b) -> a
+                                        )
+                                )
+                        )
+                ));
+        printTree(headCodeTree, 0);
+        Map<String, Set<String>> allHeadCodeByProduct = allHeads.stream()
+                .collect(Collectors.groupingBy(
+                        DashboardHead::getProductType,
+                        Collectors.mapping(DashboardHead::getHeadCode, Collectors.toSet())
+                ));
+
+        // Step 3: Process each product type
+        List<Map<String, ChartDTO>> response = new ArrayList<>();
+
+
+        for (Map.Entry<String, Set<String>> entry : allHeadCodeByProduct.entrySet()) {
+            String productType = entry.getKey();       // "YSA" or "PNL"
+            Set<String> headCodes = entry.getValue(); // ["01036", "01059", ...]
+            double dataTotal = 0.0;
+            // Map productType → runId
+            Set<String> casaHeadCodes = allHeads.stream()
+                    .filter(h -> 'Y' == h.getIsCasa() && productType.equals(h.getProductType()))
+                    .map(DashboardHead::getHeadCode)
+                    .collect(Collectors.toSet());
+
+            Set<String> casaTypes = allHeads.stream()
+                    .filter(h -> 'Y' == h.getIsCasa() && productType.equals(h.getProductType()))
+                    .map(DashboardHead::getType)
+                    .collect(Collectors.toSet());
+            String runId = "YSA".equals(productType) ? "ysa_report" : "pnl_report";
+            String searchKey = "YSA".equals(productType) ? "YSA_HEADCODE" : "PNL_HEADCODE";
+            // Search RB_PARSED_TEMPLATE
+            Map<String, Map<String, Map<String, String>>> productTree = headCodeTree.get(productType);
+            List<RbParsedTemplate> templates = rbParsedTemplateRepository
+                    .findByRunIdAndHeadCodeIn(runId, headCodes);
+            for (RbParsedTemplate t : templates) {
+                if (isBlank(t.getHeadCode()) || isBlank(t.getRunId()) || isBlank(t.getAmountExpression())) {
+                    throw new ResourceNotFoundException(
+                            "Template [" +
+                                    "headCode=" + display(t.getHeadCode()) +
+                                    ", runId=" + display(t.getRunId()) +
+                                    ", amountExpression=" + display(t.getAmountExpression()) +
+                                    "] has null/blank field(s)");
+                }
+            }
+            List<HeadCodeGroup> headcodeData = templates.stream()
+                    .map(t -> new HeadCodeGroup(
+                            t.getHeadCode(),
+                            Arrays.asList(t.getAmountExpression().split("\\+"))
+                    ))
+                    .toList();
+
+            String query = buildQuery(headcodeData, LocalDate.now().format(DateTimeFormatter.ofPattern("dd-MM-yyyy")), searchKey);
+            log.info("queryyy: {}", query);
+            Map<String, Object> payload = Map.of("query", (Object) query);
+            List<Map<String, Object>> result;
+            try {
+                result = druidRestClient.executeQuery(payload);
+            } catch (Exception e) {
+                log.warn("Druid query failed, falling back to default data", e);
+                result = List.of(
+                        Map.of("GROUP_NAME", "01039", "TOTAL_BALANCE", 45),
+                        Map.of("GROUP_NAME", "01059", "TOTAL_BALANCE", 12),
+                        Map.of("GROUP_NAME", "01069", "TOTAL_BALANCE", 78),
+                        Map.of("GROUP_NAME", "01099", "TOTAL_BALANCE", 33),
+                        Map.of("GROUP_NAME", "01129", "TOTAL_BALANCE", 56),
+                        Map.of("GROUP_NAME", "01149", "TOTAL_BALANCE", 91),
+                        Map.of("GROUP_NAME", "01169", "TOTAL_BALANCE", 27),
+                        Map.of("GROUP_NAME", "02767", "TOTAL_BALANCE", 64),
+                        Map.of("GROUP_NAME", "20159", "TOTAL_BALANCE", 19),
+                        Map.of("GROUP_NAME", "20172", "TOTAL_BALANCE", 82),
+                        Map.of("GROUP_NAME", "20190", "TOTAL_BALANCE", 41),
+                        Map.of("GROUP_NAME", "20197", "TOTAL_BALANCE", 55),
+                        Map.of("GROUP_NAME", "20208", "TOTAL_BALANCE", 73)
+
+                );
+            }
+
+
+            Map<String, Double> balanceByCode = result.stream()
+                    .filter(row -> row.get("GROUP_NAME") != null && row.get("TOTAL_BALANCE") != null)
+                    .collect(Collectors.toMap(
+                            row -> (String) row.get("GROUP_NAME"),
+                            row -> ((Number) row.get("TOTAL_BALANCE")).doubleValue(),
+                            (a, b) -> a
+                    ));
+            double casaTotal = balanceByCode.entrySet().stream()
+                    .filter(e -> casaHeadCodes.contains(e.getKey()))
+                    .mapToDouble(Map.Entry::getValue)
+                    .sum();
+
+
+            Map<String, Object> responseTree = new LinkedHashMap<>();
+
+            for (Map.Entry<String, Map<String, Map<String, String>>> typeEntry : productTree.entrySet()) {
+                String type = typeEntry.getKey(); // "Deposit"
+                Map<String, Map<String, String>> subTypes = typeEntry.getValue();
+
+                Map<String, Object> typeMap = new LinkedHashMap<>();
+                double typeTotal = 0.0;
+
+                for (Map.Entry<String, Map<String, String>> subEntry : subTypes.entrySet()) {
+                    String subType = subEntry.getKey(); // "Demand Deposit"
+                    Map<String, String> headNameToCode = subEntry.getValue();
+
+                    Map<String, Object> subTypeMap = new LinkedHashMap<>();
+                    double subTypeTotal = 0.0;
+
+                    for (Map.Entry<String, String> head : headNameToCode.entrySet()) {
+                        String headName = head.getKey();   // "Saving Bank A/c"
+                        String headCode = head.getValue(); // "01036"
+
+                        double balance = balanceByCode.getOrDefault(headCode, 0.0);
+                        subTypeMap.put(headName, balance);
+                        subTypeTotal += balance;
+                    }
+}
+
+                    subTypeMap.put("Total " + subType, subTypeTotal);
+                    typeMap.put(subType, subTypeMap);
+                    typeTotal += subTypeTotal;
+                }
+
+
+                typeMap.put("Total " + type, typeTotal);
+                if (casaTypes.contains(type)) {
+                    dataTotal += typeTotal;
+                }
+                responseTree.put(type, typeMap);
+
+            }
+         
+            double casaRatio = dataTotal > 0 ? casaTotal / dataTotal : 0.0;
+            Map<String, ChartDTO> charts = buildAllCharts(responseTree, casaRatio);
+            response.add(charts);
+
+        }
+        return response;
+    }
+
+    public String buildQuery(
+            List<HeadCodeGroup> groups,
+            String date,
+            String searchKey
+    ) {
+
+        StringBuilder caseClause = new StringBuilder();
+        StringBuilder whereClause = new StringBuilder();
+
+        caseClause.append("CASE\n");
+
+        for (HeadCodeGroup group : groups) {
+
+            String array = buildArray(group.headCodes());
+
+            // CASE part
+            caseClause
+                    .append("    WHEN ARRAY_OVERLAP(\"").append(searchKey).append("\", ")
+                    .append(array)
+                    .append(") THEN '")
+                    .append(escapeSql(group.name()))
+                    .append("'\n");
+
+            // WHERE part
+            if (!whereClause.isEmpty()) {
+                whereClause.append("\n        OR ");
+            }
+
+            whereClause
+                    .append("ARRAY_OVERLAP(\"").append(searchKey).append("\", ")
+                    .append(array)
+                    .append(")");
+        }
+
+        caseClause.append("END");
+
+        return """
+                SELECT
+                    %s AS "GROUP_NAME",
+                    SUM("BALANCE") AS "TOTAL_BALANCE"
+                
+                FROM "PRODUCT_WISE"
+                
+                WHERE "DATE" = '%s'
+                
+                AND (
+                    %s
+                )
+                
+                GROUP BY 1
+                """.formatted(
+                caseClause,
+                escapeSql(date),
+                whereClause
+        );
+    }
+
+    private String buildArray(List<String> headCodes) {
+
+        String codes = headCodes.stream()
+                .map(this::escapeSql)
+                .map(code -> "'" + code + "'")
+                .collect(Collectors.joining(","));
+
+        return "ARRAY[" + codes + "]";
+    }
+
+    private String escapeSql(String value) {
+        return value.replace("'", "''");
+    }
+
+    public Map<String, ChartDTO> buildAllCharts(Map<String, Object> responseTree, Double casaRatio) {
+
+        List<DashboardChartsHeaders> headers = dashboardChartsHeadersRepository.findAll();
+        Map<String, ChartDTO> charts = new LinkedHashMap<>();
+
+        for (DashboardChartsHeaders header : headers) {
+            ChartDTO dto = new ChartDTO();
+            dto.setKey(toKey(header.getTitle()));
+            dto.setTitle(header.getTitle());
+            dto.setSubtitle(header.getSubtitle());
+            dto.setActiveFilter(header.getActiveFilter());
+
+            if (header.getFilterOptions() != null && !header.getFilterOptions().isBlank()) {
+                dto.setFilterOptions(Arrays.asList(header.getFilterOptions().split(",")));
+            }
+
+            if ("DASHBOARD_HEADS".equalsIgnoreCase(header.getDataTableName())) {
+                dto.setData(resolveData(header, responseTree));
+                dto.setValue(null);
+            } else if ("CASA_DATA".equalsIgnoreCase(header.getDataTableName())) {
+
+                dto.setValue(casaRatio);
+                dto.setData(getCasaChartData());
+            }
+
+            charts.put(dto.getKey(), dto);
+        }
+
+        return charts;
+    }
+
+    @SuppressWarnings("unchecked")
+    private List<ChartDataItem> resolveData(DashboardChartsHeaders header,
+                                            Map<String, Object> responseTree) {
+
+        String typeKey = header.getDataTypeKey();       // e.g. "Deposit"
+        String subTypeKey = header.getDataSubTypeKey(); // e.g. "Demand Deposit" or "Deposit"
+
+        if (typeKey == null || typeKey.isBlank()) {
+            return null; // no data source configured
+        }
+
+        Map<String, Object> parentMap = (Map<String, Object>) responseTree.get(typeKey);
+        if (parentMap == null) {
+            return null;
+        }
+
+        // Case 1: subTypeKey == typeKey → COMPOSITION (combine all children with type tag)
+        if (subTypeKey == null || subTypeKey.isBlank() || subTypeKey.equalsIgnoreCase(typeKey)) {
+            List<ChartDataItem> allItems = new ArrayList<>();
+            for (Map.Entry<String, Object> entry : parentMap.entrySet()) {
+                if (entry.getKey().startsWith("Total")) continue;
+                Map<String, Object> childMap = (Map<String, Object>) entry.getValue();
+                if (childMap == null) continue;
+                allItems.addAll(buildItems(childMap, entry.getKey())); // type = child key
+            }
+            return allItems;
+        }
+
+        // Case 2: subTypeKey is specific → single sub-map, no type tag
+        Map<String, Object> subMap = (Map<String, Object>) parentMap.get(subTypeKey);
+        if (subMap == null) {
+            return null;
+        }
+        return buildItems(subMap, subTypeKey);
+    }
+
+    private List<ChartDataItem> buildItems(Map<String, Object> sourceMap, String type) {
+        return sourceMap.entrySet().stream()
+                .filter(e -> !e.getKey().startsWith("Total"))
+                .filter(e -> e.getValue() instanceof Number)
+                .map(e -> new ChartDataItem(e.getKey(), type, ((Number) e.getValue()).doubleValue()))
+                .collect(Collectors.toList());
+    }
+
+    private List<ChartDataItem> buildCasaItems(Map<String, Object> sourceMap, String type) {
+        return sourceMap.entrySet().stream()
+                .filter(e -> !e.getKey().startsWith("Total"))
+                .filter(e -> e.getValue() instanceof Number)
+                .map(e -> new ChartDataItem(e.getKey(), type, ((Number) e.getValue()).doubleValue()))
+                .collect(Collectors.toList());
+    }
+
+    private String toKey(String title) {
+        return title.toLowerCase().replaceAll("\\s+", "");
+    }
+
+    public List<ChartDataItem> getCasaChartData() {
+        return casaDataRepository.findAllByOrderByIdAsc().stream()
+                .map(cd -> new ChartDataItem(cd.getName(), cd.getValue()))
+                .toList();
+    }
+
+    private void printTree(Map<String, ?> map, int depth) {
+        String indent = "  ".repeat(depth);
+        map.forEach((key, value) -> {
+            if (value instanceof Map) {
+                System.out.println(indent + key);
+                printTree((Map<String, ?>) value, depth + 1);
+            } else {
+                System.out.println(indent + key + " -> " + value);
+            }
+        });
+    }
+
+
+}
+
+
+
+
+
+
+
+
+
