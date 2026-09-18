@@ -1,3 +1,30 @@
+@RestController
+@RequestMapping("/api/dashboard")
+@RequiredArgsConstructor
+public class DashboardController {
+
+    private final DashboardService dashboardService;
+//
+//    @GetMapping("/init")
+//    public ResponseEntity<ApiResponse<DashboardResponse>> getDashboard(@RequestHeader("Authorization") String token) {
+//        DashboardResponse data = dashboardService.getDashboardData(token);
+//        return ResponseEntity.ok(ApiResponse.success(data, "Dashboard loaded"));
+//    }
+
+    @GetMapping("/dashboard-data")
+    public ResponseEntity<ApiResponse<DashboardDataResponse>> executeDashBoard(
+            @RequestHeader("Authorization") String token) {
+
+//        Integer roleId = jwtUtil.getUserRoleFromToken(token);
+
+        // Fetch only configurations permitted for this Role ID
+        DashboardDataResponse response = dashboardService.fetchDashboardData(token);
+        return ResponseEntity.ok(ApiResponse.success(response, "Frequency stats loaded"));
+    }
+
+}
+
+
 
 
 
@@ -14,6 +41,8 @@
 
 
 ===================================================================================================================
+
+
 
 
 db tables that are already in use by team mate  :
@@ -76,6 +105,12 @@ VALUE	VARCHAR2(200 BYTE)	Yes		3
 1	Below	Below 30%
 2	Mid	30% – 50%
 3	Above	Above 50%
+
+
+
+
+
+
 
 
 
