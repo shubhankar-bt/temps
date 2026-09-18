@@ -1,82 +1,81 @@
-"demanddeposits": {
-                    "data": 
-                    {
 
-                        "12-03-2026":{
-                        {
-                            "name": "Cash Credit Cr Balance",
-                            "type": "Demand Deposit",
 
-                            "value": 78.0
-                        },
-                        {
-                            "name": "Saving Bank A/c",
-                            "type": "Demand Deposit",
-                            "value": 45.0
-                        },
-                        {
-                            "name": "Current A/c",
-                            "type": "Demand Deposit",
-                            "value": 12.0
-                        },
-                        {
-                            "name": "Other Demand Deposit ",
-                            "type": "Demand Deposit",
-                            "value": 33.0
-                        }
-                    },
-                     "13-03-2026":
-                    {
-                        {
-                            "name": "Cash Credit Cr Balance",
-                            "type": "Demand Deposit",
-                            "value": 78.0
-                        },
-                        {
-                            "name": "Saving Bank A/c",
-                            "type": "Demand Deposit",
-                            "value": 45.0
-                        },
-                        {
-                            "name": "Current A/c",
-                            "type": "Demand Deposit",
-                            "value": 12.0
-                        },
-                        {
-                            "name": "Other Demand Deposit ",
-                            "type": "Demand Deposit",
-                            "value": 33.0
-                        }
-                    },
-                    "14-03-2026":
-                    {
 
-                        "date":"14-03-2026",
-                        {
-                            "name": "Cash Credit Cr Balance",
-                            "type": "Demand Deposit",
-                            "value": 78.0
-                        },
-                        {
-                            "name": "Saving Bank A/c",
-                            "type": "Demand Deposit",
-                            "value": 45.0
-                        },
-                        {
-                            "name": "Current A/c",
-                            "type": "Demand Deposit",
-                            "value": 12.0
-                        },
-                        {
-                            "name": "Other Demand Deposit ",
-                            "type": "Demand Deposit",
-                            "value": 33.0
-                        }
-                    },
 
-                },
-                    "key": "demanddeposits",
-                    "title": "Demand Deposits".
-                    "dates":['14-03-2026','12-03-2026']
-                }
- 
+
+
+
+
+
+
+
+
+
+
+
+===================================================================================================================
+
+
+db tables that are already in use by team mate  :
+dashboard_charts_headers
+
+
+ID	NUMBER(38,0)	No	"FINCORE"."ISEQ$$_83887".nextval	1	
+TITLE	VARCHAR2(100 BYTE)	No		2	
+SUBTITLE	VARCHAR2(200 BYTE)	Yes		3	
+FILTER_OPTIONS	VARCHAR2(500 BYTE)	Yes		4	
+ACTIVE_FILTER	VARCHAR2(100 BYTE)	Yes		5	
+DATA_TABLE_NAME	VARCHAR2(100 BYTE)	No		6	
+DATA_TYPE_KEY	VARCHAR2(100 BYTE)	Yes		7	
+DATA_SUB_TYPE_KEY	VARCHAR2(100 BYTE)	Yes		8	
+
+
+
+
+1	CASA Ratio	Current portfolio mix			CASA_DATA		
+2	Deposits	Composition by category (₹ T)	All Deposit,Demand Deposit,Time Deposit	All Deposit	DASHBOARD_HEADS	Deposit	Deposit
+3	Demand Deposits				DASHBOARD_HEADS	Deposit	Demand Deposit
+4	Time Deposits				DASHBOARD_HEADS	Deposit	Time Deposit
+21	Loans	Loans by category	All Loans	All Loans	DASHBOARD_HEADS	Loan	Loan
+
+
+
+DASHBOARD_HEADS :
+HEAD_NAME	VARCHAR2(100 BYTE)	No		1	
+HEAD_CODE	VARCHAR2(5 BYTE)	No		2	
+PRODUCT_TYPE	VARCHAR2(10 BYTE)	No		3	
+IS_CONSOLIDATED	CHAR(1 BYTE)	No	'N'	4	
+CREATED_AT	TIMESTAMP(6)	No	SYSTIMESTAMP 	5	
+UPDATED_AT	TIMESTAMP(6)	No	SYSTIMESTAMP 	6	
+TYPE	VARCHAR2(100 BYTE)	No		7	
+SUBTYPE	VARCHAR2(100 BYTE)	No		8	
+IS_CASA	CHAR(1 BYTE)	No	'N' 	9	
+
+data :
+Saving Bank A/c	01039	YSA	N	07-09-26 02:38:57.706294000 PM	07-09-26 02:38:57.706294000 PM	Deposit	Demand Deposit	Y
+Current A/c	01059	YSA	N	07-09-26 02:38:57.733683000 PM	07-09-26 02:38:57.733683000 PM	Deposit	Demand Deposit	Y
+Cash Credit Cr Balance	01069	YSA	N	07-09-26 02:38:57.761254000 PM	07-09-26 02:38:57.761254000 PM	Deposit	Demand Deposit	N
+Bills Payable 	20159	YSA	N	11-09-26 11:50:52.708472000 AM	11-09-26 11:50:52.708472000 AM	Loan	Loan	N
+Demand Loan 	20172	YSA	N	11-09-26 11:50:52.742492000 AM	11-09-26 11:50:52.742492000 AM	Loan	Loan	N
+Cash Credit 	20190	YSA	N	11-09-26 11:50:52.775889000 AM	11-09-26 11:50:52.775889000 AM	Loan	Loan	N
+Agri Cash Credit 	20197	YSA	N	11-09-26 11:50:52.809277000 AM	11-09-26 11:50:52.809277000 AM	Loan	Loan	N
+Overdraft 	20208	YSA	N	11-09-26 11:50:52.842851000 AM	11-09-26 11:50:52.842851000 AM	Loan	Loan	N
+Term Loan Account	20239	YSA	N	11-09-26 11:50:52.876075000 AM	11-09-26 11:50:52.876075000 AM	Loan	Loan	N
+Other Demand Deposit 	01099	YSA	N	09-09-26 12:19:30.380152000 PM	09-09-26 12:19:30.380152000 PM	Deposit	Demand Deposit	N
+term deposit 	01129	YSA	N	09-09-26 12:19:30.424655000 PM	09-09-26 12:19:30.424655000 PM	Deposit	Time Deposit	N
+Special Term Deposit 	01149	YSA	N	09-09-26 12:19:30.465645000 PM	09-09-26 12:19:30.465645000 PM	Deposit	Time Deposit	N
+Other Term Deposit 	01169	YSA	N	09-09-26 12:19:30.506331000 PM	09-09-26 12:19:30.506331000 PM	Deposit	Time Deposit	N
+Certificate of Deposit 	02767	YSA	N	09-09-26 12:19:30.547039000 PM	09-09-26 12:19:30.547039000 PM	Deposit	Time Deposit	N
+
+
+casa_data :
+ID	NUMBER(38,0)	No	"FINCORE"."ISEQ$$_83890".nextval	1	
+NAME	VARCHAR2(100 BYTE)	No		2	
+VALUE	VARCHAR2(200 BYTE)	Yes		3	
+
+1	Below	Below 30%
+2	Mid	30% – 50%
+3	Above	Above 50%
+
+
+
