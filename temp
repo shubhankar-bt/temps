@@ -1,195 +1,215 @@
-package com.fincore.DashboardService.controller;
+package com.fincore.DashboardService.dto.response;
 
-import com.fincore.DashboardService.dto.ApiResponse;
-import com.fincore.DashboardService.dto.DashboardDataResponse;
-import com.fincore.DashboardService.dto.response.TrendResponse;
-import com.fincore.DashboardService.service.DashboardService;
-import com.fincore.DashboardService.service.DashboardTrendService;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
+import java.util.List;
 
 /**
- * Main REST Controller for the FinCore Executive Dashboard.
- * 
- * This controller serves as the primary entry point for all dashboard-related UI components.
- * It strictly acts as an HTTP routing and orchestration layer, delegating business logic 
- * and database interactions to the underlying service layers.
- * 
- * Please see the comprehensive architectural documentation at the bottom of this file 
- * regarding API separation and UI lifecycle behavior.
+ * Encapsulates the entire 7-day columnar trend response (Approach B).
+ */
+public record TrendResponse(
+    ChartTrendDTO demandDeposits,
+    ChartTrendDTO timeDeposits,
+    ChartTrendDTO loans
+) {}
+
+record ChartTrendDTO(
+    String title,
+    String key,
+    List<String> dates,      // Shared X-Axis
+    List<SeriesDTO> series   // Parallel Y-Axes
+) {}
+
+record SeriesDTO(
+    String name,
+    String type,
+    List<Double> values
+) {}
+
+
+
+
+
+
+
+
+
+package com.fincore.DashboardService.service;
+
+import com.fincore.DashboardService.dto.response.ChartTrendDTO;
+import com.fincore.DashboardService.dto.response.SeriesDTO;
+import com.fincore.DashboardService.dto.response.TrendResponse;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.stereotype.Service;
+
+import java.time.Duration;
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
+import java.util.*;
+
+/**
+ * Service responsible for generating the highly optimized Columnar Trend payload (Approach B).
+ * Integrates directly with Druid (Analytics Service) and Redis for cache orchestration.
  */
 @Slf4j
-@RestController
-@RequestMapping("/api/dashboard")
+@Service
 @RequiredArgsConstructor
-public class DashboardController {
+public class DashboardTrendService {
 
-    // Existing service created by team mate for Single-Day Point-In-Time Snapshot
-    private final DashboardService dashboardService;
+    // Spring Boot auto-configures this. Ensure your Redis config supports Object serialization (e.g., GenericJackson2JsonRedisSerializer)
+    private final RedisTemplate<String, Object> redisTemplate; 
     
-    // New service for 7-Day Columnar Time-Series (Approach B)
-    private final DashboardTrendService dashboardTrendService;
+    private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("dd-MM-yyyy");
+    private final Random random = new Random();
 
-    // ===================================================================================
-    // API 1: THE OVERVIEW (Current Snapshot) - Maintained as-is
-    // ===================================================================================
+    @Value("${fincore.cache.trend.base-ttl-minutes:120}")
+    private long baseTtlMinutes;
+
+    @Value("${fincore.cache.trend.jitter-max-minutes:30}")
+    private int jitterMaxMinutes;
+
     /**
-     * Fetches the single-day snapshot for the dashboard (CASA Ratio, Composition, etc.).
-     * This API is highly optimized via a single bulk Druid query to prevent N+1 latency.
-     * 
-     * @param token JWT Authorization token containing user scope and roles.
-     * @return DashboardDataResponse containing nested JSON for the top-fold KPI charts.
+     * Fetches the 7-day trend. Checks Redis first to protect Druid from heavy grouping queries.
      */
-    @GetMapping("/dashboard-data")
-    public ResponseEntity<ApiResponse<DashboardDataResponse>> executeDashBoard(
-            @RequestHeader("Authorization") String token) {
+    public TrendResponse fetchTrendData(int days) {
+        if (days <= 0 || days > 365) {
+            log.warn("Invalid days parameter requested: {}. Defaulting to 7.", days);
+            days = 7;
+        }
 
-        log.info("Received request for Dashboard Overview Snapshot.");
+        // 1. Generate Scope-Aware Cache Key (Assuming Bank level for now, update with DataScopeResolver later)
+        String cacheKey = "dashboard:trend:global:days:" + days;
         
-        // Execute the existing parallel processing logic
-        DashboardDataResponse response = dashboardService.fetchDashboardData(token);
+        // 2. Check Redis Cache
+        try {
+            TrendResponse cachedResponse = (TrendResponse) redisTemplate.opsForValue().get(cacheKey);
+            if (cachedResponse != null) {
+                log.info("Redis Cache HIT for key: {}", cacheKey);
+                return cachedResponse;
+            }
+        } catch (Exception e) {
+            // Never fail the request if Redis is temporarily down; fail safely and hit the DB
+            log.error("Redis cache retrieval failed, falling back to Druid: {}", e.getMessage());
+        }
+
+        log.info("Redis Cache MISS for key: {}. Fetching from Analytics Service (Druid).", cacheKey);
+
+        LocalDate endDate = LocalDate.now();
         
-        return ResponseEntity.ok(ApiResponse.success(response, "Dashboard overview stats loaded"));
-    }
-
-    // ===================================================================================
-    // API 2: THE TREND DATA (7-Day Historical) - New Implementation
-    // ===================================================================================
-    /**
-     * Fetches the time-series trend data for the requested number of days.
-     * Utilizes a columnar JSON structure (Approach B) to drastically reduce network payload.
-     * 
-     * @param token JWT Authorization token.
-     * @param days  Number of historical days to fetch (Defaults to 7).
-     * @return TrendResponse containing flat date arrays and parallel series arrays.
-     */
-    @GetMapping("/trend-data")
-    public ResponseEntity<ApiResponse<TrendResponse>> getTrendData(
-            @RequestHeader("Authorization") String token,
-            @RequestParam(defaultValue = "7") int days) {
-
-        log.info("Received request for Dashboard Trend Data. Days requested: {}", days);
-
-        // Delegate to the new Trend Service
-        TrendResponse response = dashboardTrendService.fetchTrendData(days);
-
-        return ResponseEntity.ok(ApiResponse.success(response, days + "-Day trend data loaded successfully"));
-    }
-
-    // ===================================================================================
-    // FUTURE API 3: FORECASTING (Predictive ML)
-    // ===================================================================================
-    /**
-     * Fetches ARIMA-based predictive trends for the next 30/60/90 days.
-     * Reads strictly from the offline-generated FINANCIAL_FORECAST Oracle table.
-     */
-    @GetMapping("/forecast-data")
-    public ResponseEntity<ApiResponse<Object>> getForecastData(
-            @RequestHeader("Authorization") String token,
-            @RequestParam(defaultValue = "30") int forecastHorizon) {
+        // 3. Fetch Raw Data from Druid (Currently Mocked)
+        // TODO: Replace this method call with druidRestClient.executeQuery(payload) when Druid is online.
+        List<Map<String, Object>> druidResults = getMockDruidResponse(endDate, days);
         
-        log.info("Received request for Forecast Data. Horizon: {}", forecastHorizon);
-        return ResponseEntity.ok(ApiResponse.success(null, "Forecast API coming in Phase 3"));
+        // 4. Transform Druid Rows into Columnar Format (Approach B)
+        TrendResponse response = processColumnarData(druidResults, endDate, days);
+
+        // 5. Save to Cache with Jitter
+        cacheResultWithJitter(cacheKey, response);
+
+        return response;
     }
 
-    // ===================================================================================
-    // FUTURE API 4: GEOGRAPHY & HEATMAPS
-    // ===================================================================================
     /**
-     * Fetches geographic distribution data for Circle/Branch heat maps.
-     * Lazy-loaded by the UI to prevent blocking the initial page render.
+     * Transforms standard SQL/Druid rows into the strict Array/Columnar format expected by React.
      */
-    @GetMapping("/geography-data")
-    public ResponseEntity<ApiResponse<Object>> getGeographyData(
-            @RequestHeader("Authorization") String token,
-            @RequestParam(defaultValue = "CIRCLE") String level) {
+    private TrendResponse processColumnarData(List<Map<String, Object>> druidResults, LocalDate endDate, int days) {
+        // Step A: Build the Shared X-Axis (Chronological Dates)
+        List<String> sharedDates = new ArrayList<>(days);
+        for (int i = days - 1; i >= 0; i--) {
+            sharedDates.add(endDate.minusDays(i).format(DATE_FORMATTER));
+        }
 
-        log.info("Received request for Geography Data. Level: {}", level);
-        return ResponseEntity.ok(ApiResponse.success(null, "Geography API coming in Phase 4"));
+        // Step B: Restructure Druid results for fast lookup -> Map<Domain, Map<Description, Map<Date, Amount>>>
+        Map<String, Map<String, Map<String, Double>>> lookupMap = new HashMap<>();
+        
+        for (Map<String, Object> row : druidResults) {
+            String dateStr = (String) row.get("BUSINESS_DATE");
+            String domain = (String) row.get("DOMAIN");
+            String description = (String) row.get("DESCRIPTION");
+            Double amount = ((Number) row.get("TOTAL_AMOUNT")).doubleValue();
+
+            lookupMap.computeIfAbsent(domain, k -> new HashMap<>())
+                     .computeIfAbsent(description, k -> new HashMap<>())
+                     .put(dateStr, amount);
+        }
+
+        // Step C: Build strict aligned series arrays
+        ChartTrendDTO demandTrend = buildChartDTO("Demand Deposits", "demandDepositsTrend", sharedDates, lookupMap.getOrDefault("DEPOSIT", Collections.emptyMap()), 
+                List.of("Saving Bank A/c", "Current A/c", "Cash Credit Cr Balance", "Other Demand Deposit"));
+        
+        ChartTrendDTO timeTrend = buildChartDTO("Time Deposits", "timeDepositsTrend", sharedDates, lookupMap.getOrDefault("DEPOSIT", Collections.emptyMap()), 
+                List.of("Term Deposit", "Special Term Deposit", "Other Term Deposit", "Certificate of Deposit"));
+        
+        ChartTrendDTO loanTrend = buildChartDTO("Loans", "loansTrend", sharedDates, lookupMap.getOrDefault("LOAN", Collections.emptyMap()), 
+                List.of("Term Loan Account", "Agri Cash Credit", "Cash Credit", "Demand Loan", "Overdraft", "Bills Payable"));
+
+        return new TrendResponse(demandTrend, timeTrend, loanTrend);
     }
 
-    // ===================================================================================
-    // FUTURE API 5: DRILL-DOWN
-    // ===================================================================================
     /**
-     * Fetches detailed sub-ledger data when a user clicks a specific Circle or Branch.
-     * Will enforce strict DataScopeResolver security rules.
+     * Enforces the Index Alignment Rule for Approach B. 
+     * If a date is missing in Druid, it explicitly injects 0.0 into the array.
      */
-    @GetMapping("/drill-down")
-    public ResponseEntity<ApiResponse<Object>> getDrillDownData(
-            @RequestHeader("Authorization") String token,
-            @RequestParam String circleCode,
-            @RequestParam(required = false) String branchCode) {
+    private ChartTrendDTO buildChartDTO(String title, String key, List<String> sharedDates, Map<String, Map<String, Double>> domainData, List<String> categories) {
+        List<SeriesDTO> seriesList = new ArrayList<>();
+        
+        for (String category : categories) {
+            Map<String, Double> dateAmounts = domainData.getOrDefault(category, Collections.emptyMap());
+            List<Double> values = new ArrayList<>(sharedDates.size());
+            
+            for (String date : sharedDates) {
+                // IMPORTANT: If Druid missed a day, default to 0.0 to prevent the React chart from breaking alignment
+                values.add(dateAmounts.getOrDefault(date, 0.0));
+            }
+            seriesList.add(new SeriesDTO(category, title, values));
+        }
+        
+        return new ChartTrendDTO(title, key, sharedDates, seriesList);
+    }
 
-        log.info("Received request for Drill-Down Data. Circle: {}, Branch: {}", circleCode, branchCode);
-        return ResponseEntity.ok(ApiResponse.success(null, "Drill-down API coming in Phase 5"));
+    /**
+     * Caches the payload in Redis with a randomized Jitter.
+     * Prevents cache stampedes (Thundering Herd).
+     */
+    private void cacheResultWithJitter(String cacheKey, TrendResponse response) {
+        try {
+            int jitter = random.nextInt(jitterMaxMinutes + 1);
+            Duration ttl = Duration.ofMinutes(baseTtlMinutes).plusMinutes(jitter);
+            
+            redisTemplate.opsForValue().set(cacheKey, response, ttl);
+            log.info("Cached trend data in Redis. Key: {} | TTL: {} minutes (includes {}m jitter)", cacheKey, ttl.toMinutes(), jitter);
+        } catch (Exception e) {
+            log.error("Failed to write to Redis cache: {}", e.getMessage());
+        }
+    }
+
+    /**
+     * MOCKS the raw row response we expect from Druid via the Analytics Service.
+     * When Druid is up, delete this method and replace its invocation with actual API calls.
+     */
+    private List<Map<String, Object>> getMockDruidResponse(LocalDate endDate, int days) {
+        List<Map<String, Object>> mockRows = new ArrayList<>();
+        String[] demandCategories = {"Saving Bank A/c", "Current A/c", "Cash Credit Cr Balance", "Other Demand Deposit"};
+        String[] timeCategories = {"Term Deposit", "Special Term Deposit", "Other Term Deposit", "Certificate of Deposit"};
+        String[] loanCategories = {"Term Loan Account", "Agri Cash Credit", "Cash Credit", "Demand Loan", "Overdraft", "Bills Payable"};
+
+        for (int i = days - 1; i >= 0; i--) {
+            String dateStr = endDate.minusDays(i).format(DATE_FORMATTER);
+
+            // Mock Deposit Rows
+            for (String category : demandCategories) {
+                mockRows.add(Map.of("BUSINESS_DATE", dateStr, "DOMAIN", "DEPOSIT", "DESCRIPTION", category, "TOTAL_AMOUNT", 40.0 + random.nextInt(10)));
+            }
+            for (String category : timeCategories) {
+                mockRows.add(Map.of("BUSINESS_DATE", dateStr, "DOMAIN", "DEPOSIT", "DESCRIPTION", category, "TOTAL_AMOUNT", 50.0 + random.nextInt(10)));
+            }
+            // Mock Loan Rows
+            for (String category : loanCategories) {
+                mockRows.add(Map.of("BUSINESS_DATE", dateStr, "DOMAIN", "LOAN", "DESCRIPTION", category, "TOTAL_AMOUNT", 30.0 + random.nextInt(15)));
+            }
+        }
+        return mockRows;
     }
 }
 
-/* 
- * ===================================================================================
- * ARCHITECTURAL DOCUMENTATION: API STRATEGY & DASHBOARD LIFECYCLE
- * ===================================================================================
- * 
- * 1. WHY SEPARATE APIS INSTEAD OF A SINGLE '/dashboard' MONOLITH?
- * ----------------------------------------------------------------
- * Early dashboard designs often attempt to fetch all data (KPIs, Trends, Maps, Forecasts)
- * in a single API call. We explicitly reject that design for the following reasons:
- * 
- * A. Progressive Rendering (UX): 
- *    If the Geographical Map takes 3 seconds to compute, a single API forces the user 
- *    to stare at a blank screen for 3 seconds. By splitting the APIs, the top-fold 
- *    KPIs (Overview) load in milliseconds, while the Trend Charts show a skeleton 
- *    loader in the background. The user perceives the system as instantly responsive.
- * 
- * B. Fault Isolation (Resilience):
- *    If the ARIMA ML model (Forecast) goes offline, or if the offline Oracle batch fails, 
- *    only the Forecast API returns a 502/500 error. The rest of the dashboard remains 
- *    100% functional. A single API would cause the entire dashboard to crash.
- * 
- * C. Caching Granularity:
- *    The 7-Day Trend data only changes once a day at midnight. It can be cached in Redis 
- *    with a 24-hour TTL. The Overview data might require real-time Druid querying. 
- *    Separating them allows distinct cache strategies.
- * 
- * D. Payload Optimization:
- *    Loading everything at once results in massive JSON payloads (megabytes of data). 
- *    This spikes JVM memory on the backend and causes browser jank (stuttering) on the frontend.
- * 
- * 
- * 2. THE END-TO-END DASHBOARD LIFECYCLE (How it behaves)
- * ----------------------------------------------------------------
- * Step 1: User Login & Context
- *    - The user logs in via the Auth Service.
- *    - The frontend receives a JWT. This JWT contains the User ID, Role, and Branch Code.
- * 
- * Step 2: The Initial Page Load (Parallel Fetch)
- *    - The user navigates to the Dashboard route.
- *    - The React frontend immediately fires TWO asynchronous requests simultaneously:
- *      1) GET /api/dashboard/dashboard-data (Overview)
- *      2) GET /api/dashboard/trend-data?days=7 (Trends)
- * 
- * Step 3: Progressive Display
- *    - The 'dashboard-data' API returns almost instantly. The UI immediately renders 
- *      the CASA Gauge, the Demand vs Time Donut chart, and the summary KPI cards.
- *    - The 'trend-data' API arrives shortly after, and the skeleton loaders in the 
- *      bottom half of the screen are replaced by the Stacked Bar Charts.
- * 
- * Step 4: Lazy Loading (Scroll Event)
- *    - As the user scrolls down to the Map section, the frontend fires a request 
- *      to GET /api/dashboard/geography-data. This ensures we don't query heavy 
- *      geographic coordinates unless the user actually wants to see them.
- * 
- * Step 5: User Interaction (Drill-Down)
- *    - The user (e.g., a Bank-level manager) clicks on "Circle C01" in the Heat Map.
- *    - The frontend fires GET /api/dashboard/drill-down?circleCode=C01.
- *    - The Backend intercepts this, verifies the user has authorization to view C01 
- *      via the DataScopeResolver, and returns the specific branch details.
- * 
- * CONCLUSION:
- * This design strictly adheres to the Single Responsibility Principle (SRP) and aligns 
- * perfectly with modern React 'Suspense' and asynchronous data-fetching standards.
- * ===================================================================================
- */
