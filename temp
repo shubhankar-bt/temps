@@ -1,0 +1,177 @@
+{
+    "data": {
+        "staticDashboardData": [
+            {
+                "casaratio": {
+                    "data": [
+                        {
+                            "casaValue": "Below 30%",
+                            "name": "Below"
+                        },
+                        {
+                            "casaValue": "30% – 50%",
+                            "name": "Mid"
+                        },
+                        {
+                            "casaValue": "Above 50%",
+                            "name": "Above"
+                        }
+                    ],
+                    "key": "casaratio",
+                    "subtitle": "Current portfolio mix",
+                    "title": "CASA Ratio",
+                    "value": 0.14039408866995073
+                },
+                "deposits": {
+                    "activeFilter": "All Deposit",
+                    "data": [
+                        {
+                            "name": "Certificate of Deposit ",
+                            "type": "Time Deposit",
+                            "value": 64.0
+                        },
+                        {
+                            "name": "Other Term Deposit ",
+                            "type": "Time Deposit",
+                            "value": 27.0
+                        },
+                        {
+                            "name": "Special Term Deposit ",
+                            "type": "Time Deposit",
+                            "value": 91.0
+                        },
+                        {
+                            "name": "term deposit ",
+                            "type": "Time Deposit",
+                            "value": 56.0
+                        },
+                        {
+                            "name": "Cash Credit Cr Balance",
+                            "type": "Demand Deposit",
+                            "value": 78.0
+                        },
+                        {
+                            "name": "Saving Bank A/c",
+                            "type": "Demand Deposit",
+                            "value": 45.0
+                        },
+                        {
+                            "name": "Current A/c",
+                            "type": "Demand Deposit",
+                            "value": 12.0
+                        },
+                        {
+                            "name": "Other Demand Deposit ",
+                            "type": "Demand Deposit",
+                            "value": 33.0
+                        }
+                    ],
+                    "filterOptions": [
+                        "All Deposit",
+                        "Demand Deposit",
+                        "Time Deposit"
+                    ],
+                    "key": "deposits",
+                    "subtitle": "Composition by category (₹ T)",
+                    "title": "Deposits"
+                },
+                "demanddeposits": {
+                    "data": [
+                        {
+                            "name": "Cash Credit Cr Balance",
+                            "type": "Demand Deposit",
+                            "value": 78.0
+                        },
+                        {
+                            "name": "Saving Bank A/c",
+                            "type": "Demand Deposit",
+                            "value": 45.0
+                        },
+                        {
+                            "name": "Current A/c",
+                            "type": "Demand Deposit",
+                            "value": 12.0
+                        },
+                        {
+                            "name": "Other Demand Deposit ",
+                            "type": "Demand Deposit",
+                            "value": 33.0
+                        }
+                    ],
+                    "key": "demanddeposits",
+                    "title": "Demand Deposits"
+                },
+                "timedeposits": {
+                    "data": [
+                        {
+                            "name": "Certificate of Deposit ",
+                            "type": "Time Deposit",
+                            "value": 64.0
+                        },
+                        {
+                            "name": "Other Term Deposit ",
+                            "type": "Time Deposit",
+                            "value": 27.0
+                        },
+                        {
+                            "name": "Special Term Deposit ",
+                            "type": "Time Deposit",
+                            "value": 91.0
+                        },
+                        {
+                            "name": "term deposit ",
+                            "type": "Time Deposit",
+                            "value": 56.0
+                        }
+                    ],
+                    "key": "timedeposits",
+                    "title": "Time Deposits"
+                },
+                "loans": {
+                    "activeFilter": "All Loans",
+                    "data": [
+                        {
+                            "name": "Term Loan Account",
+                            "type": "Loan",
+                            "value": 28.0
+                        },
+                        {
+                            "name": "Agri Cash Credit ",
+                            "type": "Loan",
+                            "value": 55.0
+                        },
+                        {
+                            "name": "Cash Credit ",
+                            "type": "Loan",
+                            "value": 41.0
+                        },
+                        {
+                            "name": "Demand Loan ",
+                            "type": "Loan",
+                            "value": 82.0
+                        },
+                        {
+                            "name": "Overdraft ",
+                            "type": "Loan",
+                            "value": 73.0
+                        },
+                        {
+                            "name": "Bills Payable ",
+                            "type": "Loan",
+                            "value": 19.0
+                        }
+                    ],
+                    "filterOptions": [
+                        "All Loans"
+                    ],
+                    "key": "loans",
+                    "subtitle": "Loans by category",
+                    "title": "Loans"
+                }
+            }
+        ]
+    },
+    "message": "Frequency stats loaded",
+    "success": true,
+    "timestamp": "2026-09-16T06:58:18.313365100Z"
+}
