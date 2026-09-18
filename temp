@@ -1,3 +1,11 @@
+The below data has been created by my team mate, he has written the code to send this data to fe and the response looks like below. Now there is little change in the loan distrinution, demand depsit, time deposit. 
+there is requiremt to show last 7 days trend and then in that particular day classification. 
+
+If possible then will create a separe api and provide this data to frontend. For now our druid connection is not ready, i ahve provided thge sample data to you, you can create the mocki data to provide the fubnctionality. 
+Prior implmentations that we discussed, no need to continue that now as teamamte has already done it. 
+
+
+
 {
     "data": {
         "staticDashboardData": [
