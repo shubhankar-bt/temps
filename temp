@@ -1,238 +1,152 @@
-now the response looks like :
+package com.fincore.DashboardService.dto.response;
 
-{
-    "data": {
-        "demandDeposits": {
-            "title": "Demand Deposits",
-            "key": "demandDepositsTrend",
-            "dates": [
-                "15-09-2026",
-                "16-09-2026",
-                "17-09-2026",
-                "18-09-2026",
-                "19-09-2026",
-                "20-09-2026",
-                "21-09-2026"
-            ],
-            "series": [
-                {
-                    "name": "Saving Bank A/c",
-                    "type": "Demand Deposits",
-                    "values": [
-                        40.0,
-                        42.0,
-                        48.0,
-                        43.0,
-                        44.0,
-                        49.0,
-                        46.0
-                    ]
-                },
-                {
-                    "name": "Current A/c",
-                    "type": "Demand Deposits",
-                    "values": [
-                        43.0,
-                        42.0,
-                        49.0,
-                        42.0,
-                        47.0,
-                        43.0,
-                        49.0
-                    ]
-                },
-                {
-                    "name": "Cash Credit Cr Balance",
-                    "type": "Demand Deposits",
-                    "values": [
-                        47.0,
-                        49.0,
-                        45.0,
-                        46.0,
-                        49.0,
-                        44.0,
-                        47.0
-                    ]
-                },
-                {
-                    "name": "Other Demand Deposit",
-                    "type": "Demand Deposits",
-                    "values": [
-                        42.0,
-                        46.0,
-                        42.0,
-                        46.0,
-                        43.0,
-                        45.0,
-                        42.0
-                    ]
-                }
-            ]
-        },
-        "timeDeposits": {
-            "title": "Time Deposits",
-            "key": "timeDepositsTrend",
-            "dates": [
-                "15-09-2026",
-                "16-09-2026",
-                "17-09-2026",
-                "18-09-2026",
-                "19-09-2026",
-                "20-09-2026",
-                "21-09-2026"
-            ],
-            "series": [
-                {
-                    "name": "Term Deposit",
-                    "type": "Time Deposits",
-                    "values": [
-                        50.0,
-                        51.0,
-                        55.0,
-                        55.0,
-                        50.0,
-                        50.0,
-                        51.0
-                    ]
-                },
-                {
-                    "name": "Special Term Deposit",
-                    "type": "Time Deposits",
-                    "values": [
-                        51.0,
-                        55.0,
-                        58.0,
-                        52.0,
-                        51.0,
-                        57.0,
-                        51.0
-                    ]
-                },
-                {
-                    "name": "Other Term Deposit",
-                    "type": "Time Deposits",
-                    "values": [
-                        53.0,
-                        55.0,
-                        56.0,
-                        56.0,
-                        56.0,
-                        59.0,
-                        59.0
-                    ]
-                },
-                {
-                    "name": "Certificate of Deposit",
-                    "type": "Time Deposits",
-                    "values": [
-                        57.0,
-                        50.0,
-                        59.0,
-                        53.0,
-                        52.0,
-                        55.0,
-                        59.0
-                    ]
-                }
-            ]
-        },
-        "loans": {
-            "title": "Loans",
-            "key": "loansTrend",
-            "dates": [
-                "15-09-2026",
-                "16-09-2026",
-                "17-09-2026",
-                "18-09-2026",
-                "19-09-2026",
-                "20-09-2026",
-                "21-09-2026"
-            ],
-            "series": [
-                {
-                    "name": "Term Loan Account",
-                    "type": "Loans",
-                    "values": [
-                        42.0,
-                        35.0,
-                        36.0,
-                        36.0,
-                        40.0,
-                        43.0,
-                        35.0
-                    ]
-                },
-                {
-                    "name": "Agri Cash Credit",
-                    "type": "Loans",
-                    "values": [
-                        31.0,
-                        36.0,
-                        33.0,
-                        44.0,
-                        33.0,
-                        33.0,
-                        30.0
-                    ]
-                },
-                {
-                    "name": "Cash Credit",
-                    "type": "Loans",
-                    "values": [
-                        42.0,
-                        41.0,
-                        30.0,
-                        31.0,
-                        38.0,
-                        40.0,
-                        34.0
-                    ]
-                },
-                {
-                    "name": "Demand Loan",
-                    "type": "Loans",
-                    "values": [
-                        37.0,
-                        36.0,
-                        44.0,
-                        30.0,
-                        35.0,
-                        44.0,
-                        30.0
-                    ]
-                },
-                {
-                    "name": "Overdraft",
-                    "type": "Loans",
-                    "values": [
-                        30.0,
-                        37.0,
-                        30.0,
-                        32.0,
-                        40.0,
-                        39.0,
-                        31.0
-                    ]
-                },
-                {
-                    "name": "Bills Payable",
-                    "type": "Loans",
-                    "values": [
-                        31.0,
-                        30.0,
-                        32.0,
-                        36.0,
-                        41.0,
-                        42.0,
-                        39.0
-                    ]
-                }
-            ]
+import java.util.List;
+
+/**
+ * Encapsulates a single time-series chart configuration and its data.
+ * Formatted specifically for React charting libraries (Row-based matrix).
+ */
+public record ChartTrendDTO(
+    String key,
+    String title,
+    List<ProductMetaDTO> products,
+    List<TrendDataPointDTO> data
+) {}
+
+/**
+ * Represents the metadata for the categories in the chart.
+ * The index of the product in the 'products' array strictly matches 
+ * the index of its measurement in the 'values' array.
+ */
+public record ProductMetaDTO(
+    String name,
+    String type
+) {}
+
+/**
+ * Represents a single point on the X-Axis (Date) and all parallel Y-values.
+ */
+public record TrendDataPointDTO(
+    String date,
+    List<Double> values
+) {}
+
+
+
+
+
+
+
+
+
+
+
+package com.fincore.DashboardService.service;
+
+import com.fincore.DashboardService.dto.response.ChartTrendDTO;
+import com.fincore.DashboardService.dto.response.ProductMetaDTO;
+import com.fincore.DashboardService.dto.response.TrendDataPointDTO;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.stereotype.Service;
+
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Random;
+
+/**
+ * Handles the retrieval and formatting of time-series trend data.
+ * Outputs a strict row-based array matrix requested by the frontend team.
+ */
+@Slf4j
+@Service
+@RequiredArgsConstructor
+public class DashboardTrendService {
+
+    private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd");
+
+    /**
+     * Fetches the trend data for the requested number of historical days.
+     * 
+     * @param days The number of historical days to fetch (e.g., 7)
+     * @return List of ChartTrendDTOs matching the exact frontend contract
+     */
+    public List<ChartTrendDTO> fetchTrendData(int days) {
+        if (days <= 0 || days > 365) {
+            log.warn("Invalid days parameter requested: {}. Defaulting to 7.", days);
+            days = 7;
         }
-    },
-    "message": "7-Day trend data loaded successfully",
-    "success": true,
-    "timestamp": "2026-09-21T05:16:42.890751700Z"
+
+        log.info("Generating {}-day row-based trend data for Frontend", days);
+        
+        LocalDate endDate = LocalDate.now();
+        Random random = new Random();
+
+        List<ChartTrendDTO> charts = new ArrayList<>();
+
+        // 1. Demand Deposits Chart
+        charts.add(buildChart(
+            "demandDeposits", "Demand Deposits", "Demand Deposit", 
+            List.of("Saving Bank A/c", "Current A/c", "Cash Credit Cr Balance", "Other Demand Deposit"),
+            List.of(45.0, 12.0, 78.0, 33.0), // Base values for mocking
+            days, endDate, random
+        ));
+
+        // 2. Time Deposits Chart
+        charts.add(buildChart(
+            "timeDeposits", "Time Deposits", "Time Deposit", 
+            List.of("Certificate of Deposit", "Other Term Deposit", "Special Term Deposit", "Term Deposit"),
+            List.of(64.0, 27.0, 91.0, 56.0), 
+            days, endDate, random
+        ));
+
+        // 3. Loans Chart
+        charts.add(buildChart(
+            "loansBreakdown", "Loan Distribution", "Loan", 
+            List.of("Term Loan Account", "Agri Cash Credit", "Cash Credit", "Demand Loan", "Overdraft", "Bills Payable"),
+            List.of(28.0, 55.0, 41.0, 82.0, 73.0, 19.0), 
+            days, endDate, random
+        ));
+
+        return charts;
+    }
+
+    /**
+     * Helper method to dynamically construct the Chart matrix.
+     * Ensures strict index alignment between products and their daily values.
+     */
+    private ChartTrendDTO buildChart(
+            String key, String title, String typeName, 
+            List<String> productNames, List<Double> baseValues, 
+            int days, LocalDate endDate, Random random) {
+
+        // Build Product Metadata
+        List<ProductMetaDTO> products = productNames.stream()
+                .map(name -> new ProductMetaDTO(name, typeName))
+                .toList();
+
+        // Build Data Points (Row by Row, Date by Date)
+        List<TrendDataPointDTO> dataPoints = new ArrayList<>(days);
+        
+        // Loop backwards to ensure chronological order
+        for (int i = days - 1; i >= 0; i--) {
+            String dateStr = endDate.minusDays(i).format(DATE_FORMATTER);
+            List<Double> dailyValues = new ArrayList<>(productNames.size());
+            
+            // Generate values strictly mapped to the index of the products array
+            for (Double baseValue : baseValues) {
+                double variance = (random.nextDouble() * 4) - 2; // slight realistic variance
+                double finalValue = Math.max(0, baseValue + variance);
+                dailyValues.add(Math.round(finalValue * 10.0) / 10.0);
+            }
+            
+            dataPoints.add(new TrendDataPointDTO(dateStr, dailyValues));
+        }
+
+        return new ChartTrendDTO(key, title, products, dataPoints);
+    }
 }
 
 
@@ -242,70 +156,10 @@ now the response looks like :
 
 
 
+// FROM THIS:
+public ResponseEntity<ApiResponse<TrendResponse>> getTrendData(
+
+// TO THIS:
+public ResponseEntity<ApiResponse<List<ChartTrendDTO>>> getTrendData(
 
 
-
-
-
-but the frontend expects :
-
-[
-  {
-    "key": "demandDeposits",
-    "title": "Demand Deposits",
-    "products": [
-      { "name": "Saving Bank A/c", "type": "Demand Deposit" },
-      { "name": "Current A/c", "type": "Demand Deposit" },
-      { "name": "Cash Credit Cr Balance", "type": "Demand Deposit" },
-      { "name": "Other Demand Deposit", "type": "Demand Deposit" }
-    ],
-    "data": [
-      { "date": "2026-09-14", "values": [44.0, 11.5, 76.5, 32.0] },
-      { "date": "2026-09-15", "values": [45.5, 12.2, 77.8, 33.5] },
-      { "date": "2026-09-16", "values": [44.8, 11.8, 77.2, 32.8] },
-      { "date": "2026-09-17", "values": [45.2, 12.1, 78.4, 33.2] },
-      { "date": "2026-09-18", "values": [45.0, 12.0, 78.0, 33.0] }
-    ]
-  },
-  {
-    "key": "timeDeposits",
-    "title": "Time Deposits",
-    "products": [
-      { "name": "Certificate of Deposit", "type": "Time Deposit" },
-      { "name": "Other Term Deposit", "type": "Time Deposit" },
-      { "name": "Special Term Deposit", "type": "Time Deposit" },
-      { "name": "Term Deposit", "type": "Time Deposit" }
-    ],
-    "data": [
-      { "date": "2026-09-14", "values": [63.0, 26.5, 89.5, 55.0] },
-      { "date": "2026-09-15", "values": [64.5, 27.3, 90.8, 56.4] },
-      { "date": "2026-09-16", "values": [63.8, 26.8, 90.2, 55.7] },
-      { "date": "2026-09-17", "values": [64.2, 27.1, 91.3, 56.2] },
-      { "date": "2026-09-18", "values": [64.0, 27.0, 91.0, 56.0] }
-    ]
-  },
-  {
-    "key": "loansBreakdown",
-    "title": "Loan Distribution",
-    "products": [
-      { "name": "Term Loan Account", "type": "Loan" },
-      { "name": "Agri Cash Credit", "type": "Loan" },
-      { "name": "Cash Credit", "type": "Loan" },
-      { "name": "Demand Loan", "type": "Loan" },
-      { "name": "Overdraft", "type": "Loan" },
-      { "name": "Bills Payable", "type": "Loan" }
-    ],
-    "data": [
-      { "date": "2026-09-14", "values": [27.5, 54.0, 40.5, 80.5, 72.0, 18.5] },
-      { "date": "2026-09-15", "values": [28.3, 55.5, 41.4, 81.8, 73.5, 19.3] },
-      { "date": "2026-09-16", "values": [27.8, 54.8, 40.8, 81.2, 72.8, 18.8] },
-      { "date": "2026-09-17", "values": [28.1, 55.2, 41.2, 82.4, 73.3, 19.1] },
-      { "date": "2026-09-18", "values": [28.0, 55.0, 41.0, 82.0, 73.0, 19.0] }
-    ]
-  }
-]
-
-
-
-
-which is better? and which one we shall select? are both the responses same ? what to do next?
