@@ -1,290 +1,245 @@
-{
-    "data": [
-        {
-            "key": "demandDeposits",
-            "title": "Demand Deposits",
-            "products": [
-                {
-                    "name": "Saving Bank A/c",
-                    "type": "Demand Deposit"
-                },
-                {
-                    "name": "Current A/c",
-                    "type": "Demand Deposit"
-                },
-                {
-                    "name": "Cash Credit Cr Balance",
-                    "type": "Demand Deposit"
-                },
-                {
-                    "name": "Other Demand Deposit ",
-                    "type": "Demand Deposit"
-                }
-            ],
-            "data": [
-                {
-                    "date": "2026-09-15",
-                    "values": [
-                        44.9,
-                        34.1,
-                        67.4,
-                        62.7
-                    ]
-                },
-                {
-                    "date": "2026-09-16",
-                    "values": [
-                        45.9,
-                        34.9,
-                        67.0,
-                        64.9
-                    ]
-                },
-                {
-                    "date": "2026-09-17",
-                    "values": [
-                        44.1,
-                        31.1,
-                        64.8,
-                        63.2
-                    ]
-                },
-                {
-                    "date": "2026-09-18",
-                    "values": [
-                        44.1,
-                        34.0,
-                        66.9,
-                        61.4
-                    ]
-                },
-                {
-                    "date": "2026-09-19",
-                    "values": [
-                        43.9,
-                        32.6,
-                        64.9,
-                        61.2
-                    ]
-                },
-                {
-                    "date": "2026-09-20",
-                    "values": [
-                        46.1,
-                        33.1,
-                        68.0,
-                        61.4
-                    ]
-                },
-                {
-                    "date": "2026-09-21",
-                    "values": [
-                        44.6,
-                        33.1,
-                        65.1,
-                        62.6
-                    ]
-                }
-            ]
-        },
-        {
-            "key": "timeDeposits",
-            "title": "Time Deposits",
-            "products": [
-                {
-                    "name": "term deposit ",
-                    "type": "Time Deposit"
-                },
-                {
-                    "name": "Special Term Deposit ",
-                    "type": "Time Deposit"
-                },
-                {
-                    "name": "Other Term Deposit ",
-                    "type": "Time Deposit"
-                },
-                {
-                    "name": "Certificate of Deposit ",
-                    "type": "Time Deposit"
-                }
-            ],
-            "data": [
-                {
-                    "date": "2026-09-15",
-                    "values": [
-                        40.3,
-                        63.5,
-                        57.4,
-                        69.7
-                    ]
-                },
-                {
-                    "date": "2026-09-16",
-                    "values": [
-                        40.7,
-                        64.5,
-                        56.3,
-                        69.2
-                    ]
-                },
-                {
-                    "date": "2026-09-17",
-                    "values": [
-                        40.4,
-                        61.4,
-                        56.2,
-                        69.5
-                    ]
-                },
-                {
-                    "date": "2026-09-18",
-                    "values": [
-                        40.2,
-                        63.3,
-                        58.1,
-                        67.9
-                    ]
-                },
-                {
-                    "date": "2026-09-19",
-                    "values": [
-                        39.1,
-                        62.0,
-                        57.4,
-                        68.6
-                    ]
-                },
-                {
-                    "date": "2026-09-20",
-                    "values": [
-                        39.6,
-                        63.7,
-                        56.9,
-                        68.1
-                    ]
-                },
-                {
-                    "date": "2026-09-21",
-                    "values": [
-                        40.7,
-                        63.5,
-                        55.3,
-                        69.0
-                    ]
-                }
-            ]
-        },
-        {
-            "key": "loansBreakdown",
-            "title": "Loans",
-            "products": [
-                {
-                    "name": "Bills Payable ",
-                    "type": "Loan"
-                },
-                {
-                    "name": "Demand Loan ",
-                    "type": "Loan"
-                },
-                {
-                    "name": "Cash Credit ",
-                    "type": "Loan"
-                },
-                {
-                    "name": "Agri Cash Credit ",
-                    "type": "Loan"
-                },
-                {
-                    "name": "Overdraft ",
-                    "type": "Loan"
-                },
-                {
-                    "name": "Term Loan Account",
-                    "type": "Loan"
-                }
-            ],
-            "data": [
-                {
-                    "date": "2026-09-15",
-                    "values": [
-                        43.6,
-                        36.4,
-                        37.8,
-                        49.4,
-                        29.5,
-                        51.3
-                    ]
-                },
-                {
-                    "date": "2026-09-16",
-                    "values": [
-                        42.9,
-                        37.8,
-                        36.1,
-                        49.6,
-                        30.9,
-                        52.2
-                    ]
-                },
-                {
-                    "date": "2026-09-17",
-                    "values": [
-                        42.3,
-                        34.4,
-                        38.0,
-                        49.9,
-                        31.6,
-                        50.8
-                    ]
-                },
-                {
-                    "date": "2026-09-18",
-                    "values": [
-                        43.2,
-                        36.3,
-                        37.2,
-                        49.1,
-                        30.5,
-                        49.4
-                    ]
-                },
-                {
-                    "date": "2026-09-19",
-                    "values": [
-                        41.2,
-                        34.2,
-                        37.9,
-                        50.7,
-                        31.6,
-                        49.2
-                    ]
-                },
-                {
-                    "date": "2026-09-20",
-                    "values": [
-                        40.7,
-                        37.8,
-                        36.2,
-                        52.2,
-                        29.2,
-                        52.9
-                    ]
-                },
-                {
-                    "date": "2026-09-21",
-                    "values": [
-                        42.3,
-                        36.5,
-                        36.5,
-                        51.6,
-                        29.7,
-                        52.8
-                    ]
-                }
-            ]
-        }
-    ],
-    "message": "7-Day trend data loaded successfully",
-    "success": true,
-    "timestamp": "2026-09-21T05:33:06.763490900Z"
-}
+ProductWiseQueryBuilder — All Cases 
+
+Core Idea 
+
+Every method you call adds a clause to the SQL. Every method you don't call → that clause simply doesn't exist. No empty fragments, no nulls. 
+
+ 
+
+The 5 Building Blocks 
+
+ 
+
+Case 1: Nothing — just total balance 
+
+new ProductWiseQueryBuilder().build(); 
+
+SELECT 
+   SUM("BALANCE") AS "TOTAL_BALANCE" 
+FROM "PRODUCT_WISE" 
+
+No WHERE, no GROUP BY. Just the grand total. 
+
+ 
+
+Case 2: Groups only (no date filter) 
+
+new ProductWiseQueryBuilder() 
+   .groups(List.of( 
+       new HeadCodeGroup("CASA", List.of("01036")), 
+       new HeadCodeGroup("Demand Deposit", List.of("01042","01043")) 
+   )) 
+   .build(); 
+
+SELECT 
+   CASE 
+       WHEN ARRAY_OVERLAP("YSA_HEADCODE", ARRAY['01036']) THEN 'CASA' 
+       WHEN ARRAY_OVERLAP("YSA_HEADCODE", ARRAY['01042','01043']) THEN 'Demand Deposit' 
+   END AS "GROUP_NAME", 
+   SUM("BALANCE") AS "TOTAL_BALANCE" 
+FROM "PRODUCT_WISE" 
+WHERE ( 
+   ARRAY_OVERLAP("YSA_HEADCODE", ARRAY['01036']) 
+   OR ARRAY_OVERLAP("YSA_HEADCODE", ARRAY['01042','01043']) 
+) 
+GROUP BY 1 
+ORDER BY 1 
+
+What appeared: CASE, ARRAY_OVERLAP WHERE, GROUP BY 1 
+What didn't: no date filter, no extra columns 
+
+ 
+
+Case 3: Groups + single date (your old query) 
+
+new ProductWiseQueryBuilder() 
+   .groups(groups) 
+   .dates(List.of("21-09-2026")) 
+   .searchKey("HEAD_CODE") 
+   .build(); 
+
+SELECT 
+   CASE 
+       WHEN ARRAY_OVERLAP("HEAD_CODE", ARRAY['01036']) THEN 'CASA' 
+       WHEN ARRAY_OVERLAP("HEAD_CODE", ARRAY['01042','01043']) THEN 'Demand Deposit' 
+   END AS "GROUP_NAME", 
+   SUM("BALANCE") AS "TOTAL_BALANCE" 
+FROM "PRODUCT_WISE" 
+WHERE "DATE" = '21-09-2026' 
+ AND ( 
+   ARRAY_OVERLAP("HEAD_CODE", ARRAY['01036']) 
+   OR ARRAY_OVERLAP("HEAD_CODE", ARRAY['01042','01043']) 
+ ) 
+GROUP BY 1 
+ORDER BY 1 
+
+What appeared: date filter with =, CASE, ARRAY_OVERLAP, GROUP BY 1 
+What didn't: no groupBy columns, no extra conditions 
+
+ 
+
+Case 4: Groups + multi-date + groupBy DATE (your new query) 
+
+new ProductWiseQueryBuilder() 
+   .groups(groups) 
+   .dates(List.of("12-04-2026", "13-04-2026", "14-04-2026")) 
+   .searchKey("YSA_HEADCODE") 
+   .groupBy("DATE") 
+   .build(); 
+
+SELECT 
+   "DATE", 
+   CASE 
+       WHEN ARRAY_OVERLAP("YSA_HEADCODE", ARRAY['01036']) THEN 'CASA' 
+       WHEN ARRAY_OVERLAP("YSA_HEADCODE", ARRAY['01042','01043']) THEN 'Demand Deposit' 
+   END AS "GROUP_NAME", 
+   SUM("BALANCE") AS "TOTAL_BALANCE" 
+FROM "PRODUCT_WISE" 
+WHERE "DATE" IN ('12-04-2026','13-04-2026','14-04-2026') 
+ AND ( 
+   ARRAY_OVERLAP("YSA_HEADCODE", ARRAY['01036']) 
+   OR ARRAY_OVERLAP("YSA_HEADCODE", ARRAY['01042','01043']) 
+ ) 
+GROUP BY 1, 2 
+ORDER BY 1, 2 
+
+What appeared: "DATE" in SELECT, date filter with IN, GROUP BY 1, 2 
+What didn't: no extra conditions 
+
+ 
+
+Case 5: Groups + dates + groupBy + conditions (full) 
+
+new ProductWiseQueryBuilder() 
+   .groups(groups) 
+   .dates(List.of("12-04-2026", "13-04-2026")) 
+   .searchKey("YSA_HEADCODE") 
+   .groupBy("DATE", "BRANCH_CODE") 
+   .addCondition( 
+       new ConditionDto("BRANCH_CODE", "IN", List.of("BR001","BR002")), 
+       new ConditionDto("REGION", "=", List.of("WEST")) 
+   ) 
+   .build(); 
+
+SELECT 
+   "DATE", 
+   "BRANCH_CODE", 
+   CASE 
+       WHEN ARRAY_OVERLAP("YSA_HEADCODE", ARRAY['01036']) THEN 'CASA' 
+       WHEN ARRAY_OVERLAP("YSA_HEADCODE", ARRAY['01042','01043']) THEN 'Demand Deposit' 
+   END AS "GROUP_NAME", 
+   SUM("BALANCE") AS "TOTAL_BALANCE" 
+FROM "PRODUCT_WISE" 
+WHERE "DATE" IN ('12-04-2026','13-04-2026') 
+ AND ( 
+   ARRAY_OVERLAP("YSA_HEADCODE", ARRAY['01036']) 
+   OR ARRAY_OVERLAP("YSA_HEADCODE", ARRAY['01042','01043']) 
+ ) 
+ AND ( 
+   "BRANCH_CODE" IN ('BR001','BR002') 
+   AND "REGION" = ('WEST') 
+ ) 
+GROUP BY 1, 2, 3 
+ORDER BY 1, 2, 3 
+
+What appeared: everything — 2 groupBy columns, date IN, ARRAY_OVERLAP, 2 extra conditions, GROUP BY 1,2,3 
+
+ 
+
+Case 6: Dates + conditions only (no groups) 
+
+new ProductWiseQueryBuilder() 
+   .dates(List.of("21-09-2026")) 
+   .addCondition( 
+       new ConditionDto("BRANCH_CODE", "IN", List.of("BR001")) 
+   ) 
+   .build(); 
+
+SELECT 
+   SUM("BALANCE") AS "TOTAL_BALANCE" 
+FROM "PRODUCT_WISE" 
+WHERE "DATE" = '21-09-2026' 
+ AND ( 
+   "BRANCH_CODE" IN ('BR001') 
+ ) 
+
+No CASE, no ARRAY_OVERLAP, no GROUP BY. Just a filtered total. 
+
+ 
+
+Case 7: groupBy without groups 
+
+new ProductWiseQueryBuilder() 
+   .dates(List.of("12-04-2026", "13-04-2026")) 
+   .groupBy("DATE") 
+   .build(); 
+
+SELECT 
+   "DATE", 
+   SUM("BALANCE") AS "TOTAL_BALANCE" 
+FROM "PRODUCT_WISE" 
+WHERE "DATE" IN ('12-04-2026','13-04-2026') 
+GROUP BY 1 
+ORDER BY 1 
+
+Total balance per date, no head code grouping. 
+
+ 
+
+Quick Reference — What Controls What 
+
+┌─────────────────────────────────────────────────────────────────┐ 
+│  .groups(...)     →  CASE in SELECT                            │ 
+│                     ARRAY_OVERLAP in WHERE (OR-joined)         │ 
+│                     +1 to GROUP BY count                       │ 
+├─────────────────────────────────────────────────────────────────┤ 
+│  .dates(...)      →  WHERE "DATE" = / IN                       │ 
+├─────────────────────────────────────────────────────────────────┤ 
+│  .searchKey(...)  →  column name inside ARRAY_OVERLAP          │ 
+├─────────────────────────────────────────────────────────────────┤ 
+│  .groupBy(...)    →  columns in SELECT                         │ 
+│                     increments GROUP BY / ORDER BY ordinals    │ 
+├─────────────────────────────────────────────────────────────────┤ 
+│  .addCondition()  →  AND (col OP (vals)) in WHERE              │ 
+└─────────────────────────────────────────────────────────────────┘ 
+
+Rule of thumb: call what you need, skip what you don't. The SQL always matches exactly what you asked for. 
+
+ 
+
+Method 
+
+What it controls 
+
+Default (if not called) 
+
+.groups(...) 
+
+CASE in SELECT + ARRAY_OVERLAP in WHERE 
+
+(none) → no CASE, no ARRAY_OVERLAP 
+
+.dates(...) 
+
+WHERE "DATE" = ... or IN (...) 
+
+(none) → no date filter 
+
+.searchKey(...) 
+
+Column name inside ARRAY_OVERLAP 
+
+"YSA_HEADCODE" 
+
+.groupBy(...) 
+
+Extra columns in SELECT + GROUP BY ordinals 
+
+(none) → no extra columns 
+
+.addCondition(...) 
+
+Extra AND (...) in WHERE 
+
+(none) → no extra filters 
+
