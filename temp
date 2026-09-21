@@ -1,215 +1,311 @@
-package com.fincore.DashboardService.dto.response;
+now the response looks like :
 
-import java.util.List;
-
-/**
- * Encapsulates the entire 7-day columnar trend response (Approach B).
- */
-public record TrendResponse(
-    ChartTrendDTO demandDeposits,
-    ChartTrendDTO timeDeposits,
-    ChartTrendDTO loans
-) {}
-
-record ChartTrendDTO(
-    String title,
-    String key,
-    List<String> dates,      // Shared X-Axis
-    List<SeriesDTO> series   // Parallel Y-Axes
-) {}
-
-record SeriesDTO(
-    String name,
-    String type,
-    List<Double> values
-) {}
-
-
-
-
-
-
-
-
-
-package com.fincore.DashboardService.service;
-
-import com.fincore.DashboardService.dto.response.ChartTrendDTO;
-import com.fincore.DashboardService.dto.response.SeriesDTO;
-import com.fincore.DashboardService.dto.response.TrendResponse;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.data.redis.core.RedisTemplate;
-import org.springframework.stereotype.Service;
-
-import java.time.Duration;
-import java.time.LocalDate;
-import java.time.format.DateTimeFormatter;
-import java.util.*;
-
-/**
- * Service responsible for generating the highly optimized Columnar Trend payload (Approach B).
- * Integrates directly with Druid (Analytics Service) and Redis for cache orchestration.
- */
-@Slf4j
-@Service
-@RequiredArgsConstructor
-public class DashboardTrendService {
-
-    // Spring Boot auto-configures this. Ensure your Redis config supports Object serialization (e.g., GenericJackson2JsonRedisSerializer)
-    private final RedisTemplate<String, Object> redisTemplate; 
-    
-    private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("dd-MM-yyyy");
-    private final Random random = new Random();
-
-    @Value("${fincore.cache.trend.base-ttl-minutes:120}")
-    private long baseTtlMinutes;
-
-    @Value("${fincore.cache.trend.jitter-max-minutes:30}")
-    private int jitterMaxMinutes;
-
-    /**
-     * Fetches the 7-day trend. Checks Redis first to protect Druid from heavy grouping queries.
-     */
-    public TrendResponse fetchTrendData(int days) {
-        if (days <= 0 || days > 365) {
-            log.warn("Invalid days parameter requested: {}. Defaulting to 7.", days);
-            days = 7;
+{
+    "data": {
+        "demandDeposits": {
+            "title": "Demand Deposits",
+            "key": "demandDepositsTrend",
+            "dates": [
+                "15-09-2026",
+                "16-09-2026",
+                "17-09-2026",
+                "18-09-2026",
+                "19-09-2026",
+                "20-09-2026",
+                "21-09-2026"
+            ],
+            "series": [
+                {
+                    "name": "Saving Bank A/c",
+                    "type": "Demand Deposits",
+                    "values": [
+                        40.0,
+                        42.0,
+                        48.0,
+                        43.0,
+                        44.0,
+                        49.0,
+                        46.0
+                    ]
+                },
+                {
+                    "name": "Current A/c",
+                    "type": "Demand Deposits",
+                    "values": [
+                        43.0,
+                        42.0,
+                        49.0,
+                        42.0,
+                        47.0,
+                        43.0,
+                        49.0
+                    ]
+                },
+                {
+                    "name": "Cash Credit Cr Balance",
+                    "type": "Demand Deposits",
+                    "values": [
+                        47.0,
+                        49.0,
+                        45.0,
+                        46.0,
+                        49.0,
+                        44.0,
+                        47.0
+                    ]
+                },
+                {
+                    "name": "Other Demand Deposit",
+                    "type": "Demand Deposits",
+                    "values": [
+                        42.0,
+                        46.0,
+                        42.0,
+                        46.0,
+                        43.0,
+                        45.0,
+                        42.0
+                    ]
+                }
+            ]
+        },
+        "timeDeposits": {
+            "title": "Time Deposits",
+            "key": "timeDepositsTrend",
+            "dates": [
+                "15-09-2026",
+                "16-09-2026",
+                "17-09-2026",
+                "18-09-2026",
+                "19-09-2026",
+                "20-09-2026",
+                "21-09-2026"
+            ],
+            "series": [
+                {
+                    "name": "Term Deposit",
+                    "type": "Time Deposits",
+                    "values": [
+                        50.0,
+                        51.0,
+                        55.0,
+                        55.0,
+                        50.0,
+                        50.0,
+                        51.0
+                    ]
+                },
+                {
+                    "name": "Special Term Deposit",
+                    "type": "Time Deposits",
+                    "values": [
+                        51.0,
+                        55.0,
+                        58.0,
+                        52.0,
+                        51.0,
+                        57.0,
+                        51.0
+                    ]
+                },
+                {
+                    "name": "Other Term Deposit",
+                    "type": "Time Deposits",
+                    "values": [
+                        53.0,
+                        55.0,
+                        56.0,
+                        56.0,
+                        56.0,
+                        59.0,
+                        59.0
+                    ]
+                },
+                {
+                    "name": "Certificate of Deposit",
+                    "type": "Time Deposits",
+                    "values": [
+                        57.0,
+                        50.0,
+                        59.0,
+                        53.0,
+                        52.0,
+                        55.0,
+                        59.0
+                    ]
+                }
+            ]
+        },
+        "loans": {
+            "title": "Loans",
+            "key": "loansTrend",
+            "dates": [
+                "15-09-2026",
+                "16-09-2026",
+                "17-09-2026",
+                "18-09-2026",
+                "19-09-2026",
+                "20-09-2026",
+                "21-09-2026"
+            ],
+            "series": [
+                {
+                    "name": "Term Loan Account",
+                    "type": "Loans",
+                    "values": [
+                        42.0,
+                        35.0,
+                        36.0,
+                        36.0,
+                        40.0,
+                        43.0,
+                        35.0
+                    ]
+                },
+                {
+                    "name": "Agri Cash Credit",
+                    "type": "Loans",
+                    "values": [
+                        31.0,
+                        36.0,
+                        33.0,
+                        44.0,
+                        33.0,
+                        33.0,
+                        30.0
+                    ]
+                },
+                {
+                    "name": "Cash Credit",
+                    "type": "Loans",
+                    "values": [
+                        42.0,
+                        41.0,
+                        30.0,
+                        31.0,
+                        38.0,
+                        40.0,
+                        34.0
+                    ]
+                },
+                {
+                    "name": "Demand Loan",
+                    "type": "Loans",
+                    "values": [
+                        37.0,
+                        36.0,
+                        44.0,
+                        30.0,
+                        35.0,
+                        44.0,
+                        30.0
+                    ]
+                },
+                {
+                    "name": "Overdraft",
+                    "type": "Loans",
+                    "values": [
+                        30.0,
+                        37.0,
+                        30.0,
+                        32.0,
+                        40.0,
+                        39.0,
+                        31.0
+                    ]
+                },
+                {
+                    "name": "Bills Payable",
+                    "type": "Loans",
+                    "values": [
+                        31.0,
+                        30.0,
+                        32.0,
+                        36.0,
+                        41.0,
+                        42.0,
+                        39.0
+                    ]
+                }
+            ]
         }
-
-        // 1. Generate Scope-Aware Cache Key (Assuming Bank level for now, update with DataScopeResolver later)
-        String cacheKey = "dashboard:trend:global:days:" + days;
-        
-        // 2. Check Redis Cache
-        try {
-            TrendResponse cachedResponse = (TrendResponse) redisTemplate.opsForValue().get(cacheKey);
-            if (cachedResponse != null) {
-                log.info("Redis Cache HIT for key: {}", cacheKey);
-                return cachedResponse;
-            }
-        } catch (Exception e) {
-            // Never fail the request if Redis is temporarily down; fail safely and hit the DB
-            log.error("Redis cache retrieval failed, falling back to Druid: {}", e.getMessage());
-        }
-
-        log.info("Redis Cache MISS for key: {}. Fetching from Analytics Service (Druid).", cacheKey);
-
-        LocalDate endDate = LocalDate.now();
-        
-        // 3. Fetch Raw Data from Druid (Currently Mocked)
-        // TODO: Replace this method call with druidRestClient.executeQuery(payload) when Druid is online.
-        List<Map<String, Object>> druidResults = getMockDruidResponse(endDate, days);
-        
-        // 4. Transform Druid Rows into Columnar Format (Approach B)
-        TrendResponse response = processColumnarData(druidResults, endDate, days);
-
-        // 5. Save to Cache with Jitter
-        cacheResultWithJitter(cacheKey, response);
-
-        return response;
-    }
-
-    /**
-     * Transforms standard SQL/Druid rows into the strict Array/Columnar format expected by React.
-     */
-    private TrendResponse processColumnarData(List<Map<String, Object>> druidResults, LocalDate endDate, int days) {
-        // Step A: Build the Shared X-Axis (Chronological Dates)
-        List<String> sharedDates = new ArrayList<>(days);
-        for (int i = days - 1; i >= 0; i--) {
-            sharedDates.add(endDate.minusDays(i).format(DATE_FORMATTER));
-        }
-
-        // Step B: Restructure Druid results for fast lookup -> Map<Domain, Map<Description, Map<Date, Amount>>>
-        Map<String, Map<String, Map<String, Double>>> lookupMap = new HashMap<>();
-        
-        for (Map<String, Object> row : druidResults) {
-            String dateStr = (String) row.get("BUSINESS_DATE");
-            String domain = (String) row.get("DOMAIN");
-            String description = (String) row.get("DESCRIPTION");
-            Double amount = ((Number) row.get("TOTAL_AMOUNT")).doubleValue();
-
-            lookupMap.computeIfAbsent(domain, k -> new HashMap<>())
-                     .computeIfAbsent(description, k -> new HashMap<>())
-                     .put(dateStr, amount);
-        }
-
-        // Step C: Build strict aligned series arrays
-        ChartTrendDTO demandTrend = buildChartDTO("Demand Deposits", "demandDepositsTrend", sharedDates, lookupMap.getOrDefault("DEPOSIT", Collections.emptyMap()), 
-                List.of("Saving Bank A/c", "Current A/c", "Cash Credit Cr Balance", "Other Demand Deposit"));
-        
-        ChartTrendDTO timeTrend = buildChartDTO("Time Deposits", "timeDepositsTrend", sharedDates, lookupMap.getOrDefault("DEPOSIT", Collections.emptyMap()), 
-                List.of("Term Deposit", "Special Term Deposit", "Other Term Deposit", "Certificate of Deposit"));
-        
-        ChartTrendDTO loanTrend = buildChartDTO("Loans", "loansTrend", sharedDates, lookupMap.getOrDefault("LOAN", Collections.emptyMap()), 
-                List.of("Term Loan Account", "Agri Cash Credit", "Cash Credit", "Demand Loan", "Overdraft", "Bills Payable"));
-
-        return new TrendResponse(demandTrend, timeTrend, loanTrend);
-    }
-
-    /**
-     * Enforces the Index Alignment Rule for Approach B. 
-     * If a date is missing in Druid, it explicitly injects 0.0 into the array.
-     */
-    private ChartTrendDTO buildChartDTO(String title, String key, List<String> sharedDates, Map<String, Map<String, Double>> domainData, List<String> categories) {
-        List<SeriesDTO> seriesList = new ArrayList<>();
-        
-        for (String category : categories) {
-            Map<String, Double> dateAmounts = domainData.getOrDefault(category, Collections.emptyMap());
-            List<Double> values = new ArrayList<>(sharedDates.size());
-            
-            for (String date : sharedDates) {
-                // IMPORTANT: If Druid missed a day, default to 0.0 to prevent the React chart from breaking alignment
-                values.add(dateAmounts.getOrDefault(date, 0.0));
-            }
-            seriesList.add(new SeriesDTO(category, title, values));
-        }
-        
-        return new ChartTrendDTO(title, key, sharedDates, seriesList);
-    }
-
-    /**
-     * Caches the payload in Redis with a randomized Jitter.
-     * Prevents cache stampedes (Thundering Herd).
-     */
-    private void cacheResultWithJitter(String cacheKey, TrendResponse response) {
-        try {
-            int jitter = random.nextInt(jitterMaxMinutes + 1);
-            Duration ttl = Duration.ofMinutes(baseTtlMinutes).plusMinutes(jitter);
-            
-            redisTemplate.opsForValue().set(cacheKey, response, ttl);
-            log.info("Cached trend data in Redis. Key: {} | TTL: {} minutes (includes {}m jitter)", cacheKey, ttl.toMinutes(), jitter);
-        } catch (Exception e) {
-            log.error("Failed to write to Redis cache: {}", e.getMessage());
-        }
-    }
-
-    /**
-     * MOCKS the raw row response we expect from Druid via the Analytics Service.
-     * When Druid is up, delete this method and replace its invocation with actual API calls.
-     */
-    private List<Map<String, Object>> getMockDruidResponse(LocalDate endDate, int days) {
-        List<Map<String, Object>> mockRows = new ArrayList<>();
-        String[] demandCategories = {"Saving Bank A/c", "Current A/c", "Cash Credit Cr Balance", "Other Demand Deposit"};
-        String[] timeCategories = {"Term Deposit", "Special Term Deposit", "Other Term Deposit", "Certificate of Deposit"};
-        String[] loanCategories = {"Term Loan Account", "Agri Cash Credit", "Cash Credit", "Demand Loan", "Overdraft", "Bills Payable"};
-
-        for (int i = days - 1; i >= 0; i--) {
-            String dateStr = endDate.minusDays(i).format(DATE_FORMATTER);
-
-            // Mock Deposit Rows
-            for (String category : demandCategories) {
-                mockRows.add(Map.of("BUSINESS_DATE", dateStr, "DOMAIN", "DEPOSIT", "DESCRIPTION", category, "TOTAL_AMOUNT", 40.0 + random.nextInt(10)));
-            }
-            for (String category : timeCategories) {
-                mockRows.add(Map.of("BUSINESS_DATE", dateStr, "DOMAIN", "DEPOSIT", "DESCRIPTION", category, "TOTAL_AMOUNT", 50.0 + random.nextInt(10)));
-            }
-            // Mock Loan Rows
-            for (String category : loanCategories) {
-                mockRows.add(Map.of("BUSINESS_DATE", dateStr, "DOMAIN", "LOAN", "DESCRIPTION", category, "TOTAL_AMOUNT", 30.0 + random.nextInt(15)));
-            }
-        }
-        return mockRows;
-    }
+    },
+    "message": "7-Day trend data loaded successfully",
+    "success": true,
+    "timestamp": "2026-09-21T05:16:42.890751700Z"
 }
 
+
+
+
+
+
+
+
+
+
+
+
+
+but the frontend expects :
+
+[
+  {
+    "key": "demandDeposits",
+    "title": "Demand Deposits",
+    "products": [
+      { "name": "Saving Bank A/c", "type": "Demand Deposit" },
+      { "name": "Current A/c", "type": "Demand Deposit" },
+      { "name": "Cash Credit Cr Balance", "type": "Demand Deposit" },
+      { "name": "Other Demand Deposit", "type": "Demand Deposit" }
+    ],
+    "data": [
+      { "date": "2026-09-14", "values": [44.0, 11.5, 76.5, 32.0] },
+      { "date": "2026-09-15", "values": [45.5, 12.2, 77.8, 33.5] },
+      { "date": "2026-09-16", "values": [44.8, 11.8, 77.2, 32.8] },
+      { "date": "2026-09-17", "values": [45.2, 12.1, 78.4, 33.2] },
+      { "date": "2026-09-18", "values": [45.0, 12.0, 78.0, 33.0] }
+    ]
+  },
+  {
+    "key": "timeDeposits",
+    "title": "Time Deposits",
+    "products": [
+      { "name": "Certificate of Deposit", "type": "Time Deposit" },
+      { "name": "Other Term Deposit", "type": "Time Deposit" },
+      { "name": "Special Term Deposit", "type": "Time Deposit" },
+      { "name": "Term Deposit", "type": "Time Deposit" }
+    ],
+    "data": [
+      { "date": "2026-09-14", "values": [63.0, 26.5, 89.5, 55.0] },
+      { "date": "2026-09-15", "values": [64.5, 27.3, 90.8, 56.4] },
+      { "date": "2026-09-16", "values": [63.8, 26.8, 90.2, 55.7] },
+      { "date": "2026-09-17", "values": [64.2, 27.1, 91.3, 56.2] },
+      { "date": "2026-09-18", "values": [64.0, 27.0, 91.0, 56.0] }
+    ]
+  },
+  {
+    "key": "loansBreakdown",
+    "title": "Loan Distribution",
+    "products": [
+      { "name": "Term Loan Account", "type": "Loan" },
+      { "name": "Agri Cash Credit", "type": "Loan" },
+      { "name": "Cash Credit", "type": "Loan" },
+      { "name": "Demand Loan", "type": "Loan" },
+      { "name": "Overdraft", "type": "Loan" },
+      { "name": "Bills Payable", "type": "Loan" }
+    ],
+    "data": [
+      { "date": "2026-09-14", "values": [27.5, 54.0, 40.5, 80.5, 72.0, 18.5] },
+      { "date": "2026-09-15", "values": [28.3, 55.5, 41.4, 81.8, 73.5, 19.3] },
+      { "date": "2026-09-16", "values": [27.8, 54.8, 40.8, 81.2, 72.8, 18.8] },
+      { "date": "2026-09-17", "values": [28.1, 55.2, 41.2, 82.4, 73.3, 19.1] },
+      { "date": "2026-09-18", "values": [28.0, 55.0, 41.0, 82.0, 73.0, 19.0] }
+    ]
+  }
+]
+
+
+
+
+which is better? and which one we shall select? are both the responses same ? what to do next?
