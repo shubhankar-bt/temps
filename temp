@@ -1,165 +1,139 @@
-package com.fincore.DashboardService.dto.response;
-
-import java.util.List;
-
-/**
- * Encapsulates a single time-series chart configuration and its data.
- * Formatted specifically for React charting libraries (Row-based matrix).
- */
-public record ChartTrendDTO(
-    String key,
-    String title,
-    List<ProductMetaDTO> products,
-    List<TrendDataPointDTO> data
-) {}
-
-/**
- * Represents the metadata for the categories in the chart.
- * The index of the product in the 'products' array strictly matches 
- * the index of its measurement in the 'values' array.
- */
-public record ProductMetaDTO(
-    String name,
-    String type
-) {}
-
-/**
- * Represents a single point on the X-Axis (Date) and all parallel Y-values.
- */
-public record TrendDataPointDTO(
-    String date,
-    List<Double> values
-) {}
-
-
-
-
-
-
-
-
-
-
-
 package com.fincore.DashboardService.service;
 
 import com.fincore.DashboardService.dto.response.ChartTrendDTO;
 import com.fincore.DashboardService.dto.response.ProductMetaDTO;
 import com.fincore.DashboardService.dto.response.TrendDataPointDTO;
+import com.fincore.DashboardService.model.DashboardChartsHeaders;
+import com.fincore.DashboardService.model.DashboardHead;
+import com.fincore.DashboardService.repository.DashboardChartsHeadersRepository;
+import com.fincore.DashboardService.repository.DashboardHeadRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Random;
+import java.util.*;
+import java.util.stream.Collectors;
 
 /**
  * Handles the retrieval and formatting of time-series trend data.
- * Outputs a strict row-based array matrix requested by the frontend team.
+ * 
+ * ARCHITECTURE:
+ * 1. Reads UI configuration and Categories from ORACLE (Always Live).
+ * 2. Fetches time-series measurements from DRUID (Currently Mocked via flag).
+ * 3. Transforms data into the strict Row-Based Array Matrix expected by the React frontend.
  */
 @Slf4j
 @Service
 @RequiredArgsConstructor
 public class DashboardTrendService {
 
+    private final DashboardHeadRepository dashboardHeadRepository;
+    private final DashboardChartsHeadersRepository dashboardChartsHeadersRepository;
+
+    @Value("${fincore.features.druid-enabled:false}")
+    private boolean isDruidLive;
+
     private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd");
 
-    /**
-     * Fetches the trend data for the requested number of historical days.
-     * 
-     * @param days The number of historical days to fetch (e.g., 7)
-     * @return List of ChartTrendDTOs matching the exact frontend contract
-     */
     public List<ChartTrendDTO> fetchTrendData(int days) {
         if (days <= 0 || days > 365) {
-            log.warn("Invalid days parameter requested: {}. Defaulting to 7.", days);
+            log.warn("Invalid days requested: {}. Defaulting to 7.", days);
             days = 7;
         }
 
-        log.info("Generating {}-day row-based trend data for Frontend", days);
-        
+        log.info("Generating {}-day dynamic trend data. Druid Enabled: {}", days, isDruidLive);
+
+        // 1. Fetch Metadata from ORACLE
+        List<DashboardChartsHeaders> allHeaders = dashboardChartsHeadersRepository.findAll();
+        List<DashboardHead> allHeads = dashboardHeadRepository.findAll();
+
+        // 2. Filter headers to only the ones we need for the Trend Charts
+        // Assuming IDs 3 (Demand), 4 (Time), 21 (Loans) based on your teammate's db dump.
+        List<DashboardChartsHeaders> trendHeaders = allHeaders.stream()
+                .filter(h -> "DASHBOARD_HEADS".equalsIgnoreCase(h.getDataTableName()))
+                .filter(h -> h.getDataTypeKey() != null)
+                .filter(h -> h.getTitle().toLowerCase().contains("demand") || 
+                             h.getTitle().toLowerCase().contains("time") || 
+                             h.getTitle().toLowerCase().contains("loan"))
+                .toList();
+
+        List<ChartTrendDTO> responseList = new ArrayList<>();
         LocalDate endDate = LocalDate.now();
-        Random random = new Random();
 
-        List<ChartTrendDTO> charts = new ArrayList<>();
+        // 3. Dynamically build each chart
+        for (DashboardChartsHeaders header : trendHeaders) {
+            
+            // Find all matching products in Oracle for this specific chart
+            List<DashboardHead> chartProducts = allHeads.stream()
+                    .filter(h -> header.getDataTypeKey().equalsIgnoreCase(h.getType()))
+                    .filter(h -> header.getDataSubTypeKey() == null || header.getDataSubTypeKey().equalsIgnoreCase(h.getSubType()))
+                    .toList();
 
-        // 1. Demand Deposits Chart
-        charts.add(buildChart(
-            "demandDeposits", "Demand Deposits", "Demand Deposit", 
-            List.of("Saving Bank A/c", "Current A/c", "Cash Credit Cr Balance", "Other Demand Deposit"),
-            List.of(45.0, 12.0, 78.0, 33.0), // Base values for mocking
-            days, endDate, random
-        ));
+            if (chartProducts.isEmpty()) continue;
 
-        // 2. Time Deposits Chart
-        charts.add(buildChart(
-            "timeDeposits", "Time Deposits", "Time Deposit", 
-            List.of("Certificate of Deposit", "Other Term Deposit", "Special Term Deposit", "Term Deposit"),
-            List.of(64.0, 27.0, 91.0, 56.0), 
-            days, endDate, random
-        ));
+            // Map Oracle entities to Frontend Product DTOs
+            List<ProductMetaDTO> products = chartProducts.stream()
+                    .map(h -> new ProductMetaDTO(h.getHeadName(), h.getSubType()))
+                    .toList();
 
-        // 3. Loans Chart
-        charts.add(buildChart(
-            "loansBreakdown", "Loan Distribution", "Loan", 
-            List.of("Term Loan Account", "Agri Cash Credit", "Cash Credit", "Demand Loan", "Overdraft", "Bills Payable"),
-            List.of(28.0, 55.0, 41.0, 82.0, 73.0, 19.0), 
-            days, endDate, random
-        ));
+            // 4. Fetch/Mock Data Points
+            List<TrendDataPointDTO> dataPoints = generateDataPoints(chartProducts, days, endDate);
 
-        return charts;
+            // Generate a safe JSON key (e.g., "Demand Deposits" -> "demandDeposits")
+            String jsonKey = toCamelCase(header.getTitle());
+            if (jsonKey.contains("loan")) jsonKey = "loansBreakdown"; // Force specific UI key if needed
+
+            responseList.add(new ChartTrendDTO(jsonKey, header.getTitle(), products, dataPoints));
+        }
+
+        return responseList;
     }
 
     /**
-     * Helper method to dynamically construct the Chart matrix.
-     * Ensures strict index alignment between products and their daily values.
+     * Generates the matrix rows. When Druid is live, this method will be replaced 
+     * by a Druid bulk query grouped by BUSINESS_DATE.
      */
-    private ChartTrendDTO buildChart(
-            String key, String title, String typeName, 
-            List<String> productNames, List<Double> baseValues, 
-            int days, LocalDate endDate, Random random) {
-
-        // Build Product Metadata
-        List<ProductMetaDTO> products = productNames.stream()
-                .map(name -> new ProductMetaDTO(name, typeName))
-                .toList();
-
-        // Build Data Points (Row by Row, Date by Date)
+    private List<TrendDataPointDTO> generateDataPoints(List<DashboardHead> products, int days, LocalDate endDate) {
         List<TrendDataPointDTO> dataPoints = new ArrayList<>(days);
-        
-        // Loop backwards to ensure chronological order
+        Random random = new Random();
+
+        // Loop backwards for chronological order
         for (int i = days - 1; i >= 0; i--) {
             String dateStr = endDate.minusDays(i).format(DATE_FORMATTER);
-            List<Double> dailyValues = new ArrayList<>(productNames.size());
-            
-            // Generate values strictly mapped to the index of the products array
-            for (Double baseValue : baseValues) {
-                double variance = (random.nextDouble() * 4) - 2; // slight realistic variance
+            List<Double> dailyValues = new ArrayList<>(products.size());
+
+            if (isDruidLive) {
+                // TODO: Call teammate's buildQuery() logic grouped by Date here.
+                // For now, it falls through to the mock below.
+            }
+
+            // MOCK DRUID DATA: Maintain strict index alignment with the 'products' array
+            for (DashboardHead product : products) {
+                // Generate a stable-ish random number based on the product's name length to make it look realistic
+                double baseValue = product.getHeadName().length() * 3.0; 
+                double variance = (random.nextDouble() * 4) - 2; 
                 double finalValue = Math.max(0, baseValue + variance);
+                
                 dailyValues.add(Math.round(finalValue * 10.0) / 10.0);
             }
-            
+
             dataPoints.add(new TrendDataPointDTO(dateStr, dailyValues));
         }
 
-        return new ChartTrendDTO(key, title, products, dataPoints);
+        return dataPoints;
+    }
+
+    private String toCamelCase(String text) {
+        if (text == null || text.isEmpty()) return text;
+        String[] words = text.split("[\\W_]+");
+        StringBuilder builder = new StringBuilder(words[0].toLowerCase());
+        for (int i = 1; i < words.length; i++) {
+            builder.append(words[i].substring(0, 1).toUpperCase())
+                   .append(words[i].substring(1).toLowerCase());
+        }
+        return builder.toString();
     }
 }
-
-
-
-
-
-
-
-
-// FROM THIS:
-public ResponseEntity<ApiResponse<TrendResponse>> getTrendData(
-
-// TO THIS:
-public ResponseEntity<ApiResponse<List<ChartTrendDTO>>> getTrendData(
-
-
