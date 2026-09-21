@@ -1,139 +1,290 @@
-package com.fincore.DashboardService.service;
-
-import com.fincore.DashboardService.dto.response.ChartTrendDTO;
-import com.fincore.DashboardService.dto.response.ProductMetaDTO;
-import com.fincore.DashboardService.dto.response.TrendDataPointDTO;
-import com.fincore.DashboardService.model.DashboardChartsHeaders;
-import com.fincore.DashboardService.model.DashboardHead;
-import com.fincore.DashboardService.repository.DashboardChartsHeadersRepository;
-import com.fincore.DashboardService.repository.DashboardHeadRepository;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.stereotype.Service;
-
-import java.time.LocalDate;
-import java.time.format.DateTimeFormatter;
-import java.util.*;
-import java.util.stream.Collectors;
-
-/**
- * Handles the retrieval and formatting of time-series trend data.
- * 
- * ARCHITECTURE:
- * 1. Reads UI configuration and Categories from ORACLE (Always Live).
- * 2. Fetches time-series measurements from DRUID (Currently Mocked via flag).
- * 3. Transforms data into the strict Row-Based Array Matrix expected by the React frontend.
- */
-@Slf4j
-@Service
-@RequiredArgsConstructor
-public class DashboardTrendService {
-
-    private final DashboardHeadRepository dashboardHeadRepository;
-    private final DashboardChartsHeadersRepository dashboardChartsHeadersRepository;
-
-    @Value("${fincore.features.druid-enabled:false}")
-    private boolean isDruidLive;
-
-    private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd");
-
-    public List<ChartTrendDTO> fetchTrendData(int days) {
-        if (days <= 0 || days > 365) {
-            log.warn("Invalid days requested: {}. Defaulting to 7.", days);
-            days = 7;
+{
+    "data": [
+        {
+            "key": "demandDeposits",
+            "title": "Demand Deposits",
+            "products": [
+                {
+                    "name": "Saving Bank A/c",
+                    "type": "Demand Deposit"
+                },
+                {
+                    "name": "Current A/c",
+                    "type": "Demand Deposit"
+                },
+                {
+                    "name": "Cash Credit Cr Balance",
+                    "type": "Demand Deposit"
+                },
+                {
+                    "name": "Other Demand Deposit ",
+                    "type": "Demand Deposit"
+                }
+            ],
+            "data": [
+                {
+                    "date": "2026-09-15",
+                    "values": [
+                        44.9,
+                        34.1,
+                        67.4,
+                        62.7
+                    ]
+                },
+                {
+                    "date": "2026-09-16",
+                    "values": [
+                        45.9,
+                        34.9,
+                        67.0,
+                        64.9
+                    ]
+                },
+                {
+                    "date": "2026-09-17",
+                    "values": [
+                        44.1,
+                        31.1,
+                        64.8,
+                        63.2
+                    ]
+                },
+                {
+                    "date": "2026-09-18",
+                    "values": [
+                        44.1,
+                        34.0,
+                        66.9,
+                        61.4
+                    ]
+                },
+                {
+                    "date": "2026-09-19",
+                    "values": [
+                        43.9,
+                        32.6,
+                        64.9,
+                        61.2
+                    ]
+                },
+                {
+                    "date": "2026-09-20",
+                    "values": [
+                        46.1,
+                        33.1,
+                        68.0,
+                        61.4
+                    ]
+                },
+                {
+                    "date": "2026-09-21",
+                    "values": [
+                        44.6,
+                        33.1,
+                        65.1,
+                        62.6
+                    ]
+                }
+            ]
+        },
+        {
+            "key": "timeDeposits",
+            "title": "Time Deposits",
+            "products": [
+                {
+                    "name": "term deposit ",
+                    "type": "Time Deposit"
+                },
+                {
+                    "name": "Special Term Deposit ",
+                    "type": "Time Deposit"
+                },
+                {
+                    "name": "Other Term Deposit ",
+                    "type": "Time Deposit"
+                },
+                {
+                    "name": "Certificate of Deposit ",
+                    "type": "Time Deposit"
+                }
+            ],
+            "data": [
+                {
+                    "date": "2026-09-15",
+                    "values": [
+                        40.3,
+                        63.5,
+                        57.4,
+                        69.7
+                    ]
+                },
+                {
+                    "date": "2026-09-16",
+                    "values": [
+                        40.7,
+                        64.5,
+                        56.3,
+                        69.2
+                    ]
+                },
+                {
+                    "date": "2026-09-17",
+                    "values": [
+                        40.4,
+                        61.4,
+                        56.2,
+                        69.5
+                    ]
+                },
+                {
+                    "date": "2026-09-18",
+                    "values": [
+                        40.2,
+                        63.3,
+                        58.1,
+                        67.9
+                    ]
+                },
+                {
+                    "date": "2026-09-19",
+                    "values": [
+                        39.1,
+                        62.0,
+                        57.4,
+                        68.6
+                    ]
+                },
+                {
+                    "date": "2026-09-20",
+                    "values": [
+                        39.6,
+                        63.7,
+                        56.9,
+                        68.1
+                    ]
+                },
+                {
+                    "date": "2026-09-21",
+                    "values": [
+                        40.7,
+                        63.5,
+                        55.3,
+                        69.0
+                    ]
+                }
+            ]
+        },
+        {
+            "key": "loansBreakdown",
+            "title": "Loans",
+            "products": [
+                {
+                    "name": "Bills Payable ",
+                    "type": "Loan"
+                },
+                {
+                    "name": "Demand Loan ",
+                    "type": "Loan"
+                },
+                {
+                    "name": "Cash Credit ",
+                    "type": "Loan"
+                },
+                {
+                    "name": "Agri Cash Credit ",
+                    "type": "Loan"
+                },
+                {
+                    "name": "Overdraft ",
+                    "type": "Loan"
+                },
+                {
+                    "name": "Term Loan Account",
+                    "type": "Loan"
+                }
+            ],
+            "data": [
+                {
+                    "date": "2026-09-15",
+                    "values": [
+                        43.6,
+                        36.4,
+                        37.8,
+                        49.4,
+                        29.5,
+                        51.3
+                    ]
+                },
+                {
+                    "date": "2026-09-16",
+                    "values": [
+                        42.9,
+                        37.8,
+                        36.1,
+                        49.6,
+                        30.9,
+                        52.2
+                    ]
+                },
+                {
+                    "date": "2026-09-17",
+                    "values": [
+                        42.3,
+                        34.4,
+                        38.0,
+                        49.9,
+                        31.6,
+                        50.8
+                    ]
+                },
+                {
+                    "date": "2026-09-18",
+                    "values": [
+                        43.2,
+                        36.3,
+                        37.2,
+                        49.1,
+                        30.5,
+                        49.4
+                    ]
+                },
+                {
+                    "date": "2026-09-19",
+                    "values": [
+                        41.2,
+                        34.2,
+                        37.9,
+                        50.7,
+                        31.6,
+                        49.2
+                    ]
+                },
+                {
+                    "date": "2026-09-20",
+                    "values": [
+                        40.7,
+                        37.8,
+                        36.2,
+                        52.2,
+                        29.2,
+                        52.9
+                    ]
+                },
+                {
+                    "date": "2026-09-21",
+                    "values": [
+                        42.3,
+                        36.5,
+                        36.5,
+                        51.6,
+                        29.7,
+                        52.8
+                    ]
+                }
+            ]
         }
-
-        log.info("Generating {}-day dynamic trend data. Druid Enabled: {}", days, isDruidLive);
-
-        // 1. Fetch Metadata from ORACLE
-        List<DashboardChartsHeaders> allHeaders = dashboardChartsHeadersRepository.findAll();
-        List<DashboardHead> allHeads = dashboardHeadRepository.findAll();
-
-        // 2. Filter headers to only the ones we need for the Trend Charts
-        // Assuming IDs 3 (Demand), 4 (Time), 21 (Loans) based on your teammate's db dump.
-        List<DashboardChartsHeaders> trendHeaders = allHeaders.stream()
-                .filter(h -> "DASHBOARD_HEADS".equalsIgnoreCase(h.getDataTableName()))
-                .filter(h -> h.getDataTypeKey() != null)
-                .filter(h -> h.getTitle().toLowerCase().contains("demand") || 
-                             h.getTitle().toLowerCase().contains("time") || 
-                             h.getTitle().toLowerCase().contains("loan"))
-                .toList();
-
-        List<ChartTrendDTO> responseList = new ArrayList<>();
-        LocalDate endDate = LocalDate.now();
-
-        // 3. Dynamically build each chart
-        for (DashboardChartsHeaders header : trendHeaders) {
-            
-            // Find all matching products in Oracle for this specific chart
-            List<DashboardHead> chartProducts = allHeads.stream()
-                    .filter(h -> header.getDataTypeKey().equalsIgnoreCase(h.getType()))
-                    .filter(h -> header.getDataSubTypeKey() == null || header.getDataSubTypeKey().equalsIgnoreCase(h.getSubType()))
-                    .toList();
-
-            if (chartProducts.isEmpty()) continue;
-
-            // Map Oracle entities to Frontend Product DTOs
-            List<ProductMetaDTO> products = chartProducts.stream()
-                    .map(h -> new ProductMetaDTO(h.getHeadName(), h.getSubType()))
-                    .toList();
-
-            // 4. Fetch/Mock Data Points
-            List<TrendDataPointDTO> dataPoints = generateDataPoints(chartProducts, days, endDate);
-
-            // Generate a safe JSON key (e.g., "Demand Deposits" -> "demandDeposits")
-            String jsonKey = toCamelCase(header.getTitle());
-            if (jsonKey.contains("loan")) jsonKey = "loansBreakdown"; // Force specific UI key if needed
-
-            responseList.add(new ChartTrendDTO(jsonKey, header.getTitle(), products, dataPoints));
-        }
-
-        return responseList;
-    }
-
-    /**
-     * Generates the matrix rows. When Druid is live, this method will be replaced 
-     * by a Druid bulk query grouped by BUSINESS_DATE.
-     */
-    private List<TrendDataPointDTO> generateDataPoints(List<DashboardHead> products, int days, LocalDate endDate) {
-        List<TrendDataPointDTO> dataPoints = new ArrayList<>(days);
-        Random random = new Random();
-
-        // Loop backwards for chronological order
-        for (int i = days - 1; i >= 0; i--) {
-            String dateStr = endDate.minusDays(i).format(DATE_FORMATTER);
-            List<Double> dailyValues = new ArrayList<>(products.size());
-
-            if (isDruidLive) {
-                // TODO: Call teammate's buildQuery() logic grouped by Date here.
-                // For now, it falls through to the mock below.
-            }
-
-            // MOCK DRUID DATA: Maintain strict index alignment with the 'products' array
-            for (DashboardHead product : products) {
-                // Generate a stable-ish random number based on the product's name length to make it look realistic
-                double baseValue = product.getHeadName().length() * 3.0; 
-                double variance = (random.nextDouble() * 4) - 2; 
-                double finalValue = Math.max(0, baseValue + variance);
-                
-                dailyValues.add(Math.round(finalValue * 10.0) / 10.0);
-            }
-
-            dataPoints.add(new TrendDataPointDTO(dateStr, dailyValues));
-        }
-
-        return dataPoints;
-    }
-
-    private String toCamelCase(String text) {
-        if (text == null || text.isEmpty()) return text;
-        String[] words = text.split("[\\W_]+");
-        StringBuilder builder = new StringBuilder(words[0].toLowerCase());
-        for (int i = 1; i < words.length; i++) {
-            builder.append(words[i].substring(0, 1).toUpperCase())
-                   .append(words[i].substring(1).toLowerCase());
-        }
-        return builder.toString();
-    }
+    ],
+    "message": "7-Day trend data loaded successfully",
+    "success": true,
+    "timestamp": "2026-09-21T05:33:06.763490900Z"
 }
