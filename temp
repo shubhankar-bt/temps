@@ -1,3 +1,119 @@
-Sensitive Information and Cryptographic Key Disclosure	The application exposes sensitive user information and the payloadEncryptionKey in the HTTP Response. The response contains user details like email, phone number, etc.	Medium	Exposure of sensitive user information may lead to information disclosure and facilitate targeted attacks. If the exposed encryption key is used for payload encryption/decryption, an attacker may potentially decrypt or manipulate protected application data, depending on the implementation.	It is recommended to return only the minimum information required. Sensitive user information should not be exposed unnecessarily. The payloadEncryptionKey should not be returned in responses.
-User ID Enumeration	The application provides a specific error message, "User ID does not exist", when an invalid User ID is entered. This allows an attacker to determine whether a particular User ID exists in the system.	Low	Attackers may enumerate valid User IDs and use them for targeted attacks succh as credential stuffing, brute-force attempts, or social engineering.	Use a generic error message for both valid and invalid User IDs.
-Insufficient Rate Limiting	The application does not enforce adequate rate limiting on the User ID field, allowing multiple consequtive requests without blocking, or other protective controls.	Medium	An attacker could automate a large number of requests, potentially enabling User ID enumeration, brute-force attacks.	Implement server side-rate limiting on authentication requests. Restrict the number of attempts within a defined time window.
+package com.fincore.gateway.filter;
+
+import com.fincore.gateway.utility.LoginUtility;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.Ordered;
+import org.springframework.data.redis.core.ReactiveStringRedisTemplate;
+import org.springframework.http.HttpStatus;
+import org.springframework.stereotype.Component;
+import org.springframework.web.server.ServerWebExchange;
+import org.springframework.web.server.WebFilter;
+import org.springframework.web.server.WebFilterChain;
+import reactor.core.publisher.Mono;
+
+import java.time.Duration;
+import java.util.List;
+
+/**
+ * Enterprise Rate Limiter for Authentication Endpoints.
+ * Implements a Fixed Window counter using Redis.
+ * Runs at the highest precedence to drop malicious traffic before Spring Security processing.
+ */
+@Slf4j
+@Component
+public class AuthRateLimitingFilter implements WebFilter, Ordered {
+
+    private final ReactiveStringRedisTemplate redisTemplate;
+    private final int maxRequestsPerMinute;
+    private final List<String> targetedPaths;
+
+    public AuthRateLimitingFilter(
+            ReactiveStringRedisTemplate redisTemplate,
+            @Value("${security.rate-limit.auth.max-per-minute:20}") int maxRequestsPerMinute) {
+        this.redisTemplate = redisTemplate;
+        this.maxRequestsPerMinute = maxRequestsPerMinute;
+        
+        // Target all authentication endpoints prone to brute-force/enumeration
+        this.targetedPaths = List.of(
+                "/api/auth/login", 
+                "/api/auth/check-user", 
+                "/api/auth/verify-otp", 
+                "/api/auth/resend-otp"
+        );
+    }
+
+    @Override
+    public Mono<Void> filter(ServerWebExchange exchange, WebFilterChain chain) {
+        String path = exchange.getRequest().getPath().value();
+
+        // 1. Skip filter if the path is not an auth endpoint
+        if (targetedPaths.stream().noneMatch(path::startsWith)) {
+            return chain.filter(exchange);
+        }
+
+        // 2. Identify the client IP securely
+        String clientIp = LoginUtility.getClientIp(exchange.getRequest());
+        String redisKey = "RL:AUTH:IP:" + clientIp;
+
+        // 3. Atomic Increment & Expiry in Redis
+        return redisTemplate.opsForValue().increment(redisKey)
+                .flatMap(count -> {
+                    if (count == 1) {
+                        // First request in the window: set the TTL to 60 seconds
+                        return redisTemplate.expire(redisKey, Duration.ofMinutes(1)).thenReturn(count);
+                    }
+                    return Mono.just(count);
+                })
+                .flatMap(count -> {
+                    // 4. Inject standard Rate Limit Headers for Frontend Observability
+                    long remaining = Math.max(0, maxRequestsPerMinute - count);
+                    exchange.getResponse().getHeaders().add("X-RateLimit-Limit", String.valueOf(maxRequestsPerMinute));
+                    exchange.getResponse().getHeaders().add("X-RateLimit-Remaining", String.valueOf(remaining));
+
+                    // 5. Block if threshold exceeded
+                    if (count > maxRequestsPerMinute) {
+                        log.warn("SECURITY BLOCK: IP {} exceeded auth rate limit ({} requests). Path: {}", 
+                                LoginUtility.sanitizeLog(clientIp), count, LoginUtility.sanitizeLog(path));
+                                
+                        exchange.getResponse().setStatusCode(HttpStatus.TOO_MANY_REQUESTS);
+                        exchange.getResponse().getHeaders().add("Retry-After", "60");
+                        
+                        return exchange.getResponse().setComplete();
+                    }
+
+                    // 6. Continue standard filter chain
+                    return chain.filter(exchange);
+                });
+    }
+
+    @Override
+    public int getOrder() {
+        // HIGHEST_PRECEDENCE ensures this filter fires *before* standard authorization, 
+        // saving server resources during a DDoS attack.
+        return Ordered.HIGHEST_PRECEDENCE;
+    }
+}
+
+
+
+
+
+
+
+
+
+
+
+
+security.rate-limit.auth.max-per-minute=20
+
+
+
+
+
+
+
+
+
+
