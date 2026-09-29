@@ -1,114 +1,717 @@
+package com.fincore.gateway.Service;
 
-2026-09-22T06:37:44.402Z  INFO 1 --- [CommunicationService] [ntainer#0-0-C-1] c.f.C.c.GenericCommunicationConsumer     : Received Generic Communication Event : {"eventId":"evt-6b1c8a2a-4366-45b0-aec6-cacea8aaf4cb","traceId":"trc-dc8c0b6f-954b-4fba-8991-cdcbf1cd8035","correlationId":"batch-01-08-26","producerService":"PROCESS_STATUS","eventType":"EOD_EVENT","priority":"NORMAL","channels":["EMAIL"],"recipients":{"roles":["10","11"]},"templateId":"REPORTS_DIFFERENCE_V1","payload":{"timeTaken":null,"STATUS":"5","suspenseHeaders":["Summary"],"cibaHeaders":["Summary"],"cibaRows":null,"processDate":"01-08-26","balanceCompareRows":null,"suspenseRows":null,"startTime":null,"titles":{"balanceCompareTitle":"Balance Compare","suspenseTitle":"Suspense","cibaTitle":"CIBA"},"endTime":null,"balanceCompareHeaders":["Summary"]},"attachments":[{"attachmentId":"balance_compare_report_01082026","attachmentType":"BAL_COMP_SUMMARY","fileName":"balance_compare_report"},{"attachmentId":"intr_report_01082026","attachmentType":"INTR_SUMMARY","fileName":"intr_report"},{"attachmentId":"cntr_report_01082026","attachmentType":"CNTR_SUMMARY","fileName":"cntr_report"}],"personalized":true,"isPersonalized":true}
-2026-09-22T06:37:44.403Z  INFO 1 --- [CommunicationService] [ntainer#0-0-C-1] c.f.C.c.GenericCommunicationConsumer     : Validated Generic Communication Event : evt-6b1c8a2a-4366-45b0-aec6-cacea8aaf4cb
-2026-09-22T06:37:44.403Z  INFO 1 --- [CommunicationService] [ntainer#0-0-C-1] c.f.C.o.CommunicationOrchestrator        : Orchestrator executing Event: evt-6b1c8a2a-4366-45b0-aec6-cacea8aaf4cb | Personalized Flag: true
-2026-09-22T06:37:44.403Z  INFO 1 --- [CommunicationService] [ntainer#0-0-C-1] c.f.C.recipient.RecipientResolver        : Recipient Resolution Started.
-2026-09-22T06:37:44.404Z  INFO 1 --- [CommunicationService] [ntainer#0-0-C-1] c.f.C.recipient.RecipientResolver        : Recipient Resolution Completed. Total Unique Recipients : 17
-2026-09-22T06:37:44.404Z  INFO 1 --- [CommunicationService] [ntainer#0-0-C-1] c.f.C.o.CommunicationOrchestrator        : Delegating 3 attachments to AttachmentPreparationService.
-2026-09-22T06:37:44.404Z  INFO 1 --- [CommunicationService] [ntainer#0-0-C-1] c.f.C.a.AttachmentPreparationServiceImpl : Initiating attachment preparation for 3 items.
-2026-09-22T06:37:44.416Z ERROR 1 --- [CommunicationService] [ntainer#0-0-C-1] c.f.C.client.ReportServiceClient         : Upstream HTTP failure communicating with Report Service.
+import com.fincore.gateway.Config.KeyUtils;
+import com.fincore.gateway.JwtUtil.HmacJwtUtil;
+import com.fincore.gateway.dto.*;
+import com.fincore.gateway.model.LoginAttempt;
+import com.fincore.gateway.model.LoginParam;
+import com.fincore.gateway.model.User;
+import com.fincore.gateway.model.UserRoles;
+import com.fincore.gateway.repository.*;
+import com.fincore.gateway.utility.Constants;
+import com.fincore.gateway.utility.LoginUtility;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.http.HttpStatus;
+import org.springframework.orm.ObjectOptimisticLockingFailureException;
+import org.springframework.orm.jpa.JpaSystemException;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.server.ResponseStatusException;
+import reactor.core.publisher.Mono;
+import reactor.core.scheduler.Scheduler;
+import reactor.core.scheduler.Schedulers;
+import tools.jackson.databind.ObjectMapper;
 
-java.lang.RuntimeException: Report Service returned HTTP status: 401 UNAUTHORIZED
-        at com.fincore.CommunicationService.client.ReportServiceClient.lambda$downloadAttachments$0(ReportServiceClient.java:55) ~[!/:0.0.1-SNAPSHOT]
-        at org.springframework.web.client.DefaultRestClient$DefaultRequestBodyUriSpec.exchangeInternal(DefaultRestClient.java:617) ~[spring-web-7.0.8.jar!/:7.0.8]
-        at org.springframework.web.client.DefaultRestClient$DefaultRequestBodyUriSpec.exchange(DefaultRestClient.java:572) ~[spring-web-7.0.8.jar!/:7.0.8]
-        at org.springframework.web.client.RestClient$RequestHeadersSpec.exchange(RestClient.java:747) ~[spring-web-7.0.8.jar!/:7.0.8]
-        at com.fincore.CommunicationService.client.ReportServiceClient.downloadAttachments(ReportServiceClient.java:49) ~[!/:0.0.1-SNAPSHOT]
-        at com.fincore.CommunicationService.attachment.AttachmentPreparationServiceImpl.prepareAttachments(AttachmentPreparationServiceImpl.java:88) ~[!/:0.0.1-SNAPSHOT]
-        at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:103) ~[na:na]
-        at java.base/java.lang.reflect.Method.invoke(Method.java:580) ~[na:na]
-        at org.springframework.aop.support.AopUtils.invokeJoinpointUsingReflection(AopUtils.java:359) ~[spring-aop-7.0.8.jar!/:7.0.8]
-        at org.springframework.aop.framework.ReflectiveMethodInvocation.invokeJoinpoint(ReflectiveMethodInvocation.java:190) ~[spring-aop-7.0.8.jar!/:7.0.8]
-        at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:158) ~[spring-aop-7.0.8.jar!/:7.0.8]
-        at org.springframework.aop.interceptor.ExposeInvocationInterceptor.invoke(ExposeInvocationInterceptor.java:96) ~[spring-aop-7.0.8.jar!/:7.0.8]
-        at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:179) ~[spring-aop-7.0.8.jar!/:7.0.8]
-        at org.springframework.aop.aspectj.MethodInvocationProceedingJoinPoint.proceed(MethodInvocationProceedingJoinPoint.java:82) ~[spring-aop-7.0.8.jar!/:7.0.8]
-        at com.fincore.commonutilities.aspect.GlobalResilienceAspect.lambda$applyResilience$0(GlobalResilienceAspect.java:60) ~[common-utilities-1.1.0.jar!/:1.1.0]
-        at io.github.resilience4j.retry.Retry.lambda$decorateSupplier$5(Retry.java:301) ~[resilience4j-retry-2.3.0.jar!/:2.3.0]
-        at io.github.resilience4j.circuitbreaker.CircuitBreaker.lambda$decorateSupplier$5(CircuitBreaker.java:194) ~[resilience4j-circuitbreaker-2.3.0.jar!/:2.3.0]
-        at com.fincore.commonutilities.aspect.GlobalResilienceAspect.applyResilience(GlobalResilienceAspect.java:73) ~[common-utilities-1.1.0.jar!/:1.1.0]
-        at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:103) ~[na:na]
-        at java.base/java.lang.reflect.Method.invoke(Method.java:580) ~[na:na]
-        at org.springframework.aop.aspectj.AbstractAspectJAdvice.invokeAdviceMethodWithGivenArgs(AbstractAspectJAdvice.java:648) ~[spring-aop-7.0.8.jar!/:7.0.8]
-        at org.springframework.aop.aspectj.AbstractAspectJAdvice.invokeAdviceMethod(AbstractAspectJAdvice.java:630) ~[spring-aop-7.0.8.jar!/:7.0.8]
-        at org.springframework.aop.aspectj.AspectJAroundAdvice.invoke(AspectJAroundAdvice.java:70) ~[spring-aop-7.0.8.jar!/:7.0.8]
-        at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:179) ~[spring-aop-7.0.8.jar!/:7.0.8]
-        at org.springframework.aop.framework.CglibAopProxy$DynamicAdvisedInterceptor.intercept(CglibAopProxy.java:719) ~[spring-aop-7.0.8.jar!/:7.0.8]
-        at com.fincore.CommunicationService.attachment.AttachmentPreparationServiceImpl$$SpringCGLIB$$0.prepareAttachments(<generated>) ~[!/:0.0.1-SNAPSHOT]
-        at com.fincore.CommunicationService.orchestrator.CommunicationOrchestrator.process(CommunicationOrchestrator.java:111) ~[!/:0.0.1-SNAPSHOT]
-        at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:103) ~[na:na]
-        at java.base/java.lang.reflect.Method.invoke(Method.java:580) ~[na:na]
-        at org.springframework.aop.support.AopUtils.invokeJoinpointUsingReflection(AopUtils.java:359) ~[spring-aop-7.0.8.jar!/:7.0.8]
-        at org.springframework.aop.framework.ReflectiveMethodInvocation.invokeJoinpoint(ReflectiveMethodInvocation.java:190) ~[spring-aop-7.0.8.jar!/:7.0.8]
-        at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:158) ~[spring-aop-7.0.8.jar!/:7.0.8]
-        at org.springframework.aop.interceptor.ExposeInvocationInterceptor.invoke(ExposeInvocationInterceptor.java:96) ~[spring-aop-7.0.8.jar!/:7.0.8]
-        at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:179) ~[spring-aop-7.0.8.jar!/:7.0.8]
-        at org.springframework.aop.aspectj.MethodInvocationProceedingJoinPoint.proceed(MethodInvocationProceedingJoinPoint.java:82) ~[spring-aop-7.0.8.jar!/:7.0.8]
-        at com.fincore.commonutilities.aspect.GlobalResilienceAspect.lambda$applyResilience$0(GlobalResilienceAspect.java:60) ~[common-utilities-1.1.0.jar!/:1.1.0]
-        at io.github.resilience4j.retry.Retry.lambda$decorateSupplier$5(Retry.java:301) ~[resilience4j-retry-2.3.0.jar!/:2.3.0]
-        at io.github.resilience4j.circuitbreaker.CircuitBreaker.lambda$decorateSupplier$5(CircuitBreaker.java:194) ~[resilience4j-circuitbreaker-2.3.0.jar!/:2.3.0]
-        at com.fincore.commonutilities.aspect.GlobalResilienceAspect.applyResilience(GlobalResilienceAspect.java:73) ~[common-utilities-1.1.0.jar!/:1.1.0]
-        at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:103) ~[na:na]
-        at java.base/java.lang.reflect.Method.invoke(Method.java:580) ~[na:na]
-        at org.springframework.aop.aspectj.AbstractAspectJAdvice.invokeAdviceMethodWithGivenArgs(AbstractAspectJAdvice.java:648) ~[spring-aop-7.0.8.jar!/:7.0.8]
-        at org.springframework.aop.aspectj.AbstractAspectJAdvice.invokeAdviceMethod(AbstractAspectJAdvice.java:630) ~[spring-aop-7.0.8.jar!/:7.0.8]
-        at org.springframework.aop.aspectj.AspectJAroundAdvice.invoke(AspectJAroundAdvice.java:70) ~[spring-aop-7.0.8.jar!/:7.0.8]
-        at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:179) ~[spring-aop-7.0.8.jar!/:7.0.8]
-        at org.springframework.aop.framework.CglibAopProxy$DynamicAdvisedInterceptor.intercept(CglibAopProxy.java:719) ~[spring-aop-7.0.8.jar!/:7.0.8]
-        at com.fincore.CommunicationService.orchestrator.CommunicationOrchestrator$$SpringCGLIB$$0.process(<generated>) ~[!/:0.0.1-SNAPSHOT]
-        at com.fincore.CommunicationService.consumer.GenericCommunicationConsumer.consumeGenericCommunication(GenericCommunicationConsumer.java:157) ~[!/:0.0.1-SNAPSHOT]
-        at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:103) ~[na:na]
-        at java.base/java.lang.reflect.Method.invoke(Method.java:580) ~[na:na]
-        at org.springframework.messaging.handler.invocation.InvocableHandlerMethod.doInvoke(InvocableHandlerMethod.java:168) ~[spring-messaging-7.0.8.jar!/:7.0.8]
-        at org.springframework.kafka.listener.adapter.KotlinAwareInvocableHandlerMethod.doInvoke(KotlinAwareInvocableHandlerMethod.java:48) ~[spring-kafka-4.1.0.jar!/:4.1.0]
-        at org.springframework.messaging.handler.invocation.InvocableHandlerMethod.invoke(InvocableHandlerMethod.java:119) ~[spring-messaging-7.0.8.jar!/:7.0.8]
-        at org.springframework.kafka.listener.adapter.HandlerAdapter.invoke(HandlerAdapter.java:80) ~[spring-kafka-4.1.0.jar!/:4.1.0]
-        at org.springframework.kafka.listener.adapter.MessagingMessageListenerAdapter.invokeHandler(MessagingMessageListenerAdapter.java:489) ~[spring-kafka-4.1.0.jar!/:4.1.0]
-        at org.springframework.kafka.listener.adapter.MessagingMessageListenerAdapter.invoke(MessagingMessageListenerAdapter.java:426) ~[spring-kafka-4.1.0.jar!/:4.1.0]
-        at org.springframework.kafka.listener.adapter.RecordMessagingMessageListenerAdapter.onMessage(RecordMessagingMessageListenerAdapter.java:92) ~[spring-kafka-4.1.0.jar!/:4.1.0]
-        at org.springframework.kafka.listener.adapter.RecordMessagingMessageListenerAdapter.onMessage(RecordMessagingMessageListenerAdapter.java:52) ~[spring-kafka-4.1.0.jar!/:4.1.0]
-        at org.springframework.kafka.listener.adapter.KafkaBackoffAwareMessageListenerAdapter.invokeDelegateOnMessage(KafkaBackoffAwareMessageListenerAdapter.java:109) ~[spring-kafka-4.1.0.jar!/:4.1.0]
-        at org.springframework.kafka.listener.adapter.KafkaBackoffAwareMessageListenerAdapter.onMessage(KafkaBackoffAwareMessageListenerAdapter.java:100) ~[spring-kafka-4.1.0.jar!/:4.1.0]
-        at org.springframework.kafka.listener.adapter.KafkaBackoffAwareMessageListenerAdapter.onMessage(KafkaBackoffAwareMessageListenerAdapter.java:50) ~[spring-kafka-4.1.0.jar!/:4.1.0]
-        at org.springframework.kafka.listener.KafkaMessageListenerContainer$ListenerConsumer.doInvokeOnMessage(KafkaMessageListenerContainer.java:3018) ~[spring-kafka-4.1.0.jar!/:4.1.0]
-        at org.springframework.kafka.listener.KafkaMessageListenerContainer$ListenerConsumer.invokeOnMessage(KafkaMessageListenerContainer.java:2997) ~[spring-kafka-4.1.0.jar!/:4.1.0]
-        at org.springframework.kafka.listener.KafkaMessageListenerContainer$ListenerConsumer.doInvokeRecordListener(KafkaMessageListenerContainer.java:2907) ~[spring-kafka-4.1.0.jar!/:4.1.0]
-        at org.springframework.kafka.listener.KafkaMessageListenerContainer$ListenerConsumer.doInvokeWithRecords(KafkaMessageListenerContainer.java:2749) ~[spring-kafka-4.1.0.jar!/:4.1.0]
-        at org.springframework.kafka.listener.KafkaMessageListenerContainer$ListenerConsumer.invokeRecordListener(KafkaMessageListenerContainer.java:2643) ~[spring-kafka-4.1.0.jar!/:4.1.0]
-        at org.springframework.kafka.listener.KafkaMessageListenerContainer$ListenerConsumer.invokeListener(KafkaMessageListenerContainer.java:2274) ~[spring-kafka-4.1.0.jar!/:4.1.0]
-        at org.springframework.kafka.listener.KafkaMessageListenerContainer$ListenerConsumer.invokeIfHaveRecords(KafkaMessageListenerContainer.java:1572) ~[spring-kafka-4.1.0.jar!/:4.1.0]
-        at org.springframework.kafka.listener.KafkaMessageListenerContainer$ListenerConsumer.pollAndInvoke(KafkaMessageListenerContainer.java:1504) ~[spring-kafka-4.1.0.jar!/:4.1.0]
-        at org.springframework.kafka.listener.KafkaMessageListenerContainer$ListenerConsumer.run(KafkaMessageListenerContainer.java:1373) ~[spring-kafka-4.1.0.jar!/:4.1.0]
-        at java.base/java.util.concurrent.CompletableFuture$AsyncRun.run(CompletableFuture.java:1804) ~[na:na]
-        at java.base/java.lang.Thread.run(Thread.java:1570) ~[na:na]
+import java.security.SecureRandom;
+import java.sql.Timestamp;
+import java.time.LocalDateTime;
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
 
-2026-09-22T06:37:44.917Z  INFO 1 --- [CommunicationService] [ntainer#0-0-C-1] c.f.C.a.AttachmentPreparationServiceImpl : Initiating attachment preparation for 3 items.
-2026-09-22T06:37:44.925Z ERROR 1 --- [CommunicationService] [ntainer#0-0-C-1] c.f.C.client.ReportServiceClient         : Upstream HTTP failure communicating with Report Service.
+/**
+ * Service implementation handling user login/verification, menu resolution, and password updates.
+ *
+ * <p><strong>Responsibilities</strong>
+ * <ul>
+ *   <li>Validate credentials (password-based and SSO-based)</li>
+ *   <li>Issue HS256 JWTs and embed limited user/role claims</li>
+ *   <li>Transform role permissions into menu responses</li>
+ *   <li>Track login attempts and enforce wrong password limits</li>
+ * </ul>
+ *
+ * <p><strong>Notes</strong>
+ * <ul>
+ *   <li>JWT generation uses an HMAC Base64 secret; ensure it is configured for the environment.</li>
+ *   <li>{@code BCryptPasswordEncoder} is created locally for convenience; consider injecting a singleton bean instead.</li>
+ *   <li>Write operations are wrapped in {@link Transactional} where appropriate.</li>
+ * </ul>
+ */
+@Slf4j
+@Service("LoginService")
+@RequiredArgsConstructor
+public class LoginServiceImpl implements LoginService {
 
-java.lang.RuntimeException: Report Service returned HTTP status: 401 UNAUTHORIZED
-        at com.fincore.CommunicationService.client.ReportServiceClient.lambda$downloadAttachments$0(ReportServiceClient.java:55) ~[!/:0.0.1-SNAPSHOT]
-        at org.springframework.web.client.DefaultRestClient$DefaultRequestBodyUriSpec.exchangeInternal(DefaultRestClient.java:617) ~[spring-web-7.0.8.jar!/:7.0.8]
-        at org.springframework.web.client.DefaultRestClient$DefaultRequestBodyUriSpec.exchange(DefaultRestClient.java:572) ~[spring-web-7.0.8.jar!/:7.0.8]
-        at org.springframework.web.client.RestClient$RequestHeadersSpec.exchange(RestClient.java:747) ~[spring-web-7.0.8.jar!/:7.0.8]
-        at com.fincore.CommunicationService.client.ReportServiceClient.downloadAttachments(ReportServiceClient.java:49) ~[!/:0.0.1-SNAPSHOT]
-        at com.fincore.CommunicationService.attachment.AttachmentPreparationServiceImpl.prepareAttachments(AttachmentPreparationServiceImpl.java:88) ~[!/:0.0.1-SNAPSHOT]
-        at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:103) ~[na:na]
-        at java.base/java.lang.reflect.Method.invoke(Method.java:580) ~[na:na]
-        at org.springframework.aop.support.AopUtils.invokeJoinpointUsingReflection(AopUtils.java:359) ~[spring-aop-7.0.8.jar!/:7.0.8]
-        at org.springframework.aop.framework.ReflectiveMethodInvocation.invokeJoinpoint(ReflectiveMethodInvocation.java:190) ~[spring-aop-7.0.8.jar!/:7.0.8]
-        at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:158) ~[spring-aop-7.0.8.jar!/:7.0.8]
-        at org.springframework.aop.interceptor.ExposeInvocationInterceptor.invoke(ExposeInvocationInterceptor.java:96) ~[spring-aop-7.0.8.jar!/:7.0.8]
-        at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:179) ~[spring-aop-7.0.8.jar!/:7.0.8]
-        at org.springframework.aop.aspectj.MethodInvocationProceedingJoinPoint.proceed(MethodInvocationProceedingJoinPoint.java:82) ~[spring-aop-7.0.8.jar!/:7.0.8]
-        at com.fincore.commonutilities.aspect.GlobalResilienceAspect.lambda$applyResilience$0(GlobalResilienceAspect.java:60) ~[common-utilities-1.1.0.jar!/:1.1.0]
-        at io.github.resilience4j.retry.Retry.lambda$decorateSupplier$5(Retry.java:301) ~[resilience4j-retry-2.3.0.jar!/:2.3.0]
-        at io.github.resilience4j.circuitbreaker.CircuitBreaker.lambda$decorateSupplier$5(CircuitBreaker.java:194) ~[resilience4j-circuitbreaker-2.3.0.jar!/:2.3.0]
-        at com.fincore.commonutilities.aspect.GlobalResilienceAspect.applyResilience(GlobalResilienceAspect.java:73) ~[common-utilities-1.1.0.jar!/:1.1.0]
-        at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:103) ~[na:na]
-        at java.base/java.lang.reflect.Method.invoke(Method.java:580) ~[na:na]
-        at org.springframework.aop.aspectj.AbstractAspectJAdvice.invokeAdviceMethodWithGivenArgs(AbstractAspectJAdvice.java:648) ~[spring-aop-7.0.8.jar!/:7.0.8]
-        at org.springframework.aop.aspectj.AbstractAspectJAdvice.invokeAdviceMethod(AbstractAspectJAdvice.java:630) ~[spring-aop-7.0.8.jar!/:7.0.8]
-        at org.springframework.aop.aspectj.AspectJAroundAdvice.invoke(AspectJAroundAdvice.java:70) ~[spring-aop-7.0.8.jar!/:7.0.8]
-        at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:179) ~[spring-aop-7.0.8.jar!/:7.0.8]
-        at org.springframework.aop.framework.CglibAopProxy$DynamicAdvisedInterceptor.intercept(CglibAopProxy.java:719) ~[spring-aop-7.0.8.jar!/:7.0.8]
-        at com.fincore.CommunicationService.attachment.AttachmentPreparationServiceImpl$$SpringCGLIB$$0.prepareAttachments(<generated>) ~[!/:0.0.
+    /**
+     * Prefer injecting a singleton bean; retained local instance for compatibility.
+     */
+    private final PasswordEncoder passwordEncoder;
+
+    // ======= Config =======
+    private final UserRepository userRepository;
+    private final LoginAttemptRepository loginAttemptRepository;
+
+    // ======= Dependencies =======
+    private final LoginParamRepository loginParamRepository;
+    private final RolePermissionsRepository rolePermissionsRepository;
+    private final MenuService menuService;
+    private final ObjectMapper mapper;
+    private final BranchRepository branchRepository;
+    private final Scheduler ldapScheduler;
+    private final AdAuthenticationService adAuthenticationService;
+
+    // ========== OTP ==========
+    private final OtpSessionService otpSessionService;
+    private final OtpKafkaProducer otpKafkaProducer;
+
+    @Value("${security.payload.rsa-private:}")
+    private String rsaPrivatePem;
+
+    /**
+     * Base64-encoded HMAC secret used to sign HS256 JWTs.
+     */
+    @Value("${security.jwt.hmac-base64-secret:}")
+    private String hmacSecret;
+
+    /**
+     * Token time-to-live in seconds.
+     */
+    @Value("${security.jwt.ttl-seconds:900}")
+    private long ttlSeconds;
+
+    // =========================================================================================
+    // NEW OTP LIFECYCLE METHODS
+    // =========================================================================================
+
+    @Override
+    public Mono<OtpInitiatedResponseDTO> initiateOtpPhase(UserDto userDto) {
+        UserTokenDataDto tokenData = userDto.getUser();
+
+        String mobile = (tokenData != null && tokenData.getPhoneNumber() != null) ? tokenData.getPhoneNumber().trim() : "";
+        String email = (tokenData != null && tokenData.getEmail() != null) ? tokenData.getEmail().trim() : "";
+
+        // 1. THE FAIL-FAST BARRIER
+        boolean hasMobile = !mobile.isEmpty();
+        boolean hasEmail = email.contains("@");
+
+        if (!hasMobile && !hasEmail) {
+            log.error("Login halted for user {}: No registered mobile or email found.", LoginUtility.sanitizeLog(userDto.getUserId()));
+            return Mono.error(new ResponseStatusException(
+                    HttpStatus.FORBIDDEN,
+                    "No registered mobile number or email address found. Please contact fincore support to update your profile."
+            ));
+        }
+
+        // 2. DYNAMIC CHANNEL ROUTER
+        List<String> activeChannels = new java.util.ArrayList<>();
+        if (hasMobile) activeChannels.add("SMS");
+        if (hasEmail) activeChannels.add("EMAIL");
+
+        String txId = UUID.randomUUID().toString();
+        String plainOtp = generateSecureOtp();
+        String fName = tokenData.getFirstName() != null ? tokenData.getFirstName() : "User";
+
+        // 3. THE SAGA PIPELINE (Redis -> Kafka -> Success OR Rollback)
+        return otpSessionService.saveOtpState(txId, userDto.getUserId(), plainOtp, false)
+                .then(otpKafkaProducer.publishOtpEvent(txId, mobile, email, plainOtp, fName, activeChannels))
+                .thenReturn(OtpInitiatedResponseDTO.builder()
+                        .transactionId(txId)
+                        .maskedMobile(hasMobile ? maskMobile(mobile) : "Not Registered")
+                        .maskedEmail(hasEmail ? maskEmail(email) : "Not Registered")
+                        .expiresInSeconds(300)
+                        .resendCooldownSeconds(30)
+                        .resendsRemaining(5)
+                        .build())
+                .onErrorResume(error -> {
+                    // 4. COMPENSATING TRANSACTION (KAFKA DOWN)
+                    log.error("Infrastructure failure during OTP dispatch for txId={}. Rolling back Redis state.", LoginUtility.sanitizeLog(txId), error);
+
+                    // If Kafka fails, we must delete the Redis keys so the user isn't stuck
+                    return otpSessionService.rollbackOtpState(txId)
+                            .then(Mono.error(new ResponseStatusException(
+                                    HttpStatus.INTERNAL_SERVER_ERROR,
+                                    "Unable to dispatch OTP due to system latency. Please try again."
+                            )));
+                });
+    }
+
+    @Override
+    public Mono<UserDto> verifyOtpAndGetUser(VerifyOtpRequestDTO requestDto) {
+        return otpSessionService.verifyOtp(requestDto.getTransactionId(), requestDto.getOtp())
+                .flatMap(userId -> Mono.fromCallable(() -> {
+                    UserDto userDto = getUserProfile(userId);
+                    if (userDto == null) {
+                        throw new IllegalStateException("User missing post OTP verification");
+                    }
+                    userDto.setValidCredentials(true); // Signal to AuthController to issue tokens
+                    return userDto;
+                }).subscribeOn(Schedulers.boundedElastic()));
+    }
+
+    @Override
+    public Mono<OtpResendResponseDTO> resendOtp(ResendOtpRequestDTO requestDto, String clientIp) {
+        String txId = requestDto.getTransactionId();
+
+        return otpSessionService.checkIpRateLimit(clientIp)
+                // 1. Process Resend atomically in Redis
+                .then(otpSessionService.processResend(txId, generateSecureOtp()))
+                .flatMap(tuple -> {
+
+                    String plainOtp = tuple.getT1();
+                    String userId = tuple.getT2();
+                    Long currentResendCount = tuple.getT3();
+
+                    int remaining = 5 - currentResendCount.intValue(); // Max(5) - Current
+
+                    // 2. Fetch User Profile for contact info
+                    return Mono.fromCallable(() -> getUserProfile(userId))
+                            .subscribeOn(Schedulers.boundedElastic())
+                            .flatMap(userDto -> {
+
+                                UserTokenDataDto tokenData = userDto.getUser();
+                                String mobile = (tokenData != null && tokenData.getPhoneNumber() != null) ?
+                                        tokenData.getPhoneNumber().trim() : "";
+                                String email = (tokenData != null && tokenData.getEmail() != null) ?
+                                        tokenData.getEmail().trim() : "";
+
+                                // 3. THE FAIL-FAST BARRIER
+                                boolean hasMobile = !mobile.isEmpty();
+                                boolean hasEmail = email.contains("@");
+
+                                if (!hasMobile && !hasEmail) {
+                                    log.error("OTP Resend halted for user {}: No registered mobile or email found.", LoginUtility.sanitizeLog(userId));
+                                    return Mono.error(new ResponseStatusException(
+                                            HttpStatus.FORBIDDEN,
+                                            "No registered mobile number or email address found. Please contact fincore support."
+                                    ));
+                                }
+
+                                // 4. DYNAMIC CHANNEL ROUTER
+                                List<String> activeChannels = new java.util.ArrayList<>();
+                                if (hasMobile) activeChannels.add("SMS");
+                                if (hasEmail) activeChannels.add("EMAIL");
+
+                                String fName = tokenData.getFirstName() != null ? tokenData.getFirstName() : "User";
+
+                                // 5. THE SAGA PIPELINE (Kafka Publish -> Rollback on Failure)
+                                return otpKafkaProducer.publishOtpEvent(txId, mobile, email, plainOtp, fName, activeChannels)
+                                        .thenReturn(OtpResendResponseDTO.builder()
+                                                .resendCooldownSeconds(30)
+                                                .resendsRemaining(remaining) // <--- Return exact math
+                                                .build())
+                                        .onErrorResume(error -> {
+                                            log.error("Infrastructure failure during OTP resend for txId={}. Rolling back Redis state.", LoginUtility.sanitizeLog(txId), error);
+                                            // Rollback: Delete the transaction.
+                                            return otpSessionService.rollbackOtpState(txId)
+                                                    .then(Mono.error(new ResponseStatusException(
+                                                            HttpStatus.INTERNAL_SERVER_ERROR,
+                                                            "Unable to dispatch OTP due to system latency. Please try again."
+                                                    )));
+                                        });
+                            });
+                });
+    }
+
+
+    // =========================================================================================
+    // AUTH METHODS
+    // =========================================================================================
+
+    /**
+     * Fetches role-wise permissions for the given user and transforms them into a menu response.
+     *
+     * @param userId ID of the user
+     * @return {@link MenuResponse} built from ordered permissions; empty if none or on error
+     */
+    @Transactional(readOnly = true)
+    @Override
+    public MenuResponse fetchRoleWiseData(String userId) {
+        log.info("Fetching role-wise data for userId: {}", LoginUtility.sanitizeLog(userId));
+        try {
+            List<PermissionRow> rows = rolePermissionsRepository.findAllPermissionsByUserId(userId);
+
+            if (rows == null || rows.isEmpty()) {
+                log.info("No permissions found for userId: {}", LoginUtility.sanitizeLog(userId));
+                return new MenuResponse(Collections.emptyList());
+            }
+            return menuService.transformFromProjection(rows);
+        } catch (Exception e) {
+            log.error("Error fetching permissions for userId: {}", LoginUtility.sanitizeLog(userId), e);
+            return new MenuResponse(Collections.emptyList());
+        }
+    }
+
+    /**
+     * Verifies user credentials and, on success, builds {@link UserDto} populated with an access token and token data.
+     * <p>Also records the login attempt and enforces password attempt limits.</p>
+     *
+     * @param userCredentials payload containing {@code userId} and (for password mode) {@code password}
+     * @param clientIp        caller's IP address for audit
+     * @return {@link UserDto} with validity flags, statuses, and (if valid) a signed access token
+     */
+    @Transactional
+    @Override
+    public UserDto verifyUserCredentials(UserDto userCredentials, String clientIp) {
+
+        final String userId = userCredentials.getUserId().toLowerCase();
+        final String encryptedPassword = userCredentials.getPassword(); // This is now RSA Encrypted
+
+        UserDto result = new UserDto();
+
+        // 1. AUTHORIZATION CHECK (Must exist in Local DB)
+        User user = userRepository.findByUserId(userId);
+        if (user == null) {
+            result.setValidCredentials(false);
+            result.setUserStatus(Constants.INVALID);
+            result.setMessage("Invalid credentials. Please check your User ID and Password.");
+            log.warn("Login blocked: User {} not found in local DB.", LoginUtility.sanitizeLog(userId));
+            return result;
+        }
+
+        LoginParam loginParam = loginParamRepository.getLoginParam();
+        char activeMode = loginParam.getActiveLoginMode();
+
+        // Prepare Audit Log
+        LoginAttempt attempt = new LoginAttempt();
+        attempt.setLoginMethod(determineMethodString(activeMode));
+        attempt.setSuccess("N");
+        attempt.setIpAddress(clientIp);
+        attempt.setUserId(userId);
+
+        result.setLoginMethod(activeMode);
+        result.setUserId(user.getUserId());
+        result.setOtpRequired("Y".equalsIgnoreCase(loginParam.getIsOtpEnabled()));
+        UserRoles userRole = userRepository.getUserRole(userId);
+
+        // 2. STATUS CHECKS
+        result.setRoleStatus(userRole.getRoleStatus());
+        result.setUserStatus(user.getAccountStatus());
+        result.setPasswordLoginStatus(user.getPasswordLogin());
+
+        if (!Constants.ACTIVE.equalsIgnoreCase(userRole.getRoleStatus())) {
+            attempt.setFailureReason(generateStatusMessage(userRole.getRoleStatus(), "role"));
+            loginAttemptRepository.save(attempt);
+            result.setValidCredentials(false);
+            return result;
+        }
+
+        if (!Constants.ACTIVE.equalsIgnoreCase(user.getAccountStatus())) {
+            attempt.setFailureReason(generateStatusMessage(user.getAccountStatus(), "user"));
+            loginAttemptRepository.save(attempt);
+            result.setValidCredentials(false);
+            return result;
+        }
+
+        try {
+            // Decrypt RSA Payload
+            String rawPassword = KeyUtils.decryptRsaPassword(encryptedPassword, rsaPrivatePem);
+
+            // 3. AUTHENTICATION LOGIC BASED ON MODE
+            if (activeMode == Constants.LDAP) {
+                // --- MODE: LDAP ---
+                log.info("Processing LDAP Login for user: {}", LoginUtility.sanitizeLog(userId));
+                try {
+                    // Execute the blocking LDAP call on the isolated thread pool
+                    Boolean ldapSuccess = Mono.fromCallable(() -> adAuthenticationService.authenticate(userId, rawPassword))
+                            .subscribeOn(ldapScheduler) // <-- Use the dedicated pool
+                            .block(); // Block is acceptable here as we are already inside a thread dedicated to the login transaction
+                    if (ldapSuccess != null && ldapSuccess) {
+                        handleSuccess(attempt, result, user, userRole);
+                    } else {
+                        // Failure: Wrong Password -> Count it against limits
+                        handleFailure(attempt, result, user, loginParam, "LDAP Authentication Failed");
+                    }
+                } catch (RuntimeException e) {
+                    log.error("LDAP Server Error for user {}: {}", LoginUtility.sanitizeLog(userId), e.getMessage());
+                    // NOT incrementing wrong password count (It's not the user's fault)
+                    attempt.setSuccess("N");
+                    attempt.setFailureReason("LDAP Server Down / Connectivity Issue");
+                    result.setValidCredentials(false);
+                    result.setMessage("System Error: Unable to connect to Authentication Server. Please try again later.");
+                    return result;
+                }
+            } else if (activeMode == Constants.PWD_MODE) {
+                // MODE: LOCAL PASSWORD
+                // Check if Password Login is explicitly disabled for this specific user
+                if (Constants.ACTIVE.equalsIgnoreCase(user.getPasswordLogin())) {
+                    passwordBasedLogin(rawPassword, attempt, result, user, loginParam);
+                } else {
+                    // Account is Locked or Disabled
+                    handleAccountLocked(attempt, result, user);
+                }
+
+            }
+        } catch (SecurityException e) {
+            log.error("Login rejected for user {}: Payload decryption failed", LoginUtility.sanitizeLog(userId));
+            result.setValidCredentials(false);
+            result.setMessage("Security Error: Invalid encrypted payload");
+            attempt.setFailureReason("Payload Decryption Failed (Possible MITM or invalid format)");
+            return result;
+        }
+
+        loginAttemptRepository.save(attempt);
+        log.debug("verifyUserCredentials result={}", result);
+        return result;
+    }
+
+    /**
+     * Password-based authentication flow that enforces wrong password limits and updates counters/flags.
+     * 1. Increments count on failure.
+     * 2. Calculates remaining attempts.
+     * 3. Locks account immediately if limit reached.
+     *
+     * @param password     raw password from the request
+     * @param loginAttempt login attempt entity to be updated with success/failure
+     * @param userInfo     output DTO updated with validity and attempts left
+     * @param user         the user entity being authenticated
+     * @param loginParam   login parameter configuration (e.g., permitted attempts)
+     */
+    @Transactional
+    @Override
+    public void passwordBasedLogin(String password, LoginAttempt loginAttempt, UserDto userInfo, User user, LoginParam loginParam) {
+        log.info("Password-based login for userId={}", LoginUtility.sanitizeLog(user.getUserId()));
+
+        if (Constants.INACTIVE.equalsIgnoreCase(user.getPasswordLogin())) {
+            handleAccountLocked(loginAttempt, userInfo, user);
+            return;
+        }
+
+        if (passwordEncoder.matches(password, user.getPasswordHash())) {
+            UserRoles userRole = userRepository.getUserRole(user.getUserId());
+            handleSuccess(loginAttempt, userInfo, user, userRole);
+        } else {
+            handleFailure(loginAttempt, userInfo, user, loginParam, "Wrong Password");
+        }
+    }
+
+
+    /**
+     * Produces a human-readable message describing a blocked login due to {@code status} of a given {@code type}.
+     *
+     * @param status status string (e.g., ACTIVE/INACTIVE/LOCKED)
+     * @param type   subject type (e.g., "user", "role")
+     * @return formatted message
+     */
+    @Override
+    public String generateStatusMessage(String status, String type) {
+        return String.format("Trying to login with a %s %s", status, type);
+    }
+
+    /**
+     * Checks the status and requirements for a user attempting to log in (without performing login).
+     *
+     * @param userId the user identifier
+     * @return {@link VerifyUserDTO} describing status, password update requirements, and messages
+     */
+    @Transactional(readOnly = true)
+    public VerifyUserDTO checkUser(String userId) {
+        VerifyUserDTO out = new VerifyUserDTO();
+        out.setUserId(userId);
+
+        User user = userRepository.findByUserId(userId);
+        LoginParam loginParam = loginParamRepository.getLoginParam();
+        out.setLoginMethod(loginParam.getActiveLoginMode());
+
+        if (user == null) {
+            out.setUserCheck(false);
+            out.setUserStatus(Constants.INVALID);
+            out.setMessage("Invalid credentials. Please check your User ID or Password.");
+            return out;
+        }
+
+        if (Constants.ACTIVE.equalsIgnoreCase(user.getAccountStatus())) {
+            Timestamp setAt = user.getTempPasswordSetAt();
+            boolean isPasswordValid = false;
+
+            // Validate password expiration only for Password Mode
+            if (loginParam.getActiveLoginMode() == Constants.PWD_MODE && setAt != null) {
+                LocalDateTime lastUpdate = setAt.toLocalDateTime();
+                isPasswordValid = LocalDateTime.now()
+                        .isBefore(lastUpdate.plusHours(loginParam.getPasswordValidity()));
+            } else {
+                // For LDAP/SSO, we rely on their policies, so treat local validity as true
+                isPasswordValid = true;
+            }
+
+            UserRoles userRole = userRepository.getUserRole(userId);
+            out.setRoleStatus(userRole.getRoleStatus());
+
+            // Logic: Update Password only needed if Mode is Password AND (Password is null OR Expired)
+            boolean updateNeeded = (loginParam.getActiveLoginMode() == Constants.PWD_MODE)
+                    && (user.getPasswordHash() == null || !isPasswordValid);
+
+            out.setUpdatePassword(updateNeeded);
+            out.setUserStatus(Constants.ACTIVE);
+            out.setMessage(Constants.ACTIVE_USER);
+            out.setPasswordLoginStatus(user.getPasswordLogin());
+        } else {
+            String accountStatus = user.getAccountStatus();
+            out.setUserCheck(true);
+            out.setUserStatus(accountStatus);
+            out.setMessage(
+                    accountStatus.equalsIgnoreCase("locked") ? "Your account is locked. Please contact support."
+                            : accountStatus.equalsIgnoreCase("inactive") ? "Inactive User" : "Verification Pending"
+            );
+        }
+
+        return out;
+    }
+
+    /**
+     * Updates the user's password hash and resets the temporary password timestamp.
+     *
+     * @param userCredentials input DTO with {@code userId} and new raw {@code password}
+     * @return {@link UpdatePasswordDTO} indicating success and message; sensitive fields are cleared
+     */
+    @Transactional
+    public UpdatePasswordDTO updatePassword(UpdatePasswordDTO userCredentials) {
+        String userId = userCredentials.getUserId();
+        String encryptedPassword = userCredentials.getPassword();
+
+        // Always sanitize outbound fields
+        userCredentials.setUpdateFlag(false);
+        userCredentials.setPassword("");
+        userCredentials.setOtp("");
+
+        try {
+            User user = userRepository.findByUserId(userId);
+            if (user == null) {
+                userCredentials.setMessage("Invalid user id");
+                return userCredentials;
+            }
+
+            String rawPassword;
+            try {
+                rawPassword = KeyUtils.decryptRsaPassword(encryptedPassword, rsaPrivatePem);
+            } catch (SecurityException e) {
+                log.error("Update password rejected for user {}: Payload decryption failed", userId);
+                userCredentials.setMessage("Security Error: Invalid encrypted payload");
+                return userCredentials;
+            }
+
+            String passwordHash = passwordEncoder.encode(rawPassword);
+            user.setPasswordHash(passwordHash);
+            user.setTempPasswordSetAt(Timestamp.valueOf(LocalDateTime.now()));
+            userRepository.save(user);
+
+            userCredentials.setMessage("User password successfully updated");
+            userCredentials.setUpdateFlag(true);
+
+        } catch (DataIntegrityViolationException e) {
+            log.warn("Data integrity violation while updating password for userId={}", LoginUtility.sanitizeLog(userId), e);
+            userCredentials.setMessage("Failed to change password, please try again");
+        } catch (ObjectOptimisticLockingFailureException e) {
+            log.warn("Optimistic locking failure while updating password for userId={}", LoginUtility.sanitizeLog(userId), e);
+            userCredentials.setMessage("The user data was modified by another process, please retry");
+        } catch (JpaSystemException e) {
+            log.error("JPA system error while updating password for userId={}", LoginUtility.sanitizeLog(userId), e);
+            userCredentials.setMessage("A database error occurred, please try again later");
+        }
+
+        return userCredentials;
+    }
+
+
+    // =========================================================================================
+    // HELPERS
+    // =========================================================================================
+
+    /**
+     * Initializes the token-visible user data embedded/returned alongside the JWT.
+     * Fetches branch and circle mapping dynamically.
+     *
+     * @param user     the user entity
+     * @param userRole the role mapping for the user
+     * @return user token DTO with non-sensitive fields
+     */
+    private UserTokenDataDto initializeTokenData(User user, UserRoles userRole) {
+        UserTokenDataDto tokenData = new UserTokenDataDto();
+        tokenData.setFirstName(user.getFirstName());
+        tokenData.setLastName(user.getLastName());
+        tokenData.setPhoneNumber(user.getPhoneNumber());
+        tokenData.setUserId(user.getUserId());
+        tokenData.setBranch(user.getBranch());
+        tokenData.setEmail(user.getEmail());
+        tokenData.setRole(userRole.getRole());
+        tokenData.setRoleName(userRole.getRoleName());
+
+        // ========== New code changes as per requirement for role access ========== added by v1015698
+        tokenData.setRoleDescription(userRole.getRoleDescription());
+        tokenData.setRoleAccess(userRole.getRoleAccess());
+        tokenData.setAccessName(userRole.getAccessName());
+        tokenData.setAccessDescription(userRole.getAccessDescription());
+
+        // FORMAT the branch integer to a 5-digit string (e.g., 8080 -> "08080")
+        String branchCodeStr = String.format("%05d", user.getBranch());
+
+        // Fetch specific details from the database
+        BranchCircleProjection bcInfo = branchRepository.findBranchAndCircleDetails(branchCodeStr);
+
+        if (bcInfo != null) {
+            tokenData.setBranchName(bcInfo.getBranchName());
+            tokenData.setCity(bcInfo.getCity());
+            tokenData.setAddress(bcInfo.getAddress());
+            tokenData.setPincode(bcInfo.getPincode());
+            tokenData.setNmrCode(bcInfo.getNmrCode());
+            tokenData.setBranchStatus(bcInfo.getBranchStatus());
+            tokenData.setBranchType(bcInfo.getBranchType());
+            tokenData.setCircleCode(bcInfo.getCircleCode());
+            tokenData.setCircleName(bcInfo.getCircleName());
+            tokenData.setZoneCode(bcInfo.getZoneCode());
+            tokenData.setZoneName(bcInfo.getZoneName());
+            tokenData.setCircleBranch(bcInfo.getCircleBranch());
+            tokenData.setStateName(bcInfo.getStateName());
+            tokenData.setStateCode(bcInfo.getStateCode());
+
+
+            // Check if user's branch matches the Circle's designated branch code
+            boolean isCircle = branchCodeStr.equals(bcInfo.getCircleBranch());
+            tokenData.setIsCircle(isCircle);
+        } else {
+            // Fallback if branch is somehow missing in the master table
+            tokenData.setIsCircle(false);
+            log.warn("Branch details not found in BRANCH_MASTER for branch code: {}", branchCodeStr);
+        }
+
+        return tokenData;
+    }
+
+
+    /**
+     * Retrieves the full user profile for Token Refresh.
+     * Uses the exact same structure as verifyUserCredentials to ensure token claims are identical.
+     */
+    @Override
+    @Transactional(readOnly = true)
+    public UserDto getUserProfile(String userId) {
+        User user = userRepository.findByUserId(userId);
+        UserRoles userRole = userRepository.getUserRole(userId);
+
+        // Return null if user doesn't exist, caller handles the error
+        if (user == null) {
+            return null;
+        }
+        UserDto userDto = new UserDto();
+        userDto.setUserId(user.getUserId());
+        userDto.setUserStatus(user.getPasswordLogin());
+        userDto.setPasswordLoginStatus(user.getPasswordLogin());
+        userDto.setUser(initializeTokenData(user, userRole));
+        return userDto;
+    }
+
+
+    private String determineMethodString(char mode) {
+        if (mode == Constants.LDAP) return "LDAP";
+        if (mode == Constants.PWD_MODE) return Constants.PASSWORD_BASED_LOGIN;
+        return Constants.SSO_BASED_LOGIN;
+    }
+
+    private void handleAccountLocked(LoginAttempt attempt, UserDto result, User user) {
+        result.setValidCredentials(false);
+        result.setPasswordLoginStatus(user.getPasswordLogin());
+        result.setMessage("Your account is locked due to multiple failed attempts.");
+
+        if (Constants.INACTIVE.equalsIgnoreCase(user.getPasswordLogin())) {
+            result.setAttemptsLeft(0);
+            attempt.setFailureReason("Account Locked (Pre-check)");
+        } else {
+            result.setMessage("Password login is disabled.");
+            attempt.setFailureReason("Password login disabled");
+        }
+    }
+
+    private void handleSuccess(LoginAttempt attempt, UserDto result, User user, UserRoles userRole) {
+        attempt.setSuccess("Y");
+        attempt.setFailureReason("Success");
+        result.setValidCredentials(true);
+        result.setMessage("Login Successful");
+
+        // Reset wrong password count on successful login
+        if (user.getUserWrongPasswordCount() > 0) {
+            user.setUserWrongPasswordCount(0);
+            userRepository.save(user);
+        }
+
+        log.info("Credentials validated. Issuing token for userId={}", LoginUtility.sanitizeLog(user.getUserId()));
+
+        // Fetch contextual user data (including branch and circle)
+        UserTokenDataDto tokenData = initializeTokenData(user, userRole);
+
+        @SuppressWarnings("unchecked")
+        String accessToken = HmacJwtUtil.generate(
+                hmacSecret,
+                user.getUserId(),
+                ttlSeconds,
+                mapper.convertValue(tokenData, Map.class) // Embed all tokenData properties into the JWT claims
+        );
+
+        result.setAccessToken(accessToken);
+        result.setUser(tokenData);
+    }
+
+    private void handleFailure(LoginAttempt attempt, UserDto userInfo, User user, LoginParam loginParam, String reason) {
+        log.warn("Login failed for user {}: {}", LoginUtility.sanitizeLog(user.getUserId()), reason);
+        attempt.setSuccess("N");
+
+        int currentFailedCount = user.getUserWrongPasswordCount();
+        int maxAllowed = loginParam.getWrongPasswordAttempts();
+        int newFailedCount = currentFailedCount + 1;
+
+        user.setUserWrongPasswordCount(newFailedCount);
+        userInfo.setValidCredentials(false);
+
+        if (newFailedCount >= maxAllowed) {
+            user.setPasswordLogin(Constants.INACTIVE);
+            // user.setAccountStatus(Constants.LOCKED); // Optional: Depending on business rule
+            attempt.setFailureReason(reason + " -> Account Locked");
+            userInfo.setMessage("Your account has been locked due to multiple unsuccessful login attempts.");
+            userInfo.setPasswordLoginStatus(Constants.INACTIVE);
+            userInfo.setAttemptsLeft(0);
+        } else {
+            int remaining = maxAllowed - newFailedCount;
+            attempt.setFailureReason(reason);
+            if (remaining > 1) {
+                userInfo.setMessage("Incorrect credentials. Please check and try again.");
+            } else {
+                userInfo.setMessage("Incorrect credentials. Final attempt before lock.");
+            }
+            userInfo.setAttemptsLeft(remaining);
+        }
+        userRepository.save(user);
+    }
+
+
+    // ================== OTP Format Utilities ====================
+
+    private String generateSecureOtp() {
+        SecureRandom random = new SecureRandom();
+        int otp = 100000 + random.nextInt(900000);
+        return String.valueOf(otp);
+    }
+
+    private String maskEmail(String email) {
+        if (email == null || !email.contains("@")) return email;
+        String[] parts = email.split("@");
+        return (parts[0].length() <= 2 ? "**" : parts[0].charAt(0) + "***" + parts[0].charAt(parts[0].length() - 1)) + "@" + parts[1];
+    }
+
+    private String maskMobile(String mobile) {
+        if (mobile == null || mobile.length() < 4) return mobile;
+        return "******" + mobile.substring(mobile.length() - 4);
+    }
+}
