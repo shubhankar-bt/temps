@@ -1,4 +1,5 @@
 package com.fincore.commonutilities.security;
+
 import com.fincore.commonutilities.jwt.JwtUtil;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.ExpiredJwtException;
@@ -18,270 +19,325 @@ import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.filter.OncePerRequestFilter;
 import org.springframework.web.util.pattern.PathPatternParser;
+
 import java.io.IOException;
 import java.util.Date;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-/
-￼ A (Servlet) Filter that enforces security for FinCore microservices.
-￼ Responsibilities:
-1. Request Routing: Identifies if a token is JWE (Frontend) or JWS (M2M).
-1. Payload Decryption: Decrypts Nimbus JWE tokens using AES keys from Redis.
-1. Session Concurrency: Enforces "One Session Per User" via Redis 'USR:<userId>'.
-1. Resiliency: Respects the Gateway 'GRACE:<jti>' period during Token Rotation.
-1. Authorization: Enforces Role-Based Access Control (RBAC) via Redis permissions.
-￼ @author SHUBHANKAR DAS [Emp ID: V1018405]
-￼ @version 1.2.0 (Refactored for SOLID, Java 21, and explicit Exception Handling)
-￼ @since 2026-10-06
-*/
+
+/**
+ * A (Servlet) Filter that enforces security for FinCore microservices.
+ * 
+ * Responsibilities:
+ * 1. Request Routing: Identifies if a token is JWE (Frontend) or JWS (M2M).
+ * 2. Payload Decryption: Decrypts Nimbus JWE tokens using AES keys from Redis.
+ * 3. Session Concurrency: Enforces "One Session Per User" via Redis 'USR:<userId>'.
+ * 4. Resiliency: Respects the Gateway 'GRACE:<jti>' period during Token Rotation.
+ * 5. Authorization: Enforces Role-Based Access Control (RBAC) via Redis permissions.
+ *
+ * @author SHUBHANKAR DAS [Emp ID: V1018405]
+ * @version 1.2.0 (Refactored for SOLID, Java 21, and explicit Exception Handling)
+ * @since 2026-10-06
+ */
 @Slf4j
 @RequiredArgsConstructor
 public class ContextRbacFilter extends OncePerRequestFilter {
-private static final String REDIS_USER_PREFIX = "USR:";
-private static final String REDIS_AES_PREFIX = "AES:USR:";
-private static final String REDIS_RBAC_PREFIX = "RBAC::PERMISSIONS::";
-private static final String REDIS_GRACE_PREFIX = "GRACE:";
-private static final String TOKEN_TYPE_SERVICE = "SERVICE";
-private static final Set<String> WHITELIST = Set.of(
-"/api/auth/", "/actuator/", "/error", "/swagger-ui/", "/v3/api-docs/",
-"/api/login", "/api/auth/login", "/api/auth/logout", "/api/auth/check-user",
-"/swagger-ui.html", "/api/auth/refresh-token"
-);
-private final StringRedisTemplate redisTemplate;
-private final JwtUtil jwtUtil;
-private final PathPatternParser pathParser = new PathPatternParser();
-@Override
-protected void doFilterInternal(
-@NonNull HttpServletRequest request,
-@NonNull HttpServletResponse response,
-@NonNull FilterChain filterChain
-) throws ServletException, IOException {
-var uri = request.getRequestURI();
-var pathContainer = PathContainer.parsePath(uri);
-// 1. SKIP WHITELISTED ENDPOINTS
-boolean isWhitelisted = WHITELIST.stream()
-.anyMatch(pattern -> pathParser.parse(pattern).matches(pathContainer));
-if (isWhitelisted) {
-filterChain.doFilter(request, response);
-return;
-}
-// 2. EXTRACT AND ROUTE TOKEN
-var token = request.getHeader("Authorization");
-if (token == null || token.isBlank()) {
-sendError(response, HttpServletResponse.SC_UNAUTHORIZED, "MISSING_TOKEN", "Authorization header missing.");
-return;
-}
-try {
-var cleanToken = removeBearer(token);
-var tokenParts = cleanToken.split("\.");
-// Branch logic based on Token specification (JWE vs JWS)
-if (tokenParts.length == 5) {
-if (!handleJweFlow(request, response, cleanToken)) return;
-} else if (tokenParts.length == 3) {
-if (!handleJwsFlow(request, response, cleanToken)) return;
-} else {
-throw new IllegalArgumentException("Unrecognized token structure. Expected 3 (JWS) or 5 (JWE) parts.");
-}
-} catch (ExpiredJwtException e) {
-// Explicitly caught from JJWT parser during the JWS/M2M flow
-handleExpiredSession(response, e.getClaims().getSubject(), e.getClaims().getId());
-return;
-} catch (JwtException | IllegalArgumentException | SecurityException e) {
-// Specific catches for Malformed tokens, invalid arguments, or cryptographic decryption failures
-log.warn("Authentication rejected due to token anomaly: {}", e.getMessage());
-sendError(response, HttpServletResponse.SC_UNAUTHORIZED, "AUTH_ERROR", "Authentication failed or token invalid.");
-return;
-} catch (RedisConnectionFailureException e) {
-// Specific catch for infrastructure failures to trigger appropriate 500 alerts
-log.error("Redis connection failed during security validation", e);
-sendError(response, HttpServletResponse.SC_INTERNAL_SERVER_ERROR, "SYSTEM_ERROR", "Auth Service Unavailable.");
-return;
-} catch (Exception e) {
-// Last-resort safety net to prevent unhandled 500 stack traces from leaking to the client
-log.error("Unexpected critical error during security filtering", e);
-sendError(response, HttpServletResponse.SC_INTERNAL_SERVER_ERROR, "SYSTEM_ERROR", "An unexpected security error occurred.");
-return;
-}
-// 3. PROCEED IF AUTHORIZED
-filterChain.doFilter(request, response);
-}
-/
-￼ Handles the 5-part Nimbus JWE token flow intended for interactive frontend users.
-￼ @return true if authorized to proceed, false if response is committed with an error.
-*/
-private boolean handleJweFlow(HttpServletRequest request, HttpServletResponse response, String cleanToken) throws IOException {
-// 1. Solve the Catch-22: Peek at the unencrypted header
-var userId = jwtUtil.extractUserIdFromJweHeader(cleanToken);
-if (userId == null || userId.isBlank()) {
-throw new IllegalArgumentException("Missing 'kid' (userId) in JWE header");
-}
-// 2. Fetch AES Key from Redis
-var base64AesKey = redisTemplate.opsForValue().get(REDIS_AES_PREFIX + userId);
-if (base64AesKey == null) {
-log.warn("JWE decryption failed: Missing AES key in Redis for user {}", userId);
-sendError(response, HttpServletResponse.SC_UNAUTHORIZED, "SESSION_EXPIRED", "Encryption session expired.");
-return false;
-}
-// 3. Decrypt Claims
-Map<String, Object> claims = jwtUtil.decryptNimbusJwe(cleanToken, base64AesKey);
-var incomingJti = (String) claims.get("jti");
-// 4. Manual Expiration Check (Required because we bypassed standard JJWT parser)
-if (isJweExpired(claims.get("exp"))) {
-handleExpiredSession(response, userId, incomingJti);
-return false;
-}
-// 5. Extract Role safely (Utilizing Java 21 Pattern Matching)
-int roleIdInt = switch (claims.get("role")) {
-case Number n -> n.intValue();
-case String s -> Integer.parseInt(s);
-case null, default -> throw new IllegalArgumentException("Token missing valid numeric role claim");
-};
-// 6. Redis Concurrency & Context Checks
-if (!checkRedisSession(response, userId, incomingJti)) return false;
-setSecurityContext(userId, "ROLE_" + roleIdInt);
-return checkRbac(request, response, String.valueOf(roleIdInt), userId);
-}
-/
-￼ Handles the 3-part JWS token flow strictly reserved for internal Service-to-Service communication.
-￼ @return true if authorized to proceed, false if response is committed with an error.
-*/
-private boolean handleJwsFlow(HttpServletRequest request, HttpServletResponse response, String cleanToken) throws IOException {
-if (!jwtUtil.isTokenValid(cleanToken)) {
-throw new SecurityException("Invalid JWS Signature");
-}
-var tokenType = jwtUtil.extractClaim(cleanToken, c -> c.get("type", String.class));
-if (TOKEN_TYPE_SERVICE.equalsIgnoreCase(tokenType)) {
-var serviceSubject = jwtUtil.extractClaim(cleanToken, Claims::getSubject);
-setSecurityContext(serviceSubject, "SERVICE");
-return true;
-}
-log.warn("Attempted to use a standard JWS token for a user session. JWS user tokens are deprecated.");
-throw new IllegalArgumentException("Standard JWS user tokens are deprecated. Use JWE for interactive sessions.");
-}
-/
-￼ Centralized logic to evaluate expired sessions against the Grace Period matrix.
-￼ Differentiates between natural timeouts, concurrent logins, and active token rotation.
-*/
-private void handleExpiredSession(HttpServletResponse response, String userId, String incomingJti) throws IOException {
-if (incomingJti == null) {
-log.error("Expired Token missing JTI for user {}", userId);
-sendError(response, HttpServletResponse.SC_UNAUTHORIZED, "INVALID_TOKEN", "Token missing JTI");
-return;
-}
-var activeJti = redisTemplate.opsForValue().get(REDIS_USER_PREFIX + userId);
-// CASE 1: Session totally gone from Redis (User idle past absolute TTL)
-if (activeJti == null) {
-log.warn("Session expired in Redis (found during token expiry check) for user {}", userId);
-sendError(response, HttpServletResponse.SC_UNAUTHORIZED, "SESSION_EXPIRED", "Session timed out.");
-return;
-}
-// CASE 2: Concurrent Login (Redis holds a newer, different JTI)
-if (!activeJti.equals(incomingJti)) {
-// Evaluates if the old token is still within the active rotation grace window
-var isInGrace = redisTemplate.hasKey(REDIS_GRACE_PREFIX + incomingJti);
-if (Boolean.TRUE.equals(isInGrace)) {
-log.debug("Expired token is in Grace Period, proceeding to TOKEN_EXPIRED. user={}", userId);
-sendError(response, HttpServletResponse.SC_UNAUTHORIZED, "TOKEN_EXPIRED", "JWT has expired.");
-} else {
-log.warn("Concurrent Login Detected on Expired Token. User: {}", userId);
-sendError(response, HttpServletResponse.SC_UNAUTHORIZED, "CONCURRENT_LOGIN", "Logged in on another device.");
-}
-return;
-}
-// CASE 3: Normal Expiry (Redis matches) -> Instruct Frontend to Refresh Token
-sendError(response, HttpServletResponse.SC_UNAUTHORIZED, "TOKEN_EXPIRED", "JWT has expired.");
-}
-/
-￼ Validates if a manually extracted JWE expiration claim represents a time in the past.
-*/
-private boolean isJweExpired(Object expClaim) {
-if (expClaim == null) return false;
-if (expClaim instanceof Date d) return d.before(new Date());
-if (expClaim instanceof Number n) return (n.longValue() * 1000) < System.currentTimeMillis();
-return false;
-}
-/
-￼ Verifies the active Redis session and applies the Grace Period exception if a token rotation is occurring.
-*/
-private boolean checkRedisSession(HttpServletResponse response, String userId, String incomingJti) throws IOException {
-if (incomingJti == null) {
-sendError(response, HttpServletResponse.SC_UNAUTHORIZED, "INVALID_TOKEN", "Token missing JTI");
-return false;
-}
-var activeJti = redisTemplate.opsForValue().get(REDIS_USER_PREFIX + userId);
-if (activeJti == null) {
-sendError(response, HttpServletResponse.SC_UNAUTHORIZED, "SESSION_EXPIRED", "Session timed out.");
-return false;
-}
-if (!incomingJti.equals(activeJti)) {
-var isInGrace = redisTemplate.hasKey(REDIS_GRACE_PREFIX + incomingJti);
-if (Boolean.TRUE.equals(isInGrace)) {
-log.debug("Microservice accepted token under Grace Period for user={} jti={}", userId, incomingJti);
-return true;
-}
-sendError(response, HttpServletResponse.SC_UNAUTHORIZED, "CONCURRENT_LOGIN", "Logged in on another device.");
-return false;
-}
-return true;
-}
-/
-￼ Injects the authenticated principal and authorities into the ThreadLocal SecurityContext.
-*/
-private void setSecurityContext(String principal, String authority) {
-if (SecurityContextHolder.getContext().getAuthentication() == null) {
-var authToken = new UsernamePasswordAuthenticationToken(
-principal, null, List.of(new SimpleGrantedAuthority(authority))
-);
-SecurityContextHolder.getContext().setAuthentication(authToken);
-}
-}
-/
-￼ Enforces Context-Aware Role-Based Access Control (RBAC).
-￼ Validates against Redis sets in the format: METHOD:URL_PATTERN|CONTEXT
-/
-private boolean checkRbac(HttpServletRequest request, HttpServletResponse response, String roleId, String userId) throws IOException {
-var uri = request.getRequestURI();
-var method = request.getMethod().toUpperCase();
-var contextHeader = request.getHeader("X-Request-Type");
-var requestContext = (contextHeader != null && !contextHeader.trim().isEmpty()) ? contextHeader : "";
-var redisKey = REDIS_RBAC_PREFIX + roleId;
-var permissions = redisTemplate.opsForSet().members(redisKey);
-boolean isAuthorized = false;
-if (permissions != null) {
-for (String perm : permissions) {
-var parts = perm.split("\|");
-if (parts.length < 2) continue;
-var allowedContext = parts[1];
-if (!allowedContext.equals(requestContext) && !allowedContext.equals("*")) continue;
-var muParts = parts[0].split(":", 2);
-if (muParts.length < 2) continue;
-// Evaluates exact HTTP Method and modern Spring Path Pattern matching
-if (muParts[0].equals(method) && pathParser.parse(muParts[1]).matches(PathContainer.parsePath(uri))) {
-isAuthorized = true;
-break;
-}
-}
-}
-if (!isAuthorized) {
-log.warn("RBAC Deny \uD83D\uDEAB: User {} (Role {}) -> {} {} (Context: {})", userId, roleId, method, uri, requestContext);
-sendError(response, HttpServletResponse.SC_FORBIDDEN, "ACCESS_DENIED", "Insufficient Permissions for this resource.");
-return false;
-}
-return true;
-}
-/
-￼ Utility method to commit an early JSON error response safely.
-*/
-private void sendError(HttpServletResponse response, int status, String error, String message) throws IOException {
-response.setStatus(status);
-response.setContentType("application/json");
-response.getWriter().write(String.format("{"status": %d, "error": "%s", "message": "%s"}", status, error, message));
-}
-private String removeBearer(String token) {
-if (token != null && token.startsWith("Bearer ")) {
-return token.substring(7);
-}
-return token;
-}
+
+    private static final String REDIS_USER_PREFIX = "USR:";
+    private static final String REDIS_AES_PREFIX = "AES:USR:";
+    private static final String REDIS_RBAC_PREFIX = "RBAC::PERMISSIONS::";
+    private static final String REDIS_GRACE_PREFIX = "GRACE:";
+    private static final String TOKEN_TYPE_SERVICE = "SERVICE";
+
+    private static final Set<String> WHITELIST = Set.of(
+            "/api/auth/**", "/actuator/**", "/error", "/swagger-ui/**", "/v3/api-docs/**",
+            "/api/login", "/api/auth/login", "/api/auth/logout", "/api/auth/check-user",
+            "/swagger-ui.html", "/api/auth/refresh-token"
+    );
+
+    private final StringRedisTemplate redisTemplate;
+    private final JwtUtil jwtUtil;
+    private final PathPatternParser pathParser = new PathPatternParser();
+
+    @Override
+    protected void doFilterInternal(
+            @NonNull HttpServletRequest request,
+            @NonNull HttpServletResponse response,
+            @NonNull FilterChain filterChain
+    ) throws ServletException, IOException {
+
+        var uri = request.getRequestURI();
+        var pathContainer = PathContainer.parsePath(uri);
+
+        // 1. SKIP WHITELISTED ENDPOINTS
+        boolean isWhitelisted = WHITELIST.stream()
+                .anyMatch(pattern -> pathParser.parse(pattern).matches(pathContainer));
+
+        if (isWhitelisted) {
+            filterChain.doFilter(request, response);
+            return;
+        }
+
+        // 2. EXTRACT AND ROUTE TOKEN
+        var token = request.getHeader("Authorization");
+        if (token == null || token.isBlank()) {
+            sendError(response, HttpServletResponse.SC_UNAUTHORIZED, "MISSING_TOKEN", "Authorization header missing.");
+            return;
+        }
+
+        try {
+            var cleanToken = removeBearer(token);
+            var tokenParts = cleanToken.split("\\.");
+
+            // Branch logic based on Token specification (JWE vs JWS)
+            if (tokenParts.length == 5) {
+                if (!handleJweFlow(request, response, cleanToken)) return;
+            } else if (tokenParts.length == 3) {
+                if (!handleJwsFlow(request, response, cleanToken)) return;
+            } else {
+                throw new IllegalArgumentException("Unrecognized token structure. Expected 3 (JWS) or 5 (JWE) parts.");
+            }
+
+        } catch (ExpiredJwtException e) {
+            // Explicitly caught from JJWT parser during the JWS/M2M flow
+            handleExpiredSession(response, e.getClaims().getSubject(), e.getClaims().getId());
+            return;
+            
+        } catch (JwtException | IllegalArgumentException | SecurityException e) {
+            // Specific catches for Malformed tokens, invalid arguments, or cryptographic decryption failures
+            log.warn("Authentication rejected due to token anomaly: {}", e.getMessage());
+            sendError(response, HttpServletResponse.SC_UNAUTHORIZED, "AUTH_ERROR", "Authentication failed or token invalid.");
+            return;
+            
+        } catch (RedisConnectionFailureException e) {
+            // Specific catch for infrastructure failures to trigger appropriate 500 alerts
+            log.error("Redis connection failed during security validation", e);
+            sendError(response, HttpServletResponse.SC_INTERNAL_SERVER_ERROR, "SYSTEM_ERROR", "Auth Service Unavailable.");
+            return;
+            
+        } catch (Exception e) {
+            // Last-resort safety net to prevent unhandled 500 stack traces from leaking to the client
+            log.error("Unexpected critical error during security filtering", e);
+            sendError(response, HttpServletResponse.SC_INTERNAL_SERVER_ERROR, "SYSTEM_ERROR", "An unexpected security error occurred.");
+            return;
+        }
+
+        // 3. PROCEED IF AUTHORIZED
+        filterChain.doFilter(request, response);
+    }
+
+    /**
+     * Handles the 5-part Nimbus JWE token flow intended for interactive frontend users.
+     *
+     * @return true if authorized to proceed, false if response is committed with an error.
+     */
+    private boolean handleJweFlow(HttpServletRequest request, HttpServletResponse response, String cleanToken) throws IOException {
+        
+        // 1. Solve the Catch-22: Peek at the unencrypted header
+        var userId = jwtUtil.extractUserIdFromJweHeader(cleanToken);
+        if (userId == null || userId.isBlank()) {
+            throw new IllegalArgumentException("Missing 'kid' (userId) in JWE header");
+        }
+
+        // 2. Fetch AES Key from Redis
+        var base64AesKey = redisTemplate.opsForValue().get(REDIS_AES_PREFIX + userId);
+        if (base64AesKey == null) {
+            log.warn("JWE decryption failed: Missing AES key in Redis for user {}", userId);
+            sendError(response, HttpServletResponse.SC_UNAUTHORIZED, "SESSION_EXPIRED", "Encryption session expired.");
+            return false;
+        }
+
+        // 3. Decrypt Claims
+        Map<String, Object> claims = jwtUtil.decryptNimbusJwe(cleanToken, base64AesKey);
+        var incomingJti = (String) claims.get("jti");
+
+        // 4. Manual Expiration Check (Required because we bypassed standard JJWT parser)
+        if (isJweExpired(claims.get("exp"))) {
+            handleExpiredSession(response, userId, incomingJti);
+            return false;
+        }
+
+        // 5. Extract Role safely (Utilizing Java 21 Pattern Matching)
+        int roleIdInt = switch (claims.get("role")) {
+            case Number n -> n.intValue();
+            case String s -> Integer.parseInt(s);
+            case null, default -> throw new IllegalArgumentException("Token missing valid numeric role claim");
+        };
+
+        // 6. Redis Concurrency & Context Checks
+        if (!checkRedisSession(response, userId, incomingJti)) return false;
+        setSecurityContext(userId, "ROLE_" + roleIdInt);
+        return checkRbac(request, response, String.valueOf(roleIdInt), userId);
+    }
+
+    /**
+     * Handles the 3-part JWS token flow strictly reserved for internal Service-to-Service communication.
+     *
+     * @return true if authorized to proceed, false if response is committed with an error.
+     */
+    private boolean handleJwsFlow(HttpServletRequest request, HttpServletResponse response, String cleanToken) throws IOException {
+        
+        if (!jwtUtil.isTokenValid(cleanToken)) {
+            throw new SecurityException("Invalid JWS Signature");
+        }
+
+        var tokenType = jwtUtil.extractClaim(cleanToken, c -> c.get("type", String.class));
+        if (TOKEN_TYPE_SERVICE.equalsIgnoreCase(tokenType)) {
+            var serviceSubject = jwtUtil.extractClaim(cleanToken, Claims::getSubject);
+            setSecurityContext(serviceSubject, "SERVICE");
+            return true;
+        } 
+        
+        log.warn("Attempted to use a standard JWS token for a user session. JWS user tokens are deprecated.");
+        throw new IllegalArgumentException("Standard JWS user tokens are deprecated. Use JWE for interactive sessions.");
+    }
+
+    /**
+     * Centralized logic to evaluate expired sessions against the Grace Period matrix.
+     * Differentiates between natural timeouts, concurrent logins, and active token rotation.
+     */
+    private void handleExpiredSession(HttpServletResponse response, String userId, String incomingJti) throws IOException {
+        if (incomingJti == null) {
+            log.error("Expired Token missing JTI for user {}", userId);
+            sendError(response, HttpServletResponse.SC_UNAUTHORIZED, "INVALID_TOKEN", "Token missing JTI");
+            return;
+        }
+
+        var activeJti = redisTemplate.opsForValue().get(REDIS_USER_PREFIX + userId);
+
+        // CASE 1: Session totally gone from Redis (User idle past absolute TTL)
+        if (activeJti == null) {
+            log.warn("Session expired in Redis (found during token expiry check) for user {}", userId);
+            sendError(response, HttpServletResponse.SC_UNAUTHORIZED, "SESSION_EXPIRED", "Session timed out.");
+            return;
+        }
+
+        // CASE 2: Concurrent Login (Redis holds a newer, different JTI)
+        if (!activeJti.equals(incomingJti)) {
+            
+            // Evaluates if the old token is still within the active rotation grace window
+            var isInGrace = redisTemplate.hasKey(REDIS_GRACE_PREFIX + incomingJti);
+            if (Boolean.TRUE.equals(isInGrace)) {
+                log.debug("Expired token is in Grace Period, proceeding to TOKEN_EXPIRED. user={}", userId);
+                sendError(response, HttpServletResponse.SC_UNAUTHORIZED, "TOKEN_EXPIRED", "JWT has expired.");
+            } else {
+                log.warn("Concurrent Login Detected on Expired Token. User: {}", userId);
+                sendError(response, HttpServletResponse.SC_UNAUTHORIZED, "CONCURRENT_LOGIN", "Logged in on another device.");
+            }
+            return;
+        }
+
+        // CASE 3: Normal Expiry (Redis matches) -> Instruct Frontend to Refresh Token
+        sendError(response, HttpServletResponse.SC_UNAUTHORIZED, "TOKEN_EXPIRED", "JWT has expired.");
+    }
+
+    /**
+     * Validates if a manually extracted JWE expiration claim represents a time in the past.
+     */
+    private boolean isJweExpired(Object expClaim) {
+        if (expClaim == null) return false;
+        if (expClaim instanceof Date d) return d.before(new Date());
+        if (expClaim instanceof Number n) return (n.longValue() * 1000) < System.currentTimeMillis();
+        return false;
+    }
+
+    /**
+     * Verifies the active Redis session and applies the Grace Period exception if a token rotation is occurring.
+     */
+    private boolean checkRedisSession(HttpServletResponse response, String userId, String incomingJti) throws IOException {
+        if (incomingJti == null) {
+            sendError(response, HttpServletResponse.SC_UNAUTHORIZED, "INVALID_TOKEN", "Token missing JTI");
+            return false;
+        }
+        
+        var activeJti = redisTemplate.opsForValue().get(REDIS_USER_PREFIX + userId);
+
+        if (activeJti == null) {
+            sendError(response, HttpServletResponse.SC_UNAUTHORIZED, "SESSION_EXPIRED", "Session timed out.");
+            return false;
+        }
+
+        if (!incomingJti.equals(activeJti)) {
+            var isInGrace = redisTemplate.hasKey(REDIS_GRACE_PREFIX + incomingJti);
+            if (Boolean.TRUE.equals(isInGrace)) {
+                log.debug("Microservice accepted token under Grace Period for user={} jti={}", userId, incomingJti);
+                return true;
+            }
+            sendError(response, HttpServletResponse.SC_UNAUTHORIZED, "CONCURRENT_LOGIN", "Logged in on another device.");
+            return false;
+        }
+        
+        return true;
+    }
+
+    /**
+     * Injects the authenticated principal and authorities into the ThreadLocal SecurityContext.
+     */
+    private void setSecurityContext(String principal, String authority) {
+        if (SecurityContextHolder.getContext().getAuthentication() == null) {
+            var authToken = new UsernamePasswordAuthenticationToken(
+                    principal, null, List.of(new SimpleGrantedAuthority(authority))
+            );
+            SecurityContextHolder.getContext().setAuthentication(authToken);
+        }
+    }
+
+    /**
+     * Enforces Context-Aware Role-Based Access Control (RBAC).
+     * Validates against Redis sets in the format: METHOD:URL_PATTERN|CONTEXT
+     */
+    private boolean checkRbac(HttpServletRequest request, HttpServletResponse response, String roleId, String userId) throws IOException {
+        var uri = request.getRequestURI();
+        var method = request.getMethod().toUpperCase();
+        var contextHeader = request.getHeader("X-Request-Type");
+        var requestContext = (contextHeader != null && !contextHeader.trim().isEmpty()) ? contextHeader : "*";
+        
+        var redisKey = REDIS_RBAC_PREFIX + roleId;
+        var permissions = redisTemplate.opsForSet().members(redisKey);
+
+        boolean isAuthorized = false;
+
+        if (permissions != null) {
+            for (String perm : permissions) {
+                var parts = perm.split("\\|");
+                if (parts.length < 2) continue;
+
+                var allowedContext = parts[1];
+                if (!allowedContext.equals(requestContext) && !allowedContext.equals("*")) continue;
+
+                var muParts = parts[0].split(":", 2);
+                if (muParts.length < 2) continue;
+
+                // Evaluates exact HTTP Method and modern Spring Path Pattern matching
+                if (muParts[0].equals(method) && pathParser.parse(muParts[1]).matches(PathContainer.parsePath(uri))) {
+                    isAuthorized = true;
+                    break;
+                }
+            }
+        }
+
+        if (!isAuthorized) {
+            log.warn("RBAC Deny \uD83D\uDEAB: User {} (Role {}) -> {} {} (Context: {})", userId, roleId, method, uri, requestContext);
+            sendError(response, HttpServletResponse.SC_FORBIDDEN, "ACCESS_DENIED", "Insufficient Permissions for this resource.");
+            return false;
+        }
+        return true;
+    }
+
+    /**
+     * Utility method to commit an early JSON error response safely.
+     */
+    private void sendError(HttpServletResponse response, int status, String error, String message) throws IOException {
+        response.setStatus(status);
+        response.setContentType("application/json");
+        response.getWriter().write(String.format("{\"status\": %d, \"error\": \"%s\", \"message\": \"%s\"}", status, error, message));
+    }
+
+    private String removeBearer(String token) {
+        if (token != null && token.startsWith("Bearer ")) {
+            return token.substring(7);
+        }
+        return token;
+    }
 }
