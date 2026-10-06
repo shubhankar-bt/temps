@@ -1,81 +1,50 @@
+    // ... [Keep everything else exactly the same, just update these two helper methods] ...
 
-C:\Users\v1018405>docker exec -it redis redis-cli
-127.0.0.1:6379> **1015698**
-(error) ERR unknown command '**1015698**', with args beginning with:
-127.0.0.1:6379> keys *1015698*
-(empty array)
-127.0.0.1:6379> keys *1015698*
-1) "USR:1015698"
-2) "AES:USR:1015698"
-127.0.0.1:6379> get
-(nil)
-127.0.0.1:6379> get AES:USR:1015698
-(nil)
-127.0.0.1:6379>
+    /**
+     * Generates a new AES key and saves it to Redis. Used during Initial Login.
+     * UPDATED: Added defensive trimming and deep Redis write telemetry.
+     */
+    private Mono<String> generateAndStoreAesKey(String userId) {
+        // Defensive trimming to prevent invisible whitespace from breaking Redis lookups
+        final String cleanUserId = userId != null ? userId.trim() : "";
+        final String redisKey = AES_KEY_PREFIX + cleanUserId;
 
+        return Mono.fromCallable(this::generateNewAesKey)
+                .flatMap(aesKey -> {
+                    log.info("Attempting to write AES key to Redis. Key: '{}', TTL: {} seconds", 
+                            LoginUtility.sanitizeLog(redisKey), refreshTokenTtl);
 
+                    return redisTemplate.opsForValue()
+                            .set(redisKey, aesKey, Duration.ofSeconds(refreshTokenTtl))
+                            .doOnSuccess(success -> {
+                                if (Boolean.TRUE.equals(success)) {
+                                    log.info("SUCCESS: AES Key definitively written to Redis for User: {}", LoginUtility.sanitizeLog(cleanUserId));
+                                } else {
+                                    // If Redis returns false, the write was rejected (often due to TTL issues or cluster routing)
+                                    log.warn("WARNING: Redis returned FALSE. The AES key was NOT saved for User: {}", LoginUtility.sanitizeLog(cleanUserId));
+                                }
+                            })
+                            .doOnError(error -> log.error("CRITICAL ERROR writing AES key to Redis: {}", error.getMessage(), error))
+                            .thenReturn(aesKey);
+                });
+    }
 
+    /**
+     * Fetches the existing AES key, heals it if missing, and extends the TTL. Used during Refresh.
+     * UPDATED: Added defensive trimming.
+     */
+    private Mono<String> fetchAndExtendAesKey(String userId) {
+        final String cleanUserId = userId != null ? userId.trim() : "";
+        final String redisKey = AES_KEY_PREFIX + cleanUserId;
 
-
-
-
-
-
-login service :
-
-spring:
-  data:
-    redis:
-      host: ${REDIS_HOST}
-      port: ${REDIS_PORT}
-
-.env : 
-# ======================== REDIS ============================
-REDIS_HOST=10.0.17.242
-REDIS_PORT=6379
-
-
-
-
-common request service :
-
-spring.data.redis.host=10.0.17.242
-
-spring.data.redis.port=6379
-
-
-
-
-
-
-
-
-/login response :
-
-2026-10-06 :: 19:14:15.323 || INFO :: LoginUtility.java: | 11 | :: X-Forwarded-For ip : ::ffff:10.0.17.242
-2026-10-06 :: 19:14:15.331 || INFO :: LoginUtility.java: | 11 | :: X-Forwarded-For ip : ::ffff:10.0.17.242
-2026-10-06 :: 19:14:15.331 || INFO :: AuthController.java: | 124 | :: Login request for user: 1015698 from IP: 10.0.17.242
-2026-10-06 :: 19:14:15.410 || INFO :: LoginServiceImpl.java: | 289 | :: Password-based login for userId=1015698
-2026-10-06 :: 19:14:15.501 || INFO :: LoginServiceImpl.java: | 687 | :: Credentials validated. Issuing token for userId=1015698
-2026-10-06 :: 19:14:15.519 || INFO :: HmacJwtUtil.java: | 52 | :: Generated exp in Seconds=2026-10-06T14:14:15.519788300Z
-2026-10-06 :: 19:14:15.520 || INFO :: HmacJwtUtil.java: | 54 | :: Jti generated=3ec92965-043d-4d37-9a83-8e9b77bad411
-2026-10-06 :: 19:14:15.575 || INFO :: AuthController.java: | 191 | :: MFA Disabled: Routing user 1015698 to Direct Login.
-2026-10-06 :: 19:14:15.576 || INFO :: AuthController.java: | 437 | :: Generating JWE Tokens for user 1015698.
-2026-10-06 :: 19:14:15.581 || INFO :: LoginServiceImpl.java: | 110 | :: Fetching role-wise data for userId: 1015698
-2026-10-06 :: 19:14:15.650 || INFO :: TokenSessionValidator.java: | 99 | :: Registering new session user=1015698 jti=a3c411ac-8775-40ad-aeab-944a972d6e3a
-2026-10-06 :: 19:14:15.656 || INFO :: TokenSessionValidator.java: | 112 | :: Registered active session in Redis user=1015698 jti=a3c411ac-8775-40ad-aeab-944a972d6e3a
-
-
-
-
-
-now in redis :
-
-
-127.0.0.1:6379> get AES:USR:1015698
-(nil)
-127.0.0.1:6379>
-
-
-
-
+        return redisTemplate.opsForValue().get(redisKey)
+                .switchIfEmpty(Mono.defer(() -> {
+                    log.warn("AES key missing/evicted for user {} during refresh. Generating new fallback key.", LoginUtility.sanitizeLog(cleanUserId));
+                    return Mono.just(generateNewAesKey());
+                }))
+                .flatMap(aesKey ->
+                        redisTemplate.opsForValue()
+                                .set(redisKey, aesKey, Duration.ofSeconds(refreshTokenTtl))
+                                .thenReturn(aesKey)
+                );
+    }
