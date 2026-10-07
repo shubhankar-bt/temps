@@ -1,189 +1,81 @@
-{
-  "viewCode": "YSA_BANK",
-  "headCodes": ["01160", "99999"], 
-  "dimensions": ["HeadCode"],
-  "metrics": ["AMOUNT"],
-  "filters": [
-    { "logicalField": "ReportDate", "operator": "EQUALS", "value": "31-03-2026" }
-  ]
-}
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 
-
-response:
-{
-    "meta": {
-        "status": "SUCCESS",
-        "level": "HeadCode",
-        "rowCount": 3,
-        "executionTimeMs": 96
-    },
-    "data": [
-        {
-            "id": "headcode___01160__",
-            "name": "[\"01160\"]",
-            "AMOUNT": 1.018741176439E10,
-            "hasChildren": true
-        },
-        {
-            "id": "headcode_01160",
-            "name": "01160",
-            "AMOUNT": 0.0,
-            "hasChildren": true
-        },
-        {
-            "id": "headcode_99999",
-            "name": "99999",
-            "AMOUNT": 0.0,
-            "hasChildren": true
+/**
+ * Cleans raw data returned from Druid.
+ * 1. Strips JSON array formatting from HeadCodes (e.g., "[\"01160\"]" -> "01160")
+ * 2. Prevents Scientific Notation on massive billion-dollar balances.
+ */
+private void sanitizeDruidResponse(List<Map<String, Object>> rawDruidData, String logicalTargetDim, List<String> metrics) {
+    for (Map<String, Object> row : rawDruidData) {
+        
+        // 1. Clean HeadCode String
+        if ("HeadCode".equalsIgnoreCase(logicalTargetDim)) {
+            Object val = row.get(logicalTargetDim);
+            if (val instanceof String) {
+                // Removes [, ], and " characters
+                String cleaned = ((String) val).replaceAll("[\\[\\]\"]", "").trim();
+                // If Druid grouped multiple headcodes like "01160, 02000", we take the first one relevant to the request
+                if (cleaned.contains(",")) {
+                    cleaned = cleaned.split(",")[0].trim();
+                }
+                row.put(logicalTargetDim, cleaned);
+            }
         }
-    ]
-}
 
-
-
-
-
-
-{
-  "viewCode": "YSA_BANK",
-  "headCodes": ["01160"], 
-  "dimensions": ["Circle"],
-  "metrics": ["AMOUNT"],
-  "filters": [
-    { "logicalField": "ReportDate", "operator": "EQUALS", "value": "31-03-2026" },
-    { "logicalField": "HeadCode", "operator": "EQUALS", "value": "01160" }
-  ]
-}
-
-
-
-
-response:
-
-{
-    "meta": {
-        "status": "SUCCESS",
-        "level": "Circle",
-        "rowCount": 19,
-        "executionTimeMs": 153
-    },
-    "data": [
-        {
-            "id": "circle_001",
-            "name": "001",
-            "AMOUNT": 2.8285387036E8,
-            "hasChildren": false
-        },
-        {
-            "id": "circle_002",
-            "name": "002",
-            "AMOUNT": 2.4054773317E8,
-            "hasChildren": false
-        },
-        {
-            "id": "circle_003",
-            "name": "003",
-            "AMOUNT": 5.5271709444E8,
-            "hasChildren": false
-        },
-        {
-            "id": "circle_004",
-            "name": "004",
-            "AMOUNT": 9.415580004E8,
-            "hasChildren": false
-        },
-        {
-            "id": "circle_005",
-            "name": "005",
-            "AMOUNT": 8.235010233E7,
-            "hasChildren": false
-        },
-        {
-            "id": "circle_006",
-            "name": "006",
-            "AMOUNT": 7.7994873163E8,
-            "hasChildren": false
-        },
-        {
-            "id": "circle_007",
-            "name": "007",
-            "AMOUNT": 2.890557261E8,
-            "hasChildren": false
-        },
-        {
-            "id": "circle_008",
-            "name": "008",
-            "AMOUNT": 7.439440918E7,
-            "hasChildren": false
-        },
-        {
-            "id": "circle_009",
-            "name": "009",
-            "AMOUNT": 3.563175502E7,
-            "hasChildren": false
-        },
-        {
-            "id": "circle_010",
-            "name": "010",
-            "AMOUNT": 3.2286965649E8,
-            "hasChildren": false
-        },
-        {
-            "id": "circle_011",
-            "name": "011",
-            "AMOUNT": 8.434216374E7,
-            "hasChildren": false
-        },
-        {
-            "id": "circle_012",
-            "name": "012",
-            "AMOUNT": 4262255.92,
-            "hasChildren": false
-        },
-        {
-            "id": "circle_013",
-            "name": "013",
-            "AMOUNT": 4.6016913799E8,
-            "hasChildren": false
-        },
-        {
-            "id": "circle_014",
-            "name": "014",
-            "AMOUNT": 1.62556874169E9,
-            "hasChildren": false
-        },
-        {
-            "id": "circle_016",
-            "name": "016",
-            "AMOUNT": 1.055067487E7,
-            "hasChildren": false
-        },
-        {
-            "id": "circle_023",
-            "name": "023",
-            "AMOUNT": 3.8180795359E8,
-            "hasChildren": false
-        },
-        {
-            "id": "circle_024",
-            "name": "024",
-            "AMOUNT": 7.906656843E7,
-            "hasChildren": false
-        },
-        {
-            "id": "circle_027",
-            "name": "027",
-            "AMOUNT": 3.93971718904E9,
-            "hasChildren": false
-        },
-        {
-            "id": "circle_052",
-            "name": "052",
-            "AMOUNT": 0.0,
-            "hasChildren": false
+        // 2. Format massive numbers to prevent Scientific Notation (E10)
+        for (String metric : metrics) {
+            Object amountObj = row.get(metric);
+            if (amountObj != null) {
+                try {
+                    // Convert to BigDecimal, round to 2 decimals, and return as a raw Double so Jackson doesn't use E notation
+                    BigDecimal bd = new BigDecimal(amountObj.toString()).setScale(2, RoundingMode.HALF_UP);
+                    row.put(metric, bd.doubleValue()); 
+                } catch (NumberFormatException ignored) {
+                    row.put(metric, 0.0);
+                }
+            }
         }
-    ]
+    }
 }
+
+
+
+
+
+
+        // ... (Inside executeDrillDown)
+
+        log.info("Final druid payload to be executed: {}", druidPayload);
+
+        // 1. Fetch raw data from Druid
+        List<Map<String, Object>> rawDruidData = druidRestClient.executeQuery(druidPayload);
+        if (rawDruidData == null) {
+            rawDruidData = new ArrayList<>();
+        } else {
+            rawDruidData = new ArrayList<>(rawDruidData);
+        }
+
+        // --- NEW: Sanitize the raw data before processing ---
+        sanitizeDruidResponse(rawDruidData, logicalTargetDim, request.metrics());
+
+        // 2. ENTERPRISE PADDING LOGIC
+        if ("HeadCode".equalsIgnoreCase(logicalTargetDim)) {
+            padMissingHeadCodes(rawDruidData, request);
+        }
+
+        // ... (continue with the rest of the method)
+
+
+
+
+
+
+
+
+
+
+
 
 
 
