@@ -1,12 +1,15 @@
-After login i havge opened redis-commander and there i can see the 
+sorry i coped for different user previously :
 
-Key: AES:USR:1015698
-TTL: 42964
-Type: string
-/hoI6hEFFbBl+swOunqx5/v9OTt6thEQOd3/W2oM0ic=
+in redis commander :
+
+Key: AES:USR:2488766
 
 
-but at the same time in terminal of redis-cli  see the response below :
+46nPwzNps/qixPB1XOQE8BKMnkp2FecZzoekYnbX/dY=
+
+
+
+in terminal :
 
 127.0.0.1:6379> get AES:USR:2488766
 (nil)
