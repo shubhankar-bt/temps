@@ -1,42 +1,11 @@
-import java.math.BigDecimal;
-import java.math.RoundingMode;
-
-/**
- * Cleans raw data returned from Druid.
- * 1. Strips JSON array formatting from HeadCodes (e.g., "[\"01160\"]" -> "01160")
- * 2. Prevents Scientific Notation on massive billion-dollar balances.
- */
-private void sanitizeDruidResponse(List<Map<String, Object>> rawDruidData, String logicalTargetDim, List<String> metrics) {
-    for (Map<String, Object> row : rawDruidData) {
-        
-        // 1. Clean HeadCode String
-        if ("HeadCode".equalsIgnoreCase(logicalTargetDim)) {
-            Object val = row.get(logicalTargetDim);
-            if (val instanceof String) {
-                // Removes [, ], and " characters
-                String cleaned = ((String) val).replaceAll("[\\[\\]\"]", "").trim();
-                // If Druid grouped multiple headcodes like "01160, 02000", we take the first one relevant to the request
-                if (cleaned.contains(",")) {
-                    cleaned = cleaned.split(",")[0].trim();
-                }
-                row.put(logicalTargetDim, cleaned);
-            }
-        }
-
-        // 2. Format massive numbers to prevent Scientific Notation (E10)
-        for (String metric : metrics) {
-            Object amountObj = row.get(metric);
-            if (amountObj != null) {
-                try {
-                    // Convert to BigDecimal, round to 2 decimals, and return as a raw Double so Jackson doesn't use E notation
-                    BigDecimal bd = new BigDecimal(amountObj.toString()).setScale(2, RoundingMode.HALF_UP);
-                    row.put(metric, bd.doubleValue()); 
-                } catch (NumberFormatException ignored) {
-                    row.put(metric, 0.0);
-                }
-            }
-        }
-    }
+{
+  "viewCode": "YSA_BANK",
+  "headCodes": ["01160", "99999"], 
+  "dimensions": ["HeadCode"],
+  "metrics": ["AMOUNT"],
+  "filters": [
+    { "logicalField": "ReportDate", "operator": "EQUALS", "value": "31-03-2026" }
+  ]
 }
 
 
@@ -44,38 +13,25 @@ private void sanitizeDruidResponse(List<Map<String, Object>> rawDruidData, Strin
 
 
 
-        // ... (Inside executeDrillDown)
-
-        log.info("Final druid payload to be executed: {}", druidPayload);
-
-        // 1. Fetch raw data from Druid
-        List<Map<String, Object>> rawDruidData = druidRestClient.executeQuery(druidPayload);
-        if (rawDruidData == null) {
-            rawDruidData = new ArrayList<>();
-        } else {
-            rawDruidData = new ArrayList<>(rawDruidData);
+{
+    "meta": {
+        "status": "SUCCESS",
+        "level": "HeadCode",
+        "rowCount": 2,
+        "executionTimeMs": 2799
+    },
+    "data": [
+        {
+            "id": "headcode_01160",
+            "name": "01160",
+            "AMOUNT": 1.018741176439E10,
+            "hasChildren": true
+        },
+        {
+            "id": "headcode_99999",
+            "name": "99999",
+            "AMOUNT": 0.0,
+            "hasChildren": true
         }
-
-        // --- NEW: Sanitize the raw data before processing ---
-        sanitizeDruidResponse(rawDruidData, logicalTargetDim, request.metrics());
-
-        // 2. ENTERPRISE PADDING LOGIC
-        if ("HeadCode".equalsIgnoreCase(logicalTargetDim)) {
-            padMissingHeadCodes(rawDruidData, request);
-        }
-
-        // ... (continue with the rest of the method)
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+    ]
+}
