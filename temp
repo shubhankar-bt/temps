@@ -1,16 +1,32 @@
-sorry i coped for different user previously :
-
-in redis commander :
-
-Key: AES:USR:2488766
-
-
-46nPwzNps/qixPB1XOQE8BKMnkp2FecZzoekYnbX/dY=
+http://localhost:8085/api/auth/login
 
 
 
-in terminal :
+response :
 
-127.0.0.1:6379> get AES:USR:2488766
-(nil)
-127.0.0.1:6379>
+{
+    "success": true,
+    "message": "Login successful",
+    "data": {
+        "userId": "2488766",
+        "accessToken": "eyJraWQiOiIyNDg4NzY2IiwiY3R5IjoiSldUIiwiZW5jIjoiQTI1NkdDTSIsImFsZyI6ImRpciJ9..Hx5XvMlgob-nWJ8Z.CL50Z5lg95C4epxq-UM-mxW-yW-poMw5-RC-ghxe47lqLe3XpSa1hDUOPtv1cLVUaS0pasHuqcAXcJ0w-dFpTeUFeHXwXarSgWTUmJBuFDos2IZ795FgCFS10_ihmTJ1n--1gRydN0Xi2ffJwWndPGvM03tCdXGtAyEc14ygFRpupon1YeI627oyyvcL4-LTMikowAT09nf4tcwxQnCGCJfD0UnKIaJ3R1B7O1G1G8pGL8IiB41V9pd7ll9xoBuTf6PIgqpee0xmnV7fzrgf3NdlY1Fyal51CusWjlkFNpm3CZADlJduHPX9ZhETzslmSbZP5jcVBZ9D0mjHAWlk2u9AwZoxd_fdtxxWQyyyhpJMVc6Vqwra0HPzGwzILn1VVM14Zcg-_6p_pFQVNYhivYPMWdVBF5182gPGz1ao0wU4RwC21zAfU91Th04PPN9R2YT_QZCX0LtJRVC9Uy_LZn5OCRfbOKZbkY4Xud39kspBaQ6slRbOEu7eWpzntgAs82TXgrDyS0HiABvGNzFqAm7E87tnFIPtvyu2OJDw7dq8ue_E0SEGQFwIb8Ze-pBOs4dvQmI4hCEAMveOYCpQy2XUOcr-LG1lpeufGvwA8phLWZ3zt3TpSXsXjJy0r_llwUEugJEbTGyR3Z-JAVsB2VjwM1pBcOdcUWgp7Qnj9Crl_qeg9O79T-iCfnGaa4c9FL9VLb1snF2ID6yrcb-gFHIzE95cy2U6sH09dsZOlGeI0282fyGYRQSVYhOdxD2uOglNnMkUYWRzjLXhegmBIAFOB01-onbD1StfLmwRllJcWSbHt_4MMpw-CNn0zUW-fQrjajHNcUMFka6aHRicqHUTq-auJuL5KqadWfYmy_oFhR7poL3jMxTHMQUwQiN6HAZn138GaYJe7sC1zOsD7gTXI2P0zMb0ahNnnhnwyF-3Q6U7OenHIBJ7v8RPc1wrqPz9QlaeHJoTWEoK82_aziLUVY02IgsZUVDqjLYfWDeO1Cm1oVSA.b2mf1mZ9Tu2A59E5clpuoA",
+        "tokenType": "Bearer",
+        "expiresIn": 1800,
+        "sub": "2488766",
+        "jti": "9ab7cd60-1625-4be3-ad40-5728d577d4dc",
+    "timestamp": "2026-10-07T11:25:54.374177"
+}
+
+
+
+http://10.0.17.242:9000/api/my-requests
+
+{
+    "status": 401,
+    "error": "AUTH_ERROR",
+    "message": "Authentication failed or token invalid."
+}
+
+in authorization tab passed :
+
+eyJraWQiOiIyNDg4NzY2IiwiY3R5IjoiSldUIiwiZW5jIjoiQTI1NkdDTSIsImFsZyI6ImRpciJ9..Hx5XvMlgob-nWJ8Z.CL50Z5lg95C4epxq-UM-mxW-yW-poMw5-RC-ghxe47lqLe3XpSa1hDUOPtv1cLVUaS0pasHuqcAXcJ0w-dFpTeUFeHXwXarSgWTUmJBuFDos2IZ795FgCFS10_ihmTJ1n--1gRydN0Xi2ffJwWndPGvM03tCdXGtAyEc14ygFRpupon1YeI627oyyvcL4-LTMikowAT09nf4tcwxQnCGCJfD0UnKIaJ3R1B7O1G1G8pGL8IiB41V9pd7ll9xoBuTf6PIgqpee0xmnV7fzrgf3NdlY1Fyal51CusWjlkFNpm3CZADlJduHPX9ZhETzslmSbZP5jcVBZ9D0mjHAWlk2u9AwZoxd_fdtxxWQyyyhpJMVc6Vqwra0HPzGwzILn1VVM14Zcg-_6p_pFQVNYhivYPMWdVBF5182gPGz1ao0wU4RwC21zAfU91Th04PPN9R2YT_QZCX0LtJRVC9Uy_LZn5OCRfbOKZbkY4Xud39kspBaQ6slRbOEu7eWpzntgAs82TXgrDyS0HiABvGNzFqAm7E87tnFIPtvyu2OJDw7dq8ue_E0SEGQFwIb8Ze-pBOs4dvQmI4hCEAMveOYCpQy2XUOcr-LG1lpeufGvwA8phLWZ3zt3TpSXsXjJy0r_llwUEugJEbTGyR3Z-JAVsB2VjwM1pBcOdcUWgp7Qnj9Crl_qeg9O79T-iCfnGaa4c9FL9VLb1snF2ID6yrcb-gFHIzE95cy2U6sH09dsZOlGeI0282fyGYRQSVYhOdxD2uOglNnMkUYWRzjLXhegmBIAFOB01-onbD1StfLmwRllJcWSbHt_4MMpw-CNn0zUW-fQrjajHNcUMFka6aHRicqHUTq-auJuL5KqadWfYmy_oFhR7poL3jMxTHMQUwQiN6HAZn138GaYJe7sC1zOsD7gTXI2P0zMb0ahNnnhnwyF-3Q6U7OenHIBJ7v8RPc1wrqPz9QlaeHJoTWEoK82_aziLUVY02IgsZUVDqjLYfWDeO1Cm1oVSA.b2mf1mZ9Tu2A59E5clpuoA
