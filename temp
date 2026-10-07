@@ -1,27 +1,22 @@
-// ... existing code ...
-String accessToken = JweUtil.generateJwe(aesKey, user.getUserId(), accessTokenTtl, claimsMap);
-
-log.info("=== JWE ENCRYPTION DIAGNOSTICS ===");
-log.info("User ID: {}", user.getUserId());
-log.info("Exact AES Key Used: [{}]", aesKey); // Brackets help spot trailing spaces
-log.info("Exact Token Gen'd : [{}]", accessToken);
-// ... existing code ...
-
-
-
-
-
-public Map<String, Object> decryptNimbusJwe(String jweToken, String base64Key) {
-    try {
-        log.info("=== JWE DECRYPTION DIAGNOSTICS ===");
-        log.info("Exact AES Key Fetched: [{}]", base64Key); // Compare this to LoginService!
-        log.info("Exact Token Rcv'd  : [{}]", jweToken);
-        
-        var jwt = EncryptedJWT.parse(jweToken);
-        var keyBytes = Base64.getDecoder().decode(base64Key);
-        jwt.decrypt(new AESDecrypter(keyBytes));
-        return jwt.getJWTClaimsSet().getClaims();
-// ... existing code ...
+2026-10-07 :: 11:47:17.366 || INFO :: LoginUtility.java: | 11 | :: X-Forwarded-For ip : null
+2026-10-07 :: 11:47:18.285 || INFO :: LoginUtility.java: | 11 | :: X-Forwarded-For ip : null
+2026-10-07 :: 11:47:18.286 || INFO :: AuthController.java: | 124 | :: Login request for user: 2488766 from IP: 0:0:0:0:0:0:0:1
+2026-10-07 :: 11:47:19.257 || INFO :: LoginServiceImpl.java: | 289 | :: Password-based login for userId=2488766
+2026-10-07 :: 11:47:19.363 || INFO :: LoginServiceImpl.java: | 687 | :: Credentials validated. Issuing token for userId=2488766
+2026-10-07 :: 11:47:19.594 || INFO :: HmacJwtUtil.java: | 52 | :: Generated exp in Seconds=2026-10-07T06:47:19.594584100Z
+2026-10-07 :: 11:47:19.630 || INFO :: HmacJwtUtil.java: | 54 | :: Jti generated=9a372e40-6a00-4318-b418-bf12b7b1f4bf
+2026-10-07 :: 11:47:20.008 || INFO :: AuthController.java: | 191 | :: MFA Disabled: Routing user 2488766 to Direct Login.
+2026-10-07 :: 11:47:20.008 || INFO :: AuthController.java: | 437 | :: Generating JWE Tokens for user 2488766.
+2026-10-07 :: 11:47:20.010 || INFO :: AuthController.java: | 564 | :: Attempting to write AES key to Redis. Key: 'AES:USR:2488766', TTL: 43200 seconds
+2026-10-07 :: 11:47:20.030 || INFO :: AuthController.java: | 571 | :: SUCCESS: AES Key definitively written to Redis for User: 2488766
+2026-10-07 :: 11:47:20.036 || INFO :: LoginServiceImpl.java: | 110 | :: Fetching role-wise data for userId: 2488766
+2026-10-07 :: 11:47:20.242 || INFO :: AuthController.java: | 455 | :: === JWE ENCRYPTION DIAGNOSTICS ===
+2026-10-07 :: 11:47:20.242 || INFO :: AuthController.java: | 456 | :: User ID: 2488766
+2026-10-07 :: 11:47:20.242 || INFO :: AuthController.java: | 457 | :: Exact AES Key Used: [v2AzBjb/6Ri8jxkxDUJV3waR3R7k+71ALno8Y8zjOsc=]
+2026-10-07 :: 11:47:20.243 || INFO :: AuthController.java: | 458 | :: Exact Token Gen'd : [eyJraWQiOiIyNDg4NzY2IiwiY3R5IjoiSldUIiwiZW5jIjoiQTI1NkdDTSIsImFsZyI6ImRpciJ9..DXqCsR7EhpCXLaB-.S4LEBfxlPKvVPOBmldSwr9i-4_ty8lVAlgxKMQ778Z0mQASRCibyK7oGN1nHnoeMUi9fcGeiAXnNeOUvORcEo19Mz5U8xs1pscl5-1IMF66HT6FTo4Ewe3lj8XOLfXrEUvhOVGaJPs5BvfTOrIeAwxRm66ze9ejGkxUAFHtMJKtJ9dMYkL-WwI36SRJnMvYgXhPDK7bau6GSjfPuGOxDdjY9zUqBw6Pj7Zc0_Pl9GQRiXpDLyYuD8u9ZEoxuU0h2hOKnC12xWoAz0UtuMVx9V12tOCbaQLyxKJ208Avyczmj6EuZqGAYy_EWSIpDLT7P6K_oYIcNg-TJ_blBWdsQHCUg3JCYIxjpa61ho0mh6sPmWmBPDTPQRhOynE6z0y4zXUV_uHzKqNUlEC30azL1o6BfjEJg0ZlCUIUEAqkusXTrA_rDhHgqcu8_1z_Ea-iTi1HCZVFBODvOESz829j816-cQJH0spif9aZZAnwCeYE72NOB0bzacBoecwlVcNocOErLQzvttcpvK_QZXU2QeqlDmr9zfkyrn3XW2TwDalyNdHUanBdWlw2NqcU7q7unVUCG8f-5dzwklXA_4hsED1oouGvJUGf9FV27R1QnOmLuZMQnpw_soI1X-roohS-6z1C5hCYgFD4jghOFVdClYHKaHDvBf33l539BraqONq4SYlaw8RxYLzRqRizU5F9m4ZnKuQiauRLxQoSx3FrLrkx9jjzbu9Gf2UX0gN8h9ut8R7OsydbeqtNgzIJ7yNIo2L-mIB4Q28Mh3pay6KwLq0XGQyDgG6a0mut4XTUWdZoP_sWo8-RpR0XYxsRSygLFwV84lV5H2tMIRaSi_i8kPfMl5ZfW0Gs9AyZmEpwzfHkm6JqVs4VaLLJb7ye2z0H6VAG7VeSRr3MRx3TOPreXbQNiJEv-ak0mbtD8MQUjzKA3TR462XWNP4H9gir6KKT9dl7M4OEc0todaKuG5OeLlkI2ochFW-w0F8Y6KXNxn18OvxSofNm8.UpL8l304zJTPkCobFTqu5Q]
+2026-10-07 :: 11:47:20.245 || INFO :: TokenSessionValidator.java: | 99 | :: Registering new session user=2488766 jti=ade5c06b-7bcc-4cd1-844a-16c7873dc11a
+2026-10-07 :: 11:47:20.293 || INFO :: TokenSessionValidator.java: | 104 | :: Moving old session to Grace Period for user=2488766 -> oldJti=9ab7cd60-1625-4be3-ad40-5728d577d4dc
+2026-10-07 :: 11:47:20.299 || INFO :: TokenSessionValidator.java: | 112 | :: Registered active session in Redis user=2488766 jti=ade5c06b-7bcc-4cd1-844a-16c7873dc11a
 
 
 
@@ -32,4 +27,21 @@ public Map<String, Object> decryptNimbusJwe(String jweToken, String base64Key) {
 
 
 
+
+2026-10-07 11:48:06.086 INFO  [http-nio-9000-exec-1] o.a.j.l.DirectJDKLog: Initializing Spring DispatcherServlet 'dispatcherServlet' 
+{"@timestamp":"2026-10-07T11:48:06.0864544+05:30","level":"INFO","service":"CommonRequestService","traceId":"","userId":"","clientIp":"","apiPath":"","class":"o.a.c.c.C.[Tomcat].[localhost].[/]","message":"Initializing Spring DispatcherServlet 'dispatcherServlet'","stack_trace":""}
+2026-10-07 11:48:06.087 INFO  [http-nio-9000-exec-1] o.s.w.s.FrameworkServlet: Initializing Servlet 'dispatcherServlet' 
+{"@timestamp":"2026-10-07T11:48:06.0874723+05:30","level":"INFO","service":"CommonRequestService","traceId":"","userId":"","clientIp":"","apiPath":"","class":"o.s.web.servlet.DispatcherServlet","message":"Initializing Servlet 'dispatcherServlet'","stack_trace":""}
+2026-10-07 11:48:06.090 INFO  [http-nio-9000-exec-1] o.s.w.s.FrameworkServlet: Completed initialization in 3 ms 
+{"@timestamp":"2026-10-07T11:48:06.0904709+05:30","level":"INFO","service":"CommonRequestService","traceId":"","userId":"","clientIp":"","apiPath":"","class":"o.s.web.servlet.DispatcherServlet","message":"Completed initialization in 3 ms","stack_trace":""}
+2026-10-07 11:48:07.020 INFO  [http-nio-9000-exec-1] c.f.c.j.JwtUtil: === JWE DECRYPTION DIAGNOSTICS === 
+{"@timestamp":"2026-10-07T11:48:07.0203129+05:30","level":"INFO","service":"CommonRequestService","traceId":"2b3a4ad5-b43e-46fb-b4e4-f7a3dfb833f7","userId":"anonymous","clientIp":"10.0.17.242","apiPath":"/api/my-requests","class":"com.fincore.commonutilities.jwt.JwtUtil","message":"=== JWE DECRYPTION DIAGNOSTICS ===","stack_trace":""}
+2026-10-07 11:48:07.021 INFO  [http-nio-9000-exec-1] c.f.c.j.JwtUtil: Exact AES Key Fetched: [v2AzBjb/6Ri8jxkxDUJV3waR3R7k+71ALno8Y8zjOsc=] 
+{"@timestamp":"2026-10-07T11:48:07.021366+05:30","level":"INFO","service":"CommonRequestService","traceId":"2b3a4ad5-b43e-46fb-b4e4-f7a3dfb833f7","userId":"anonymous","clientIp":"10.0.17.242","apiPath":"/api/my-requests","class":"com.fincore.commonutilities.jwt.JwtUtil","message":"Exact AES Key Fetched: [v2AzBjb/6Ri8jxkxDUJV3waR3R7k+71ALno8Y8zjOsc=]","stack_trace":""}
+2026-10-07 11:48:07.021 INFO  [http-nio-9000-exec-1] c.f.c.j.JwtUtil: Exact Token Rcv'd  : [eyJraWQiOiIyNDg4NzY2IiwiY3R5IjoiSldUIiwiZW5jIjoiQTI1NkdDTSIsImFsZyI6ImRpciJ9..DXqCsR7EhpCXLaB-.S4LEBfxlPKvVPOBmldSwr9i-4_ty8lVAlgxKMQ778Z0mQASRCibyK7oGN1nHnoeMUi9fcGeiAXnNeOUvORcEo19Mz5U8xs1pscl5-1IMF66HT6FTo4Ewe3lj8XOLfXrEUvhOVGaJPs5BvfTOrIeAwxRm66ze9ejGkxUAFHtMJKtJ9dMYkL-WwI36SRJnMvYgXhPDK7bau6GSjfPuGOxDdjY9zUqBw6Pj7Zc0_Pl9GQRiXpDLyYuD8u9ZEoxuU0h2hOKnC12xWoAz0UtuMVx9V12tOCbaQLyxKJ208Avyczmj6EuZqGAYy_EWSIpDLT7P6K_oYIcNg-TJ_blBWdsQHCUg3JCYIxjpa61ho0mh6sPmWmBPDTPQRhOynE6z0y4zXUV_uHzKqNUlEC30azL1o6BfjEJg0ZlCUIUEAqkusXTrA_rDhHgqcu8_1z_Ea-iTi1HCZVFBODvOESz829j816-cQJH0spif9aZZAnwCeYE72NOB0bzacBoecwlVcNocOErLQzvttcpvK_QZXU2QeqlDmr9zfkyrn3XW2TwDalyNdHUanBdWlw2NqcU7q7unVUCG8f-5dzwklXA_4hsED1oouGvJUGf9FV27R1QnOmLuZMQnpw_soI1X-roohS-6z1C5hCYgFD4jghOFVdClYHKaHDvBf33l539BraqONq4SYlaw8RxYLzRqRizU5F9m4ZnKuQiauRLxQoSx3FrLrkx9jjzbu9Gf2UX0gN8h9ut8R7OsydbeqtNgzIJ7yNIo2L-mIB4Q28Mh3pay6KwLq0XGQyDgG6a0mut4XTUWdZoP_sWo8-RpR0XYxsRSygLFwV84lV5H2tMIRaSi_i8kPfMl5ZfW0Gs9AyZmEpwzfHkm6JqVs4VaLLJb7ye2z0H6VAG7VeSRr3MRx3TOPreXbQNiJEv-ak0mbtD8MQUjzKA3TR462XWNP4H9gir6KKT9dl7M4OEc0todaKuG5OeLlkI2ochFW-w0F8Y6KXNxn18OvxSofNm8.UpL8l304zJTPkCobFTqu5Q] 
+{"@timestamp":"2026-10-07T11:48:07.021366+05:30","level":"INFO","service":"CommonRequestService","traceId":"2b3a4ad5-b43e-46fb-b4e4-f7a3dfb833f7","userId":"anonymous","clientIp":"10.0.17.242","apiPath":"/api/my-requests","class":"com.fincore.commonutilities.jwt.JwtUtil","message":"Exact Token Rcv'd  : [eyJraWQiOiIyNDg4NzY2IiwiY3R5IjoiSldUIiwiZW5jIjoiQTI1NkdDTSIsImFsZyI6ImRpciJ9..DXqCsR7EhpCXLaB-.S4LEBfxlPKvVPOBmldSwr9i-4_ty8lVAlgxKMQ778Z0mQASRCibyK7oGN1nHnoeMUi9fcGeiAXnNeOUvORcEo19Mz5U8xs1pscl5-1IMF66HT6FTo4Ewe3lj8XOLfXrEUvhOVGaJPs5BvfTOrIeAwxRm66ze9ejGkxUAFHtMJKtJ9dMYkL-WwI36SRJnMvYgXhPDK7bau6GSjfPuGOxDdjY9zUqBw6Pj7Zc0_Pl9GQRiXpDLyYuD8u9ZEoxuU0h2hOKnC12xWoAz0UtuMVx9V12tOCbaQLyxKJ208Avyczmj6EuZqGAYy_EWSIpDLT7P6K_oYIcNg-TJ_blBWdsQHCUg3JCYIxjpa61ho0mh6sPmWmBPDTPQRhOynE6z0y4zXUV_uHzKqNUlEC30azL1o6BfjEJg0ZlCUIUEAqkusXTrA_rDhHgqcu8_1z_Ea-iTi1HCZVFBODvOESz829j816-cQJH0spif9aZZAnwCeYE72NOB0bzacBoecwlVcNocOErLQzvttcpvK_QZXU2QeqlDmr9zfkyrn3XW2TwDalyNdHUanBdWlw2NqcU7q7unVUCG8f-5dzwklXA_4hsED1oouGvJUGf9FV27R1QnOmLuZMQnpw_soI1X-roohS-6z1C5hCYgFD4jghOFVdClYHKaHDvBf33l539BraqONq4SYlaw8RxYLzRqRizU5F9m4ZnKuQiauRLxQoSx3FrLrkx9jjzbu9Gf2UX0gN8h9ut8R7OsydbeqtNgzIJ7yNIo2L-mIB4Q28Mh3pay6KwLq0XGQyDgG6a0mut4XTUWdZoP_sWo8-RpR0XYxsRSygLFwV84lV5H2tMIRaSi_i8kPfMl5ZfW0Gs9AyZmEpwzfHkm6JqVs4VaLLJb7ye2z0H6VAG7VeSRr3MRx3TOPreXbQNiJEv-ak0mbtD8MQUjzKA3TR462XWNP4H9gir6KKT9dl7M4OEc0todaKuG5OeLlkI2ochFW-w0F8Y6KXNxn18OvxSofNm8.UpL8l304zJTPkCobFTqu5Q]","stack_trace":""}
+2026-10-07 11:48:07.027 WARN  [http-nio-9000-exec-1] c.f.c.s.ContextRbacFilter: Authentication rejected due to token anomaly: JWE Decryption failed. Key mismatch or tampered payload. 
+{"@timestamp":"2026-10-07T11:48:07.0278428+05:30","level":"WARN","service":"CommonRequestService","traceId":"2b3a4ad5-b43e-46fb-b4e4-f7a3dfb833f7","userId":"anonymous","clientIp":"10.0.17.242","apiPath":"/api/my-requests","class":"c.f.c.security.ContextRbacFilter","message":"Authentication rejected due to token anomaly: JWE Decryption failed. Key mismatch or tampered payload.","stack_trace":""}
+2026-10-07 11:48:07.031 INFO  [http-nio-9000-exec-1] c.f.c.l.MdcLoggingFilter: API Execution Completed - Method: POST | URL: http://10.0.17.242:9000/api/my-requests | Status: 401 
+{"@timestamp":"2026-10-07T11:48:07.0310471+05:30","level":"INFO","service":"CommonRequestService","traceId":"2b3a4ad5-b43e-46fb-b4e4-f7a3dfb833f7","userId":"anonymous","clientIp":"10.0.17.242","apiPath":"/api/my-requests","class":"c.f.c.logging.MdcLoggingFilter","message":"API Execution Completed - Method: POST | URL: http://10.0.17.242:9000/api/my-requests | Status: 401","stack_trace":""}
 
