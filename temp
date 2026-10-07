@@ -1,1 +1,279 @@
-2026-10-07T10:46:09.480Z ERROR 1 --- [AnalyticsService] [cat-handler-447] c.f.c.security.ContextRbacFilter         : Auth Error: The parsed JWT indicates it was signed with the 'RS256' signature algorithm, but the provided javax.crypto.spec.SecretKeySpec key may not be used to verify RS256 signatures.  Because the specified key reflects a specific and expected algorithm, and the JWT does not reflect this algorithm, it is likely that the JWT was not expected and therefore should not be trusted.  Another possibility is that the parser was provided the incorrect signature verification key, but this cannot be assumed for security reasons.
+https://fincore.sbi/api/analytics/heads/search?reportName=ysa_report&search=010
+
+
+response :
+[
+    {
+        "headCode": "01001",
+        "headName": "CAPITAL ACCOUNT"
+    },
+    {
+        "headCode": "01011",
+        "headName": "GENERAL RESERVE ACCOUNT"
+    },
+    {
+        "headCode": "01012",
+        "headName": "CAPITAL RESERVE ACCOUNT"
+    },
+    {
+        "headCode": "01013",
+        "headName": "SHARE PREMIUM ACCOUNT"
+    },
+    {
+        "headCode": "01014",
+        "headName": "INVESTEMENT FLUCTUATION RESERV ACCOUNT"
+    },
+    {
+        "headCode": "01015",
+        "headName": "INTEGRATION & DEVELOPMENT FUNDCCOUNT u/s 36 OF SBI ACT"
+    },
+    {
+        "headCode": "01016",
+        "headName": "DEVELOPMENT REBATE RESERVE ACC2"
+    },
+    {
+        "headCode": "01017",
+        "headName": "DEVELOPMENT FUNDS ACCOUNT"
+    },
+    {
+        "headCode": "01018",
+        "headName": "SPECIAL RESERVE U/S 36(I)(VILLACCOUNT[B]"
+    },
+    {
+        "headCode": "01019",
+        "headName": "RESERVE FUNDS ACCOUNT"
+    },
+    {
+        "headCode": "01020",
+        "headName": "FOREIGN CURRENCY TRANSACTION RVE ACCOUNT"
+    },
+    {
+        "headCode": "01022",
+        "headName": "INVESTMENT RESERVE(ONLY CAO KOATA)"
+    },
+    {
+        "headCode": "01023",
+        "headName": "REVALUATION RESERVE A/C (FOR CAO KOLKATA)"
+    },
+    {
+        "headCode": "01024",
+        "headName": "AFS RESERVE (LEVEL 1 & 2)"
+    },
+    {
+        "headCode": "01025",
+        "headName": "AFS LEVEL 3 RESERVE"
+    },
+    {
+        "headCode": "01026",
+        "headName": "CAPITAL RESERVE FOR EQUITY"
+    },
+    {
+        "headCode": "01036",
+        "headName": "SAVINGS BANK A/C"
+    },
+    {
+        "headCode": "01043",
+        "headName": "CURRENT A/C:OTHER BANKS"
+    },
+    {
+        "headCode": "01044",
+        "headName": "FOREIGN CURRENCY A/C"
+    },
+    {
+        "headCode": "01045",
+        "headName": "CURRENT A/C: OTHERS"
+    },
+    {
+        "headCode": "01046",
+        "headName": "META FUNDING POOL CONTROL A/C"
+    },
+    {
+        "headCode": "01061",
+        "headName": "CASH CREDIT A/C CR BAL(ii) OTH"
+    },
+    {
+        "headCode": "01062",
+        "headName": "CASH CREDIT ACCOUNT CREDIT BALANCES - FOOD CREDIT"
+    },
+    {
+        "headCode": "01071",
+        "headName": "AGRICULTURAL CASH CREDIT ACCOUNTS CREDIT BALANCES"
+    },
+    {
+        "headCode": "01073",
+        "headName": "ESCROW FOREIGN CURRENCY ACCOUNT"
+    },
+    {
+        "headCode": "01074",
+        "headName": "FOREIGN CURRENCY A/C-SUNDARY PARTIES"
+    },
+    {
+        "headCode": "01075",
+        "headName": "GOLD DEPOSIT INTERSET/REFUND WRRANTS A/C"
+    },
+    {
+        "headCode": "01077",
+        "headName": "DIAMOND DOLLAR A/C"
+    },
+    {
+        "headCode": "01079",
+        "headName": "TRUSTEE OF IBI EPF"
+    },
+    {
+        "headCode": "01080",
+        "headName": "TRUSTEES OF IBI EPF & GRATUITY  FUND"
+    },
+    {
+        "headCode": "01081",
+        "headName": "TRUSTEES OF SBI EPF"
+    },
+    {
+        "headCode": "01082",
+        "headName": "TRUSTEE OD SBI EMP PENSION FUN"
+    },
+    {
+        "headCode": "01083",
+        "headName": "SBI EMP PF INTEREST ACCOUNT"
+    },
+    {
+        "headCode": "01084",
+        "headName": "SBI EMP PENSION FUND INTEREST"
+    },
+    {
+        "headCode": "01085",
+        "headName": "SBS EMPLOYEES PF ACCOUNT"
+    },
+    {
+        "headCode": "01086",
+        "headName": "SBS EMPLOYEES PENSION FUND A/C"
+    },
+    {
+        "headCode": "01087",
+        "headName": "EEFC  DEPOSITS"
+    },
+    {
+        "headCode": "01088",
+        "headName": "RFC(DOM)DEPOSITS"
+    },
+    {
+        "headCode": "01090",
+        "headName": "METAL ACCOUNT OF CLIENT XAU:G OLD BANKING"
+    },
+    {
+        "headCode": "01091",
+        "headName": "CMP FUNDS REALISED ACCOUNT"
+    },
+    {
+        "headCode": "01092",
+        "headName": "OVERDUE TERM DEPOSIT"
+    },
+    {
+        "headCode": "20101",
+        "headName": "INVESTMENTS IN GOVERNMENT SECURITIES"
+    },
+    {
+        "headCode": "20102",
+        "headName": "INVESTMENTS IN OTHER APPROVED SECURITIES"
+    },
+    {
+        "headCode": "20103",
+        "headName": "INVESTMENTS IN FULLY PAID SHARES"
+    },
+    {
+        "headCode": "20104",
+        "headName": "INVESTMENTS IN PARTLY PAID SHARES"
+    },
+    {
+        "headCode": "20105",
+        "headName": "INVESTMENTS IN DEBENTURES AND BONDS"
+    },
+    {
+        "headCode": "20106",
+        "headName": "INVESTMENTS IN SUBSIDIARIES"
+    },
+    {
+        "headCode": "20107",
+        "headName": "INVESTEMNTS IN ASSOCIATES"
+    },
+    {
+        "headCode": "20108",
+        "headName": "OTHER INVESTMENTS [CPS,UNITS ETC.]"
+    },
+    {
+        "headCode": "20109",
+        "headName": "CBLO LENDING"
+    }
+]
+
+
+
+
+https://fincore.sbi/api/analytics/drill-down : 
+
+payload :
+
+
+{
+     "viewCode": "YSA_BANK",
+     "headCodes": ["01036", "99999"],
+     "dimensions": ["HeadCode"],
+     "metrics": ["AMOUNT"],
+     "filters": [
+       { "logicalField": "ReportDate", "operator": "EQUALS", "value": "29-06-2026" }
+     ]
+   }
+
+
+response : 
+{
+    "meta": {
+        "status": "SUCCESS",
+        "level": "HeadCode",
+        "rowCount": 2,
+        "executionTimeMs": 2707
+    },
+    "data": [
+        {
+            "id": "headcode_99999",
+            "name": "99999",
+            "AMOUNT": 0.0,
+            "hasChildren": true
+        },
+        {
+            "id": "headcode_01036",
+            "name": "01036",
+            "AMOUNT": 0.0,
+            "hasChildren": true
+        }
+    ]
+}
+
+
+
+
+payloadd: 
+{
+     "viewCode": "YSA_BANK",
+     "headCodes": ["01036", "99999"],
+     "dimensions": ["Geography"],
+     "metrics": ["AMOUNT"],
+     "filters": [
+       { "logicalField": "ReportDate", "operator": "EQUALS", "value": "29-06-2026" },
+       { "logicalField": "HeadCode", "operator": "EQUALS", "value": "01036" }
+     ]
+   }
+
+
+
+
+response;
+
+{
+    "meta": {
+        "status": "SUCCESS",
+        "level": "Geography",
+        "rowCount": 0,
+        "executionTimeMs": 284
+    },
+    "data": []
+}
