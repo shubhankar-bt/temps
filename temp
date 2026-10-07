@@ -1,159 +1,19 @@
-2026-10-07 11:55:44.344 INFO  [http-nio-9000-exec-1] o.a.j.l.DirectJDKLog: Initializing Spring DispatcherServlet 'dispatcherServlet' 
-{"@timestamp":"2026-10-07T11:55:44.3440197+05:30","level":"INFO","service":"CommonRequestService","traceId":"","userId":"","clientIp":"","apiPath":"","class":"o.a.c.c.C.[Tomcat].[localhost].[/]","message":"Initializing Spring DispatcherServlet 'dispatcherServlet'","stack_trace":""}
-2026-10-07 11:55:44.345 INFO  [http-nio-9000-exec-1] o.s.w.s.FrameworkServlet: Initializing Servlet 'dispatcherServlet' 
-{"@timestamp":"2026-10-07T11:55:44.345025+05:30","level":"INFO","service":"CommonRequestService","traceId":"","userId":"","clientIp":"","apiPath":"","class":"o.s.web.servlet.DispatcherServlet","message":"Initializing Servlet 'dispatcherServlet'","stack_trace":""}
-2026-10-07 11:55:44.348 INFO  [http-nio-9000-exec-1] o.s.w.s.FrameworkServlet: Completed initialization in 3 ms 
-{"@timestamp":"2026-10-07T11:55:44.3485964+05:30","level":"INFO","service":"CommonRequestService","traceId":"","userId":"","clientIp":"","apiPath":"","class":"o.s.web.servlet.DispatcherServlet","message":"Completed initialization in 3 ms","stack_trace":""}
-2026-10-07 11:55:44.528 INFO  [http-nio-9000-exec-1] c.f.c.j.JwtUtil: === JWE DECRYPTION DIAGNOSTICS === 
-{"@timestamp":"2026-10-07T11:55:44.5286286+05:30","level":"INFO","service":"CommonRequestService","traceId":"cfa72352-6d89-49c7-88d3-0a0abfda9ec5","userId":"anonymous","clientIp":"10.0.17.242","apiPath":"/api/my-requests","class":"com.fincore.commonutilities.jwt.JwtUtil","message":"=== JWE DECRYPTION DIAGNOSTICS ===","stack_trace":""}
-2026-10-07 11:55:44.528 INFO  [http-nio-9000-exec-1] c.f.c.j.JwtUtil: Exact AES Key Fetched: [LcufQpxhBmSqazsSafjVfH17BBbe93yLGqlW9/r+J7g=] 
-{"@timestamp":"2026-10-07T11:55:44.5286286+05:30","level":"INFO","service":"CommonRequestService","traceId":"cfa72352-6d89-49c7-88d3-0a0abfda9ec5","userId":"anonymous","clientIp":"10.0.17.242","apiPath":"/api/my-requests","class":"com.fincore.commonutilities.jwt.JwtUtil","message":"Exact AES Key Fetched: [LcufQpxhBmSqazsSafjVfH17BBbe93yLGqlW9/r+J7g=]","stack_trace":""}
-2026-10-07 11:55:44.529 INFO  [http-nio-9000-exec-1] c.f.c.j.JwtUtil: Exact Token Rcv'd  : [eyJraWQiOiIyNDg4NzY2IiwiY3R5IjoiSldUIiwiZW5jIjoiQTI1NkdDTSIsImFsZyI6ImRpciJ9..BY_0FVbCJvtw-8Mf.8NqcIBOWa7xMcvRcDKSf8UvfdfN2xv4Xw7AJmQNZipgihqX5quUUXnQQhDQgxypD-Qh1iKyO9oBl6sfA7OQtus4JfEO8QNWq65WLFn-fc_OOpfiV8EiPaeq5BKvdf9vhjw_Wjbn2mGJ_5wNf2DslVZDbp7jkDBHQzAHeKX8J9aio6YoKUEksFY9NKfm76Aefk_BTJmIGzI08vwWamBsJCsuldVJrY-rsxIvl6XEUB_3CTsS0rFY-_laHvARv1UJko0zvztEwERo-1b7XGWO42JMPnFUc9mANp8BknakQaOfyS6e_BAJZ4oBy4GWbjiFkqdQjOHm6GTgc5mhKT3eyiG4_SMwN85pcFUbDpoVnOcvwDR5XR-_gjre_Gb2jihFcRVrHDRapad8Vg3bTBvXD7HoncS4hpTk44D9rzUEDK8-fIyK1rOzKNmIJaVolkUhiAXRDpdNWc1R7uoFg7cPGq5T9HTVGXmdo003P_xLBwQSAhq6SxE0WBWBPjij07QWS1-upRpu4IvOGlzrTP5ixjCmPQss2iCFYoZG5LQSkwxefD9pl5TlK1z70f0CCY5LwJH-Xop-xj7CU4VgWBHxcxTSqwotmxjGHEee8TW906b9QKzrm3JoMVbcFVgr9w69Pt3tbO0QD8-nsFdrsTScKish-krHJ-ujlq4WjxY_oAkoXWN-Ibu625sEfR-EenUxThHuiUUhhlbnwaOBfNlpbt73vI7qcyId9GjLmIVV8QRWEFKYCVufM4azKA9CJ1YNWSfgNOvSOM7-2lVNEeHiRdrpKPO80bilmre6Se3ZVoNWJXwJ-prLNTE8-xchs-EMznX7bAeG2LZskVDza32HxbhURxXOsZqip97Li3nYtquACKsCEeVi-O3hfqSGe9wK-j6-mO5CtUDvFIj4E__6HsC405nFHdSJEyuHy7pevITVF5A057hoh6Mu6iqLb36m-ykvmS1JqPJvcI4y-24Dttk5sa8tyJBDy801eJ3lD7eiifoP2FVXh.oHvxorT4WpZf52VYTmgHGw] 
-{"@timestamp":"2026-10-07T11:55:44.5291732+05:30","level":"INFO","service":"CommonRequestService","traceId":"cfa72352-6d89-49c7-88d3-0a0abfda9ec5","userId":"anonymous","clientIp":"10.0.17.242","apiPath":"/api/my-requests","class":"com.fincore.commonutilities.jwt.JwtUtil","message":"Exact Token Rcv'd  : [eyJraWQiOiIyNDg4NzY2IiwiY3R5IjoiSldUIiwiZW5jIjoiQTI1NkdDTSIsImFsZyI6ImRpciJ9..BY_0FVbCJvtw-8Mf.8NqcIBOWa7xMcvRcDKSf8UvfdfN2xv4Xw7AJmQNZipgihqX5quUUXnQQhDQgxypD-Qh1iKyO9oBl6sfA7OQtus4JfEO8QNWq65WLFn-fc_OOpfiV8EiPaeq5BKvdf9vhjw_Wjbn2mGJ_5wNf2DslVZDbp7jkDBHQzAHeKX8J9aio6YoKUEksFY9NKfm76Aefk_BTJmIGzI08vwWamBsJCsuldVJrY-rsxIvl6XEUB_3CTsS0rFY-_laHvARv1UJko0zvztEwERo-1b7XGWO42JMPnFUc9mANp8BknakQaOfyS6e_BAJZ4oBy4GWbjiFkqdQjOHm6GTgc5mhKT3eyiG4_SMwN85pcFUbDpoVnOcvwDR5XR-_gjre_Gb2jihFcRVrHDRapad8Vg3bTBvXD7HoncS4hpTk44D9rzUEDK8-fIyK1rOzKNmIJaVolkUhiAXRDpdNWc1R7uoFg7cPGq5T9HTVGXmdo003P_xLBwQSAhq6SxE0WBWBPjij07QWS1-upRpu4IvOGlzrTP5ixjCmPQss2iCFYoZG5LQSkwxefD9pl5TlK1z70f0CCY5LwJH-Xop-xj7CU4VgWBHxcxTSqwotmxjGHEee8TW906b9QKzrm3JoMVbcFVgr9w69Pt3tbO0QD8-nsFdrsTScKish-krHJ-ujlq4WjxY_oAkoXWN-Ibu625sEfR-EenUxThHuiUUhhlbnwaOBfNlpbt73vI7qcyId9GjLmIVV8QRWEFKYCVufM4azKA9CJ1YNWSfgNOvSOM7-2lVNEeHiRdrpKPO80bilmre6Se3ZVoNWJXwJ-prLNTE8-xchs-EMznX7bAeG2LZskVDza32HxbhURxXOsZqip97Li3nYtquACKsCEeVi-O3hfqSGe9wK-j6-mO5CtUDvFIj4E__6HsC405nFHdSJEyuHy7pevITVF5A057hoh6Mu6iqLb36m-ykvmS1JqPJvcI4y-24Dttk5sa8tyJBDy801eJ3lD7eiifoP2FVXh.oHvxorT4WpZf52VYTmgHGw]","stack_trace":""}
-2026-10-07 11:55:44.827 ERROR [http-nio-9000-exec-1] c.t.f.C.e.GlobalExceptionHandler: An unexpected error occurred: Cannot decrypt JWE payload: unable to locate key for JWE with header: {kid=2488766, cty=JWT, enc=A256GCM, alg=dir} 
-io.jsonwebtoken.UnsupportedJwtException: Cannot decrypt JWE payload: unable to locate key for JWE with header: {kid=2488766, cty=JWT, enc=A256GCM, alg=dir}
-	at io.jsonwebtoken.impl.DefaultJwtParser.parse(DefaultJwtParser.java:545)
-	at io.jsonwebtoken.impl.DefaultJwtParser.parse(DefaultJwtParser.java:364)
-	at io.jsonwebtoken.impl.DefaultJwtParser.parse(DefaultJwtParser.java:94)
-	at io.jsonwebtoken.impl.io.AbstractParser.parse(AbstractParser.java:36)
-	at io.jsonwebtoken.impl.io.AbstractParser.parse(AbstractParser.java:29)
-	at io.jsonwebtoken.impl.DefaultJwtParser.parseSignedClaims(DefaultJwtParser.java:830)
-	at com.fincore.commonutilities.jwt.JwtUtil.extractAllClaims(JwtUtil.java:116)
-	at com.fincore.commonutilities.jwt.JwtUtil.extractClaim(JwtUtil.java:91)
-	at com.fincore.commonutilities.jwt.JwtUtil.getUserIdFromToken(JwtUtil.java:48)
-	at com.tcs.fincore.CommonRequestService.controller.RequestController.getMyRequests(RequestController.java:68)
-	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:103)
-	at java.base/java.lang.reflect.Method.invoke(Method.java:580)
-	at org.springframework.web.method.support.InvocableHandlerMethod.doInvoke(InvocableHandlerMethod.java:252)
-	at org.springframework.web.method.support.InvocableHandlerMethod.invokeForRequest(InvocableHandlerMethod.java:184)
-	at org.springframework.web.servlet.mvc.method.annotation.ServletInvocableHandlerMethod.invokeAndHandle(ServletInvocableHandlerMethod.java:117)
-	at org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerAdapter.invokeHandlerMethod(RequestMappingHandlerAdapter.java:934)
-	at org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerAdapter.handleInternal(RequestMappingHandlerAdapter.java:853)
-	at org.springframework.web.servlet.mvc.method.AbstractHandlerMethodAdapter.handle(AbstractHandlerMethodAdapter.java:86)
-	at org.springframework.web.servlet.DispatcherServlet.doDispatch(DispatcherServlet.java:963)
-	at org.springframework.web.servlet.DispatcherServlet.doService(DispatcherServlet.java:866)
-	at org.springframework.web.servlet.FrameworkServlet.processRequest(FrameworkServlet.java:1000)
-	at org.springframework.web.servlet.FrameworkServlet.doPost(FrameworkServlet.java:903)
-	at jakarta.servlet.http.HttpServlet.service(HttpServlet.java:649)
-	at org.springframework.web.servlet.FrameworkServlet.service(FrameworkServlet.java:874)
-	at jakarta.servlet.http.HttpServlet.service(HttpServlet.java:710)
-	at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:132)
-	at org.apache.tomcat.websocket.server.WsFilter.doFilter(WsFilter.java:59)
-	at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:111)
-	at org.springframework.web.filter.CompositeFilter$VirtualFilterChain.doFilter(CompositeFilter.java:108)
-	at org.springframework.security.web.FilterChainProxy.lambda$doFilterInternal$2(FilterChainProxy.java:235)
-	at org.springframework.security.web.ObservationFilterChainDecorator$FilterObservation$SimpleFilterObservation.lambda$wrap$1(ObservationFilterChainDecorator.java:491)
-	at org.springframework.security.web.ObservationFilterChainDecorator$AroundFilterObservation$SimpleAroundFilterObservation.lambda$wrap$1(ObservationFilterChainDecorator.java:353)
-	at org.springframework.security.web.ObservationFilterChainDecorator.lambda$wrapSecured$0(ObservationFilterChainDecorator.java:84)
-	at org.springframework.security.web.ObservationFilterChainDecorator$VirtualFilterChain.doFilter(ObservationFilterChainDecorator.java:131)
-	at org.springframework.security.web.access.intercept.AuthorizationFilter.doFilter(AuthorizationFilter.java:101)
-	at org.springframework.security.web.ObservationFilterChainDecorator$ObservationFilter.wrapFilter(ObservationFilterChainDecorator.java:243)
-	at org.springframework.security.web.ObservationFilterChainDecorator$ObservationFilter.doFilter(ObservationFilterChainDecorator.java:230)
-	at org.springframework.security.web.ObservationFilterChainDecorator$VirtualFilterChain.doFilter(ObservationFilterChainDecorator.java:140)
-	at org.springframework.security.web.access.ExceptionTranslationFilter.doFilter(ExceptionTranslationFilter.java:126)
-	at org.springframework.security.web.access.ExceptionTranslationFilter.doFilter(ExceptionTranslationFilter.java:120)
-	at org.springframework.security.web.ObservationFilterChainDecorator$ObservationFilter.wrapFilter(ObservationFilterChainDecorator.java:243)
-	at org.springframework.security.web.ObservationFilterChainDecorator$ObservationFilter.doFilter(ObservationFilterChainDecorator.java:230)
-	at org.springframework.security.web.ObservationFilterChainDecorator$VirtualFilterChain.doFilter(ObservationFilterChainDecorator.java:140)
-	at org.springframework.security.web.session.SessionManagementFilter.doFilter(SessionManagementFilter.java:132)
-	at org.springframework.security.web.session.SessionManagementFilter.doFilter(SessionManagementFilter.java:86)
-	at org.springframework.security.web.ObservationFilterChainDecorator$ObservationFilter.wrapFilter(ObservationFilterChainDecorator.java:243)
-	at org.springframework.security.web.ObservationFilterChainDecorator$ObservationFilter.doFilter(ObservationFilterChainDecorator.java:230)
-	at org.springframework.security.web.ObservationFilterChainDecorator$VirtualFilterChain.doFilter(ObservationFilterChainDecorator.java:140)
-	at org.springframework.security.web.authentication.AnonymousAuthenticationFilter.doFilter(AnonymousAuthenticationFilter.java:100)
-	at org.springframework.security.web.ObservationFilterChainDecorator$ObservationFilter.wrapFilter(ObservationFilterChainDecorator.java:243)
-	at org.springframework.security.web.ObservationFilterChainDecorator$ObservationFilter.doFilter(ObservationFilterChainDecorator.java:230)
-	at org.springframework.security.web.ObservationFilterChainDecorator$VirtualFilterChain.doFilter(ObservationFilterChainDecorator.java:140)
-	at org.springframework.security.web.servletapi.SecurityContextHolderAwareRequestFilter.doFilter(SecurityContextHolderAwareRequestFilter.java:181)
-	at org.springframework.security.web.ObservationFilterChainDecorator$ObservationFilter.wrapFilter(ObservationFilterChainDecorator.java:243)
-	at org.springframework.security.web.ObservationFilterChainDecorator$ObservationFilter.doFilter(ObservationFilterChainDecorator.java:230)
-	at org.springframework.security.web.ObservationFilterChainDecorator$VirtualFilterChain.doFilter(ObservationFilterChainDecorator.java:140)
-	at org.springframework.security.web.savedrequest.RequestCacheAwareFilter.doFilter(RequestCacheAwareFilter.java:63)
-	at org.springframework.security.web.ObservationFilterChainDecorator$ObservationFilter.wrapFilter(ObservationFilterChainDecorator.java:243)
-	at org.springframework.security.web.ObservationFilterChainDecorator$ObservationFilter.doFilter(ObservationFilterChainDecorator.java:230)
-	at org.springframework.security.web.ObservationFilterChainDecorator$VirtualFilterChain.doFilter(ObservationFilterChainDecorator.java:140)
-	at com.fincore.commonutilities.security.ContextRbacFilter.doFilterInternal(ContextRbacFilter.java:127)
-	at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:116)
-	at org.springframework.security.web.ObservationFilterChainDecorator$ObservationFilter.wrapFilter(ObservationFilterChainDecorator.java:243)
-	at org.springframework.security.web.ObservationFilterChainDecorator$ObservationFilter.doFilter(ObservationFilterChainDecorator.java:230)
-	at org.springframework.security.web.ObservationFilterChainDecorator$VirtualFilterChain.doFilter(ObservationFilterChainDecorator.java:140)
-	at com.fincore.commonutilities.logging.MdcLoggingFilter.doFilterInternal(MdcLoggingFilter.java:83)
-	at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:116)
-	at org.springframework.security.web.ObservationFilterChainDecorator$ObservationFilter.wrapFilter(ObservationFilterChainDecorator.java:243)
-	at org.springframework.security.web.ObservationFilterChainDecorator$ObservationFilter.doFilter(ObservationFilterChainDecorator.java:230)
-	at org.springframework.security.web.ObservationFilterChainDecorator$VirtualFilterChain.doFilter(ObservationFilterChainDecorator.java:140)
-	at org.springframework.security.web.authentication.logout.LogoutFilter.doFilter(LogoutFilter.java:110)
-	at org.springframework.security.web.authentication.logout.LogoutFilter.doFilter(LogoutFilter.java:96)
-	at org.springframework.security.web.ObservationFilterChainDecorator$ObservationFilter.wrapFilter(ObservationFilterChainDecorator.java:243)
-	at org.springframework.security.web.ObservationFilterChainDecorator$ObservationFilter.doFilter(ObservationFilterChainDecorator.java:230)
-	at org.springframework.security.web.ObservationFilterChainDecorator$VirtualFilterChain.doFilter(ObservationFilterChainDecorator.java:140)
-	at org.springframework.web.filter.CorsFilter.doFilterInternal(CorsFilter.java:91)
-	at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:116)
-	at org.springframework.security.web.ObservationFilterChainDecorator$ObservationFilter.wrapFilter(ObservationFilterChainDecorator.java:243)
-	at org.springframework.security.web.ObservationFilterChainDecorator$ObservationFilter.doFilter(ObservationFilterChainDecorator.java:230)
-	at org.springframework.security.web.ObservationFilterChainDecorator$VirtualFilterChain.doFilter(ObservationFilterChainDecorator.java:140)
-	at org.springframework.security.web.header.HeaderWriterFilter.doHeadersAfter(HeaderWriterFilter.java:90)
-	at org.springframework.security.web.header.HeaderWriterFilter.doFilterInternal(HeaderWriterFilter.java:75)
-	at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:116)
-	at org.springframework.security.web.ObservationFilterChainDecorator$ObservationFilter.wrapFilter(ObservationFilterChainDecorator.java:243)
-	at org.springframework.security.web.ObservationFilterChainDecorator$ObservationFilter.doFilter(ObservationFilterChainDecorator.java:230)
-	at org.springframework.security.web.ObservationFilterChainDecorator$VirtualFilterChain.doFilter(ObservationFilterChainDecorator.java:140)
-	at org.springframework.security.web.context.SecurityContextHolderFilter.doFilter(SecurityContextHolderFilter.java:82)
-	at org.springframework.security.web.context.SecurityContextHolderFilter.doFilter(SecurityContextHolderFilter.java:69)
-	at org.springframework.security.web.ObservationFilterChainDecorator$ObservationFilter.wrapFilter(ObservationFilterChainDecorator.java:243)
-	at org.springframework.security.web.ObservationFilterChainDecorator$ObservationFilter.doFilter(ObservationFilterChainDecorator.java:230)
-	at org.springframework.security.web.ObservationFilterChainDecorator$VirtualFilterChain.doFilter(ObservationFilterChainDecorator.java:140)
-	at org.springframework.security.web.context.request.async.WebAsyncManagerIntegrationFilter.doFilterInternal(WebAsyncManagerIntegrationFilter.java:62)
-	at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:116)
-	at org.springframework.security.web.ObservationFilterChainDecorator$ObservationFilter.wrapFilter(ObservationFilterChainDecorator.java:243)
-	at org.springframework.security.web.ObservationFilterChainDecorator$ObservationFilter.doFilter(ObservationFilterChainDecorator.java:230)
-	at org.springframework.security.web.ObservationFilterChainDecorator$VirtualFilterChain.doFilter(ObservationFilterChainDecorator.java:140)
-	at org.springframework.security.web.session.DisableEncodeUrlFilter.doFilterInternal(DisableEncodeUrlFilter.java:42)
-	at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:116)
-	at org.springframework.security.web.ObservationFilterChainDecorator$ObservationFilter.wrapFilter(ObservationFilterChainDecorator.java:243)
-	at org.springframework.security.web.ObservationFilterChainDecorator$AroundFilterObservation$SimpleAroundFilterObservation.lambda$wrap$0(ObservationFilterChainDecorator.java:336)
-	at org.springframework.security.web.ObservationFilterChainDecorator$ObservationFilter.doFilter(ObservationFilterChainDecorator.java:227)
-	at org.springframework.security.web.ObservationFilterChainDecorator$VirtualFilterChain.doFilter(ObservationFilterChainDecorator.java:140)
-	at org.springframework.security.web.FilterChainProxy.doFilterInternal(FilterChainProxy.java:237)
-	at org.springframework.security.web.FilterChainProxy.doFilter(FilterChainProxy.java:195)
-	at org.springframework.web.filter.CompositeFilter$VirtualFilterChain.doFilter(CompositeFilter.java:113)
-	at org.springframework.web.filter.ServletRequestPathFilter.doFilter(ServletRequestPathFilter.java:52)
-	at org.springframework.web.filter.CompositeFilter$VirtualFilterChain.doFilter(CompositeFilter.java:113)
-	at org.springframework.web.filter.CompositeFilter.doFilter(CompositeFilter.java:74)
-	at org.springframework.security.config.annotation.web.configuration.WebSecurityConfiguration$CompositeFilterChainProxy.doFilter(WebSecurityConfiguration.java:317)
-	at org.springframework.web.filter.DelegatingFilterProxy.invokeDelegate(DelegatingFilterProxy.java:355)
-	at org.springframework.web.filter.DelegatingFilterProxy.doFilter(DelegatingFilterProxy.java:272)
-	at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:111)
-	at org.springframework.web.filter.RequestContextFilter.doFilterInternal(RequestContextFilter.java:100)
-	at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:116)
-	at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:111)
-	at org.springframework.web.filter.FormContentFilter.doFilterInternal(FormContentFilter.java:93)
-	at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:116)
-	at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:111)
-	at org.springframework.web.filter.ServerHttpObservationFilter.doFilterInternal(ServerHttpObservationFilter.java:110)
-	at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:116)
-	at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:111)
-	at org.springframework.web.filter.CharacterEncodingFilter.doFilterInternal(CharacterEncodingFilter.java:199)
-	at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:116)
-	at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:111)
-	at org.apache.catalina.core.StandardWrapperValve.invoke(StandardWrapperValve.java:165)
-	at org.apache.catalina.core.StandardContextValve.invoke(StandardContextValve.java:77)
-	at org.apache.catalina.authenticator.AuthenticatorBase.invoke(AuthenticatorBase.java:535)
-	at org.apache.catalina.core.StandardHostValve.invoke(StandardHostValve.java:115)
-	at org.apache.catalina.valves.ErrorReportValve.invoke(ErrorReportValve.java:86)
-	at org.apache.catalina.core.StandardEngineValve.invoke(StandardEngineValve.java:71)
-	at org.apache.catalina.connector.CoyoteAdapter.service(CoyoteAdapter.java:347)
-	at org.apache.coyote.http11.Http11Processor.service(Http11Processor.java:406)
-	at org.apache.coyote.AbstractProcessorLight.process(AbstractProcessorLight.java:71)
-	at org.apache.coyote.AbstractProtocol$ConnectionHandler.process(AbstractProtocol.java:1307)
-	at org.apache.tomcat.util.net.NioEndpoint$SocketProcessor.doRun(NioEndpoint.java:2036)
-	at org.apache.tomcat.util.net.SocketProcessorBase.run(SocketProcessorBase.java:74)
-	at org.apache.tomcat.util.threads.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:949)
-	at org.apache.tomcat.util.threads.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:483)
-	at org.apache.tomcat.util.threads.TaskThread$WrappingRunnable.run(TaskThread.java:74)
-	at java.base/java.lang.Thread.run(Thread.java:1570)
-{"@timestamp":"2026-10-07T11:55:44.8275752+05:30","level":"ERROR","service":"CommonRequestService","traceId":"cfa72352-6d89-49c7-88d3-0a0abfda9ec5","userId":"anonymous","clientIp":"10.0.17.242","apiPath":"/api/my-requests","class":"c.t.f.C.exception.GlobalExceptionHandler","message":"An unexpected error occurred: Cannot decrypt JWE payload: unable to locate key for JWE with header: {kid=2488766, cty=JWT, enc=A256GCM, alg=dir}","stack_trace":"io.jsonwebtoken.UnsupportedJwtException: Cannot decrypt JWE payload: unable to locate key for JWE with header: {kid=2488766, cty=JWT, enc=A256GCM, alg=dir}\r\n\tat io.jsonwebtoken.impl.DefaultJwtParser.parse(DefaultJwtParser.java:545)\r\n\tat io.jsonwebtoken.impl.DefaultJwtParser.parse(DefaultJwtParser.java:364)\r\n\tat io.jsonwebtoken.impl.DefaultJwtParser.parse(DefaultJwtParser.java:94)\r\n\tat io.jsonwebtoken.impl.io.AbstractParser.parse(AbstractParser.java:36)\r\n\tat io.jsonwebtoken.impl.io.AbstractParser.parse(AbstractParser.java:29)\r\n\tat io.jsonwebtoken.impl.DefaultJwtParser.parseSignedClaims(DefaultJwtParser.java:830)\r\n\tat com.fincore.commonutilities.jwt.JwtUtil.extractAllClaims(JwtUtil.java:116)\r\n\tat com.fincore.commonutilities.jwt.JwtUtil.extractClaim(JwtUtil.java:91)\r\n\tat com.fincore.commonutilities.jwt.JwtUtil.getUserIdFromToken(JwtUtil.java:48)\r\n\tat com.tcs.fincore.CommonRequestService.controller.RequestController.getMyRequests(RequestController.java:68)\r\n"}
-2026-10-07 11:55:44.930 WARN  [http-nio-9000-exec-1] o.s.w.s.h.AbstractHandlerExceptionResolver: Resolved [io.jsonwebtoken.UnsupportedJwtException: Cannot decrypt JWE payload: unable to locate key for JWE with header: {kid=2488766, cty=JWT, enc=A256GCM, alg=dir}] 
-{"@timestamp":"2026-10-07T11:55:44.9301591+05:30","level":"WARN","service":"CommonRequestService","traceId":"cfa72352-6d89-49c7-88d3-0a0abfda9ec5","userId":"anonymous","clientIp":"10.0.17.242","apiPath":"/api/my-requests","class":"o.s.w.s.m.m.a.ExceptionHandlerExceptionResolver","message":"Resolved [io.jsonwebtoken.UnsupportedJwtException: Cannot decrypt JWE payload: unable to locate key for JWE with header: {kid=2488766, cty=JWT, enc=A256GCM, alg=dir}]","stack_trace":""}
-2026-10-07 11:55:44.934 INFO  [http-nio-9000-exec-1] c.f.c.l.MdcLoggingFilter: API Execution Completed - Method: POST | URL: http://10.0.17.242:9000/api/my-requests | Status: 500 
-{"@timestamp":"2026-10-07T11:55:44.9341371+05:30","level":"INFO","service":"CommonRequestService","traceId":"cfa72352-6d89-49c7-88d3-0a0abfda9ec5","userId":"anonymous","clientIp":"10.0.17.242","apiPath":"/api/my-requests","class":"c.f.c.logging.MdcLoggingFilter","message":"API Execution Completed - Method: POST | URL: http://10.0.17.242:9000/api/my-requests | Status: 500","stack_trace":""}
+    /**
+     * Extracts the User ID (Subject) from the token.
+     * Smartly routes between JWE (Frontend) and JWS (M2M Service) tokens.
+     *
+     * @param token The Bearer token.
+     * @return The userId string.
+     */
+    public String getUserIdFromToken(String token) {
+        String cleanToken = removeBearerPrefix(token);
+        String[] parts = cleanToken.split("\\.");
+        
+        if (parts.length == 5) {
+            // JWE FLOW: The User ID is conveniently stored in the unencrypted 'kid' header!
+            return extractUserIdFromJweHeader(cleanToken);
+        } else {
+            // JWS FLOW: Fallback for Service/M2M tokens using JJWT
+            return extractClaim(cleanToken, Claims::getSubject);
+        }
+    }
