@@ -1,4 +1,549 @@
-    // ... [Keep everything else exactly the same, just update these two helper methods] ...
+package com.fincore.gateway.Controller;
+
+import com.fincore.commonutilities.util.AesEncryptionUtil;
+import com.fincore.gateway.JwtUtil.JweUtil;
+import com.fincore.gateway.Service.LaunchService;
+import com.fincore.gateway.Service.LoginService;
+import com.fincore.gateway.Service.TokenSessionValidator;
+import com.fincore.gateway.dto.*;
+import com.fincore.gateway.utility.Constants;
+import com.fincore.gateway.utility.LoginUtility;
+
+import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.data.redis.core.ReactiveStringRedisTemplate;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseCookie;
+import org.springframework.http.ResponseEntity;
+import org.springframework.http.server.reactive.ServerHttpRequest;
+import org.springframework.http.server.reactive.ServerHttpResponse;
+import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
+import org.springframework.web.bind.annotation.*;
+import org.springframework.web.server.ResponseStatusException;
+
+import reactor.core.publisher.Mono;
+import reactor.core.scheduler.Schedulers;
+
+import tools.jackson.core.type.TypeReference;
+import tools.jackson.databind.ObjectMapper;
+
+import com.fincore.gateway.JwtUtil.JweUtil;
+import com.nimbusds.jwt.EncryptedJWT;
+import com.nimbusds.jwt.JWTClaimsSet;
+import org.springframework.security.oauth2.jwt.BadJwtException;
+import java.text.ParseException;
+import java.util.UUID;
+
+import java.time.Duration;
+import java.util.*;
+
+/**
+ * REST controller for managing authentication workflows in a reactive Spring WebFlux application.
+ *
+ * <p>This controller provides endpoints for:
+ * <ul>
+ *   <li>User login with credential validation</li>
+ *   <li>Token refresh using refresh tokens</li>
+ *   <li>Logout with token invalidation</li>
+ *   <li>Checking current user session status</li>
+ *   <li>Password Update</li>
+ *   <li>Returns public key to client to encrypt login payload with check user</li>
+ * </ul>
+ *
+ * <p>All endpoints return a standardized {@link ApiResponse} structure to ensure consistent
+ * client-side handling. Security is implemented using JWT-based stateless authentication,
+ * integrated with Spring Security's reactive stack.
+ *
+ * <p><b>Note:</b> This controller is designed to work with non-blocking, reactive types
+ * ({@link Mono}
+ *
+ * @author SHUBHANKAR DAS [Emp ID: V1018405]
+ * <a href="mailto:shubhankar.das.cbstcs@sbi.co.in">shubhankar.das.cbstcs@sbi.co.in</a>
+ * @version 1.2.0
+ * @since 2026-05-13
+ */
+@Slf4j
+@RestController
+@RequestMapping("/api/auth")
+@RequiredArgsConstructor
+public class AuthController {
+
+    private static final String USER_PREFIX = "USR:";
+    private static final String AES_KEY_PREFIX = "AES:USR:";
+
+    private final TokenSessionValidator validator;
+    private final ReactiveStringRedisTemplate redisTemplate;
+    private final LoginService loginService;
+    private final ObjectMapper mapper;
+    private final LaunchService launchService;
+    private final AesEncryptionUtil aesUtil;
+
+    @Value("${security.jwt.hmac-base64-secret:}")
+    private String hmacSecret;
+
+    @Value("${security.jwt.ttl-seconds:900}")
+    private long accessTokenTtl;
+
+    @Value("${security.jwt.refresh-ttl-seconds:43200}")
+    private long refreshTokenTtl;
+
+    @Value("${security.login.blocked-ips:}")
+    private String blockedIpsConfig;
+
+    @Value("${security.payload.rsa-public:}")
+    private String rsaPublicPem;
+
+    // =================================================================================================
+    // INITIALIZATION & LOGIN
+    // =================================================================================================
+
+    /**
+     * Replaces /start-prod. Called when the frontend application loads.
+     * Delivers environment info and the RSA Public Key for login payload encryption.
+     */
+    @GetMapping("/init")
+    public ResponseEntity<LaunchResponse> getLaunchData() {
+        return ResponseEntity.ok(launchService.getLaunchDetails());
+    }
+
+    /**
+     * LOGIN ENDPOINT
+     * 1. Validates credentials (Blocking DB call on Elastic Scheduler).
+     * 2. Generates Access Token & Refresh Token.
+     * 3. Stores Access Token JTI in Redis (Session Start).
+     * 4. Returns Access Token in Body, Refresh Token in HttpOnly Cookie.
+     */
+    @PostMapping(value = "/login", produces = MediaType.APPLICATION_JSON_VALUE)
+    public Mono<ResponseEntity<ApiResponse<?>>> login(
+            ServerHttpRequest request, ServerHttpResponse response, @RequestBody @Valid UserDto payload) {
+        final String clientIp = LoginUtility.getClientIp(request);
+        log.info("Login request for user: {} from IP: {}", LoginUtility.sanitizeLog(payload.getUserId()), clientIp);
+
+        // 1. IP BLOCK CHECK
+        if (isIpBlocked(clientIp)) {
+            return Mono.just(ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(ApiResponse.error("Access denied: Your IP address is blocked.", "IP_BLOCKED")));
+        }
+
+        return Mono.fromCallable(() -> loginService.verifyUserCredentials(payload, clientIp))
+                .subscribeOn(Schedulers.boundedElastic())
+                .flatMap(user -> {
+
+                    // =========================================================
+                    // CASE 1: INVALID CREDENTIALS (Wrong Password / Locked)
+                    // =========================================================
+                    if (!user.isValidCredentials()) {
+
+                        log.warn("Login Failed for user: {}. Reason: {}", LoginUtility.sanitizeLog(payload.getUserId()), user.getMessage());
+
+                        // Build response to show Attempts Left
+                        LoginResponseDTO errorResponse = LoginResponseDTO.builder()
+                                .userId(user.getUserId())
+                                .validCredentials(false)
+                                .userStatus(user.getUserStatus())
+                                .passwordLoginStatus(user.getPasswordLoginStatus())
+                                .attemptsLeft(user.getAttemptsLeft()) // <--- PASS COUNT TO FRONTEND
+                                .error(user.getMessage())
+                                .build();
+
+                        // If attempts are 0 OR status is INACTIVE -> 403 Forbidden (Locked)
+                        // Otherwise -> 401 Unauthorized (Try again)
+                        HttpStatus status = (user.getAttemptsLeft() == 0) ||
+                                user.isAccountLocked() ||
+                                Constants.INACTIVE.equalsIgnoreCase(user.getPasswordLoginStatus())
+                                ? HttpStatus.FORBIDDEN
+                                : HttpStatus.UNAUTHORIZED;
+
+                        return Mono.just(ResponseEntity.status(status)
+                                .body(ApiResponse.success(errorResponse, user.getMessage())));
+                    }
+
+//                    // =========================================================
+//                    // CASE 2: PASSWORD EXPIRED (Force Update)
+//                    // =========================================================
+//                    if (user.isUpdatePassword()) {
+//                        log.info("Password expired for user {}", LoginUtility.sanitizeLog(user.getUserId()));
+//                        return Mono.just(ResponseEntity.status(HttpStatus.PRECONDITION_REQUIRED) // 428
+//                                .body(ApiResponse.error("Password expired. Update required.", "UPDATE_REQUIRED")));
+//                    }
+
+                    // =========================================================
+                    // CASE 3: CONFIG ERROR
+                    // =========================================================
+                    if (hmacSecret == null || hmacSecret.isBlank()) {
+                        return Mono.just(ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                                .body(ApiResponse.error("Server Config Error", "CONFIG_ERROR")));
+                    }
+
+                    // =========================================================
+                    // Dynamic Routing based on MFA Flag
+                    // =========================================================
+                    if (user.isOtpRequired()) {
+                        log.info("MFA Enabled: Routing user {} to OTP Phase.", LoginUtility.sanitizeLog(user.getUserId()));
+                        return loginService.initiateOtpPhase(user)
+                                .map(otpDto -> ResponseEntity.status(HttpStatus.ACCEPTED)
+                                        .body(ApiResponse.<OtpInitiatedResponseDTO>success(otpDto, "OTP Sent to registered contacts.")));
+                    } else {
+                        log.info("MFA Disabled: Routing user {} to Direct Login.", LoginUtility.sanitizeLog(user.getUserId()));
+                        return generateSessionAndTokens(user, response);
+                    }
+                });
+    }
+
+
+    // =================================================================================================
+    // REFRESH TOKEN METHOD
+    // =================================================================================================
+
+    /**
+     * REFRESH TOKEN ENDPOINT
+     * 1. Reads Refresh Token from Cookie.
+     * 2. Validates JWE decryption & Expiry.
+     * 3. Checks Redis to ensure User Session is still valid/active.
+     * 4. Rotates Tokens (New JWE Access Token + New JWE Refresh Cookie).
+     */
+    @PostMapping(value = "/refresh-token", produces = MediaType.APPLICATION_JSON_VALUE)
+    public Mono<ApiResponse<LoginResponseDTO>> refreshToken(ServerHttpRequest request, ServerHttpResponse response) {
+        org.springframework.http.HttpCookie cookie = request.getCookies().getFirst("refresh_token");
+        String refreshToken = (cookie != null) ? cookie.getValue() : null;
+
+        if (refreshToken == null || refreshToken.isBlank()) {
+            log.warn("Refresh failed: No refresh token cookie.");
+            return Mono.error(new ResponseStatusException(HttpStatus.BAD_REQUEST, "Missing refresh token cookie"));
+        }
+
+        // JWE CHANGE: Using manual decryption helper instead of JJWT extractClaims
+        return decryptTokenManually(refreshToken)
+                .subscribeOn(Schedulers.boundedElastic())
+                .flatMap(claims -> {
+                    String userId = claims.getSubject();
+                    String userKey = USER_PREFIX + userId;
+                    log.info("Refreshing Token for User: {}", LoginUtility.sanitizeLog(userId));
+
+                    // Check Session in Redis
+                    return redisTemplate.opsForValue().get(userKey)
+                            .switchIfEmpty(Mono.defer(() -> {
+                                log.warn("Redis returned EMPTY for key: {}. Session expired.", userKey);
+                                return Mono.error(new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Session expired. Please login again."));
+                            }))
+                            .flatMap(currentJti -> {
+                                log.info("Session Active in Redis. Fetching Full Profile.");
+
+                                return Mono.fromCallable(() -> loginService.getUserProfile(userId))
+                                        .subscribeOn(Schedulers.boundedElastic())
+                                        .flatMap(userDto -> {
+                                            if (userDto == null) {
+                                                return Mono.error(new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
+                                            }
+
+                                            return Mono.fromCallable(() -> loginService.fetchRoleWiseData(userId))
+                                                    .subscribeOn(Schedulers.boundedElastic())
+                                                    .flatMap(roleData -> fetchAndExtendAesKey(userId)
+                                                            .flatMap(existingAesKey -> {
+
+                                                                // JWE CHANGE: Generate new JTI and inject into claims explicitly
+                                                                String newJti = UUID.randomUUID().toString();
+
+                                                                @SuppressWarnings("unchecked")
+                                                                Map<String, Object> claimsMap = mapper.convertValue(userDto.getUser(), Map.class);
+                                                                claimsMap.put("jti", newJti);
+
+                                                                // Generate New JWE Tokens using JweUtil
+                                                                String newAccessToken = JweUtil.generateJwe(existingAesKey, userId, accessTokenTtl, claimsMap);
+
+                                                                Map<String, Object> refreshClaims = Map.of("type", "refresh", "jti", UUID.randomUUID().toString());
+                                                                String newRefreshToken = JweUtil.generateJwe(existingAesKey, userId, refreshTokenTtl, refreshClaims);
+
+                                                                response.addCookie(createRefreshTokenCookie(newRefreshToken));
+
+                                                                // Rotate JWT Session in Redis
+                                                                return validator.registerUserSession(userId, newJti)
+                                                                        .map(v -> {
+                                                                            // Add the AES Key to the HTTP Response Headers
+                                                                            response.getHeaders().add("X-Payload-Key", existingAesKey);
+
+                                                                            // Build Response
+                                                                            return ApiResponse.success(
+                                                                                    LoginResponseDTO.builder()
+                                                                                            .accessToken(newAccessToken)
+                                                                                            .userId(userId)
+                                                                                            .jti(newJti)
+                                                                                            .expiresIn(accessTokenTtl)
+                                                                                            .validCredentials(true)
+                                                                                            .roleData(roleData)
+                                                                                            .userStatus(userDto.getUserStatus())
+                                                                                            .passwordLoginStatus(userDto.getPasswordLoginStatus())
+                                                                                            .sub(userId)
+                                                                                            .build(),
+                                                                                    "Token refreshed successfully"
+                                                                            );
+                                                                        });
+                                                            }));
+                                        });
+                            });
+                });
+    }
+
+
+
+    // =================================================================================================
+    // LOGOUT METHOD
+    // =================================================================================================
+
+    /**
+     * LOGOUT ENDPOINT
+     * Handles:
+     * 1. Valid Tokens -> Standard Logout
+     * 2. Expired Tokens -> Manually extracts claims via JWE Decryption -> Cleans up Redis if JTI matches
+     * 3. Concurrent Logins -> Blacklists current token, but PRESERVES the active session in Redis
+     * 4. Missing/Malformed Tokens -> Clears cookies and returns success (Idempotent)
+     */
+    @PostMapping(value = "/logout", produces = MediaType.APPLICATION_JSON_VALUE)
+    public Mono<ResponseEntity<ApiResponse<LoginResponseDTO>>> logout(
+            JwtAuthenticationToken jwtAuth, ServerHttpRequest request, ServerHttpResponse response) {
+
+        // 1. Clearing the Refresh Token Cookie (Idempotent)
+        response.addCookie(createEmptyCookie());
+        String tokenString = null;
+
+        // Strategy A: Valid Context
+        if (jwtAuth != null && jwtAuth.getToken() != null) {
+            tokenString = jwtAuth.getToken().getTokenValue();
+        }
+        // Strategy B: Manual Header Extraction (Expired Tokens)
+        else {
+            String header = request.getHeaders().getFirst("Authorization");
+            if (header != null && header.startsWith("Bearer ")) {
+                tokenString = header.substring(7);
+            }
+        }
+
+        // 3. Fast Exit: If no token found anywhere, just return success so frontend can clear state
+        if (tokenString == null || tokenString.isBlank()) {
+            log.warn("Logout called without token. Cleaning up cookies only.");
+            return Mono.just(ResponseEntity.ok(
+                    ApiResponse.<LoginResponseDTO>success(
+                            LoginResponseDTO.builder().userId("anonymous").build(),
+                            "Logged out (No Token)"
+                    )
+            ));
+        }
+
+        final String finalToken = tokenString;
+
+        // 4. Processing Chain (JWE CHANGE: Use decryptTokenManually instead of JJWT extractClaims)
+        return decryptTokenManually(finalToken)
+                .subscribeOn(Schedulers.boundedElastic())
+                .flatMap(claims -> {
+                    String userId = claims.getSubject();
+                    // JWE CHANGE: Nimbus uses getJWTID() instead of getId()
+                    String incomingJti = claims.getJWTID();
+
+                    if (userId == null || incomingJti == null) {
+                        return Mono.just(ResponseEntity.ok(
+                                ApiResponse.<LoginResponseDTO>success(null, "Invalid Token Claims during logout")
+                        ));
+                    }
+
+                    log.info("Logout Processing for User: {} | JTI: {}", LoginUtility.sanitizeLog(userId), LoginUtility.sanitizeLog(incomingJti));
+
+                    // 5. Blacklist the Token (Always blacklist the incoming token)
+                    return validator.blacklistToken(incomingJti)
+                            .then(redisTemplate.opsForValue().get(USER_PREFIX + userId))
+                            .flatMap(activeJti -> {
+                                // 6. Conditional Redis Cleanup
+                                if (activeJti != null && activeJti.equals(incomingJti)) {
+                                    // SCENARIO: Normal Logout. The session in Redis belongs to THIS token.
+                                    log.info("Session MATCH. Deleting active session for user: {}", LoginUtility.sanitizeLog(userId));
+                                    return validator.clearUserSession(userId)
+                                            .then(redisTemplate.delete(AES_KEY_PREFIX + userId))
+                                            .then(Mono.just(ResponseEntity.ok(
+                                                    ApiResponse.<LoginResponseDTO>success(
+                                                            LoginResponseDTO.builder().userId(userId).error("Logged out").build(),
+                                                            "Logged out successfully"
+                                                    )
+                                            )));
+                                } else {
+                                    // SCENARIO: Concurrent Login.
+                                    log.warn("Session MISMATCH or ALREADY GONE. Active JTI: {}. Incoming JTI: {}. Preserving Redis Session.", LoginUtility.sanitizeLog(activeJti), LoginUtility.sanitizeLog(incomingJti));
+                                    return Mono.just(ResponseEntity.ok(
+                                            ApiResponse.<LoginResponseDTO>success(
+                                                    LoginResponseDTO.builder().userId(userId).error("Logged out (Concurrent Session Preserved)").build(),
+                                                    "Logged out (Concurrent Session Preserved)"
+                                            )
+                                    ));
+                                }
+                            })
+                            // If key is missing in Redis (Already timed out), return success
+                            .switchIfEmpty(Mono.just(ResponseEntity.ok(
+                                    ApiResponse.<LoginResponseDTO>success(
+                                            LoginResponseDTO.builder().userId(userId).error("Logged out (Session already expired)").build(),
+                                            "Logged out (Session already expired)"
+                                    )
+                            )));
+                })
+                .onErrorResume(e -> {
+                    log.error("Logout Unexpected Error: {}", e.getMessage());
+                    return Mono.just(ResponseEntity.ok(
+                            ApiResponse.<LoginResponseDTO>success(null, "Logged out (System Error handled or Token already expired)")
+                    ));
+                });
+    }
+
+
+    // =================================================================================================
+    // UPDATE-PASSWORD, VERIFY-OTP, RESEND-OTP
+    // =================================================================================================
+
+    @PostMapping(value = "/update-password")
+    public Mono<ApiResponse<UpdatePasswordDTO>> updatePassword(@RequestBody @Valid UpdatePasswordDTO dto) {
+        return Mono.fromCallable(() -> loginService.updatePassword(dto))
+                .subscribeOn(Schedulers.boundedElastic())
+                .map(result -> ApiResponse.success(result, result.getMessage()));
+    }
+
+    @PostMapping(value = "/verify-otp", produces = MediaType.APPLICATION_JSON_VALUE)
+    public Mono<ResponseEntity<ApiResponse<?>>> verifyOtp(
+            @RequestBody @Valid VerifyOtpRequestDTO requestDto, ServerHttpResponse response) {
+        log.info("OTP Verification for TxId: {}", LoginUtility.sanitizeLog(requestDto.getTransactionId()));
+
+        return loginService.verifyOtpAndGetUser(requestDto)
+                .flatMap(userDto -> generateSessionAndTokens(userDto, response));
+    }
+
+    @PostMapping(value = "/resend-otp", produces = MediaType.APPLICATION_JSON_VALUE)
+    public Mono<ResponseEntity<ApiResponse<OtpResendResponseDTO>>> resendOtp(
+            @RequestBody @Valid ResendOtpRequestDTO requestDto, ServerHttpRequest request) {
+
+        log.info("OTP Resend for TxId: {}", LoginUtility.sanitizeLog(requestDto.getTransactionId()));
+
+        return loginService.resendOtp(requestDto, LoginUtility.getClientIp(request))
+                .map(responseDto -> ResponseEntity.status(HttpStatus.ACCEPTED)
+                        .body(ApiResponse.success(responseDto, "A new OTP has been dispatched.")));
+    }
+
+    // =========================================================================================================
+    //                                          GENERATE SESSION METHOD
+    // =========================================================================================================
+
+    /**
+     * Generate Session and Tokens after successful logic pass for both /login and /verify-otp
+     */
+    private Mono<ResponseEntity<ApiResponse<?>>> generateSessionAndTokens(UserDto user, ServerHttpResponse response) {
+        log.info("Generating JWE Tokens for user {}.", LoginUtility.sanitizeLog(user.getUserId()));
+
+        // JWE CHANGE: Because JWE needs the encryption key first, we generate/fetch it before token creation.
+        return generateAndStoreAesKey(user.getUserId())
+                .flatMap(aesKey -> Mono.defer(() -> Mono.fromCallable(() -> loginService.fetchRoleWiseData(user.getUserId())))
+                        .subscribeOn(Schedulers.boundedElastic())
+                        .flatMap(roleData -> {
+
+                            // JWE CHANGE: Explicitly generate JTI and put it in claims (can't read it after encryption)
+                            String jti = UUID.randomUUID().toString();
+
+                            @SuppressWarnings("unchecked")
+                            Map<String, Object> claimsMap = mapper.convertValue(user.getUser(), Map.class);
+                            claimsMap.put("jti", jti);
+
+                            // Generate JWE strings
+                            String accessToken = JweUtil.generateJwe(aesKey, user.getUserId(), accessTokenTtl, claimsMap);
+
+                            Map<String, Object> refreshClaims = Map.of("type", "refresh", "jti", UUID.randomUUID().toString());
+                            String refreshToken = JweUtil.generateJwe(aesKey, user.getUserId(), refreshTokenTtl, refreshClaims);
+
+                            response.addCookie(createRefreshTokenCookie(refreshToken));
+
+                            // Register JWT Session
+                            return validator.registerUserSession(user.getUserId(), jti)
+                                    .thenReturn(ResponseEntity.ok()
+                                            .header("X-Payload-Key", aesKey)
+                                            .body(ApiResponse.success(
+                                                    LoginResponseDTO.builder()
+                                                            .userId(user.getUserId())
+                                                            .validCredentials(true)
+                                                            .accessToken(accessToken)
+                                                            .tokenType("Bearer")
+                                                            .expiresIn(accessTokenTtl)
+                                                            .sub(user.getUserId())
+                                                            .jti(jti)
+                                                            .roleData(roleData)
+                                                            .userStatus(user.getUserStatus())
+                                                            .passwordLoginStatus(user.getPasswordLoginStatus())
+                                                            .attemptsLeft(null)
+                                                            .build(),
+                                                    "Login successful"
+                                            )));
+                        }));
+    }
+
+
+    // =========================================================================================================
+    //                                              HELPERS
+    // =========================================================================================================
+
+    private String sanitizeIp(String rawIp) {
+        if (rawIp == null) return "";
+        String ip = rawIp;
+        if (ip.startsWith("/")) ip = ip.substring(1);
+        int colonIndex = ip.indexOf(':');
+        if (colonIndex != -1) ip = ip.substring(0, colonIndex);
+        return ip;
+    }
+
+    private boolean isIpBlocked(String rawClientIp) {
+        if (blockedIpsConfig == null || blockedIpsConfig.trim().isEmpty()) return false;
+        String cleanIp = sanitizeIp(rawClientIp);
+        List<String> blockedIps = Arrays.asList(blockedIpsConfig.split("\\s*,\\s*"));
+        boolean blocked = blockedIps.contains(cleanIp);
+        if (blocked) {
+            log.warn("Blocked IP Match Found: Raw='{}' -> Clean='{}'", LoginUtility.sanitizeLog(rawClientIp), LoginUtility.sanitizeLog(cleanIp));
+        }
+        return blocked;
+    }
+
+    /**
+     * Creates a secure HttpOnly cookie for the refresh token.
+     * Prevents XSS attacks as JavaScript cannot read this cookie.
+     * <p>
+     * CONFIG NOTE:
+     * - secure(false): Allows HTTP (Localhost). Set to true in PROD with HTTPS.
+     * - sameSite("Lax"): Allows cross-origin navigation in Localhost dev.
+     * - path("/"): Ensures cookie is sent to all auth endpoints.
+     */
+    private ResponseCookie createRefreshTokenCookie(String token) {
+        return ResponseCookie.from("refresh_token", token)
+                .httpOnly(true)
+                .secure(true) // Set to true in PROD
+                .path("/")
+                .maxAge(Duration.ofSeconds(refreshTokenTtl))
+                .sameSite("Strict")
+                .build();
+    }
+
+    /**
+     * Creates an empty cookie to clear the refresh token on logout.
+     */
+    private ResponseCookie createEmptyCookie() {
+        return ResponseCookie.from("refresh_token", "")
+                .httpOnly(true)
+                .secure(true) // Set to true in PROD
+                .path("/")
+                .maxAge(0)
+                .sameSite("Strict")
+                .build();
+    }
+
+    /**
+     * Helper to generate a new AES key if one doesn't exist.
+     */
+    private String generateNewAesKey() {
+        return aesUtil.generateBase64SessionKey();
+    }
+
 
     /**
      * Generates a new AES key and saves it to Redis. Used during Initial Login.
@@ -11,7 +556,7 @@
 
         return Mono.fromCallable(this::generateNewAesKey)
                 .flatMap(aesKey -> {
-                    log.info("Attempting to write AES key to Redis. Key: '{}', TTL: {} seconds", 
+                    log.info("Attempting to write AES key to Redis. Key: '{}', TTL: {} seconds",
                             LoginUtility.sanitizeLog(redisKey), refreshTokenTtl);
 
                     return redisTemplate.opsForValue()
@@ -48,3 +593,1035 @@
                                 .thenReturn(aesKey)
                 );
     }
+
+    /**
+     * Helper method to manually decrypt a JWE token.
+     * Used for endpoints outside the standard Spring Security filter chain (Refresh/Logout).
+     */
+    private Mono<JWTClaimsSet> decryptTokenManually(String jweToken) {
+        return Mono.fromCallable(() -> {
+            try {
+                return EncryptedJWT.parse(jweToken);
+            } catch (ParseException e) {
+                throw new BadJwtException("Invalid token format");
+            }
+        }).flatMap(encryptedJWT -> {
+            String userId = encryptedJWT.getHeader().getKeyID();
+            if (userId == null) {
+                return Mono.error(new BadJwtException("Missing kid header"));
+            }
+
+            return redisTemplate.opsForValue().get(AES_KEY_PREFIX + userId)
+                    .switchIfEmpty(Mono.error(new BadJwtException("Session expired or AES key missing")))
+                    .map(aesKey -> JweUtil.decryptJwe(jweToken, aesKey));
+        });
+    }
+
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+spring:
+  application:
+    name: LoginService
+  ldap:
+    domain: ${LDAP_DOMAIN}
+    urls: ${LDAP_URL}
+    base: ${LDAP_BASE}
+    username: ${LDAP_USERNAME}
+    password: ${LDAP_PASSWORD}
+
+  profiles:
+    active: dev
+  main:
+    web-application-type: reactive
+  jackson:
+    deserialization:
+      fail-on-null-for-primitives: false
+  config:
+    import: "optional:file:.env[.properties]"
+
+# ========== DB Details ==========
+  datasource:
+    url: ${SPRING_DATASOURCE_URL}
+    username: ${SPRING_DATASOURCE_USERNAME}
+    password: ${SPRING_DATASOURCE_PASSWORD}
+    driver-class-name: ${SPRING_DATASOURCE_DRIVER_CLASS_NAME}
+
+  # ========== kafka Details ==========
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS}
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.apache.kafka.common.serialization.StringSerializer
+      acks: all
+      retries: 2147483647
+      properties:
+        enable.idempotence: true
+        linger.ms: 0
+        request.timeout.ms: 5000
+
+server:
+  port: 8085
+
+# ========== JWT MODE ==========
+security:
+  jwt:
+    mode: hmac
+    hmac-base64-secret: bWV0aGlvbnlsdGhyZW9ueWx0aHJlb255bGdsdXRhbWlueWxhbGFueWw=
+    #    Timeout in 15 Min (900 Sec)
+    ttl-seconds: 900
+    #    ttl-seconds: 60
+    refresh-ttl-seconds: 43200
+  ldap:
+    # LOCAL WINDOWS PATH EXAMPLE (Note the forward slashes /)
+    truststore-path: ${LDAP_TRUSTSTORE_PATH}
+    truststore-password: ${LDAP_TRUSTSTORE_PASSWORD}
+  payload:
+    rsa-private: |
+      -----BEGIN PRIVATE KEY-----
+      MIIEvgIBADANBgkqhkiG9w0BAQEFAASCBKgwggSkAgEAAoIBAQC23w0qcSOrrTez
+      Ybv/CRfiRGgZXMm7/tXk6kT8ApAHYG/4Pr8FJ9EnficJG9TK/qZ0JNXWMqmLDzcQ
+      9gYCWTQ7q77dTPSXK1FP6YuVVIuRgJAVYjHniRu6f0SsteiyrfEvXEi4sKbOfYar
+      bj6z2oaAyxm8g6BGiTH7XfJ9yV0HchrkrYQfY7HklM7rPCxLLxZ6zrUZx/Lg12rH
+      /6FjjeQNMTTpcZHA3rlhoDGYQT0Cd1jXLgByxEw0fEoIRyMc+eWB4mE/uGNh5H9S
+      nNQ5acjSMHnovifmoJG9SHjE5DLmtC1mOm/+PqXCjgzsVEZTI0dh8CGVrzEV2qzp
+      LEdj91ZlAgMBAAECggEAREKoOHJ4/SkwRH4z3XP4fVZJgUYYa1spXkRwMZ2HQ6mk
+      wgYx6Wu+b75wNb80w/0gBvSE+Wp5zNWGGYesII5JqAhou1RxbEgYFvs3RiuD2XEi
+      10iLFkEgn5HIAav5S1EQWTxaTM5rxWInta/2Kc5lLIgjeDGtzwaBKLIdxQQ3/IHi
+      QXDRzT6WndW8olM9uB9Y+hq6QIGOy1sSIqx+Kpgl1xV+tEcGUNBCZbxZintzXj++
+      vPfLTo12U1Wi/FcZDSFychsCftMM25y3O1Ao0YfmUcjghcS/BOssll4DqpNno0jo
+      4NCp4cG/wh9d1g5rDvZSbi4xpHlnqUQ/V8GP/NI1FQKBgQDop2q3y3jyC86R0TG/
+      tTzhAyv5kP+Lvx56+xysaBuUfO4HxS2TzB80vf6rbeLtz57WynCYV8vbd+85sL2Q
+      3hdUhMdXRgzeYGdjoVVwSeYXgVZ2S2/rTrtKfZlFoJAUaeJEIwcYT28ifVjsdUAC
+      akOW9xFroMeI6qL6QMMXaI52EwKBgQDJOMf9y049U1g9Ccz5eCRIJGmPSWj7WGmr
+      2ux4m3suLa4+ZoVeqa2fAq9rHaSvxVHzs0gFMvVKsE7Az1EBSPpzkP/ob/f6hLYJ
+      yXV51MekXR1B8kmM+hL+YHbYuFIg6H8yIbUj8MjSBOkcbomITbKvu2PTHXHqjOWV
+      tlR9oyBwpwKBgQCTEkpXF4xEToxuB3VQgCyU/aFN6Yhx+gY1rgpJPqK4smTyioYu
+      WSoc+EJGcney5728gEq/MzkOavnSWVTsgEj1R96P4BuAdCbHh5RwIHcQwtU6gKOm
+      d6XUCCPdLQwHq4u6kP4KMyTJA74z9Ebbf/tsMpFTnValydXvJwNtB86O+wKBgQDE
+      7Sb8gF1/svNmORM7CpMnb0tHiaaOZUZ1g/ltR2zUEqy2MQtRS2m5dp1KjWZBBzFe
+      +RQA0pAwmj9Yfwxd35gMRdnNFtdvezXUei7YHp+Lgf1CLuZAa/TusmVdT3ZA8oiY
+      /VgTZnCC6X9h7eP3W2MGjLPzRpvX2jBNxnUFyAHVfQKBgGCgfZG71cRFwShb6zP9
+      PrpXAqyTOJVAuEHVit86+v44ijWicgs+Lb8HkGq4LDYum1vyiCTImhkVKgvRObaH
+      7Ppi9i1O/P3MJliNiUlSdLyitCwz25EfReeJfqb+Wq8WqFJ2WOcx97ev0EHt8QrM
+      5VLF1yEPbg+SpHwbA52SQdNe
+      -----END PRIVATE KEY-----
+
+    rsa-public: |
+      -----BEGIN PUBLIC KEY-----
+      MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAtt8NKnEjq603s2G7/wkX
+      4kRoGVzJu/7V5OpE/AKQB2Bv+D6/BSfRJ34nCRvUyv6mdCTV1jKpiw83EPYGAlk0
+      O6u+3Uz0lytRT+mLlVSLkYCQFWIx54kbun9ErLXosq3xL1xIuLCmzn2Gq24+s9qG
+      gMsZvIOgRokx+13yfcldB3Ia5K2EH2Ox5JTO6zwsSy8Wes61Gcfy4Ndqx/+hY43k
+      DTE06XGRwN65YaAxmEE9AndY1y4AcsRMNHxKCEcjHPnlgeJhP7hjYeR/UpzUOWnI
+      0jB56L4n5qCRvUh4xOQy5rQtZjpv/j6lwo4M7FRGUyNHYfAhla8xFdqs6SxHY/dW
+      ZQIDAQAB
+      -----END PUBLIC KEY-----
+  rate-limit:
+    auth:
+      max-per-minute: 20
+
+
+# ========== Redis ==========
+redis:
+  enabled: true
+  data:
+    redis:
+      host: ${REDIS_HOST}
+      port: ${REDIS_PORT}
+      database: 0
+      # password: ""  # if needed
+
+# ========== Logging ==========
+logging:
+  pattern:
+    console: "%d{yyyy-MM-dd :: HH:mm:ss.SSS ||} %highlight(%-5level:: %file: | %line |){ERROR=bold red, WARN=yellow, INFO=white, DEBUG=green, TRACE=green} :: %msg%n"
+
+
+# ========= Actuator ==========
+management:
+  endpoints:
+    web:
+      base-path: /actuator
+      exposure:
+        include: health,info,prometheus
+  endpoint:
+    health:
+      probes:
+        enabled: true
+      show-details: always
+  metrics:
+    tags:
+      application: ${spring.application.name}
+  info:
+    env:
+      enabled: true
+
+info:
+  app:
+    name: LoginService
+    description: Service to handle Login Related Active User check, Login, Logout, Refresh token, Update Password
+    version: 1.0.0
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+login logs : 
+2026-10-07 :: 10:52:38.245 || INFO :: LoginUtility.java: | 11 | :: X-Forwarded-For ip : ::ffff:10.0.17.242
+2026-10-07 :: 10:52:38.766 || INFO :: LoginUtility.java: | 11 | :: X-Forwarded-For ip : ::ffff:10.0.17.242
+2026-10-07 :: 10:52:38.766 || INFO :: AuthController.java: | 124 | :: Login request for user: 1015698 from IP: 10.0.17.242
+2026-10-07 :: 10:52:39.023 || INFO :: LoginServiceImpl.java: | 289 | :: Password-based login for userId=1015698
+2026-10-07 :: 10:52:39.113 || INFO :: LoginServiceImpl.java: | 687 | :: Credentials validated. Issuing token for userId=1015698
+2026-10-07 :: 10:52:39.175 || INFO :: HmacJwtUtil.java: | 52 | :: Generated exp in Seconds=2026-10-07T05:52:39.175772400Z
+2026-10-07 :: 10:52:39.176 || INFO :: HmacJwtUtil.java: | 54 | :: Jti generated=8a001dc5-3689-4dd6-b41e-32fc7c93fd7c
+2026-10-07 :: 10:52:39.419 || INFO :: AuthController.java: | 191 | :: MFA Disabled: Routing user 1015698 to Direct Login.
+2026-10-07 :: 10:52:39.419 || INFO :: AuthController.java: | 437 | :: Generating JWE Tokens for user 1015698.
+2026-10-07 :: 10:52:39.422 || INFO :: AuthController.java: | 559 | :: Attempting to write AES key to Redis. Key: 'AES:USR:1015698', TTL: 43200 seconds
+2026-10-07 :: 10:52:39.445 || INFO :: AuthController.java: | 566 | :: SUCCESS: AES Key definitively written to Redis for User: 1015698
+2026-10-07 :: 10:52:39.451 || INFO :: LoginServiceImpl.java: | 110 | :: Fetching role-wise data for userId: 1015698
+2026-10-07 :: 10:52:39.674 || INFO :: TokenSessionValidator.java: | 99 | :: Registering new session user=1015698 jti=5c4c2f49-82bc-49fb-b57c-8b6dbadfd8b3
+2026-10-07 :: 10:52:39.718 || INFO :: TokenSessionValidator.java: | 112 | :: Registered active session in Redis user=1015698 jti=5c4c2f49-82bc-49fb-b57c-8b6dbadfd8b3
+
+
+
+
+
+
+
+
+
+
+
+common-requesdt-service logs :
+2026-10-07 10:53:04.540 WARN  [http-nio-9000-exec-3] c.f.c.s.ContextRbacFilter: Authentication rejected due to token anomaly: JWE Decryption failed. Key mismatch or tampered payload. 
+{"@timestamp":"2026-10-07T10:53:04.5400705+05:30","level":"WARN","service":"CommonRequestService","traceId":"7db5b57c-bd0f-4714-b68c-190110e8b221","userId":"anonymous","clientIp":"10.0.17.242","apiPath":"/api/pending-requests","class":"c.f.c.security.ContextRbacFilter","message":"Authentication rejected due to token anomaly: JWE Decryption failed. Key mismatch or tampered payload.","stack_trace":""}
+2026-10-07 10:53:04.541 INFO  [http-nio-9000-exec-3] c.f.c.l.MdcLoggingFilter: API Execution Completed - Method: POST | URL: http://10.0.17.242:9000/api/pending-requests | Status: 401 
+{"@timestamp":"2026-10-07T10:53:04.5416499+05:30","level":"INFO","service":"CommonRequestService","traceId":"7db5b57c-bd0f-4714-b68c-190110e8b221","userId":"anonymous","clientIp":"10.0.17.242","apiPath":"/api/pending-requests","class":"c.f.c.logging.MdcLoggingFilter","message":"API Execution Completed - Method: POST | URL: http://10.0.17.242:9000/api/pending-requests | Status: 401","stack_trace":""}
+
+
+
+
+
+
+
+
+
+
+
+
+common-utiliies code :
+
+package com.fincore.commonutilities.jwt;
+
+import com.nimbusds.jose.JOSEException;
+import com.nimbusds.jose.crypto.AESDecrypter;
+import com.nimbusds.jwt.EncryptedJWT;
+import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.Jwts;
+import io.jsonwebtoken.io.Decoders;
+import io.jsonwebtoken.security.Keys;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.stereotype.Component;
+
+import javax.crypto.SecretKey;
+import java.text.ParseException;
+import java.util.Base64;
+import java.util.Date;
+import java.util.Map;
+import java.util.UUID;
+import java.util.function.Function;
+
+/**
+ * Utility class for manipulating and validating JSON Web Tokens (JWT).
+ * This class is shared across microservices to ensure consistent token parsing logic.
+ *
+ *  @author SHUBHANKAR DAS [Emp ID: V1018405]
+ *  <a href="mailto:shubhankar.das.cbstcs@sbi.co.in">shubhankar.das.cbstcs@sbi.co.in</a>
+ *  @version 1.0.0
+ *  @since 2025-08-01
+ */
+@Component
+@Slf4j
+public class JwtUtil {
+
+    // Default value provided for dev, override in application.properties
+    @Value("${jwt.secret:bWV0aGlvbnlsdGhyZW9ueWx0aHJlb255bGdsdXRhbWlueWxhbGFueWw=}")
+    private String secretKey;
+
+
+    /**
+     * Extracts the User ID (Subject) from the token.
+     *
+     * @param token The Bearer token.
+     * @return The userId string.
+     */
+    public String getUserIdFromToken(String token) {
+        String cleanToken = removeBearerPrefix(token);
+        return extractClaim(cleanToken, Claims::getSubject);
+    }
+
+    /**
+     * Extracts the Role ID from the token claims.
+     *
+     * @param token The Bearer token.
+     * @return The Role ID as an integer.
+     */
+    public int getUserRoleFromToken(String token) {
+        String cleanToken = removeBearerPrefix(token);
+        return extractClaim(cleanToken, claims -> {
+            Object role = claims.get("role");
+            if (role instanceof Number) {
+                return ((Number) role).intValue();
+            }
+            // Fallback for string roles if necessary
+            if (role instanceof String) {
+                try {
+                    return Integer.parseInt((String) role);
+                } catch (NumberFormatException ignored) {
+                }
+            }
+            throw new IllegalArgumentException("Token role claim is not a number");
+        });
+    }
+
+    /**
+     * Validates the cryptographic signature and expiration of the token.
+     *
+     * @param token The Bearer token.
+     * @return true if valid, false if expired or tampered.
+     */
+    public boolean isTokenValid(String token) {
+        String cleanToken = removeBearerPrefix(token);
+        return !isTokenExpired(cleanToken);
+    }
+
+    /**
+     * GENERIC CLAIM EXTRACTOR (Made Public for Filter access).
+     * This is required to extract 'jti' (JWT ID) for session validation.
+     */
+    public <T> T extractClaim(String token, Function<Claims, T> claimsResolver) {
+        final Claims claims = extractAllClaims(token);
+        return claimsResolver.apply(claims);
+    }
+
+    // --- Internal Helpers ---
+
+    private String removeBearerPrefix(String token) {
+        if (token != null && token.startsWith("Bearer ")) {
+            return token.substring(7);
+        }
+        return token;
+    }
+
+    private boolean isTokenExpired(String token) {
+        return extractExpiration(token).before(new Date());
+    }
+
+    private Date extractExpiration(String token) {
+        return extractClaim(token, Claims::getExpiration);
+    }
+
+    private Claims extractAllClaims(String token) {
+        return Jwts.parser()
+                .verifyWith(getSigningKey())
+                .build()
+                .parseSignedClaims(token)
+                .getPayload();
+    }
+
+    private SecretKey getSigningKey() {
+        byte[] keyBytes = Decoders.BASE64.decode(secretKey);
+        return Keys.hmacShaKeyFor(keyBytes);
+    }
+
+    /**
+     * Generates a short-lived JSON Web Token specifically for Service-to-Service (M2M) communication.
+     * Fortify Note: Expiration is strictly limited to 5 minutes to mitigate replay attacks.
+     *
+     * @param serviceName The name of the calling microservice (used as the subject).
+     * @return A signed JWS containing the 'SERVICE' type claim.
+     */
+    public String generateServiceToken(String serviceName) {
+        long currentTimeMillis = System.currentTimeMillis();
+        long expirationTimeMillis = currentTimeMillis + (1000 * 60 * 5); // 5 Minutes maximum lifespan
+
+        return Jwts.builder()
+                .subject(serviceName)
+                .claim("type", "SERVICE")
+                .id(UUID.randomUUID().toString()) // Unique JTI
+                .issuedAt(new Date(currentTimeMillis))
+                .expiration(new Date(expirationTimeMillis))
+                .signWith(getSigningKey())
+                .compact();
+    }
+
+
+    //=========================== new jwe methods =========================
+
+    /**
+     * Extracts the 'kid' (Key ID) from the unencrypted JWE header.
+     * The Login Service injects the userId here so we can fetch the correct AES key from Redis.
+     *
+     * @param jweToken The raw 5-part JWE string.
+     * @return The userId (kid).
+     */
+    public String extractUserIdFromJweHeader(String jweToken) {
+        try {
+            var jwt = EncryptedJWT.parse(jweToken);
+            return jwt.getHeader().getKeyID();
+        } catch (ParseException e) {
+            throw new IllegalArgumentException("Malformed JWE token. Cannot read header.", e);
+        }
+    }
+
+    /**
+     * Decrypts a Nimbus JWE token using the AES-256-GCM key fetched from Redis.
+     *
+     * @param jweToken   The 5-part JWE string.
+     * @param base64Key  The base64 encoded AES key mapped to this user.
+     * @return A map containing the decrypted JWT claims.
+     */
+    public Map<String, Object> decryptNimbusJwe(String jweToken, String base64Key) {
+        try {
+            var jwt = EncryptedJWT.parse(jweToken);
+            var keyBytes = Base64.getDecoder().decode(base64Key);
+
+            if (keyBytes.length != 32) {
+                throw new IllegalArgumentException("Invalid AES key length. Expected 32 bytes.");
+            }
+
+            jwt.decrypt(new AESDecrypter(keyBytes));
+            return jwt.getJWTClaimsSet().getClaims();
+
+        } catch (ParseException e) {
+            throw new IllegalArgumentException("Malformed JWE token structure.", e);
+        } catch (JOSEException e) {
+            throw new SecurityException("JWE Decryption failed. Key mismatch or tampered payload.", e);
+        }
+    }
+
+
+}
+
+
+
+
+
+
+
+
+
+
+package com.fincore.commonutilities.security;
+
+import com.fincore.commonutilities.jwt.JwtUtil;
+import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.ExpiredJwtException;
+import io.jsonwebtoken.JwtException;
+import jakarta.servlet.FilterChain;
+import jakarta.servlet.ServletException;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.jspecify.annotations.NonNull;
+import org.springframework.data.redis.RedisConnectionFailureException;
+import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.http.server.PathContainer;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.web.filter.OncePerRequestFilter;
+import org.springframework.web.util.pattern.PathPatternParser;
+
+import java.io.IOException;
+import java.util.Date;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+
+/**
+ * A (Servlet) Filter that enforces security for FinCore microservices.
+ * <p>
+ * Responsibilities:
+ * 1. Request Routing: Identifies if a token is JWE (Frontend) or JWS (M2M).
+ * 2. Payload Decryption: Decrypts Nimbus JWE tokens using AES keys from Redis.
+ * 3. Session Concurrency: Enforces "One Session Per User" via Redis 'USR:<userId>'.
+ * 4. Resiliency: Respects the Gateway 'GRACE:<jti>' period during Token Rotation.
+ * 5. Authorization: Enforces Role-Based Access Control (RBAC) via Redis permissions.
+ *
+ * @author SHUBHANKAR DAS [Emp ID: V1018405]
+ * @version 2.0.0 (Refactored for SOLID, Java 21, and explicit Exception Handling)
+ * @since 2026-10-06
+ */
+@Slf4j
+@RequiredArgsConstructor
+public class ContextRbacFilter extends OncePerRequestFilter {
+
+    private static final String REDIS_USER_PREFIX = "USR:";
+    private static final String REDIS_AES_PREFIX = "AES:USR:";
+    private static final String REDIS_RBAC_PREFIX = "RBAC::PERMISSIONS::";
+    private static final String REDIS_GRACE_PREFIX = "GRACE:";
+    private static final String TOKEN_TYPE_SERVICE = "SERVICE";
+
+    private static final Set<String> WHITELIST = Set.of(
+            "/api/auth/**", "/actuator/**", "/error", "/swagger-ui/**", "/v3/api-docs/**",
+            "/api/login", "/api/auth/login", "/api/auth/logout", "/api/auth/check-user",
+            "/swagger-ui.html", "/api/auth/refresh-token", "/api/dashboard", "/api/notifications"
+    );
+
+    private final StringRedisTemplate redisTemplate;
+    private final JwtUtil jwtUtil;
+    private final PathPatternParser pathParser = new PathPatternParser();
+
+    @Override
+    protected void doFilterInternal(
+            @NonNull HttpServletRequest request,
+            @NonNull HttpServletResponse response,
+            @NonNull FilterChain filterChain
+    ) throws ServletException, IOException {
+
+        var uri = request.getRequestURI();
+        var pathContainer = PathContainer.parsePath(uri);
+
+        // 1. SKIP WHITELISTED ENDPOINTS
+        boolean isWhitelisted = WHITELIST.stream()
+                .anyMatch(pattern -> pathParser.parse(pattern).matches(pathContainer));
+
+        if (isWhitelisted) {
+            filterChain.doFilter(request, response);
+            return;
+        }
+
+        // 2. EXTRACT AND ROUTE TOKEN
+        var token = request.getHeader("Authorization");
+        if (token == null || token.isBlank()) {
+            sendError(response, HttpServletResponse.SC_UNAUTHORIZED, "MISSING_TOKEN", "Authorization header missing.");
+            return;
+        }
+
+        try {
+            var cleanToken = removeBearer(token);
+            var tokenParts = cleanToken.split("\\.");
+
+            // Branch logic based on Token specification (JWE vs JWS)
+            if (tokenParts.length == 5) {
+                if (!handleJweFlow(request, response, cleanToken)) return;
+            } else if (tokenParts.length == 3) {
+                if (!handleJwsFlow(request, response, cleanToken)) return;
+            } else {
+                throw new IllegalArgumentException("Unrecognized token structure. Expected 3 (JWS) or 5 (JWE) parts.");
+            }
+
+        } catch (ExpiredJwtException e) {
+            // Explicitly caught from JJWT parser during the JWS/M2M flow
+            handleExpiredSession(response, e.getClaims().getSubject(), e.getClaims().getId());
+            return;
+
+        } catch (JwtException | IllegalArgumentException | SecurityException e) {
+            // Specific catches for Malformed tokens, invalid arguments, or cryptographic decryption failures
+            log.warn("Authentication rejected due to token anomaly: {}", e.getMessage());
+            sendError(response, HttpServletResponse.SC_UNAUTHORIZED, "AUTH_ERROR", "Authentication failed or token invalid.");
+            return;
+
+        } catch (RedisConnectionFailureException e) {
+            // Specific catch for infrastructure failures to trigger appropriate 500 alerts
+            log.error("Redis connection failed during security validation", e);
+            sendError(response, HttpServletResponse.SC_INTERNAL_SERVER_ERROR, "SYSTEM_ERROR", "Auth Service Unavailable.");
+            return;
+
+        } catch (Exception e) {
+            // Last-resort safety net to prevent unhandled 500 stack traces from leaking to the client
+            log.error("Unexpected critical error during security filtering", e);
+            sendError(response, HttpServletResponse.SC_INTERNAL_SERVER_ERROR, "SYSTEM_ERROR", "An unexpected security error occurred.");
+            return;
+        }
+
+        // 3. PROCEED IF AUTHORIZED
+        filterChain.doFilter(request, response);
+    }
+
+    /**
+     * Handles the 5-part Nimbus JWE token flow intended for interactive frontend users.
+     *
+     * @return true if authorized to proceed, false if response is committed with an error.
+     */
+    private boolean handleJweFlow(HttpServletRequest request, HttpServletResponse response, String cleanToken) throws IOException {
+
+        // 1. Solve the Catch-22: Peek at the unencrypted header
+        var userId = jwtUtil.extractUserIdFromJweHeader(cleanToken);
+        if (userId == null || userId.isBlank()) {
+            throw new IllegalArgumentException("Missing 'kid' (userId) in JWE header");
+        }
+
+        // 2. Fetch AES Key from Redis
+        var base64AesKey = redisTemplate.opsForValue().get(REDIS_AES_PREFIX + userId);
+        if (base64AesKey == null) {
+            log.warn("JWE decryption failed: Missing AES key in Redis for user {}", userId);
+            sendError(response, HttpServletResponse.SC_UNAUTHORIZED, "SESSION_EXPIRED", "Encryption session expired.");
+            return false;
+        }
+
+        // 3. Decrypt Claims
+        Map<String, Object> claims = jwtUtil.decryptNimbusJwe(cleanToken, base64AesKey);
+        var incomingJti = (String) claims.get("jti");
+
+        // 4. Manual Expiration Check (Required because we bypassed standard JJWT parser)
+        if (isJweExpired(claims.get("exp"))) {
+            handleExpiredSession(response, userId, incomingJti);
+            return false;
+        }
+
+        // 5. Extract Role safely (Utilizing Java 21 Pattern Matching)
+        int roleIdInt = switch (claims.get("role")) {
+            case Number n -> n.intValue();
+            case String s -> Integer.parseInt(s);
+            case null, default -> throw new IllegalArgumentException("Token missing valid numeric role claim");
+        };
+
+        // 6. Redis Concurrency & Context Checks
+        if (!checkRedisSession(response, userId, incomingJti)) return false;
+        setSecurityContext(userId, "ROLE_" + roleIdInt);
+        return checkRbac(request, response, String.valueOf(roleIdInt), userId);
+    }
+
+    /**
+     * Handles the 3-part JWS token flow strictly reserved for internal Service-to-Service communication.
+     *
+     * @return true if authorized to proceed, false if response is committed with an error.
+     */
+    private boolean handleJwsFlow(HttpServletRequest request, HttpServletResponse response, String cleanToken) throws IOException {
+
+        if (!jwtUtil.isTokenValid(cleanToken)) {
+            throw new SecurityException("Invalid JWS Signature");
+        }
+
+        var tokenType = jwtUtil.extractClaim(cleanToken, c -> c.get("type", String.class));
+        if (TOKEN_TYPE_SERVICE.equalsIgnoreCase(tokenType)) {
+            var serviceSubject = jwtUtil.extractClaim(cleanToken, Claims::getSubject);
+            setSecurityContext(serviceSubject, "SERVICE");
+            return true;
+        }
+
+        log.warn("Attempted to use a standard JWS token for a user session. JWS user tokens are deprecated.");
+        throw new IllegalArgumentException("Standard JWS user tokens are deprecated. Use JWE for interactive sessions.");
+    }
+
+    /**
+     * Centralized logic to evaluate expired sessions against the Grace Period matrix.
+     * Differentiates between natural timeouts, concurrent logins, and active token rotation.
+     */
+    private void handleExpiredSession(HttpServletResponse response, String userId, String incomingJti) throws IOException {
+        if (incomingJti == null) {
+            log.error("Expired Token missing JTI for user {}", userId);
+            sendError(response, HttpServletResponse.SC_UNAUTHORIZED, "INVALID_TOKEN", "Token missing JTI");
+            return;
+        }
+
+        var activeJti = redisTemplate.opsForValue().get(REDIS_USER_PREFIX + userId);
+
+        // CASE 1: Session totally gone from Redis (User idle past absolute TTL)
+        if (activeJti == null) {
+            log.warn("Session expired in Redis (found during token expiry check) for user {}", userId);
+            sendError(response, HttpServletResponse.SC_UNAUTHORIZED, "SESSION_EXPIRED", "Session timed out.");
+            return;
+        }
+
+        // CASE 2: Concurrent Login (Redis holds a newer, different JTI)
+        if (!activeJti.equals(incomingJti)) {
+
+            // Evaluates if the old token is still within the active rotation grace window
+            var isInGrace = redisTemplate.hasKey(REDIS_GRACE_PREFIX + incomingJti);
+            if (Boolean.TRUE.equals(isInGrace)) {
+                log.debug("Expired token is in Grace Period, proceeding to TOKEN_EXPIRED. user={}", userId);
+                sendError(response, HttpServletResponse.SC_UNAUTHORIZED, "TOKEN_EXPIRED", "JWT has expired.");
+            } else {
+                log.warn("Concurrent Login Detected on Expired Token. User: {}", userId);
+                sendError(response, HttpServletResponse.SC_UNAUTHORIZED, "CONCURRENT_LOGIN", "Logged in on another device.");
+            }
+            return;
+        }
+
+        // CASE 3: Normal Expiry (Redis matches) -> Instruct Frontend to Refresh Token
+        sendError(response, HttpServletResponse.SC_UNAUTHORIZED, "TOKEN_EXPIRED", "JWT has expired.");
+    }
+
+    /**
+     * Validates if a manually extracted JWE expiration claim represents a time in the past.
+     */
+    private boolean isJweExpired(Object expClaim) {
+        if (expClaim == null) return false;
+        if (expClaim instanceof Date d) return d.before(new Date());
+        if (expClaim instanceof Number n) return (n.longValue() * 1000) < System.currentTimeMillis();
+        return false;
+    }
+
+    /**
+     * Verifies the active Redis session and applies the Grace Period exception if a token rotation is occurring.
+     */
+    private boolean checkRedisSession(HttpServletResponse response, String userId, String incomingJti) throws IOException {
+        if (incomingJti == null) {
+            sendError(response, HttpServletResponse.SC_UNAUTHORIZED, "INVALID_TOKEN", "Token missing JTI");
+            return false;
+        }
+
+        var activeJti = redisTemplate.opsForValue().get(REDIS_USER_PREFIX + userId);
+
+        if (activeJti == null) {
+            sendError(response, HttpServletResponse.SC_UNAUTHORIZED, "SESSION_EXPIRED", "Session timed out.");
+            return false;
+        }
+
+        if (!incomingJti.equals(activeJti)) {
+            var isInGrace = redisTemplate.hasKey(REDIS_GRACE_PREFIX + incomingJti);
+            if (Boolean.TRUE.equals(isInGrace)) {
+                log.debug("Microservice accepted token under Grace Period for user={} jti={}", userId, incomingJti);
+                return true;
+            }
+            sendError(response, HttpServletResponse.SC_UNAUTHORIZED, "CONCURRENT_LOGIN", "Logged in on another device.");
+            return false;
+        }
+
+        return true;
+    }
+
+    /**
+     * Injects the authenticated principal and authorities into the ThreadLocal SecurityContext.
+     */
+    private void setSecurityContext(String principal, String authority) {
+        if (SecurityContextHolder.getContext().getAuthentication() == null) {
+            var authToken = new UsernamePasswordAuthenticationToken(
+                    principal, null, List.of(new SimpleGrantedAuthority(authority))
+            );
+            SecurityContextHolder.getContext().setAuthentication(authToken);
+        }
+    }
+
+    /**
+     * Enforces Context-Aware Role-Based Access Control (RBAC).
+     * Validates against Redis sets in the format: METHOD:URL_PATTERN|CONTEXT
+     */
+    private boolean checkRbac(HttpServletRequest request, HttpServletResponse response, String roleId, String userId)
+            throws IOException {
+        var uri = request.getRequestURI();
+        var method = request.getMethod().toUpperCase();
+        var contextHeader = request.getHeader("X-Request-Type");
+        var requestContext = (contextHeader != null && !contextHeader.trim().isEmpty()) ? contextHeader : "*";
+
+        var redisKey = REDIS_RBAC_PREFIX + roleId;
+        var permissions = redisTemplate.opsForSet().members(redisKey);
+
+        boolean isAuthorized = false;
+
+        if (permissions != null) {
+            for (String perm : permissions) {
+                var parts = perm.split("\\|");
+                if (parts.length < 2) continue;
+
+                var allowedContext = parts[1];
+                if (!allowedContext.equals(requestContext) && !allowedContext.equals("*")) continue;
+
+                var muParts = parts[0].split(":", 2);
+                if (muParts.length < 2) continue;
+
+                // Evaluates exact HTTP Method and modern Spring Path Pattern matching
+                if (muParts[0].equals(method) && pathParser.parse(muParts[1]).matches(PathContainer.parsePath(uri))) {
+                    isAuthorized = true;
+                    break;
+                }
+            }
+        }
+
+        if (!isAuthorized) {
+            log.warn("RBAC Deny \uD83D\uDEAB: User {} (Role {}) -> {} {} (Context: {})", userId, roleId, method, uri, requestContext);
+            sendError(response, HttpServletResponse.SC_FORBIDDEN, "ACCESS_DENIED", "Insufficient Permissions for this resource.");
+            return false;
+        }
+        return true;
+    }
+
+    /**
+     * Utility method to commit an early JSON error response safely.
+     */
+    private void sendError(HttpServletResponse response, int status, String error, String message) throws IOException {
+        response.setStatus(status);
+        response.setContentType("application/json");
+        response.getWriter().write(String.format("{\"status\": %d, \"error\": \"%s\", \"message\": \"%s\"}", status, error, message));
+    }
+
+    private String removeBearer(String token) {
+        if (token != null && token.startsWith("Bearer ")) {
+            return token.substring(7);
+        }
+        return token;
+    }
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+common request service security config :
+
+
+
+package com.tcs.fincore.CommonRequestService.config;
+
+import com.fincore.commonutilities.config.CommonSecurityConfig;
+import com.fincore.commonutilities.config.RedisConfig;
+import com.fincore.commonutilities.config.ResilienceConfig;
+import com.fincore.commonutilities.jwt.JwtUtil;
+import com.fincore.commonutilities.logging.MdcLoggingFilter;
+import com.fincore.commonutilities.security.ContextRbacFilter;
+import com.fincore.commonutilities.security.DecryptRequestBodyAdvice;
+import com.fincore.commonutilities.util.AesEncryptionUtil;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.web.servlet.FilterRegistrationBean;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Import;
+import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
+import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
+import org.springframework.security.config.http.SessionCreationPolicy;
+import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import com.fincore.commonutilities.encryption.DatabaseEncryptionHibernateConfig;
+
+/**
+ * Common Security Configuration.
+ * * Aligned with the "Distributed Gateway" architecture.
+ * It uses the ContextRbacFilter from Common Utilities to enforce:
+ * 1. Token Validity
+ * 2. Single Session (Redis check)
+ * 3. RBAC Permissions
+ * Enforces Centralised Mdc Logging Filter, RESILIENCE4J Retry and Circuit Breaker
+ */
+@Configuration
+@EnableWebSecurity
+@Import({
+        RedisConfig.class,
+        JwtUtil.class,
+        CommonSecurityConfig.class,
+        ResilienceConfig.class,
+        AesEncryptionUtil.class,
+        DecryptRequestBodyAdvice.class,
+        DatabaseEncryptionHibernateConfig.class
+})
+public class SecurityConfig {
+
+    @Autowired
+    private StringRedisTemplate redisTemplate;
+
+    @Autowired
+    private JwtUtil jwtUtil;
+
+    @Autowired
+    private CommonSecurityConfig commonSecurityConfig;
+
+    // --- 1. Define Filters as Beans (Explicitly) ---
+
+    @Bean
+    public MdcLoggingFilter mdcLoggingFilter() {
+        return new MdcLoggingFilter(jwtUtil);
+    }
+
+    @Bean
+    public ContextRbacFilter contextRbacFilter() {
+        return new ContextRbacFilter(redisTemplate, jwtUtil);
+    }
+
+    // --- 2. Prevent Global Registration ---
+    // This stops "The Filter class ... does not have a registered order" error
+
+    @Bean
+    public FilterRegistrationBean<MdcLoggingFilter> mdcFilterRegistration(MdcLoggingFilter filter) {
+        FilterRegistrationBean<MdcLoggingFilter> registration = new FilterRegistrationBean<>(filter);
+        registration.setEnabled(false); // Disable global chain
+        return registration;
+    }
+
+    @Bean
+    public FilterRegistrationBean<ContextRbacFilter> rbacFilterRegistration(ContextRbacFilter filter) {
+        FilterRegistrationBean<ContextRbacFilter> registration = new FilterRegistrationBean<>(filter);
+        registration.setEnabled(false); // Disable global chain
+        return registration;
+    }
+
+    @Bean
+    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+        http
+                .csrf(AbstractHttpConfigurer::disable)
+                .cors(cors -> cors.configurationSource(commonSecurityConfig.corsConfigurationSource()))
+                .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                .authorizeHttpRequests(authz -> authz
+                        .requestMatchers("/actuator/**", "/api/auth/**", "/error", "/swagger-ui.html", "/v3/api-docs/**").permitAll()
+                        .anyRequest().authenticated()
+                )
+                // Add Filters using the BEAN references (methods above)
+                .addFilterBefore(mdcLoggingFilter(), UsernamePasswordAuthenticationFilter.class)
+                .addFilterAfter(contextRbacFilter(), MdcLoggingFilter.class);
+
+        return http.build();
+    }
+}
+
+
+
+
+
+
+
+
+application.properties :
+
+
+
+spring.datasource.driver-class-name=oracle.jdbc.OracleDriver
+
+spring.datasource.url=jdbc:oracle:thin:@10.177.103.192:1523/fincorepdb1
+
+spring.datasource.username=fincore
+
+spring.datasource.password=Password#1234
+
+
+
+# LOGIN SERVICE KEY USED BY common-entities
+
+jwt.secret=bWV0aGlvbnlsdGhyZW9ueWx0aHJlb255bGdsdXRhbWlueWxhbGFueWw=
+
+
+
+# --- Redis (Docker Localhost) ---
+
+# --- Redis Configuration ---
+
+spring.data.redis.host=10.0.17.242
+
+spring.data.redis.port=6379
+
+
+
+# --- Kafka (Localhost) ---
+
+spring.kafka.consumer.bootstrap-servers=10.0.17.242:9092
+
+spring.kafka.producer.bootstrap-servers=10.0.17.242:9092
+
+spring.kafka.consumer.group-id=rbac-cache-group
+
+spring.kafka.consumer.auto-offset-reset=earliest
+
+
+
+# ========================= 2. LOG ROLLING POLICIES =========================
+
+# Keep logs for 7 days (Old logs auto-deleted)
+
+logging.logback.rollingpolicy.max-history=30
+
+
+
+# Log file rotation based on size (Each file max 10MB)
+
+logging.logback.rollingpolicy.max-file-size=10MB
+
+
+
+# Roll logs daily (Time-based rolling)
+
+logging.logback.rollingpolicy.file-name-pattern=${logging.file.path}/Archived/${spring.application.name}-%d{yyyy-MM-dd}.%i.log.zip
+
+
+
+# ========================= 3. LOG FORMATTING =========================
+
+# Console log pattern (Color-coded output)
+
+logging.pattern.console=%d{yyyy-MM-dd :: HH:mm:ss.SSS ||} %highlight(%-5level:: %file: | %line |){ERROR=bold red, WARN=yellow, INFO=white, DEBUG=green, TRACE=green} ::  %msg%n
+
+
+
+# File log pattern
+
+logging.pattern.file=%d{yyyy-MM-dd :: HH:mm:ss.SSS ||}  %-5level:: %file: | %line | :: %msg %n
+
+
+
+
+
+
+
+
+
+# LDAP
+
+# LDAP
+
+spring.ldap.domain=UATAD.SBI
+
+spring.ldap.urls=ldaps://uatrootdc1.uatad.sbi:3269
+
+spring.ldap.base=DC=UATAD,DC=SBI
+
+spring.ldap.username="cn=fincorecbops,dc=UATAD,dc=SBI"
+
+spring.ldap.password="F1C0re#15"
+
+
+
+#security.ldap.truststore-path=${LDAP_TRUSTSTORE_PATH}
+
+#security.ldap.truststore-password=${LDAP_TRUSTSTORE_PASSWORD}
+
+security.ldap.truststore-path='file:C:/fincore/secrets/ad-truststore.jks'
+
+security.ldap.truststore-password='changeit'
+
+
+
+
+
+security.internal.kafka-aes-key: BRSXBd4nCqA2FYpKWB6ZMRMNupL19cf8PLL2j5PrNro=
