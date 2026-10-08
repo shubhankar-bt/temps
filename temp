@@ -1,17 +1,87 @@
-        // 2. Format massive numbers to prevent Scientific Notation (E10)
-        for (String metric : metrics) {
-            Object amountObj = row.get(metric);
-            if (amountObj != null) {
-                try {
-                    // Convert to BigDecimal and strictly set scale to 2 decimals
-                    BigDecimal bd = new BigDecimal(amountObj.toString()).setScale(2, RoundingMode.HALF_UP);
-                    
-                    // CRITICAL FIX: Put the BigDecimal directly into the map!
-                    // Do NOT call .doubleValue(). This forces Jackson to print the full number.
-                    row.put(metric, bd); 
-                    
-                } catch (NumberFormatException ignored) {
-                    row.put(metric, BigDecimal.ZERO);
-                }
-            }
+    /**
+     * REFRESH TOKEN ENDPOINT
+     * 1. Reads Refresh Token from Cookie.
+     * 2. Validates JWE decryption & Expiry.
+     * 3. Checks Redis to ensure User Session is still valid/active.
+     * 4. Rotates Tokens (New JWE Access Token + New JWE Refresh Cookie).
+     */
+    @PostMapping(value = "/refresh-token", produces = MediaType.APPLICATION_JSON_VALUE)
+    public Mono<ApiResponse<LoginResponseDTO>> refreshToken(ServerHttpRequest request, ServerHttpResponse response) {
+        org.springframework.http.HttpCookie cookie = request.getCookies().getFirst("refresh_token");
+        String refreshToken = (cookie != null) ? cookie.getValue() : null;
+
+        if (refreshToken == null || refreshToken.isBlank()) {
+            log.warn("Refresh failed: No refresh token cookie.");
+            return Mono.error(new ResponseStatusException(HttpStatus.BAD_REQUEST, "Missing refresh token cookie"));
         }
+
+        // JWE CHANGE: Using manual decryption helper
+        return decryptTokenManually(refreshToken)
+                .subscribeOn(Schedulers.boundedElastic())
+                .flatMap(claims -> {
+                    String userId = claims.getSubject();
+                    String userKey = USER_PREFIX + userId;
+                    log.info("Refreshing Token for User: {}", LoginUtility.sanitizeLog(userId));
+
+                    // Check Session in Redis
+                    return redisTemplate.opsForValue().get(userKey)
+                            .switchIfEmpty(Mono.defer(() -> {
+                                log.warn("Redis returned EMPTY for key: {}. Session expired.", userKey);
+                                return Mono.error(new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Session expired. Please login again."));
+                            }))
+                            .flatMap(currentJti -> {
+                                log.info("Session Active in Redis. Fetching Full Profile.");
+
+                                return Mono.fromCallable(() -> loginService.getUserProfile(userId))
+                                        .subscribeOn(Schedulers.boundedElastic())
+                                        .flatMap(userDto -> {
+                                            if (userDto == null) {
+                                                return Mono.error(new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
+                                            }
+
+                                            return Mono.fromCallable(() -> loginService.fetchRoleWiseData(userId))
+                                                    .subscribeOn(Schedulers.boundedElastic())
+                                                    .flatMap(roleData -> fetchAndExtendAesKey(userId)
+                                                            .flatMap(existingAesKey -> {
+
+                                                                String newJti = UUID.randomUUID().toString();
+
+                                                                @SuppressWarnings("unchecked")
+                                                                Map<String, Object> claimsMap = mapper.convertValue(userDto.getUser(), Map.class);
+                                                                claimsMap.put("jti", newJti);
+
+                                                                // Generate New JWE Tokens
+                                                                String newAccessToken = JweUtil.generateJwe(existingAesKey, userId, accessTokenTtl, claimsMap);
+
+                                                                Map<String, Object> refreshClaims = Map.of("type", "refresh", "jti", UUID.randomUUID().toString());
+                                                                String newRefreshToken = JweUtil.generateJwe(existingAesKey, userId, refreshTokenTtl, refreshClaims);
+
+                                                                response.addCookie(createRefreshTokenCookie(newRefreshToken));
+
+                                                                // THE FIX: Use .then(Mono.fromCallable(...)) instead of .map() for Mono<Void>
+                                                                return validator.registerUserSession(userId, newJti)
+                                                                        .then(Mono.fromCallable(() -> {
+                                                                            // Add the AES Key to the HTTP Response Headers
+                                                                            response.getHeaders().add("X-Payload-Key", existingAesKey);
+
+                                                                            // Build Response
+                                                                            return ApiResponse.success(
+                                                                                    LoginResponseDTO.builder()
+                                                                                            .accessToken(newAccessToken)
+                                                                                            .userId(userId)
+                                                                                            .jti(newJti)
+                                                                                            .expiresIn(accessTokenTtl)
+                                                                                            .validCredentials(true)
+                                                                                            .roleData(roleData)
+                                                                                            .userStatus(userDto.getUserStatus())
+                                                                                            .passwordLoginStatus(userDto.getPasswordLoginStatus())
+                                                                                            .sub(userId)
+                                                                                            .build(),
+                                                                                    "Token refreshed successfully"
+                                                                            );
+                                                                        }));
+                                                            }));
+                                        });
+                            });
+                });
+    }
