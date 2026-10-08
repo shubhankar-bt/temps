@@ -1,37 +1,17 @@
-{
-  "viewCode": "YSA_BANK",
-  "headCodes": ["01160", "99999"], 
-  "dimensions": ["HeadCode"],
-  "metrics": ["AMOUNT"],
-  "filters": [
-    { "logicalField": "ReportDate", "operator": "EQUALS", "value": "31-03-2026" }
-  ]
-}
-
-
-
-
-
-
-{
-    "meta": {
-        "status": "SUCCESS",
-        "level": "HeadCode",
-        "rowCount": 2,
-        "executionTimeMs": 2799
-    },
-    "data": [
-        {
-            "id": "headcode_01160",
-            "name": "01160",
-            "AMOUNT": 1.018741176439E10,
-            "hasChildren": true
-        },
-        {
-            "id": "headcode_99999",
-            "name": "99999",
-            "AMOUNT": 0.0,
-            "hasChildren": true
+        // 2. Format massive numbers to prevent Scientific Notation (E10)
+        for (String metric : metrics) {
+            Object amountObj = row.get(metric);
+            if (amountObj != null) {
+                try {
+                    // Convert to BigDecimal and strictly set scale to 2 decimals
+                    BigDecimal bd = new BigDecimal(amountObj.toString()).setScale(2, RoundingMode.HALF_UP);
+                    
+                    // CRITICAL FIX: Put the BigDecimal directly into the map!
+                    // Do NOT call .doubleValue(). This forces Jackson to print the full number.
+                    row.put(metric, bd); 
+                    
+                } catch (NumberFormatException ignored) {
+                    row.put(metric, BigDecimal.ZERO);
+                }
+            }
         }
-    ]
-}
