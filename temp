@@ -1,87 +1,596 @@
-    /**
-     * REFRESH TOKEN ENDPOINT
-     * 1. Reads Refresh Token from Cookie.
-     * 2. Validates JWE decryption & Expiry.
-     * 3. Checks Redis to ensure User Session is still valid/active.
-     * 4. Rotates Tokens (New JWE Access Token + New JWE Refresh Cookie).
-     */
-    @PostMapping(value = "/refresh-token", produces = MediaType.APPLICATION_JSON_VALUE)
-    public Mono<ApiResponse<LoginResponseDTO>> refreshToken(ServerHttpRequest request, ServerHttpResponse response) {
-        org.springframework.http.HttpCookie cookie = request.getCookies().getFirst("refresh_token");
-        String refreshToken = (cookie != null) ? cookie.getValue() : null;
 
-        if (refreshToken == null || refreshToken.isBlank()) {
-            log.warn("Refresh failed: No refresh token cookie.");
-            return Mono.error(new ResponseStatusException(HttpStatus.BAD_REQUEST, "Missing refresh token cookie"));
-        }
+2026-10-08 11:57:56 INFO  [io.debezium.server.DebeziumServer] (main) Engine executor started
+2026-10-08 11:57:56 INFO  [io.debezium.config.CommonConnectorConfig] (pool-7-thread-1) Loading the custom source info struct maker plugin: io.debezium.connector.oracle.OracleSourceInfoStructMaker
+2026-10-08 11:57:56 INFO  [io.quarkus] (main) debezium-server-dist 2.5.4.Final on JVM (powered by Quarkus 3.2.10.Final) started in 2.468s. Listening on: http://0.0.0.0:8080
+2026-10-08 11:57:56 INFO  [io.quarkus] (main) Profile prod activated.
+2026-10-08 11:57:56 INFO  [io.quarkus] (main) Installed features: [cdi, kubernetes-client, resteasy-jackson, smallrye-context-propagation, smallrye-health, vertx]
+2026-10-08 11:57:56 INFO  [org.apache.kafka.clients.Metadata] (kafka-producer-network-thread | producer-1) [Producer clientId=producer-1] Cluster ID: jgQjUybBSACbAFjwpKFQiA
+2026-10-08 11:57:56 INFO  [org.apache.kafka.clients.producer.internals.TransactionManager] (kafka-producer-network-thread | producer-1) [Producer clientId=producer-1] ProducerId set to 19559 with epoch 0
+2026-10-08 11:57:57 INFO  [io.debezium.connector.oracle.OracleConnection] (pool-7-thread-1) Database Version: Oracle Database 19c Enterprise Edition Release 19.0.0.0.0 - Production
+Version 19.32.0.0.0
+2026-10-08 11:57:57 INFO  [io.debezium.jdbc.JdbcConnection] (pool-8-thread-1) Connection gracefully closed
+2026-10-08 11:57:57 INFO  [org.apache.kafka.connect.json.JsonConverterConfig] (pool-7-thread-1) JsonConverterConfig values:
+        converter.type = key
+        decimal.format = BASE64
+        replace.null.with.default = true
+        schemas.cache.size = 1000
+        schemas.enable = false
 
-        // JWE CHANGE: Using manual decryption helper
-        return decryptTokenManually(refreshToken)
-                .subscribeOn(Schedulers.boundedElastic())
-                .flatMap(claims -> {
-                    String userId = claims.getSubject();
-                    String userKey = USER_PREFIX + userId;
-                    log.info("Refreshing Token for User: {}", LoginUtility.sanitizeLog(userId));
+2026-10-08 11:57:57 INFO  [org.apache.kafka.connect.storage.FileOffsetBackingStore] (pool-7-thread-1) Starting FileOffsetBackingStore with file /debezium/data/offsets_fresh_one.dat
+2026-10-08 11:57:57 INFO  [io.debezium.connector.common.BaseSourceTask] (pool-7-thread-1) Starting OracleConnectorTask with configuration:
+2026-10-08 11:57:57 INFO  [io.debezium.connector.common.BaseSourceTask] (pool-7-thread-1)    connector.class = io.debezium.connector.oracle.OracleConnector
+2026-10-08 11:57:57 INFO  [io.debezium.connector.common.BaseSourceTask] (pool-7-thread-1)    schema.history.internal.kafka.key.serializer = org.apache.kafka.common.serialization.StringSerializer
+2026-10-08 11:57:57 INFO  [io.debezium.connector.common.BaseSourceTask] (pool-7-thread-1)    heartbeat.topics.prefix = heartbeat
+2026-10-08 11:57:57 INFO  [io.debezium.connector.common.BaseSourceTask] (pool-7-thread-1)    errors.retry.delay.initial.ms = 300
+2026-10-08 11:57:57 INFO  [io.debezium.connector.common.BaseSourceTask] (pool-7-thread-1)    key.converter = org.apache.kafka.connect.json.JsonConverter
+2026-10-08 11:57:57 INFO  [io.debezium.connector.common.BaseSourceTask] (pool-7-thread-1)    database.dbname = fincorepdb1
+2026-10-08 11:57:57 INFO  [io.debezium.connector.common.BaseSourceTask] (pool-7-thread-1)    database.user = c##debezium
+2026-10-08 11:57:57 INFO  [io.debezium.connector.common.BaseSourceTask] (pool-7-thread-1)    header.converter.key = json
+2026-10-08 11:57:57 INFO  [io.debezium.connector.common.BaseSourceTask] (pool-7-thread-1)    offset.storage = org.apache.kafka.connect.storage.FileOffsetBackingStore
+2026-10-08 11:57:57 INFO  [io.debezium.connector.common.BaseSourceTask] (pool-7-thread-1)    schema.history.internal.kafka.bootstrap.servers = kafka.uat-cbops1.svc.cluster.local:9092
+2026-10-08 11:57:57 INFO  [io.debezium.connector.common.BaseSourceTask] (pool-7-thread-1)    heartbeat.interval.ms = 2000
+2026-10-08 11:57:57 INFO  [io.debezium.connector.common.BaseSourceTask] (pool-7-thread-1)    schema.history.internal.skip.unparseable.ddl = true
+2026-10-08 11:57:57 INFO  [io.debezium.connector.common.BaseSourceTask] (pool-7-thread-1)    schema.history.internal.kafka.producer.value.serializer = org.apache.kafka.common.serialization.StringSerializer
+2026-10-08 11:57:57 INFO  [io.debezium.connector.common.BaseSourceTask] (pool-7-thread-1)    errors.max.retries = -1
+2026-10-08 11:57:57 INFO  [io.debezium.connector.common.BaseSourceTask] (pool-7-thread-1)    database.password = ********
+2026-10-08 11:57:57 INFO  [io.debezium.connector.common.BaseSourceTask] (pool-7-thread-1)    name = kafka
+2026-10-08 11:57:57 INFO  [io.debezium.connector.common.BaseSourceTask] (pool-7-thread-1)    snapshot.mode = initial
+2026-10-08 11:57:57 INFO  [io.debezium.connector.common.BaseSourceTask] (pool-7-thread-1)    tasks.max = 1
+2026-10-08 11:57:57 INFO  [io.debezium.connector.common.BaseSourceTask] (pool-7-thread-1)    log.mining.strategy = online_catalog
+2026-10-08 11:57:57 INFO  [io.debezium.connector.common.BaseSourceTask] (pool-7-thread-1)    schema.history.internal.kafka.producer.key.serializer = org.apache.kafka.common.serialization.StringSerializer
+2026-10-08 11:57:57 INFO  [io.debezium.connector.common.BaseSourceTask] (pool-7-thread-1)    schema.history.internal.store.only.captured.tables.ddl = true
+2026-10-08 11:57:57 INFO  [io.debezium.connector.common.BaseSourceTask] (pool-7-thread-1)    topic.prefix = fincore
+2026-10-08 11:57:57 INFO  [io.debezium.connector.common.BaseSourceTask] (pool-7-thread-1)    decimal.handling.mode = string
+2026-10-08 11:57:57 INFO  [io.debezium.connector.common.BaseSourceTask] (pool-7-thread-1)    offset.storage.file.filename = /debezium/data/offsets_fresh_one.dat
+2026-10-08 11:57:57 INFO  [io.debezium.connector.common.BaseSourceTask] (pool-7-thread-1)    schema.history.internal.kafka.topic = schema-changes.oracle.fresh_one
+2026-10-08 11:57:57 INFO  [io.debezium.connector.common.BaseSourceTask] (pool-7-thread-1)    log.mining.continuous.mine = false
+2026-10-08 11:57:57 INFO  [io.debezium.connector.common.BaseSourceTask] (pool-7-thread-1)    log.mining.sleep.time.max = 2000
+2026-10-08 11:57:57 INFO  [io.debezium.connector.common.BaseSourceTask] (pool-7-thread-1)    log.mining.sleep.time.default = 50
+2026-10-08 11:57:57 INFO  [io.debezium.connector.common.BaseSourceTask] (pool-7-thread-1)    value.converter = org.apache.kafka.connect.json.JsonConverter
+2026-10-08 11:57:57 INFO  [io.debezium.connector.common.BaseSourceTask] (pool-7-thread-1)    offset.storage.kafka.producer.value.serializer = org.apache.kafka.common.serialization.StringSerializer
+2026-10-08 11:57:57 INFO  [io.debezium.connector.common.BaseSourceTask] (pool-7-thread-1)    schema.history.internal.kafka.producer.bootstrap.servers = kafka.uat-cbops1.svc.cluster.local:9092
+2026-10-08 11:57:57 INFO  [io.debezium.connector.common.BaseSourceTask] (pool-7-thread-1)    header.converter.value = json
+2026-10-08 11:57:57 INFO  [io.debezium.connector.common.BaseSourceTask] (pool-7-thread-1)    offset.storage.kafka.key.serializer = org.apache.kafka.common.serialization.StringSerializer
+2026-10-08 11:57:57 INFO  [io.debezium.connector.common.BaseSourceTask] (pool-7-thread-1)    log.mining.batch.size.max = 100000
+2026-10-08 11:57:57 INFO  [io.debezium.connector.common.BaseSourceTask] (pool-7-thread-1)    database.pdb.name = fincorepdb2
+2026-10-08 11:57:57 INFO  [io.debezium.connector.common.BaseSourceTask] (pool-7-thread-1)    database.connection.adapter = logminer
+2026-10-08 11:57:57 INFO  [io.debezium.connector.common.BaseSourceTask] (pool-7-thread-1)    key.converter.value = json
+2026-10-08 11:57:57 INFO  [io.debezium.connector.common.BaseSourceTask] (pool-7-thread-1)    database.server.name = fincorepdb1
+2026-10-08 11:57:57 INFO  [io.debezium.connector.common.BaseSourceTask] (pool-7-thread-1)    offset.flush.timeout.ms = 5000
+2026-10-08 11:57:57 INFO  [io.debezium.connector.common.BaseSourceTask] (pool-7-thread-1)    errors.retry.delay.max.ms = 10000
+2026-10-08 11:57:57 INFO  [io.debezium.connector.common.BaseSourceTask] (pool-7-thread-1)    offset.storage.kafka.value.serializer = org.apache.kafka.common.serialization.StringSerializer
+2026-10-08 11:57:57 INFO  [io.debezium.connector.common.BaseSourceTask] (pool-7-thread-1)    value.converter.value = json
+2026-10-08 11:57:57 INFO  [io.debezium.connector.common.BaseSourceTask] (pool-7-thread-1)    database.port = 1523
+2026-10-08 11:57:57 INFO  [io.debezium.connector.common.BaseSourceTask] (pool-7-thread-1)    offset.flush.interval.ms = 60000
+2026-10-08 11:57:57 INFO  [io.debezium.connector.common.BaseSourceTask] (pool-7-thread-1)    offset.storage.kafka.producer.bootstrap.servers = kafka.uat-cbops1.svc.cluster.local:9092
+2026-10-08 11:57:57 INFO  [io.debezium.connector.common.BaseSourceTask] (pool-7-thread-1)    database.hostname = 10.177.179.85
+2026-10-08 11:57:57 INFO  [io.debezium.connector.common.BaseSourceTask] (pool-7-thread-1)    log.mining.batch.size.default = 50000
+2026-10-08 11:57:57 INFO  [io.debezium.connector.common.BaseSourceTask] (pool-7-thread-1)    table.include.list = fincore.NOTIFICATIONS,fincore.USER_ROLES,fincore.PROCESS_STATUS,fincore.PERMISSIONS,fincore.ROLE_PERMISSIONS
+2026-10-08 11:57:57 INFO  [io.debezium.connector.common.BaseSourceTask] (pool-7-thread-1)    value.converter.key = json
+2026-10-08 11:57:57 INFO  [io.debezium.connector.common.BaseSourceTask] (pool-7-thread-1)    offset.storage.kafka.producer.key.serializer = org.apache.kafka.common.serialization.StringSerializer
+2026-10-08 11:57:57 INFO  [io.debezium.connector.common.BaseSourceTask] (pool-7-thread-1)    key.converter.key = json
+2026-10-08 11:57:57 INFO  [io.debezium.connector.common.BaseSourceTask] (pool-7-thread-1)    schema.history.internal.kafka.value.serializer = org.apache.kafka.common.serialization.StringSerializer
+2026-10-08 11:57:57 INFO  [io.debezium.config.CommonConnectorConfig] (pool-7-thread-1) Loading the custom source info struct maker plugin: io.debezium.connector.oracle.OracleSourceInfoStructMaker
+2026-10-08 11:57:57 INFO  [io.debezium.config.CommonConnectorConfig] (pool-7-thread-1) Loading the custom topic naming strategy plugin: io.debezium.schema.SchemaTopicNamingStrategy
+2026-10-08 11:57:57 INFO  [io.debezium.connector.oracle.OracleConnection] (pool-7-thread-1) Database Version: Oracle Database 19c Enterprise Edition Release 19.0.0.0.0 - Production
+Version 19.32.0.0.0
+2026-10-08 11:57:57 INFO  [io.debezium.storage.kafka.history.KafkaSchemaHistory] (pool-7-thread-1) KafkaSchemaHistory Consumer config: {key.deserializer=org.apache.kafka.common.serialization.StringDeserializer, value.deserializer=org.apache.kafka.common.serialization.StringDeserializer, enable.auto.commit=false, group.id=fincore-schemahistory, bootstrap.servers=kafka.uat-cbops1.svc.cluster.local:9092, fetch.min.bytes=1, session.timeout.ms=10000, auto.offset.reset=earliest, client.id=fincore-schemahistory}
+2026-10-08 11:57:57 INFO  [io.debezium.storage.kafka.history.KafkaSchemaHistory] (pool-7-thread-1) KafkaSchemaHistory Producer config: {retries=1, value.serializer=org.apache.kafka.common.serialization.StringSerializer, acks=1, batch.size=32768, max.block.ms=10000, bootstrap.servers=kafka.uat-cbops1.svc.cluster.local:9092, buffer.memory=1048576, key.serializer=org.apache.kafka.common.serialization.StringSerializer, client.id=fincore-schemahistory, linger.ms=0}
+2026-10-08 11:57:57 INFO  [io.debezium.util.Threads] (pool-7-thread-1) Requested thread factory for connector OracleConnector, id = fincore named = db-history-config-check
+2026-10-08 11:57:57 INFO  [org.apache.kafka.clients.producer.ProducerConfig] (pool-7-thread-1) Idempotence will be disabled because acks is set to 1, not set to 'all'.
+2026-10-08 11:57:57 INFO  [org.apache.kafka.clients.producer.ProducerConfig] (pool-7-thread-1) ProducerConfig values:
+        acks = 1
+        auto.include.jmx.reporter = true
+        batch.size = 32768
+        bootstrap.servers = [kafka.uat-cbops1.svc.cluster.local:9092]
+        buffer.memory = 1048576
+        client.dns.lookup = use_all_dns_ips
+        client.id = fincore-schemahistory
+        compression.type = none
+        connections.max.idle.ms = 540000
+        delivery.timeout.ms = 120000
+        enable.idempotence = false
+        interceptor.classes = []
+        key.serializer = class org.apache.kafka.common.serialization.StringSerializer
+        linger.ms = 0
+        max.block.ms = 10000
+        max.in.flight.requests.per.connection = 5
+        max.request.size = 1048576
+        metadata.max.age.ms = 300000
+        metadata.max.idle.ms = 300000
+        metric.reporters = []
+        metrics.num.samples = 2
+        metrics.recording.level = INFO
+        metrics.sample.window.ms = 30000
+        partitioner.adaptive.partitioning.enable = true
+        partitioner.availability.timeout.ms = 0
+        partitioner.class = null
+        partitioner.ignore.keys = false
+        receive.buffer.bytes = 32768
+        reconnect.backoff.max.ms = 1000
+        reconnect.backoff.ms = 50
+        request.timeout.ms = 30000
+        retries = 1
+        retry.backoff.ms = 100
+        sasl.client.callback.handler.class = null
+        sasl.jaas.config = null
+        sasl.kerberos.kinit.cmd = /usr/bin/kinit
+        sasl.kerberos.min.time.before.relogin = 60000
+        sasl.kerberos.service.name = null
+        sasl.kerberos.ticket.renew.jitter = 0.05
+        sasl.kerberos.ticket.renew.window.factor = 0.8
+        sasl.login.callback.handler.class = null
+        sasl.login.class = null
+        sasl.login.connect.timeout.ms = null
+        sasl.login.read.timeout.ms = null
+        sasl.login.refresh.buffer.seconds = 300
+        sasl.login.refresh.min.period.seconds = 60
+        sasl.login.refresh.window.factor = 0.8
+        sasl.login.refresh.window.jitter = 0.05
+        sasl.login.retry.backoff.max.ms = 10000
+        sasl.login.retry.backoff.ms = 100
+        sasl.mechanism = GSSAPI
+        sasl.oauthbearer.clock.skew.seconds = 30
+        sasl.oauthbearer.expected.audience = null
+        sasl.oauthbearer.expected.issuer = null
+        sasl.oauthbearer.jwks.endpoint.refresh.ms = 3600000
+        sasl.oauthbearer.jwks.endpoint.retry.backoff.max.ms = 10000
+        sasl.oauthbearer.jwks.endpoint.retry.backoff.ms = 100
+        sasl.oauthbearer.jwks.endpoint.url = null
+        sasl.oauthbearer.scope.claim.name = scope
+        sasl.oauthbearer.sub.claim.name = sub
+        sasl.oauthbearer.token.endpoint.url = null
+        security.protocol = PLAINTEXT
+        security.providers = null
+        send.buffer.bytes = 131072
+        socket.connection.setup.timeout.max.ms = 30000
+        socket.connection.setup.timeout.ms = 10000
+        ssl.cipher.suites = null
+        ssl.enabled.protocols = [TLSv1.2, TLSv1.3]
+        ssl.endpoint.identification.algorithm = https
+        ssl.engine.factory.class = null
+        ssl.key.password = null
+        ssl.keymanager.algorithm = SunX509
+        ssl.keystore.certificate.chain = null
+        ssl.keystore.key = null
+        ssl.keystore.location = null
+        ssl.keystore.password = null
+        ssl.keystore.type = JKS
+        ssl.protocol = TLSv1.3
+        ssl.provider = null
+        ssl.secure.random.implementation = null
+        ssl.trustmanager.algorithm = PKIX
+        ssl.truststore.certificates = null
+        ssl.truststore.location = null
+        ssl.truststore.password = null
+        ssl.truststore.type = JKS
+        transaction.timeout.ms = 60000
+        transactional.id = null
+        value.serializer = class org.apache.kafka.common.serialization.StringSerializer
 
-                    // Check Session in Redis
-                    return redisTemplate.opsForValue().get(userKey)
-                            .switchIfEmpty(Mono.defer(() -> {
-                                log.warn("Redis returned EMPTY for key: {}. Session expired.", userKey);
-                                return Mono.error(new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Session expired. Please login again."));
-                            }))
-                            .flatMap(currentJti -> {
-                                log.info("Session Active in Redis. Fetching Full Profile.");
+2026-10-08 11:57:57 INFO  [org.apache.kafka.common.utils.AppInfoParser] (pool-7-thread-1) Kafka version: 3.6.1
+2026-10-08 11:57:57 INFO  [org.apache.kafka.common.utils.AppInfoParser] (pool-7-thread-1) Kafka commitId: 5e3c2b738d253ff5
+2026-10-08 11:57:57 INFO  [org.apache.kafka.common.utils.AppInfoParser] (pool-7-thread-1) Kafka startTimeMs: 1791460677925
+2026-10-08 11:57:57 INFO  [org.apache.kafka.clients.Metadata] (kafka-producer-network-thread | fincore-schemahistory) [Producer clientId=fincore-schemahistory] Cluster ID: jgQjUybBSACbAFjwpKFQiA
+2026-10-08 11:57:58 INFO  [io.debezium.connector.oracle.OracleConnection] (pool-7-thread-1) Database Version: Oracle Database 19c Enterprise Edition Release 19.0.0.0.0 - Production
+Version 19.32.0.0.0
+2026-10-08 11:57:58 INFO  [io.debezium.connector.common.BaseSourceTask] (pool-7-thread-1) No previous offsets found
+2026-10-08 11:57:58 INFO  [io.debezium.connector.oracle.OracleConnectorTask] (pool-7-thread-1) Connector started for the first time, database schema history recovery will not be executed
+2026-10-08 11:57:58 INFO  [org.apache.kafka.clients.consumer.ConsumerConfig] (pool-7-thread-1) ConsumerConfig values:
+        allow.auto.create.topics = true
+        auto.commit.interval.ms = 5000
+        auto.include.jmx.reporter = true
+        auto.offset.reset = earliest
+        bootstrap.servers = [kafka.uat-cbops1.svc.cluster.local:9092]
+        check.crcs = true
+        client.dns.lookup = use_all_dns_ips
+        client.id = fincore-schemahistory
+        client.rack =
+        connections.max.idle.ms = 540000
+        default.api.timeout.ms = 60000
+        enable.auto.commit = false
+        exclude.internal.topics = true
+        fetch.max.bytes = 52428800
+        fetch.max.wait.ms = 500
+        fetch.min.bytes = 1
+        group.id = fincore-schemahistory
+        group.instance.id = null
+        heartbeat.interval.ms = 3000
+        interceptor.classes = []
+        internal.leave.group.on.close = true
+        internal.throw.on.fetch.stable.offset.unsupported = false
+        isolation.level = read_uncommitted
+        key.deserializer = class org.apache.kafka.common.serialization.StringDeserializer
+        max.partition.fetch.bytes = 1048576
+        max.poll.interval.ms = 300000
+        max.poll.records = 500
+        metadata.max.age.ms = 300000
+        metric.reporters = []
+        metrics.num.samples = 2
+        metrics.recording.level = INFO
+        metrics.sample.window.ms = 30000
+        partition.assignment.strategy = [class org.apache.kafka.clients.consumer.RangeAssignor, class org.apache.kafka.clients.consumer.CooperativeStickyAssignor]
+        receive.buffer.bytes = 65536
+        reconnect.backoff.max.ms = 1000
+        reconnect.backoff.ms = 50
+        request.timeout.ms = 30000
+        retry.backoff.ms = 100
+        sasl.client.callback.handler.class = null
+        sasl.jaas.config = null
+        sasl.kerberos.kinit.cmd = /usr/bin/kinit
+        sasl.kerberos.min.time.before.relogin = 60000
+        sasl.kerberos.service.name = null
+        sasl.kerberos.ticket.renew.jitter = 0.05
+        sasl.kerberos.ticket.renew.window.factor = 0.8
+        sasl.login.callback.handler.class = null
+        sasl.login.class = null
+        sasl.login.connect.timeout.ms = null
+        sasl.login.read.timeout.ms = null
+        sasl.login.refresh.buffer.seconds = 300
+        sasl.login.refresh.min.period.seconds = 60
+        sasl.login.refresh.window.factor = 0.8
+        sasl.login.refresh.window.jitter = 0.05
+        sasl.login.retry.backoff.max.ms = 10000
+        sasl.login.retry.backoff.ms = 100
+        sasl.mechanism = GSSAPI
+        sasl.oauthbearer.clock.skew.seconds = 30
+        sasl.oauthbearer.expected.audience = null
+        sasl.oauthbearer.expected.issuer = null
+        sasl.oauthbearer.jwks.endpoint.refresh.ms = 3600000
+        sasl.oauthbearer.jwks.endpoint.retry.backoff.max.ms = 10000
+        sasl.oauthbearer.jwks.endpoint.retry.backoff.ms = 100
+        sasl.oauthbearer.jwks.endpoint.url = null
+        sasl.oauthbearer.scope.claim.name = scope
+        sasl.oauthbearer.sub.claim.name = sub
+        sasl.oauthbearer.token.endpoint.url = null
+        security.protocol = PLAINTEXT
+        security.providers = null
+        send.buffer.bytes = 131072
+        session.timeout.ms = 10000
+        socket.connection.setup.timeout.max.ms = 30000
+        socket.connection.setup.timeout.ms = 10000
+        ssl.cipher.suites = null
+        ssl.enabled.protocols = [TLSv1.2, TLSv1.3]
+        ssl.endpoint.identification.algorithm = https
+        ssl.engine.factory.class = null
+        ssl.key.password = null
+        ssl.keymanager.algorithm = SunX509
+        ssl.keystore.certificate.chain = null
+        ssl.keystore.key = null
+        ssl.keystore.location = null
+        ssl.keystore.password = null
+        ssl.keystore.type = JKS
+        ssl.protocol = TLSv1.3
+        ssl.provider = null
+        ssl.secure.random.implementation = null
+        ssl.trustmanager.algorithm = PKIX
+        ssl.truststore.certificates = null
+        ssl.truststore.location = null
+        ssl.truststore.password = null
+        ssl.truststore.type = JKS
+        value.deserializer = class org.apache.kafka.common.serialization.StringDeserializer
 
-                                return Mono.fromCallable(() -> loginService.getUserProfile(userId))
-                                        .subscribeOn(Schedulers.boundedElastic())
-                                        .flatMap(userDto -> {
-                                            if (userDto == null) {
-                                                return Mono.error(new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
-                                            }
+2026-10-08 11:57:58 INFO  [org.apache.kafka.common.utils.AppInfoParser] (pool-7-thread-1) Kafka version: 3.6.1
+2026-10-08 11:57:58 INFO  [org.apache.kafka.common.utils.AppInfoParser] (pool-7-thread-1) Kafka commitId: 5e3c2b738d253ff5
+2026-10-08 11:57:58 INFO  [org.apache.kafka.common.utils.AppInfoParser] (pool-7-thread-1) Kafka startTimeMs: 1791460678204
+2026-10-08 11:57:58 INFO  [org.apache.kafka.clients.Metadata] (pool-7-thread-1) [Consumer clientId=fincore-schemahistory, groupId=fincore-schemahistory] Cluster ID: jgQjUybBSACbAFjwpKFQiA
+2026-10-08 11:57:58 INFO  [org.apache.kafka.clients.consumer.internals.ConsumerCoordinator] (pool-7-thread-1) [Consumer clientId=fincore-schemahistory, groupId=fincore-schemahistory] Resetting generation and member id due to: consumer pro-actively leaving the group
+2026-10-08 11:57:58 INFO  [org.apache.kafka.clients.consumer.internals.ConsumerCoordinator] (pool-7-thread-1) [Consumer clientId=fincore-schemahistory, groupId=fincore-schemahistory] Request joining group due to: consumer pro-actively leaving the group
+2026-10-08 11:57:58 INFO  [org.apache.kafka.common.metrics.Metrics] (pool-7-thread-1) Metrics scheduler closed
+2026-10-08 11:57:58 INFO  [org.apache.kafka.common.metrics.Metrics] (pool-7-thread-1) Closing reporter org.apache.kafka.common.metrics.JmxReporter
+2026-10-08 11:57:58 INFO  [org.apache.kafka.common.metrics.Metrics] (pool-7-thread-1) Metrics reporters closed
+2026-10-08 11:57:58 INFO  [org.apache.kafka.common.utils.AppInfoParser] (pool-7-thread-1) App info kafka.consumer for fincore-schemahistory unregistered
+2026-10-08 11:57:58 INFO  [io.debezium.util.Threads] (pool-7-thread-1) Requested thread factory for connector OracleConnector, id = fincore named = SignalProcessor
+2026-10-08 11:57:58 INFO  [io.debezium.util.Threads] (pool-7-thread-1) Requested thread factory for connector OracleConnector, id = fincore named = change-event-source-coordinator
+2026-10-08 11:57:58 INFO  [io.debezium.util.Threads] (pool-7-thread-1) Requested thread factory for connector OracleConnector, id = fincore named = blocking-snapshot
+2026-10-08 11:57:58 INFO  [io.debezium.util.Threads] (pool-7-thread-1) Creating thread debezium-oracleconnector-fincore-change-event-source-coordinator
+2026-10-08 11:57:58 INFO  [io.debezium.pipeline.ChangeEventSourceCoordinator] (debezium-oracleconnector-fincore-change-event-source-coordinator) Metrics registered
+2026-10-08 11:57:58 INFO  [io.debezium.pipeline.ChangeEventSourceCoordinator] (debezium-oracleconnector-fincore-change-event-source-coordinator) Context created
+2026-10-08 11:57:58 INFO  [io.debezium.connector.oracle.OracleSnapshotChangeEventSource] (debezium-oracleconnector-fincore-change-event-source-coordinator) No previous offset has been found.
+2026-10-08 11:57:58 INFO  [io.debezium.connector.oracle.OracleSnapshotChangeEventSource] (debezium-oracleconnector-fincore-change-event-source-coordinator) According to the connector configuration both schema and data will be snapshot.
+2026-10-08 11:57:58 ERROR [io.debezium.pipeline.source.AbstractSnapshotChangeEventSource] (debezium-oracleconnector-fincore-change-event-source-coordinator) Failed to initialize snapshot context.: java.lang.RuntimeException: java.sql.SQLException: ORA-65011: Pluggable database FINCOREPDB2 does not exist.
 
-                                            return Mono.fromCallable(() -> loginService.fetchRoleWiseData(userId))
-                                                    .subscribeOn(Schedulers.boundedElastic())
-                                                    .flatMap(roleData -> fetchAndExtendAesKey(userId)
-                                                            .flatMap(existingAesKey -> {
+        at io.debezium.connector.oracle.OracleConnection.setSessionToPdb(OracleConnection.java:111)
+        at io.debezium.connector.oracle.OracleSnapshotChangeEventSource.prepare(OracleSnapshotChangeEventSource.java:100)
+        at io.debezium.connector.oracle.OracleSnapshotChangeEventSource.prepare(OracleSnapshotChangeEventSource.java:44)
+        at io.debezium.pipeline.source.AbstractSnapshotChangeEventSource.execute(AbstractSnapshotChangeEventSource.java:71)
+        at io.debezium.pipeline.ChangeEventSourceCoordinator.doSnapshot(ChangeEventSourceCoordinator.java:250)
+        at io.debezium.pipeline.ChangeEventSourceCoordinator.doSnapshot(ChangeEventSourceCoordinator.java:234)
+        at io.debezium.pipeline.ChangeEventSourceCoordinator.executeChangeEventSources(ChangeEventSourceCoordinator.java:186)
+        at io.debezium.pipeline.ChangeEventSourceCoordinator.lambda$start$0(ChangeEventSourceCoordinator.java:137)
+        at java.base/java.util.concurrent.Executors$RunnableAdapter.call(Executors.java:515)
+        at java.base/java.util.concurrent.FutureTask.run(FutureTask.java:264)
+        at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1128)
+        at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:628)
+        at java.base/java.lang.Thread.run(Thread.java:829)
+Caused by: java.sql.SQLException: ORA-65011: Pluggable database FINCOREPDB2 does not exist.
 
-                                                                String newJti = UUID.randomUUID().toString();
+        at oracle.jdbc.driver.T4CTTIoer11.processError(T4CTTIoer11.java:630)
+        at oracle.jdbc.driver.T4CTTIoer11.processError(T4CTTIoer11.java:564)
+        at oracle.jdbc.driver.T4C8Oall.processError(T4C8Oall.java:1231)
+        at oracle.jdbc.driver.T4CTTIfun.receive(T4CTTIfun.java:772)
+        at oracle.jdbc.driver.T4CTTIfun.doRPC(T4CTTIfun.java:299)
+        at oracle.jdbc.driver.T4C8Oall.doOALL(T4C8Oall.java:512)
+        at oracle.jdbc.driver.T4CStatement.doOall8(T4CStatement.java:123)
+        at oracle.jdbc.driver.T4CStatement.executeForRows(T4CStatement.java:1200)
+        at oracle.jdbc.driver.OracleStatement.executeSQLStatement(OracleStatement.java:1820)
+        at oracle.jdbc.driver.OracleStatement.doExecuteWithTimeout(OracleStatement.java:1472)
+        at oracle.jdbc.driver.OracleStatement.executeInternal(OracleStatement.java:2505)
+        at oracle.jdbc.driver.OracleStatement.execute(OracleStatement.java:2460)
+        at oracle.jdbc.driver.OracleStatementWrapper.execute(OracleStatementWrapper.java:328)
+        at io.debezium.connector.oracle.OracleConnection.setSessionToPdb(OracleConnection.java:108)
+        ... 12 more
+Caused by: Error : 65011, Position : 0, Sql = alter session set container=FINCOREPDB2, OriginalSql = alter session set container=FINCOREPDB2, Error Msg = ORA-65011: Pluggable database FINCOREPDB2 does not exist.
 
-                                                                @SuppressWarnings("unchecked")
-                                                                Map<String, Object> claimsMap = mapper.convertValue(userDto.getUser(), Map.class);
-                                                                claimsMap.put("jti", newJti);
+        at oracle.jdbc.driver.T4CTTIoer11.processError(T4CTTIoer11.java:637)
+        ... 25 more
 
-                                                                // Generate New JWE Tokens
-                                                                String newAccessToken = JweUtil.generateJwe(existingAesKey, userId, accessTokenTtl, claimsMap);
+2026-10-08 11:57:58 ERROR [io.debezium.pipeline.ErrorHandler] (debezium-oracleconnector-fincore-change-event-source-coordinator) Producer failure: java.lang.RuntimeException: java.lang.RuntimeException: java.sql.SQLException: ORA-65011: Pluggable database FINCOREPDB2 does not exist.
 
-                                                                Map<String, Object> refreshClaims = Map.of("type", "refresh", "jti", UUID.randomUUID().toString());
-                                                                String newRefreshToken = JweUtil.generateJwe(existingAesKey, userId, refreshTokenTtl, refreshClaims);
+        at io.debezium.pipeline.source.AbstractSnapshotChangeEventSource.execute(AbstractSnapshotChangeEventSource.java:75)
+        at io.debezium.pipeline.ChangeEventSourceCoordinator.doSnapshot(ChangeEventSourceCoordinator.java:250)
+        at io.debezium.pipeline.ChangeEventSourceCoordinator.doSnapshot(ChangeEventSourceCoordinator.java:234)
+        at io.debezium.pipeline.ChangeEventSourceCoordinator.executeChangeEventSources(ChangeEventSourceCoordinator.java:186)
+        at io.debezium.pipeline.ChangeEventSourceCoordinator.lambda$start$0(ChangeEventSourceCoordinator.java:137)
+        at java.base/java.util.concurrent.Executors$RunnableAdapter.call(Executors.java:515)
+        at java.base/java.util.concurrent.FutureTask.run(FutureTask.java:264)
+        at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1128)
+        at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:628)
+        at java.base/java.lang.Thread.run(Thread.java:829)
+Caused by: java.lang.RuntimeException: java.sql.SQLException: ORA-65011: Pluggable database FINCOREPDB2 does not exist.
 
-                                                                response.addCookie(createRefreshTokenCookie(newRefreshToken));
+        at io.debezium.connector.oracle.OracleConnection.setSessionToPdb(OracleConnection.java:111)
+        at io.debezium.connector.oracle.OracleSnapshotChangeEventSource.prepare(OracleSnapshotChangeEventSource.java:100)
+        at io.debezium.connector.oracle.OracleSnapshotChangeEventSource.prepare(OracleSnapshotChangeEventSource.java:44)
+        at io.debezium.pipeline.source.AbstractSnapshotChangeEventSource.execute(AbstractSnapshotChangeEventSource.java:71)
+        ... 9 more
+Caused by: java.sql.SQLException: ORA-65011: Pluggable database FINCOREPDB2 does not exist.
 
-                                                                // THE FIX: Use .then(Mono.fromCallable(...)) instead of .map() for Mono<Void>
-                                                                return validator.registerUserSession(userId, newJti)
-                                                                        .then(Mono.fromCallable(() -> {
-                                                                            // Add the AES Key to the HTTP Response Headers
-                                                                            response.getHeaders().add("X-Payload-Key", existingAesKey);
+        at oracle.jdbc.driver.T4CTTIoer11.processError(T4CTTIoer11.java:630)
+        at oracle.jdbc.driver.T4CTTIoer11.processError(T4CTTIoer11.java:564)
+        at oracle.jdbc.driver.T4C8Oall.processError(T4C8Oall.java:1231)
+        at oracle.jdbc.driver.T4CTTIfun.receive(T4CTTIfun.java:772)
+        at oracle.jdbc.driver.T4CTTIfun.doRPC(T4CTTIfun.java:299)
+        at oracle.jdbc.driver.T4C8Oall.doOALL(T4C8Oall.java:512)
+        at oracle.jdbc.driver.T4CStatement.doOall8(T4CStatement.java:123)
+        at oracle.jdbc.driver.T4CStatement.executeForRows(T4CStatement.java:1200)
+        at oracle.jdbc.driver.OracleStatement.executeSQLStatement(OracleStatement.java:1820)
+        at oracle.jdbc.driver.OracleStatement.doExecuteWithTimeout(OracleStatement.java:1472)
+        at oracle.jdbc.driver.OracleStatement.executeInternal(OracleStatement.java:2505)
+        at oracle.jdbc.driver.OracleStatement.execute(OracleStatement.java:2460)
+        at oracle.jdbc.driver.OracleStatementWrapper.execute(OracleStatementWrapper.java:328)
+        at io.debezium.connector.oracle.OracleConnection.setSessionToPdb(OracleConnection.java:108)
+        ... 12 more
+Caused by: Error : 65011, Position : 0, Sql = alter session set container=FINCOREPDB2, OriginalSql = alter session set container=FINCOREPDB2, Error Msg = ORA-65011: Pluggable database FINCOREPDB2 does not exist.
 
-                                                                            // Build Response
-                                                                            return ApiResponse.success(
-                                                                                    LoginResponseDTO.builder()
-                                                                                            .accessToken(newAccessToken)
-                                                                                            .userId(userId)
-                                                                                            .jti(newJti)
-                                                                                            .expiresIn(accessTokenTtl)
-                                                                                            .validCredentials(true)
-                                                                                            .roleData(roleData)
-                                                                                            .userStatus(userDto.getUserStatus())
-                                                                                            .passwordLoginStatus(userDto.getPasswordLoginStatus())
-                                                                                            .sub(userId)
-                                                                                            .build(),
-                                                                                    "Token refreshed successfully"
-                                                                            );
-                                                                        }));
-                                                            }));
-                                        });
-                            });
-                });
-    }
+        at oracle.jdbc.driver.T4CTTIoer11.processError(T4CTTIoer11.java:637)
+        ... 25 more
+
+2026-10-08 11:57:58 INFO  [io.debezium.pipeline.ChangeEventSourceCoordinator] (debezium-oracleconnector-fincore-change-event-source-coordinator) Connected metrics set to 'false'
+2026-10-08 11:57:58 INFO  [io.debezium.embedded.EmbeddedEngine] (pool-7-thread-1) Stopping the task and engine
+2026-10-08 11:57:58 INFO  [io.debezium.connector.common.BaseSourceTask] (pool-7-thread-1) Stopping down connector
+2026-10-08 11:57:58 INFO  [io.debezium.util.Threads] (pool-7-thread-1) Creating thread debezium-oracleconnector-fincore-SignalProcessor
+2026-10-08 11:57:58 INFO  [io.debezium.pipeline.signal.SignalProcessor] (pool-7-thread-1) SignalProcessor stopped
+2026-10-08 11:57:58 INFO  [io.debezium.service.DefaultServiceRegistry] (pool-7-thread-1) Debezium ServiceRegistry stopped.
+2026-10-08 11:57:58 INFO  [io.debezium.jdbc.JdbcConnection] (pool-9-thread-1) Connection gracefully closed
+2026-10-08 11:57:58 INFO  [io.debezium.jdbc.JdbcConnection] (pool-10-thread-1) Connection gracefully closed
+2026-10-08 11:57:58 INFO  [org.apache.kafka.clients.producer.KafkaProducer] (pool-7-thread-1) [Producer clientId=fincore-schemahistory] Closing the Kafka producer with timeoutMillis = 30000 ms.
+2026-10-08 11:57:58 INFO  [org.apache.kafka.common.metrics.Metrics] (pool-7-thread-1) Metrics scheduler closed
+2026-10-08 11:57:58 INFO  [org.apache.kafka.common.metrics.Metrics] (pool-7-thread-1) Closing reporter org.apache.kafka.common.metrics.JmxReporter
+2026-10-08 11:57:58 INFO  [org.apache.kafka.common.metrics.Metrics] (pool-7-thread-1) Metrics reporters closed
+2026-10-08 11:57:58 INFO  [org.apache.kafka.common.utils.AppInfoParser] (pool-7-thread-1) App info kafka.producer for fincore-schemahistory unregistered
+2026-10-08 11:57:58 INFO  [org.apache.kafka.connect.storage.FileOffsetBackingStore] (pool-7-thread-1) Stopped FileOffsetBackingStore
+2026-10-08 11:57:58 ERROR [io.debezium.server.ConnectorLifecycle] (pool-7-thread-1) Connector completed: success = 'false', message = 'Error while trying to run connector class 'io.debezium.connector.oracle.OracleConnector'', error = 'org.apache.kafka.connect.errors.ConnectException: An exception occurred in the change event producer. This connector will be stopped.': org.apache.kafka.connect.errors.ConnectException: An exception occurred in the change event producer. This connector will be stopped.
+        at io.debezium.pipeline.ErrorHandler.setProducerThrowable(ErrorHandler.java:67)
+        at io.debezium.pipeline.ChangeEventSourceCoordinator.lambda$start$0(ChangeEventSourceCoordinator.java:144)
+        at java.base/java.util.concurrent.Executors$RunnableAdapter.call(Executors.java:515)
+        at java.base/java.util.concurrent.FutureTask.run(FutureTask.java:264)
+        at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1128)
+        at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:628)
+        at java.base/java.lang.Thread.run(Thread.java:829)
+Caused by: java.lang.RuntimeException: java.lang.RuntimeException: java.sql.SQLException: ORA-65011: Pluggable database FINCOREPDB2 does not exist.
+
+        at io.debezium.pipeline.source.AbstractSnapshotChangeEventSource.execute(AbstractSnapshotChangeEventSource.java:75)
+        at io.debezium.pipeline.ChangeEventSourceCoordinator.doSnapshot(ChangeEventSourceCoordinator.java:250)
+        at io.debezium.pipeline.ChangeEventSourceCoordinator.doSnapshot(ChangeEventSourceCoordinator.java:234)
+        at io.debezium.pipeline.ChangeEventSourceCoordinator.executeChangeEventSources(ChangeEventSourceCoordinator.java:186)
+        at io.debezium.pipeline.ChangeEventSourceCoordinator.lambda$start$0(ChangeEventSourceCoordinator.java:137)
+        ... 5 more
+Caused by: java.lang.RuntimeException: java.sql.SQLException: ORA-65011: Pluggable database FINCOREPDB2 does not exist.
+
+        at io.debezium.connector.oracle.OracleConnection.setSessionToPdb(OracleConnection.java:111)
+        at io.debezium.connector.oracle.OracleSnapshotChangeEventSource.prepare(OracleSnapshotChangeEventSource.java:100)
+        at io.debezium.connector.oracle.OracleSnapshotChangeEventSource.prepare(OracleSnapshotChangeEventSource.java:44)
+        at io.debezium.pipeline.source.AbstractSnapshotChangeEventSource.execute(AbstractSnapshotChangeEventSource.java:71)
+        ... 9 more
+Caused by: java.sql.SQLException: ORA-65011: Pluggable database FINCOREPDB2 does not exist.
+
+        at oracle.jdbc.driver.T4CTTIoer11.processError(T4CTTIoer11.java:630)
+        at oracle.jdbc.driver.T4CTTIoer11.processError(T4CTTIoer11.java:564)
+        at oracle.jdbc.driver.T4C8Oall.processError(T4C8Oall.java:1231)
+        at oracle.jdbc.driver.T4CTTIfun.receive(T4CTTIfun.java:772)
+        at oracle.jdbc.driver.T4CTTIfun.doRPC(T4CTTIfun.java:299)
+        at oracle.jdbc.driver.T4C8Oall.doOALL(T4C8Oall.java:512)
+        at oracle.jdbc.driver.T4CStatement.doOall8(T4CStatement.java:123)
+        at oracle.jdbc.driver.T4CStatement.executeForRows(T4CStatement.java:1200)
+        at oracle.jdbc.driver.OracleStatement.executeSQLStatement(OracleStatement.java:1820)
+        at oracle.jdbc.driver.OracleStatement.doExecuteWithTimeout(OracleStatement.java:1472)
+        at oracle.jdbc.driver.OracleStatement.executeInternal(OracleStatement.java:2505)
+        at oracle.jdbc.driver.OracleStatement.execute(OracleStatement.java:2460)
+        at oracle.jdbc.driver.OracleStatementWrapper.execute(OracleStatementWrapper.java:328)
+        at io.debezium.connector.oracle.OracleConnection.setSessionToPdb(OracleConnection.java:108)
+        ... 12 more
+Caused by: Error : 65011, Position : 0, Sql = alter session set container=FINCOREPDB2, OriginalSql = alter session set container=FINCOREPDB2, Error Msg = ORA-65011: Pluggable database FINCOREPDB2 does not exist.
+
+        at oracle.jdbc.driver.T4CTTIoer11.processError(T4CTTIoer11.java:637)
+        ... 25 more
+
+2026-10-08 11:57:58 INFO  [io.debezium.server.DebeziumServer] (main) Received request to stop the engine
+2026-10-08 11:57:58 INFO  [io.debezium.embedded.EmbeddedEngine] (main) Stopping the embedded engine
+2026-10-08 11:57:58 INFO  [io.debezium.server.kafka.KafkaChangeConsumer] (main) consumer destroyed...
+2026-10-08 11:57:58 INFO  [org.apache.kafka.clients.producer.KafkaProducer] (main) [Producer clientId=producer-1] Closing the Kafka producer with timeoutMillis = 5000 ms.
+2026-10-08 11:57:58 INFO  [org.apache.kafka.common.metrics.Metrics] (main) Metrics scheduler closed
+2026-10-08 11:57:58 INFO  [org.apache.kafka.common.metrics.Metrics] (main) Closing reporter org.apache.kafka.common.metrics.JmxReporter
+2026-10-08 11:57:58 INFO  [org.apache.kafka.common.metrics.Metrics] (main) Metrics reporters closed
+2026-10-08 11:57:58 INFO  [org.apache.kafka.common.utils.AppInfoParser] (main) App info kafka.producer for producer-1 unregistered
+2026-10-08 11:57:58 INFO  [io.quarkus] (main) debezium-server-dist stopped in 0.034s
+
+
+
+
+
+
+
+
+
+
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: debezium-server-config
+  namespace: uat-cbops1
+data:
+  application.properties: |
+    debezium.source.connector.class=io.debezium.connector.oracle.OracleConnector
+    debezium.source.tasks.max=1
+
+    debezium.source.database.hostname=10.177.179.85
+    debezium.source.database.port=1523
+    debezium.source.database.user=c##debezium
+    debezium.source.database.password=Debe#123
+    debezium.source.database.dbname=fincorepdb1
+    debezium.source.database.pdb.name=fincorepdb2
+    #    debezium.source.database.sid=fincorepdb1
+    debezium.source.database.server.name=fincorepdb1
+
+    debezium.source.topic.prefix=fincore
+    debezium.source.table.include.list=fincore.NOTIFICATIONS,fincore.USER_ROLES,fincore.PROCESS_STATUS,fincore.PERMISSIONS,fincore.ROLE_PERMISSIONS
+
+    debezium.source.decimal.handling.mode=string
+    debezium.source.database.connection.adapter=logminer
+
+    debezium.source.schema.history.internal.kafka.bootstrap.servers=kafka.uat-cbops1.svc.cluster.local:9092
+    debezium.source.schema.history.internal.kafka.topic=schema-changes.oracle.fresh_one
+
+    debezium.source.log.mining.strategy=online_catalog
+    debezium.source.log.mining.continuous.mine=false
+    debezium.source.log.mining.batch.size.default=50000
+    debezium.source.log.mining.batch.size.max=100000
+    debezium.source.log.mining.sleep.time.default=50
+    debezium.source.log.mining.sleep.time.max=2000
+
+    debezium.source.heartbeat.interval.ms=2000
+    debezium.source.heartbeat.topics.prefix=heartbeat
+
+    debezium.sink.type=kafka
+    debezium.sink.kafka.producer.bootstrap.servers=kafka.uat-cbops1.svc.cluster.local:9092
+    debezium.sink.kafka.key.serializer=org.apache.kafka.common.serialization.StringSerializer
+    debezium.sink.kafka.value.serializer=org.apache.kafka.common.serialization.StringSerializer
+    debezium.sink.kafka.producer.key.serializer=org.apache.kafka.common.serialization.StringSerializer
+    debezium.sink.kafka.producer.value.serializer=org.apache.kafka.common.serialization.StringSerializer 
+    
+    debezium.format.key=json
+    debezium.format.value=json
+
+    debezium.source.offset.storage.file.filename=/debezium/data/offsets_fresh_one.dat
+    debezium.source.offset.flush.interval.ms=60000
+    debezium.source.snapshot.mode=initial
+
+    quarkus.log.level=INFO
+    quarkus.log.console.json=false
+    quarkus.log.console.format=%d{yyyy-MM-dd HH:mm:ss} %-5p [%c] (%t) %s%e%n
+    debezium.source.schema.history.internal.store.only.captured.tables.ddl=true
+    debezium.source.schema.history.internal.skip.unparseable.ddl=true
+--- 
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: debezium-pvc
+  namespace: uat-cbops1
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: h06-vks-sp-5
+  resources:
+    requests:
+      storage: 5Gi
+
+--- 
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: debezium-server
+  namespace: uat-cbops1
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: debezium-server
+  template:
+    metadata:
+      labels:
+        app: debezium-server
+    spec:
+      securityContext:
+        fsGroup: 1000
+      containers:
+        - name: debezium-server
+          image: h06vksharbor.corp.ad.sbi/cbops/debezium-server:oracle-v1
+          imagePullPolicy: IfNotPresent
+
+          securityContext:
+            runAsUser: 1000
+            runAsGroup: 1000
+
+          env:
+            - name: JAVA_OPTS
+              value: "-Xms512m -Xmx2g"
+
+          ports:
+            - containerPort: 8080
+
+          volumeMounts:
+            - name: config-volume
+              mountPath: /debezium/conf
+            - name: data-volume
+              mountPath: /debezium/data
+
+          resources:
+            requests:
+              cpu: "500m"
+              memory: "1Gi"
+            limits:
+              cpu: "2"
+              memory: "3Gi"
+
+      volumes:
+        - name: config-volume
+          configMap:
+            name: debezium-server-config
+
+        - name: data-volume
+          persistentVolumeClaim:
+            claimName: debezium-pvc
+
+--- 
+apiVersion: v1
+kind: Service
+metadata:
+  name: debezium-server
+  namespace: uat-cbops1
+spec:
+  selector:
+    app: debezium-server
+  ports:
+    - name: http
+      port: 8080
+      targetPort: 8080
+  type: ClusterIP
+
+
+
+
+
+
+
+
