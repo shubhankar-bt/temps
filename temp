@@ -1,141 +1,1256 @@
-ABOUT THIS DOCUMENT
-PURPOSE
-The document gives a brief description of the functional specifications, technical solution, assumptions and estimated efforts as per the specific requirement raised by the bank under this Change Request.
-INTENDED AUDIENCE
-•	Finance One Core Banking Operations (F1 Group GITC)
-•	FRT Department Corporate Centre
-•	FinCore TCS Development and Support Team
-•	SIT Team GITC
-•	UAT Team GITC
-•	ISD Team for Application Security Review
- 
+package com.fincore.gateway.Controller;
+
+import com.fincore.commonutilities.util.AesEncryptionUtil;
+import com.fincore.gateway.JwtUtil.JweUtil;
+import com.fincore.gateway.Service.LaunchService;
+import com.fincore.gateway.Service.LoginService;
+import com.fincore.gateway.Service.TokenSessionValidator;
+import com.fincore.gateway.dto.*;
+import com.fincore.gateway.utility.Constants;
+import com.fincore.gateway.utility.LoginUtility;
+
+import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.data.redis.core.ReactiveStringRedisTemplate;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseCookie;
+import org.springframework.http.ResponseEntity;
+import org.springframework.http.server.reactive.ServerHttpRequest;
+import org.springframework.http.server.reactive.ServerHttpResponse;
+import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
+import org.springframework.web.bind.annotation.*;
+import org.springframework.web.server.ResponseStatusException;
+
+import reactor.core.publisher.Mono;
+import reactor.core.scheduler.Schedulers;
+
+import tools.jackson.core.type.TypeReference;
+import tools.jackson.databind.ObjectMapper;
+
+import com.fincore.gateway.JwtUtil.JweUtil;
+import com.nimbusds.jwt.EncryptedJWT;
+import com.nimbusds.jwt.JWTClaimsSet;
+import org.springframework.security.oauth2.jwt.BadJwtException;
+import java.text.ParseException;
+import java.util.UUID;
+
+import java.time.Duration;
+import java.util.*;
+
+/**
+ * REST controller for managing authentication workflows in a reactive Spring WebFlux application.
+ *
+ * <p>This controller provides endpoints for:
+ * <ul>
+ *   <li>User login with credential validation</li>
+ *   <li>Token refresh using refresh tokens</li>
+ *   <li>Logout with token invalidation</li>
+ *   <li>Checking current user session status</li>
+ *   <li>Password Update</li>
+ *   <li>Returns public key to client to encrypt login payload with check user</li>
+ * </ul>
+ *
+ * <p>All endpoints return a standardized {@link ApiResponse} structure to ensure consistent
+ * client-side handling. Security is implemented using JWT-based stateless authentication,
+ * integrated with Spring Security's reactive stack.
+ *
+ * <p><b>Note:</b> This controller is designed to work with non-blocking, reactive types
+ * ({@link Mono}
+ *
+ * <a href="mailto:shubhankar.das.cbstcs@sbi.co.in">shubhankar.das.cbstcs@sbi.co.in</a>
+ * @version 2.0.0
+ * @since 2026-10-08
+ */
+@Slf4j
+@RestController
+@RequestMapping("/api/auth")
+@RequiredArgsConstructor
+public class AuthController {
+
+    private static final String USER_PREFIX = "USR:";
+    private static final String AES_KEY_PREFIX = "AES:USR:";
+
+    private final TokenSessionValidator validator;
+    private final ReactiveStringRedisTemplate redisTemplate;
+    private final LoginService loginService;
+    private final ObjectMapper mapper;
+    private final LaunchService launchService;
+    private final AesEncryptionUtil aesUtil;
+
+    @Value("${security.jwt.hmac-base64-secret:}")
+    private String hmacSecret;
+
+    @Value("${security.jwt.ttl-seconds:900}")
+    private long accessTokenTtl;
+
+    @Value("${security.jwt.refresh-ttl-seconds:43200}")
+    private long refreshTokenTtl;
+
+    @Value("${security.login.blocked-ips:}")
+    private String blockedIpsConfig;
+
+    @Value("${security.payload.rsa-public:}")
+    private String rsaPublicPem;
+
+    // =================================================================================================
+    // INITIALIZATION & LOGIN
+    // =================================================================================================
+
+    /**
+     * Replaces /start-prod. Called when the frontend application loads.
+     * Delivers environment info and the RSA Public Key for login payload encryption.
+     */
+    @GetMapping("/init")
+    public ResponseEntity<LaunchResponse> getLaunchData() {
+        return ResponseEntity.ok(launchService.getLaunchDetails());
+    }
+
+    /**
+     * LOGIN ENDPOINT
+     * 1. Validates credentials (Blocking DB call on Elastic Scheduler).
+     * 2. Generates Access Token & Refresh Token.
+     * 3. Stores Access Token JTI in Redis (Session Start).
+     * 4. Returns Access Token in Body, Refresh Token in HttpOnly Cookie.
+     */
+    @PostMapping(value = "/login", produces = MediaType.APPLICATION_JSON_VALUE)
+    public Mono<ResponseEntity<ApiResponse<?>>> login(
+            ServerHttpRequest request, ServerHttpResponse response, @RequestBody @Valid UserDto payload) {
+        final String clientIp = LoginUtility.getClientIp(request);
+        log.info("Login request for user: {} from IP: {}", LoginUtility.sanitizeLog(payload.getUserId()), clientIp);
+
+        // 1. IP BLOCK CHECK
+        if (isIpBlocked(clientIp)) {
+            return Mono.just(ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(ApiResponse.error("Access denied: Your IP address is blocked.", "IP_BLOCKED")));
+        }
+
+        return Mono.fromCallable(() -> loginService.verifyUserCredentials(payload, clientIp))
+                .subscribeOn(Schedulers.boundedElastic())
+                .flatMap(user -> {
+
+                    // =========================================================
+                    // CASE 1: INVALID CREDENTIALS (Wrong Password / Locked)
+                    // =========================================================
+                    if (!user.isValidCredentials()) {
+
+                        log.warn("Login Failed for user: {}. Reason: {}", LoginUtility.sanitizeLog(payload.getUserId()), user.getMessage());
+
+                        // Build response to show Attempts Left
+                        LoginResponseDTO errorResponse = LoginResponseDTO.builder()
+                                .userId(user.getUserId())
+                                .validCredentials(false)
+                                .userStatus(user.getUserStatus())
+                                .passwordLoginStatus(user.getPasswordLoginStatus())
+                                .attemptsLeft(user.getAttemptsLeft()) // <--- PASS COUNT TO FRONTEND
+                                .error(user.getMessage())
+                                .build();
+
+                        // If attempts are 0 OR status is INACTIVE -> 403 Forbidden (Locked)
+                        // Otherwise -> 401 Unauthorized (Try again)
+                        HttpStatus status = (user.getAttemptsLeft() == 0) ||
+                                user.isAccountLocked() ||
+                                Constants.INACTIVE.equalsIgnoreCase(user.getPasswordLoginStatus())
+                                ? HttpStatus.FORBIDDEN
+                                : HttpStatus.UNAUTHORIZED;
+
+                        return Mono.just(ResponseEntity.status(status)
+                                .body(ApiResponse.success(errorResponse, user.getMessage())));
+                    }
+
+//                    // =========================================================
+//                    // CASE 2: PASSWORD EXPIRED (Force Update)
+//                    // =========================================================
+//                    if (user.isUpdatePassword()) {
+//                        log.info("Password expired for user {}", LoginUtility.sanitizeLog(user.getUserId()));
+//                        return Mono.just(ResponseEntity.status(HttpStatus.PRECONDITION_REQUIRED) // 428
+//                                .body(ApiResponse.error("Password expired. Update required.", "UPDATE_REQUIRED")));
+//                    }
+
+                    // =========================================================
+                    // CASE 3: CONFIG ERROR
+                    // =========================================================
+                    if (hmacSecret == null || hmacSecret.isBlank()) {
+                        return Mono.just(ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                                .body(ApiResponse.error("Server Config Error", "CONFIG_ERROR")));
+                    }
+
+                    // =========================================================
+                    // Dynamic Routing based on MFA Flag
+                    // =========================================================
+                    if (user.isOtpRequired()) {
+                        log.info("MFA Enabled: Routing user {} to OTP Phase.", LoginUtility.sanitizeLog(user.getUserId()));
+                        return loginService.initiateOtpPhase(user)
+                                .map(otpDto -> ResponseEntity.status(HttpStatus.ACCEPTED)
+                                        .body(ApiResponse.<OtpInitiatedResponseDTO>success(otpDto, "OTP Sent to registered contacts.")));
+                    } else {
+                        log.info("MFA Disabled: Routing user {} to Direct Login.", LoginUtility.sanitizeLog(user.getUserId()));
+                        return generateSessionAndTokens(user, response);
+                    }
+                });
+    }
+
+
+    // =================================================================================================
+    // REFRESH TOKEN METHOD
+    // =================================================================================================
+
+    /**
+     * REFRESH TOKEN ENDPOINT
+     * 1. Reads Refresh Token from Cookie.
+     * 2. Validates JWE decryption & Expiry.
+     * 3. Checks Redis to ensure User Session is still valid/active.
+     * 4. Rotates Tokens (New JWE Access Token + New JWE Refresh Cookie).
+     */
+    @PostMapping(value = "/refresh-token", produces = MediaType.APPLICATION_JSON_VALUE)
+    public Mono<ApiResponse<LoginResponseDTO>> refreshToken(ServerHttpRequest request, ServerHttpResponse response) {
+        org.springframework.http.HttpCookie cookie = request.getCookies().getFirst("refresh_token");
+        String refreshToken = (cookie != null) ? cookie.getValue() : null;
+
+        if (refreshToken == null || refreshToken.isBlank()) {
+            log.warn("Refresh failed: No refresh token cookie.");
+            return Mono.error(new ResponseStatusException(HttpStatus.BAD_REQUEST, "Missing refresh token cookie"));
+        }
+
+        // JWE CHANGE: Using manual decryption helper
+        return decryptTokenManually(refreshToken)
+                .subscribeOn(Schedulers.boundedElastic())
+                .flatMap(claims -> {
+                    String userId = claims.getSubject();
+                    String userKey = USER_PREFIX + userId;
+                    log.info("Refreshing Token for User: {}", LoginUtility.sanitizeLog(userId));
+
+                    // Check Session in Redis
+                    return redisTemplate.opsForValue().get(userKey)
+                            .switchIfEmpty(Mono.defer(() -> {
+                                log.warn("Redis returned EMPTY for key: {}. Session expired.", userKey);
+                                return Mono.error(new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Session expired. Please login again."));
+                            }))
+                            .flatMap(currentJti -> {
+                                log.info("Session Active in Redis. Fetching Full Profile.");
+
+                                return Mono.fromCallable(() -> loginService.getUserProfile(userId))
+                                        .subscribeOn(Schedulers.boundedElastic())
+                                        .flatMap(userDto -> {
+                                            if (userDto == null) {
+                                                return Mono.error(new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
+                                            }
+
+                                            return Mono.fromCallable(() -> loginService.fetchRoleWiseData(userId))
+                                                    .subscribeOn(Schedulers.boundedElastic())
+                                                    .flatMap(roleData -> fetchAndExtendAesKey(userId)
+                                                            .flatMap(existingAesKey -> {
+
+                                                                String newJti = UUID.randomUUID().toString();
+
+                                                                @SuppressWarnings("unchecked")
+                                                                Map<String, Object> claimsMap = mapper.convertValue(userDto.getUser(), Map.class);
+                                                                claimsMap.put("jti", newJti);
+
+                                                                // Generate New JWE Tokens
+                                                                String newAccessToken = JweUtil.generateJwe(existingAesKey, userId, accessTokenTtl, claimsMap);
+
+                                                                Map<String, Object> refreshClaims = Map.of("type", "refresh", "jti", UUID.randomUUID().toString());
+                                                                String newRefreshToken = JweUtil.generateJwe(existingAesKey, userId, refreshTokenTtl, refreshClaims);
+
+                                                                response.addCookie(createRefreshTokenCookie(newRefreshToken));
+
+                                                                // THE FIX: Use .then(Mono.fromCallable(...)) instead of .map() for Mono<Void>
+                                                                return validator.registerUserSession(userId, newJti)
+                                                                        .then(Mono.fromCallable(() -> {
+                                                                            // Add the AES Key to the HTTP Response Headers
+                                                                            response.getHeaders().add("X-Payload-Key", existingAesKey);
+
+                                                                            // Build Response
+                                                                            return ApiResponse.success(
+                                                                                    LoginResponseDTO.builder()
+                                                                                            .accessToken(newAccessToken)
+                                                                                            .userId(userId)
+                                                                                            .jti(newJti)
+                                                                                            .expiresIn(accessTokenTtl)
+                                                                                            .validCredentials(true)
+                                                                                            .roleData(roleData)
+                                                                                            .userStatus(userDto.getUserStatus())
+                                                                                            .passwordLoginStatus(userDto.getPasswordLoginStatus())
+                                                                                            .sub(userId)
+                                                                                            .build(),
+                                                                                    "Token refreshed successfully"
+                                                                            );
+                                                                        }));
+                                                            }));
+                                        });
+                            });
+                });
+    }
 
 
 
-Contents
-Contents	5
-1	CR Details	8
-1.1	Description	8
-1.2	Scope of Changes	8
-1.3	Executive Summary	8
-2	Solution	9
-2.1	Technical Feasibility of the Proposed Solution	9
-2.2	Scope of changes	9
-2.2.1	Mobile/Email Check	9
-2.2.2	Code generation	9
-2.2.3	Code Input	9
-2.2.4	Code Sending	9
-2.2.5	Resending	9
-2.2.6	Wrong Attempts	9
-2.2.7	Code Expiry	9
-2.2.8	Verification	10
-2.2.9	OTP entry Screen time-out	10
-2.3	SMS draft	10
-2.4	User Messages	10
-3	Proposed Flow	12
-4	Existing Flow	13
-5	Assumptions	14
-6	Limitations	15
-7	Out of Scope	16
+    // =================================================================================================
+    // LOGOUT METHOD
+    // =================================================================================================
 
- 
+    /**
+     * LOGOUT ENDPOINT
+     * Handles:
+     * 1. Valid Tokens -> Standard Logout
+     * 2. Expired Tokens -> Manually extracts claims via JWE Decryption -> Cleans up Redis if JTI matches
+     * 3. Concurrent Logins -> Blacklists current token, but PRESERVES the active session in Redis
+     * 4. Missing/Malformed Tokens -> Clears cookies and returns success (Idempotent)
+     */
+    @PostMapping(value = "/logout", produces = MediaType.APPLICATION_JSON_VALUE)
+    public Mono<ResponseEntity<ApiResponse<LoginResponseDTO>>> logout(
+            JwtAuthenticationToken jwtAuth, ServerHttpRequest request, ServerHttpResponse response) {
 
+        // 1. Clearing the Refresh Token Cookie (Idempotent)
+        response.addCookie(createEmptyCookie());
+        String tokenString = null;
 
+        // Strategy A: Valid Context
+        if (jwtAuth != null && jwtAuth.getToken() != null) {
+            tokenString = jwtAuth.getToken().getTokenValue();
+        }
+        // Strategy B: Manual Header Extraction (Expired Tokens)
+        else {
+            String header = request.getHeaders().getFirst("Authorization");
+            if (header != null && header.startsWith("Bearer ")) {
+                tokenString = header.substring(7);
+            }
+        }
 
-Abbreviations	Expanded Form
-MFA	Multi Factor Authentication 
-OTP/Code	One Time Passcode
+        // 3. Fast Exit: If no token found anywhere, just return success so frontend can clear state
+        if (tokenString == null || tokenString.isBlank()) {
+            log.warn("Logout called without token. Cleaning up cookies only.");
+            return Mono.just(ResponseEntity.ok(
+                    ApiResponse.<LoginResponseDTO>success(
+                            LoginResponseDTO.builder().userId("anonymous").build(),
+                            "Logged out (No Token)"
+                    )
+            ));
+        }
 
+        final String finalToken = tokenString;
 
+        // 4. Processing Chain (JWE CHANGE: Use decryptTokenManually instead of JJWT extractClaims)
+        return decryptTokenManually(finalToken)
+                .subscribeOn(Schedulers.boundedElastic())
+                .flatMap(claims -> {
+                    String userId = claims.getSubject();
+                    // JWE CHANGE: Nimbus uses getJWTID() instead of getId()
+                    String incomingJti = claims.getJWTID();
 
+                    if (userId == null || incomingJti == null) {
+                        return Mono.just(ResponseEntity.ok(
+                                ApiResponse.<LoginResponseDTO>success(null, "Invalid Token Claims during logout")
+                        ));
+                    }
 
+                    log.info("Logout Processing for User: {} | JTI: {}", LoginUtility.sanitizeLog(userId), LoginUtility.sanitizeLog(incomingJti));
 
-
-
-1	CR Details
-1.1	Description
-Following feature is to be developed as part of Fincore Phase 3. Multifactor implementation
-1.2	Scope of Changes
-FinCore application to implement second factor authentication, by sending One Time Passcode (OTP) to users registered mobile number and/or email address.
-1.3	Executive Summary
-Login into FinCore application to be allowed using multiple authentications, by adding additional layer of OTP verification to strengthen account security, without breaking the current LDAP authentication mechanism.
-
-
-
-
-
-
-2	Solution
-2.1	Technical Feasibility of the Proposed Solution
-The solution proposed in this document is technically feasible subject to assumptions and limitations. 
-2.2	Scope of changes
-Currently on entering the valid User ID and password user is allowed to access the FinCore application. With this change upon submitting the valid credentials application will send the One Time Passcode. To implement the OTP verification in FinCore application following changes are in scope. 
-•	Mobile/Email Check
-•	Code generation
-•	Code sending
-•	Resending
-•	Wrong Attempts
-•	Expiry
-•	Verification
-OTP will be compulsory for every user trying to login in the FinCore application. The login screen shall undergo changes in order to accommodate this functionality.
-2.2.1	Mobile/Email Check
-Upon valid credentials entered by the user, application to check if mobile number and/or email address present in database. If neither is present code shall not be sent.
-2.2.2	Code generation
-Application to generate 6-digit random code when user id has either mobile number or email id. The code to be hashed using bcrypt before storing and not in plain text.
-2.2.3	Code Input
-After sending the code, the application shall display the input for 6-digit code and await user input for validation. Only numeric inputs to be allowed.
-2.2.4	Code Sending
-The code to be sent to both the registered mobile number and email id or whichever is present. Application shall show masked mobile and/or email to which code has been sent.
-2.2.5	Resending
-Application to enable resend button after 60 seconds. A maximum of 3 resends shall be allowed per user within a 10-minute window. Every resend to regenerate a new code and reset the attempt counter.
-2.2.6	Wrong Attempts
-Every generated code to have 5 attempts for verification. Upon entering a wrong code for 5 times, it will be marked as expired and user need to click on resend code button for receiving a new code.
-2.2.7	Code Expiry
-An OTP to be considered as Expired under either of the following conditions:
-1.	After 5 minutes from the time of its generation
-2.	5 consecutive failed verification attempts
-User can’t login with the expired code. 
-2.2.8	Verification
-Upon successful verification of the code user is allowed to use the application. The validated code to be immediately invalidated and deleted to ensure that it is for one-time use only.
-2.2.9	OTP entry Screen time-out
-In case the user remains idle on OTP entry screen for 15 minutes, the user will be prompted to enter user ID and password again.
-2.3	SMS draft
-From the following approved SMS text templates, serial number 3 to be used for sending OTP/code for login –
- 
-2.4	User Messages
-Application to show following messages to user.
-Message	Scenario
-Code cannot be sent: No valid mobile number or email address is mapped with User ID.	Neither mobile nor email present
-Please enter a valid 6-digit numeric code.	Input is not 6 digits / non-numeric
-The code is invalid or has expired. Please request a new code.	Code expired (> 5 min) or invalid
-Invalid code. {N} attempts remaining.	Wrong code, attempts < 5
-Too many incorrect attempts. The code has been expired. Please request a new code.	On 5th failed attempt
-Maximum resend limit reached. Kindly Wait.	3 resend in 10-min exceeded
-Code sent to ***1234 and a***o@sbi.co.in	Both mobile & email 
-Code sent to ***1234	Only mobile present
-Code sent to a***o@sbi.co.in	Only email present
-New Code sent to ***1234 and a***o@sbi.co.in	Resend both mobile & email
-New Code sent to ***1234	Resend Only mobile
-New Code sent to a***o@sbi.co.in	Resend Only email
-Please wait {N} seconds before requesting another code.	Resend clicked before 60-sec
-Unable to reach the SMS/email provider. Please try again after some time.	SMS/Email API returns error
-Your session has timed out. Please log in again.	OTP entry screen idle > 15 min
+                    // 5. Blacklist the Token (Always blacklist the incoming token)
+                    return validator.blacklistToken(incomingJti)
+                            .then(redisTemplate.opsForValue().get(USER_PREFIX + userId))
+                            .flatMap(activeJti -> {
+                                // 6. Conditional Redis Cleanup
+                                if (activeJti != null && activeJti.equals(incomingJti)) {
+                                    // SCENARIO: Normal Logout. The session in Redis belongs to THIS token.
+                                    log.info("Session MATCH. Deleting active session for user: {}", LoginUtility.sanitizeLog(userId));
+                                    return validator.clearUserSession(userId)
+                                            .then(redisTemplate.delete(AES_KEY_PREFIX + userId))
+                                            .then(Mono.just(ResponseEntity.ok(
+                                                    ApiResponse.<LoginResponseDTO>success(
+                                                            LoginResponseDTO.builder().userId(userId).error("Logged out").build(),
+                                                            "Logged out successfully"
+                                                    )
+                                            )));
+                                } else {
+                                    // SCENARIO: Concurrent Login.
+                                    log.warn("Session MISMATCH or ALREADY GONE. Active JTI: {}. Incoming JTI: {}. Preserving Redis Session.", LoginUtility.sanitizeLog(activeJti), LoginUtility.sanitizeLog(incomingJti));
+                                    return Mono.just(ResponseEntity.ok(
+                                            ApiResponse.<LoginResponseDTO>success(
+                                                    LoginResponseDTO.builder().userId(userId).error("Logged out (Concurrent Session Preserved)").build(),
+                                                    "Logged out (Concurrent Session Preserved)"
+                                            )
+                                    ));
+                                }
+                            })
+                            // If key is missing in Redis (Already timed out), return success
+                            .switchIfEmpty(Mono.just(ResponseEntity.ok(
+                                    ApiResponse.<LoginResponseDTO>success(
+                                            LoginResponseDTO.builder().userId(userId).error("Logged out (Session already expired)").build(),
+                                            "Logged out (Session already expired)"
+                                    )
+                            )));
+                })
+                .onErrorResume(e -> {
+                    log.error("Logout Unexpected Error: {}", e.getMessage());
+                    return Mono.just(ResponseEntity.ok(
+                            ApiResponse.<LoginResponseDTO>success(null, "Logged out (System Error handled or Token already expired)")
+                    ));
+                });
+    }
 
 
+    // =================================================================================================
+    // UPDATE-PASSWORD, VERIFY-OTP, RESEND-OTP
+    // =================================================================================================
 
-3	Proposed Flow
-The in addition to LDAP authentication, OTP verification to be added.
-  
+    @PostMapping(value = "/update-password")
+    public Mono<ApiResponse<UpdatePasswordDTO>> updatePassword(@RequestBody @Valid UpdatePasswordDTO dto) {
+        return Mono.fromCallable(() -> loginService.updatePassword(dto))
+                .subscribeOn(Schedulers.boundedElastic())
+                .map(result -> ApiResponse.success(result, result.getMessage()));
+    }
+
+    @PostMapping(value = "/verify-otp", produces = MediaType.APPLICATION_JSON_VALUE)
+    public Mono<ResponseEntity<ApiResponse<?>>> verifyOtp(
+            @RequestBody @Valid VerifyOtpRequestDTO requestDto, ServerHttpResponse response) {
+        log.info("OTP Verification for TxId: {}", LoginUtility.sanitizeLog(requestDto.getTransactionId()));
+
+        return loginService.verifyOtpAndGetUser(requestDto)
+                .flatMap(userDto -> generateSessionAndTokens(userDto, response));
+    }
+
+    @PostMapping(value = "/resend-otp", produces = MediaType.APPLICATION_JSON_VALUE)
+    public Mono<ResponseEntity<ApiResponse<OtpResendResponseDTO>>> resendOtp(
+            @RequestBody @Valid ResendOtpRequestDTO requestDto, ServerHttpRequest request) {
+
+        log.info("OTP Resend for TxId: {}", LoginUtility.sanitizeLog(requestDto.getTransactionId()));
+
+        return loginService.resendOtp(requestDto, LoginUtility.getClientIp(request))
+                .map(responseDto -> ResponseEntity.status(HttpStatus.ACCEPTED)
+                        .body(ApiResponse.success(responseDto, "A new OTP has been dispatched.")));
+    }
+
+    // =========================================================================================================
+    //                                          GENERATE SESSION METHOD
+    // =========================================================================================================
+
+    /**
+     * Generate Session and Tokens after successful logic pass for both /login and /verify-otp
+     */
+    private Mono<ResponseEntity<ApiResponse<?>>> generateSessionAndTokens(UserDto user, ServerHttpResponse response) {
+        log.info("Generating JWE Tokens for user {}.", LoginUtility.sanitizeLog(user.getUserId()));
+
+        // JWE CHANGE: Because JWE needs the encryption key first, we generate/fetch it before token creation.
+        return generateAndStoreAesKey(user.getUserId())
+                .flatMap(aesKey -> Mono.defer(() -> Mono.fromCallable(() -> loginService.fetchRoleWiseData(user.getUserId())))
+                        .subscribeOn(Schedulers.boundedElastic())
+                        .flatMap(roleData -> {
+
+                            // JWE CHANGE: Explicitly generate JTI and put it in claims (can't read it after encryption)
+                            String jti = UUID.randomUUID().toString();
+
+                            @SuppressWarnings("unchecked")
+                            Map<String, Object> claimsMap = mapper.convertValue(user.getUser(), Map.class);
+                            claimsMap.put("jti", jti);
+
+                            // Generate JWE strings
+                            String accessToken = JweUtil.generateJwe(aesKey, user.getUserId(), accessTokenTtl, claimsMap);
+
+                            log.info("=== JWE ENCRYPTION DIAGNOSTICS ===");
+                            log.info("User ID: {}", user.getUserId());
+                            log.info("Exact AES Key Used: [{}]", aesKey); // Brackets help spot trailing spaces
+                            log.info("Exact Token Gen'd : [{}]", accessToken);
+
+                            Map<String, Object> refreshClaims = Map.of("type", "refresh", "jti", UUID.randomUUID().toString());
+                            String refreshToken = JweUtil.generateJwe(aesKey, user.getUserId(), refreshTokenTtl, refreshClaims);
+
+                            response.addCookie(createRefreshTokenCookie(refreshToken));
+
+                            // Register JWT Session
+                            return validator.registerUserSession(user.getUserId(), jti)
+                                    .thenReturn(ResponseEntity.ok()
+                                            .header("X-Payload-Key", aesKey)
+                                            .body(ApiResponse.success(
+                                                    LoginResponseDTO.builder()
+                                                            .userId(user.getUserId())
+                                                            .validCredentials(true)
+                                                            .accessToken(accessToken)
+                                                            .tokenType("Bearer")
+                                                            .expiresIn(accessTokenTtl)
+                                                            .sub(user.getUserId())
+                                                            .jti(jti)
+                                                            .roleData(roleData)
+                                                            .userStatus(user.getUserStatus())
+                                                            .passwordLoginStatus(user.getPasswordLoginStatus())
+                                                            .attemptsLeft(null)
+                                                            .build(),
+                                                    "Login successful"
+                                            )));
+                        }));
+    }
 
 
-5	Assumptions
-•	Bank to arrange for SMS and Mail service integration for sending OTP.
-•	APIs related to SMS and Email should be reachable and working. 
+    // =========================================================================================================
+    //                                              HELPERS
+    // =========================================================================================================
+
+    private String sanitizeIp(String rawIp) {
+        if (rawIp == null) return "";
+        String ip = rawIp;
+        if (ip.startsWith("/")) ip = ip.substring(1);
+        int colonIndex = ip.indexOf(':');
+        if (colonIndex != -1) ip = ip.substring(0, colonIndex);
+        return ip;
+    }
+
+    private boolean isIpBlocked(String rawClientIp) {
+        if (blockedIpsConfig == null || blockedIpsConfig.trim().isEmpty()) return false;
+        String cleanIp = sanitizeIp(rawClientIp);
+        List<String> blockedIps = Arrays.asList(blockedIpsConfig.split("\\s*,\\s*"));
+        boolean blocked = blockedIps.contains(cleanIp);
+        if (blocked) {
+            log.warn("Blocked IP Match Found: Raw='{}' -> Clean='{}'", LoginUtility.sanitizeLog(rawClientIp), LoginUtility.sanitizeLog(cleanIp));
+        }
+        return blocked;
+    }
+
+    /**
+     * Creates a secure HttpOnly cookie for the refresh token.
+     * Prevents XSS attacks as JavaScript cannot read this cookie.
+     * <p>
+     * CONFIG NOTE:
+     * - secure(false): Allows HTTP (Localhost). Set to true in PROD with HTTPS.
+     * - sameSite("Lax"): Allows cross-origin navigation in Localhost dev.
+     * - path("/"): Ensures cookie is sent to all auth endpoints.
+     */
+    private ResponseCookie createRefreshTokenCookie(String token) {
+        return ResponseCookie.from("refresh_token", token)
+                .httpOnly(true)
+                .secure(true) // Set to true in PROD
+                .path("/")
+                .maxAge(Duration.ofSeconds(refreshTokenTtl))
+                .sameSite("Strict")
+                .build();
+    }
+
+    /**
+     * Creates an empty cookie to clear the refresh token on logout.
+     */
+    private ResponseCookie createEmptyCookie() {
+        return ResponseCookie.from("refresh_token", "")
+                .httpOnly(true)
+                .secure(true) // Set to true in PROD
+                .path("/")
+                .maxAge(0)
+                .sameSite("Strict")
+                .build();
+    }
+
+    /**
+     * Helper to generate a new AES key if one doesn't exist.
+     */
+    private String generateNewAesKey() {
+        return aesUtil.generateBase64SessionKey();
+    }
 
 
-6	Limitations
-•	FinCore will send the code using email and SMS, but can’t guarantee the delivery of the same.
-•	In case any connectivity issue/downtime of LDAP, SMS, Email services, user can’t login into FinCore application. 
+    /**
+     * Generates a new AES key and saves it to Redis. Used during Initial Login.
+     * UPDATED: Added defensive trimming and deep Redis write telemetry.
+     */
+    private Mono<String> generateAndStoreAesKey(String userId) {
+        // Defensive trimming to prevent invisible whitespace from breaking Redis lookups
+        final String cleanUserId = userId != null ? userId.trim() : "";
+        final String redisKey = AES_KEY_PREFIX + cleanUserId;
+
+        return Mono.fromCallable(this::generateNewAesKey)
+                .flatMap(aesKey -> {
+                    log.info("Attempting to write AES key to Redis. Key: '{}', TTL: {} seconds",
+                            LoginUtility.sanitizeLog(redisKey), refreshTokenTtl);
+
+                    return redisTemplate.opsForValue()
+                            .set(redisKey, aesKey, Duration.ofSeconds(refreshTokenTtl))
+                            .doOnSuccess(success -> {
+                                if (Boolean.TRUE.equals(success)) {
+                                    log.info("SUCCESS: AES Key definitively written to Redis for User: {}", LoginUtility.sanitizeLog(cleanUserId));
+                                } else {
+                                    // If Redis returns false, the write was rejected (often due to TTL issues or cluster routing)
+                                    log.warn("WARNING: Redis returned FALSE. The AES key was NOT saved for User: {}", LoginUtility.sanitizeLog(cleanUserId));
+                                }
+                            })
+                            .doOnError(error -> log.error("CRITICAL ERROR writing AES key to Redis: {}", error.getMessage(), error))
+                            .thenReturn(aesKey);
+                });
+    }
+
+    /**
+     * Fetches the existing AES key, heals it if missing, and extends the TTL. Used during Refresh.
+     * UPDATED: Added defensive trimming.
+     */
+    private Mono<String> fetchAndExtendAesKey(String userId) {
+        final String cleanUserId = userId != null ? userId.trim() : "";
+        final String redisKey = AES_KEY_PREFIX + cleanUserId;
+
+        return redisTemplate.opsForValue().get(redisKey)
+                .switchIfEmpty(Mono.defer(() -> {
+                    log.warn("AES key missing/evicted for user {} during refresh. Generating new fallback key.", LoginUtility.sanitizeLog(cleanUserId));
+                    return Mono.just(generateNewAesKey());
+                }))
+                .flatMap(aesKey ->
+                        redisTemplate.opsForValue()
+                                .set(redisKey, aesKey, Duration.ofSeconds(refreshTokenTtl))
+                                .thenReturn(aesKey)
+                );
+    }
+
+    /**
+     * Helper method to manually decrypt a JWE token.
+     * Used for endpoints outside the standard Spring Security filter chain (Refresh/Logout).
+     */
+    private Mono<JWTClaimsSet> decryptTokenManually(String jweToken) {
+        return Mono.fromCallable(() -> {
+            try {
+                return EncryptedJWT.parse(jweToken);
+            } catch (ParseException e) {
+                throw new BadJwtException("Invalid token format");
+            }
+        }).flatMap(encryptedJWT -> {
+            String userId = encryptedJWT.getHeader().getKeyID();
+            if (userId == null) {
+                return Mono.error(new BadJwtException("Missing kid header"));
+            }
+
+            return redisTemplate.opsForValue().get(AES_KEY_PREFIX + userId)
+                    .switchIfEmpty(Mono.error(new BadJwtException("Session expired or AES key missing")))
+                    .map(aesKey -> JweUtil.decryptJwe(jweToken, aesKey));
+        });
+    }
+
+}
+
+
+
+
+
+
+
+
+package com.fincore.gateway.dto;
+
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
+/**
+ * Payload returned to the frontend when LDAP succeeds and OTP is sent.
+ * Contains NO sensitive data, only masked hints and the transaction ID.
+ */
+@Data
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
+public class OtpInitiatedResponseDTO {
+    private String transactionId;
+    private String maskedMobile;
+    private String maskedEmail;
+    private int expiresInSeconds;
+    private int resendCooldownSeconds;
+    private int resendsRemaining;
+}
+
+
+
+
+
+
+
+
+
+
+
+package com.fincore.gateway.dto;
+
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
+@Data
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
+public class OtpResendResponseDTO {
+    private int resendCooldownSeconds;
+    private int resendsRemaining;
+}
+
+
+
+
+
+
+
+
+package com.fincore.gateway.dto;
+
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Pattern;
+import lombok.Data;
+
+@Data
+public class VerifyOtpRequestDTO {
+
+    @NotBlank(message = "Transaction ID is required")
+    private String transactionId;
+
+    @NotBlank(message = "OTP is required")
+    @Pattern(regexp = "^\\d{6}$", message = "OTP must be exactly 6 digits")
+    private String otp;
+}
+
+
+
+package com.fincore.gateway.dto;
+
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
+/**
+ * DTO used during user verification process.
+ *
+ * Contains essential details about the user’s login state,
+ * role validation, and password update requirements.
+ */
+@Data
+@AllArgsConstructor
+@NoArgsConstructor
+@Builder
+public class VerifyUserDTO {
+
+    /** Unique ID of the user being verified. */
+    private String userId;
+
+    /** Message conveying status or feedback from verification. */
+    private String message;
+
+    /** Login method used (P - Password, O - OTP, etc.). */
+    private char loginMethod;
+
+    /** Current status of the user account. */
+    private String userStatus;
+
+    /** Current status of the user's role (ACTIVE / INACTIVE). */
+    private String roleStatus;
+
+    /** Indicates if user needs to update their password. */
+    private boolean updatePassword;
+
+    /** Whether the user exists and passes basic checks. */
+    private boolean userCheck;
+
+    /** Status of password login attempt. */
+    private String passwordLoginStatus;
+
+    /**
+     * Public key to encrypt payload
+     */
+    private String publicKey;
+}
+
+
+
+
+
+
+
+
+
+package com.fincore.gateway.dto;
+
+import jakarta.validation.constraints.NotBlank;
+import lombok.Data;
+
+@Data
+public class ResendOtpRequestDTO {
+
+    @NotBlank(message = "Transaction ID is required")
+    private String transactionId;
+}
+
+
+
+
+package com.fincore.gateway.dto;
+
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
+/**
+ * DTO used during user verification process.
+ *
+ * Contains essential details about the user’s login state,
+ * role validation, and password update requirements.
+ */
+@Data
+@AllArgsConstructor
+@NoArgsConstructor
+@Builder
+public class VerifyUserDTO {
+
+    /** Unique ID of the user being verified. */
+    private String userId;
+
+    /** Message conveying status or feedback from verification. */
+    private String message;
+
+    /** Login method used (P - Password, O - OTP, etc.). */
+    private char loginMethod;
+
+    /** Current status of the user account. */
+    private String userStatus;
+
+    /** Current status of the user's role (ACTIVE / INACTIVE). */
+    private String roleStatus;
+
+    /** Indicates if user needs to update their password. */
+    private boolean updatePassword;
+
+    /** Whether the user exists and passes basic checks. */
+    private boolean userCheck;
+
+    /** Status of password login attempt. */
+    private String passwordLoginStatus;
+
+    /**
+     * Public key to encrypt payload
+     */
+    private String publicKey;
+}
+
+
+
+
+
+package com.fincore.gateway.dto;
+
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
+/**
+ * DTO that carries minimal user data embedded inside a token.
+ *
+ * This object is typically serialized within access or refresh tokens
+ * to represent the authenticated user's identity and basic profile info.
+ */
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+public class UserTokenDataDto {
+
+    /** Unique identifier of the user. */
+    private String userId;
+
+    /** Numeric role ID assigned to the user. */
+    private Integer role;
+
+    /** Name of the role (e.g. ADMIN, MANAGER, USER). */
+    private String roleName;
+
+    /** First name of the user. */
+    private String firstName;
+
+    /** Middle name, if provided. */
+    private String middleName;
+
+    /** Last name of the user. */
+    private String lastName;
+
+    /** Contact number registered with the user. */
+    private String phoneNumber;
+
+    /** Email address associated with the user account. */
+    private String email;
+
+    /** Branch or office code where the user is mapped. */
+    private int branch;
+
+    // All branch related information added => Modified by v1015698
+    /** Branch code (BRANCH_MASTER.CODE). */
+    private String branchCode;
+
+    /** Branch name (BRANCH_MASTER.NAME). */
+    private String branchName;
+
+    /** Branch status flag (BRANCH_MASTER.STATUS). */
+    private Integer branchStatus;
+
+    /** City (BRANCH_MASTER.CITY). */
+    private String city;
+
+    /** Address (BRANCH_MASTER.ADDRESS). */
+    private String address;
+
+    /** Pincode (BRANCH_MASTER.PINCODE). */
+    private String pincode;
+
+    /** NMR code (BRANCH_MASTER.NMR_CODE). */
+    private String nmrCode;
+
+    /** Branch type (BRANCH_MASTER.BRANCH_TYPE). */
+    private String branchType;
+
+    /** Circle code (CIRCLE_MASTER.CIRCLE_CODE). */
+    private String circleCode;
+
+    /** Circle name (CIRCLE_MASTER.CIRCLE_NAME). */
+    private String circleName;
+
+    /** State name (STATE_MASTER.NAME). */
+    private String stateName;
+
+    /** State code (STATE_MASTER.STATE_CODE). */
+    private String stateCode;
+
+    /** Zone code (CIRCLE_MASTER.ZONE_CODE). */
+    private String zoneCode;
+
+    /** Zone description/name (ZONE_MASTER.ZONE_DESC). */
+    private String zoneName;
+
+    /** Circle branch code (CIRCLE_MASTER.BRANCH_CODE). */
+    private String circleBranch;
+
+    /** Flag indicating if the user's mapped branch is the Circle HQ. */
+    private Boolean isCircle;
+
+    // ########## Branch Information Ends ##########
+
+
+    /** Flag that specifies the access level granted to this role. */
+    private String roleDescription;
+
+    /** Flag that specifies the access level granted to this role. */
+    private String roleAccess;
+
+    /** Flag that specifies the access level granted to this role. */
+    private String accessName;
+
+    /** Flag that specifies the access level granted to this role. */
+    private String accessDescription;
+
+    // ########## Branch Information Ends ##########
+
+}
+
+
+
+
+
+package com.fincore.gateway.dto;
+
+public interface UserLoginDTO {
+    /***
+     * Marker interface for DTOs involved in user login or authentication flows.
+     * This allows for type grouping and cleaner handling in service or controller
+     * layers.
+     */
+
+}
+
+
+
+
+package com.fincore.gateway.dto;
+
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.annotation.JsonProperty;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
+import java.sql.Timestamp;
+
+/**
+ * DTO that represents user details along with login and token info.
+ *
+ * Used across authentication and profile flows for passing
+ * consolidated user information between layers.
+ */
+@Data
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
+@JsonIgnoreProperties(ignoreUnknown = true)
+public class UserDto implements UserLoginDTO {
+
+    /** Unique identifier for the user. */
+    private String userId;
+
+    /** Role ID or level assigned to the user. */
+    private int userRole;
+
+    /** First name of the user. */
+    private String firstName;
+
+    /** Middle name of the user, if provided. */
+    private String middleName;
+
+    /** Last name of the user. */
+    private String lastName;
+
+    /** Registered phone number. */
+    private String phoneNumber;
+
+    /** User's email address. */
+    private String email;
+
+    /** Stored password hash for authentication. */
+    @JsonProperty(access = JsonProperty.Access.WRITE_ONLY)
+    private String passwordHash;
+
+    /** Plain password (usually used temporarily during validation). */
+    @JsonProperty(access = JsonProperty.Access.WRITE_ONLY)
+    private String password;
+
+    /** Current role status (ACTIVE / INACTIVE). */
+    private String roleStatus;
+
+    /** Timestamp when the account was created. */
+    private Timestamp createdAt;
+
+    /** Timestamp when the user record was last updated. */
+    private Timestamp updatedAt;
+
+    /** Timestamp of the user’s last successful login. */
+    private Timestamp lastLoginAt;
+
+    /** Soft delete flag (Y/N). */
+    private String isDeleted;
+
+    /** Timestamp when the user was deleted (if applicable). */
+    private Timestamp deletedAt;
+
+    /** Time when a temporary password was last set. */
+    private Timestamp tempPasswordSetAt;
+
+    /** Number of failed password attempts. */
+    private int userWrongPasswordCount;
+
+    /** Branch or location code associated with the user. */
+    private int branch;
+
+    /** Optional status message returned from operations. */
+    private String message;
+
+    /** Login method used (P - Password, O - OTP, etc.). */
+    private char loginMethod;
+
+    /** Current status of the user account. */
+    private String userStatus;
+
+    /** Access token issued after login. */
+    private String accessToken;
+
+    /** Refresh token for renewing session without re-login. */
+    private String refreshToken;
+
+    /** Flag indicating if the password needs to be updated. */
+    private boolean updatePassword;
+
+    /** Whether the user exists and is valid in system. */
+    private boolean userCheck;
+
+    /** Remaining attempts before account lockout. */
+    private int attemptsLeft;
+
+    /** True if credentials are valid during authentication. */
+    private boolean validCredentials;
+
+    /** Status of password login attempt. */
+    private String passwordLoginStatus;
+
+    /** Token-related data, if available. */
+    private UserTokenDataDto user;
+
+    /**
+     * Flag indicating if the user must complete OTP verification
+     */
+    private boolean otpRequired;
+
+    /**
+     * Check if account is locked or not
+     */
+    private boolean accountLocked;
+}
+
+
+
+
+
+
+
+
+package com.fincore.gateway.dto;
+
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
+/**
+ * Data Transfer Object (DTO) used to carry the response data after a successful or failed login attempt.
+ * It implements the {@link UserLoginDTO} interface and provides comprehensive details about the
+ * authenticated user, generated tokens, and login status.
+ *
+ * <p>
+ * Uses Lombok annotations for boilerplate code reduction:
+ * <ul>
+ *     <li>{@code @Data} generates getters, setters, equals, hashCode, and toString methods.</li>
+ *     <li>{@code @Builder} provides a fluent API for creating instances of this DTO.</li>
+ * </ul>
+ * </p>
+ */
+@Data
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
+public class LoginResponseDTO implements UserLoginDTO {
+
+    /**
+     * The unique identifier of the authenticated user.
+     */
+    private String userId;
+
+    /**
+     * The generated JWT access token used for subsequent authorized requests.
+     */
+    private String accessToken;
+
+    /**
+     * The type of the token, typically "Bearer".
+     */
+    private String tokenType;
+
+    /**
+     * The time until the access token expires, in seconds.
+     */
+    private long expiresIn;
+
+    /**
+     * The subject of the JWT (usually the user ID or username).
+     */
+    private String sub;
+
+    /**
+     * The unique JWT ID (JTI) for session tracking.
+     */
+    private String jti;
+
+    /**
+     * A structured object containing the menu and permissions data associated with the user's role.
+     */
+    private MenuResponse roleData;
+
+    /**
+     * An error message provided in case of a login failure (e.g., bad credentials, locked account).
+     */
+    private String error;
+
+    /**
+     * A flag indicating whether the provided credentials were fundamentally valid.
+     */
+    private boolean validCredentials;
+
+    /**
+     * The current status of the user account (e.g., ACTIVE, INACTIVE, LOCKED).
+     */
+    private String userStatus;
+
+    /**
+     * The status specific to the password validation result (e.g., SUCCESS, EXPIRED, TEMP_PASSWORD).
+     */
+    private String passwordLoginStatus;
+
+    /**
+     * Re-generated token for continue session valid for 12 hours
+     */
+    private String refreshToken;
+
+    /**
+     * Invalid password attempt count
+     */
+    private Integer attemptsLeft;
+
+    /**
+     * User profile details extracted directly for frontend convenience.
+     */
+    private UserTokenDataDto userData;
+}
+
+
+
+
+
+package com.fincore.gateway.dto;
+
+import com.fasterxml.jackson.annotation.JsonInclude;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
+import java.time.LocalDateTime;
+
+@Data
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
+@JsonInclude(JsonInclude.Include.NON_NULL)
+public class ApiResponse<T> {
+
+    @Builder.Default
+    private boolean success = true;
+
+    private String message;
+
+    private T data;
+
+    private String errorCode;
+
+    @Builder.Default
+    private LocalDateTime timestamp = LocalDateTime.now();
+
+    // --- Static Factories ---
+
+    public static <T> ApiResponse<T> success(T data, String message) {
+        return ApiResponse.<T>builder()
+                .success(true)
+                .data(data)
+                .message(message)
+                .build();
+    }
+
+    public static <T> ApiResponse<T> success(T data) {
+        return success(data, "Operation successful");
+    }
+
+    public static <T> ApiResponse<T> error(String message, String errorCode) {
+        return ApiResponse.<T>builder()
+                .success(false)
+                .message(message)
+                .errorCode(errorCode)
+                .build();
+    }
+
+}
+
+
+
+
+
+
+
 
 
 
