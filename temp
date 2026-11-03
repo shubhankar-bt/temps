@@ -2282,3 +2282,76 @@ public class TokenSessionValidator {
 
 
 
+package com.fincore.gateway.exception;
+
+import com.fincore.gateway.dto.ApiResponse;
+import io.jsonwebtoken.ExpiredJwtException;
+import io.jsonwebtoken.JwtException;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.ExceptionHandler;
+import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.bind.support.WebExchangeBindException;
+import org.springframework.web.server.ResponseStatusException;
+
+@Slf4j
+@RestControllerAdvice
+public class GlobalExceptionHandler {
+
+    @ExceptionHandler(ResponseStatusException.class)
+    public ResponseEntity<ApiResponse<Void>> handleResponseStatusException(ResponseStatusException ex) {
+        log.warn("Auth Status Error: {} - {}", ex.getStatusCode(), ex.getReason());
+        String errorCode = mapStatusToCode(ex.getStatusCode().value());
+        return ResponseEntity.status(ex.getStatusCode())
+                .body(ApiResponse.error(ex.getReason(), errorCode));
+    }
+
+    @ExceptionHandler(ExpiredJwtException.class)
+    public ResponseEntity<ApiResponse<Void>> handleExpiredJwt(ExpiredJwtException ex) {
+        log.warn("Token Expired: {}", ex.getMessage());
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                .body(ApiResponse.error("Token has expired", "TOKEN_EXPIRED"));
+    }
+
+    @ExceptionHandler(JwtException.class)
+    public ResponseEntity<ApiResponse<Void>> handleJwtException(JwtException ex) {
+        log.error("JWT Error: {}", ex.getMessage());
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                .body(ApiResponse.error("Invalid token", "INVALID_TOKEN"));
+    }
+
+    @ExceptionHandler(SecurityException.class)
+    public ResponseEntity<ApiResponse<Void>> handleSecurityException(SecurityException ex) {
+        log.warn("Security Violation: {}", ex.getMessage());
+        return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                .body(ApiResponse.error(ex.getMessage(), "ACCESS_DENIED"));
+    }
+
+    @ExceptionHandler(WebExchangeBindException.class)
+    public ResponseEntity<ApiResponse<Void>> handleValidationException(WebExchangeBindException ex) {
+        String errorMsg = ex.getBindingResult().getAllErrors().get(0).getDefaultMessage();
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(ApiResponse.error(errorMsg, "VALIDATION_ERROR"));
+    }
+
+    @ExceptionHandler(Exception.class)
+    public ResponseEntity<ApiResponse<Void>> handleGenericException(Exception ex) {
+        log.error("System Error", ex);
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(ApiResponse.error("Internal System Error", "SYSTEM_ERROR"));
+    }
+
+    private String mapStatusToCode(int status) {
+        return switch (status) {
+            case 401 -> "UNAUTHORIZED";
+            case 403 -> "FORBIDDEN";
+            case 400 -> "BAD_REQUEST";
+            case 404 -> "NOT_FOUND";
+            default -> "ERROR";
+        };
+    }
+}
+
+
+
