@@ -1254,4 +1254,1031 @@ public class ApiResponse<T> {
 
 
 
+package com.fincore.gateway.Service;
+
+import com.fincore.gateway.utility.LoginUtility;
+import tools.jackson.databind.ObjectMapper;
+import com.fincore.commonutilities.util.AesEncryptionUtil;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.kafka.core.KafkaTemplate;
+import org.springframework.stereotype.Service;
+import reactor.core.publisher.Mono;
+
+import java.time.Instant;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
+
+/**
+ * Publishes encrypted PII payloads to Kafka.
+ * * INTERNAL AES KEY INSTRUCTION:
+ * The `security.internal.kafka-aes-key` property is a static, shared secret between
+ * the Fincore Gateway and the Communication Service.
+ * Generate this once using `AesEncryptionUtil.generateBase64SessionKey()` and store
+ * it in your application-dev/uat/prod.properties.
+ * Example: security.internal.kafka-aes-key=bWV0a...
+ */
+@Slf4j
+@Service
+@RequiredArgsConstructor
+public class OtpKafkaProducer {
+
+    private final KafkaTemplate<String, String> kafkaTemplate;
+    private final ObjectMapper mapper;
+    private final AesEncryptionUtil aesUtil;
+
+    @Value("${security.internal.kafka-aes-key}")
+    private String internalAesKey;
+
+    @Value("${spring.profiles.active:dev}")
+    private String currentEnvironment;
+
+    public Mono<Void> publishOtpEvent(String txId, String mobile, String email, String plainOtp, String userName, List<String> activeChannels) {
+        return Mono.fromCallable(() -> {
+                    /*
+                     * ====================================================================
+                     * ZERO-TRUST KAFKA PAYLOAD ARCHITECTURE
+                     * ====================================================================
+                     */
+
+                    // 1. Build the sensitive inner payload
+                    Map<String, Object> innerPayload = Map.of(
+                            "otpPlaintext", plainOtp,
+                            "expiryMins", 3,
+                            "userName", userName != null ? userName : "User"
+                    );
+                    String innerJson = mapper.writeValueAsString(innerPayload);
+
+                    // 2. Encrypt the inner payload (Zero-Trust on Broker)
+                    String encryptedPayload = aesUtil.encrypt(innerJson, internalAesKey);
+
+                    // 3. Build the outer routable event
+                    Map<String, Object> event = Map.of(
+                            "eventId", "evt-" + UUID.randomUUID().toString(),
+                            "txId", txId,
+                            "eventType", "LOGIN_OTP",
+                            "channel", activeChannels,
+                            "priority", "CRITICAL",
+                            "templateId", "AUTH_LOGIN_OTP_V1",
+                            "recipient", Map.of(
+                                    "mobile", mobile != null ? mobile : "",
+                                    "email", email != null ? email : ""
+                            ),
+                            "payload", encryptedPayload,
+                            "createdAt", Instant.now().toString()
+                    );
+
+                    return mapper.writeValueAsString(event);
+
+                }).flatMap(jsonString -> {
+                    // Wraps standard KafkaTemplate into a non-blocking Mono
+                    return Mono.fromFuture(
+                            kafkaTemplate.send("fincore.auth.otp.priority", txId, jsonString)
+                    );
+                }).doOnSuccess(result -> log.info("Encrypted OTP event published to Kafka for txId={}", LoginUtility.sanitizeLog(txId)))
+                .then();
+    }
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+package com.fincore.gateway.Service;
+
+import com.fincore.gateway.utility.LoginUtility;
+import tools.jackson.core.JacksonException;
+import tools.jackson.core.type.TypeReference;
+import tools.jackson.databind.ObjectMapper;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.redis.core.ReactiveStringRedisTemplate;
+import org.springframework.http.HttpStatus;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.stereotype.Service;
+import org.springframework.web.server.ResponseStatusException;
+import reactor.core.publisher.Mono;
+import reactor.util.function.Tuple2;
+import reactor.util.function.Tuples;
+
+import java.time.Duration;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+
+/**
+ * ============================================================================
+ * OTP LIFECYCLE & REDIS STATE ENGINE PLAN
+ * ============================================================================
+ * OTP Validity               : 5 min
+ * Max Wrong Attempts         : 5
+ * Resend Cooldown            : 30 sec
+ * Max Resend Count           : 5
+ * Lock Type                  : OTP Session Lock (NOT AD/LDAP Account Lock)
+ * OTP Regeneration           : New OTP every resend
+ * Previous OTP Valid         : No (Overwritten in Redis)
+ * Rate Limit Scope           : IP Address (To prevent SMS Toll Fraud)
+ * <p>
+ * REDIS KEYS PER TRANSACTION (txId):
+ * 1. OTP_TX:{txId}       -> { "userId": "...", "otpHash": "..." } (TTL: 5m)
+ * 2. OTP_FAILURES:{txId} -> Integer count (TTL: 5m)
+ * 3. OTP_RESENDS:{txId}  -> Integer count (TTL: 5m)
+ * 4. OTP_COOLDOWN:{txId} -> "locked" (TTL: 30s)
+ * 5. RATE_LIMIT:OTP_REQ:IP:{ip} -> Integer count (TTL: 1h)
+ * ============================================================================
+ */
+@Slf4j
+@Service
+@RequiredArgsConstructor
+public class OtpSessionService {
+
+    private static final Duration OTP_VALIDITY = Duration.ofMinutes(5);
+    private static final Duration COOLDOWN = Duration.ofSeconds(30);
+    private static final int MAX_RESENDS = 5;
+    private static final int MAX_FAILURES = 5;
+    private static final int MAX_HOURLY_IP_REQUESTS = 50;
+    private final ReactiveStringRedisTemplate redis;
+    private final PasswordEncoder passwordEncoder;
+    private final ObjectMapper mapper;
+
+    /**
+     * Rate limits OTP requests by IP to prevent API abuse and SMS Toll Fraud.
+     */
+    public Mono<Void> checkIpRateLimit(String clientIp) {
+        String key = "RATE_LIMIT:OTP_REQ:IP:" + clientIp;
+        return redis.opsForValue().increment(key)
+                .flatMap(count -> {
+                    if (count == 1) {
+                        return redis.expire(key, Duration.ofHours(1)).then();
+                    } else if (count > MAX_HOURLY_IP_REQUESTS) {
+                        log.warn("SECURITY ALERT: IP {} exceeded hourly OTP limit.", LoginUtility.sanitizeLog(clientIp));
+                        return Mono.error(new ResponseStatusException(HttpStatus.TOO_MANY_REQUESTS, "Rate limit exceeded. Try again later."));
+                    }
+                    return Mono.empty();
+                });
+    }
+
+    /**
+     * Initializes or Updates the OTP state in Redis atomically.
+     */
+    public Mono<Void> saveOtpState(String txId, String userId, String plainOtp, boolean isResend) {
+        String hash = passwordEncoder.encode(plainOtp);
+
+        try {
+            String payload = mapper.writeValueAsString(Map.of("userId", userId, "otpHash", hash));
+            List<Mono<?>> operations = new ArrayList<>();
+
+            // 1. Core Transaction (Overwrites old OTP if resend)
+            operations.add(redis.opsForValue().set("OTP_TX:" + txId, payload, OTP_VALIDITY));
+            // 2. Always reset failures on a fresh OTP dispatch
+            operations.add(redis.opsForValue().set("OTP_FAILURES:" + txId, "0", OTP_VALIDITY));
+
+            if (!isResend) {
+                // First generation: Initialize resend counter
+                operations.add(redis.opsForValue().set("OTP_RESENDS:" + txId, "0", OTP_VALIDITY));
+                // Lock the cooldown on the very first OTP dispatch
+                operations.add(redis.opsForValue().set("OTP_COOLDOWN:" + txId, "locked", COOLDOWN));
+            } else {
+                // Resend: Extend the TTL of the resend counter so it survives the 5 min window refresh
+                operations.add(redis.expire("OTP_RESENDS:" + txId, OTP_VALIDITY));
+            }
+
+            return Mono.when(operations)
+                    .doOnSuccess(v -> log.info("Saved OTP State txId={} for user={} isResend={}",
+                            LoginUtility.sanitizeLog(txId), LoginUtility.sanitizeLog(userId), isResend));
+
+        } catch (JacksonException e) {
+            return Mono.error(new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Failed to process internal OTP payload"));
+        }
+    }
+
+    /**
+     * Safely executes an OTP Resend, enforcing cooldowns and max limits.
+     * Returns Tuple of (NewPlainOtp, UserId).
+     */
+    public Mono<reactor.util.function.Tuple3<String, String, Long>> processResend(String txId, String newPlainOtp) {
+        String cooldownKey = "OTP_COOLDOWN:" + txId;
+        String resendKey = "OTP_RESENDS:" + txId;
+
+        // 1. Atomic Cooldown Lock (SETNX)
+        return redis.opsForValue().setIfAbsent(cooldownKey, "locked", COOLDOWN)
+                .flatMap(acquired -> {
+                    if (!Boolean.TRUE.equals(acquired)) {
+                        return redis.getExpire(cooldownKey)
+                                .flatMap(ttl -> Mono.error(new ResponseStatusException(
+                                        HttpStatus.TOO_MANY_REQUESTS,
+                                        "Please wait " + ttl.getSeconds() + " seconds before requesting another OTP."
+                                )));
+                    }
+
+                    // 2. Atomic Increment Resends
+                    return redis.opsForValue().increment(resendKey)
+                            .flatMap(resendCount -> {
+                                if (resendCount > MAX_RESENDS) {
+                                    return Mono.error(new ResponseStatusException(HttpStatus.TOO_MANY_REQUESTS, "Maximum OTP resend limit exceeded."));
+                                }
+
+                                // 3. Fetch userId, update TX, and return Tuple
+                                return getUserIdFromTx(txId)
+                                        .switchIfEmpty(Mono.error(new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Transaction expired.")))
+                                        .flatMap(userId -> saveOtpState(txId, userId, newPlainOtp, true)
+                                                .thenReturn(Tuples.of(newPlainOtp, userId, resendCount)));
+                            });
+                });
+    }
+
+    /**
+     * Verifies the OTP using constant-time cryptographic matching (BCrypt).
+     */
+    public Mono<String> verifyOtp(String txId, String inputOtp) {
+        String txKey = "OTP_TX:" + txId;
+        String failKey = "OTP_FAILURES:" + txId;
+
+        return redis.opsForValue().get(txKey)
+                .switchIfEmpty(Mono.error(new ResponseStatusException(HttpStatus.UNAUTHORIZED, "OTP Session Expired or Invalid Transaction.")))
+                .flatMap(payload -> {
+                    try {
+                        Map<String, String> data = mapper.readValue(payload, new TypeReference<>() {
+                        });
+                        String userId = data.get("userId");
+                        String storedHash = data.get("otpHash");
+
+                        if (passwordEncoder.matches(inputOtp, storedHash)) {
+                            // SUCCESS: Terminate transaction to prevent replay attacks
+                            return redis.delete(txKey).thenReturn(userId);
+                        } else {
+                            //FAILURE: Atomic increment
+                            return redis.opsForValue().increment(failKey)
+                                    .flatMap(failCount -> {
+                                        if (failCount >= MAX_FAILURES) {
+                                            // Enforce Session Lockout (Do NOT lock AD account)
+                                            return redis.delete(txKey)
+                                                    .then(Mono.error(new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Maximum wrong attempts exceeded. Session locked.")));
+                                        }
+                                        return Mono.error(new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid OTP. Attempts remaining: " + (MAX_FAILURES - failCount)));
+                                    });
+                        }
+                    } catch (JacksonException e) {
+                        return Mono.error(new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Redis payload corruption"));
+                    }
+                });
+    }
+
+    private Mono<String> getUserIdFromTx(String txId) {
+        return redis.opsForValue().get("OTP_TX:" + txId)
+                .flatMap(payload -> {
+                    try {
+                        Map<String, String> map = mapper.readValue(payload, new TypeReference<>() {
+                        });
+                        return Mono.just(map.get("userId"));
+                    } catch (JacksonException e) {
+                        return Mono.error(new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Redis payload corruption"));
+                    }
+                });
+    }
+
+    /**
+     * Compensating transaction: Cleans up the Redis state if Kafka fails,
+     * ensuring the user isn't penalized for our infrastructure issues.
+     */
+    public Mono<Void> rollbackOtpState(String txId) {
+        return Mono.when(
+                redis.delete("OTP_TX:" + txId),
+                redis.delete("OTP_FAILURES:" + txId),
+                redis.delete("OTP_RESENDS:" + txId)
+        ).doOnSuccess(v -> log.info("Successfully rolled back Redis state for txId={}", LoginUtility.sanitizeLog(txId)));
+    }
+}
+
+
+
+
+
+
+
+package com.fincore.gateway.Service;
+
+import com.fincore.gateway.dto.*;
+import com.fincore.gateway.model.LoginAttempt;
+import com.fincore.gateway.model.LoginParam;
+import com.fincore.gateway.model.User;
+import com.fincore.gateway.model.UserRoles;
+import reactor.core.publisher.Mono;
+
+/**
+ * Contract for login/authentication workflows, user/session checks, and menu resolution.
+ *
+ * <p>Implementations should:
+ * <ul>
+ *   <li>Validate credentials (password-based or SSO-based)</li>
+ *   <li>Issue JWTs and compose token-visible user data</li>
+ *   <li>Enforce wrong-password attempt limits and track attempts</li>
+ *   <li>Transform role permissions to a menu response</li>
+ * </ul>
+ */
+public interface LoginService {
+
+    /**
+     * Verifies user credentials and, on success, produces a {@link UserDto} containing
+     * validity flags, statuses, and an access token with token-visible user data.
+     *
+     * @param userCredentials input payload with userId (and password for password mode)
+     * @param clientIp        caller's IP address for auditing
+     * @return populated {@link UserDto} describing the outcome
+     */
+    UserDto verifyUserCredentials(UserDto userCredentials, String clientIp);
+
+    /**
+     * Fetches role-wise permissions for the user and transforms them into a menu response.
+     *
+     * @param userId the user identifier
+     * @return {@link MenuResponse} built from ordered permissions (possibly empty)
+     */
+    MenuResponse fetchRoleWiseData(String userId);
+
+    /**
+     * Checks a user's status and requirements prior to login.
+     *
+     * @param userId the user identifier
+     * @return {@link VerifyUserDTO} describing status and next steps (e.g., update password)
+     */
+    VerifyUserDTO checkUser(String userId);
+
+    /**
+     * Updates a user's password hash and related metadata.
+     *
+     * @param userCredentials input DTO containing {@code userId} and new raw {@code password}
+     * @return {@link UpdatePasswordDTO} with status and message
+     */
+    UpdatePasswordDTO updatePassword(UpdatePasswordDTO userCredentials);
+
+    /**
+     * Executes password-based authentication logic, enforcing wrong-password limits and
+     * updating counters/flags in the provided objects.
+     *
+     * @param password     raw password from the request
+     * @param loginAttempt login attempt entity to update with success/failure
+     * @param userInfo     output DTO to set validity flags and attempts left
+     * @param user         the user being authenticated
+     * @param loginParam   login parameters (e.g., permitted attempts)
+     */
+    void passwordBasedLogin(String password,
+                            LoginAttempt loginAttempt,
+                            UserDto userInfo,
+                            User user,
+                            LoginParam loginParam);
+
+    /**
+     * Produces a human-readable message describing a blocked login due to the given status/type.
+     *
+     * @param status status string (e.g., ACTIVE/INACTIVE/LOCKED)
+     * @param type   subject type (e.g., "user", "role")
+     * @return formatted message
+     */
+    String generateStatusMessage(String status, String type);
+
+
+
+    /**
+     * Retrives the user profile information.
+     * used during token refresh to ensure user claims are up to date.
+     * @param userId
+     * @return userRole
+     */
+    UserDto getUserProfile(String userId);
+
+    /**
+     * Send otp after correct user id and password entered to initiate the login process
+     *
+     * @param userDto
+     * @return otp initiated for the first time response
+     */
+    Mono<OtpInitiatedResponseDTO> initiateOtpPhase(UserDto userDto);
+
+    /**
+     * Verifies the otp and generate the final successful login response data
+     *
+     * @param requestDto
+     * @return verify otp and final login successful response
+     */
+    Mono<UserDto> verifyOtpAndGetUser(VerifyOtpRequestDTO requestDto);
+
+    /**
+     * Resend otp after a cooldown period of 30 seconds
+     *
+     * @param requestDto
+     * @param clientIp
+     * @return otp resend success response
+     */
+    Mono<OtpResendResponseDTO> resendOtp(ResendOtpRequestDTO requestDto, String clientIp);
+
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+package com.fincore.gateway.Service;
+
+import com.fincore.gateway.dto.*;
+import com.fincore.gateway.model.LoginAttempt;
+import com.fincore.gateway.model.LoginParam;
+import com.fincore.gateway.model.User;
+import com.fincore.gateway.model.UserRoles;
+import reactor.core.publisher.Mono;
+
+/**
+ * Contract for login/authentication workflows, user/session checks, and menu resolution.
+ *
+ * <p>Implementations should:
+ * <ul>
+ *   <li>Validate credentials (password-based or SSO-based)</li>
+ *   <li>Issue JWTs and compose token-visible user data</li>
+ *   <li>Enforce wrong-password attempt limits and track attempts</li>
+ *   <li>Transform role permissions to a menu response</li>
+ * </ul>
+ */
+public interface LoginService {
+
+    /**
+     * Verifies user credentials and, on success, produces a {@link UserDto} containing
+     * validity flags, statuses, and an access token with token-visible user data.
+     *
+     * @param userCredentials input payload with userId (and password for password mode)
+     * @param clientIp        caller's IP address for auditing
+     * @return populated {@link UserDto} describing the outcome
+     */
+    UserDto verifyUserCredentials(UserDto userCredentials, String clientIp);
+
+    /**
+     * Fetches role-wise permissions for the user and transforms them into a menu response.
+     *
+     * @param userId the user identifier
+     * @return {@link MenuResponse} built from ordered permissions (possibly empty)
+     */
+    MenuResponse fetchRoleWiseData(String userId);
+
+    /**
+     * Checks a user's status and requirements prior to login.
+     *
+     * @param userId the user identifier
+     * @return {@link VerifyUserDTO} describing status and next steps (e.g., update password)
+     */
+    VerifyUserDTO checkUser(String userId);
+
+    /**
+     * Updates a user's password hash and related metadata.
+     *
+     * @param userCredentials input DTO containing {@code userId} and new raw {@code password}
+     * @return {@link UpdatePasswordDTO} with status and message
+     */
+    UpdatePasswordDTO updatePassword(UpdatePasswordDTO userCredentials);
+
+    /**
+     * Executes password-based authentication logic, enforcing wrong-password limits and
+     * updating counters/flags in the provided objects.
+     *
+     * @param password     raw password from the request
+     * @param loginAttempt login attempt entity to update with success/failure
+     * @param userInfo     output DTO to set validity flags and attempts left
+     * @param user         the user being authenticated
+     * @param loginParam   login parameters (e.g., permitted attempts)
+     */
+    void passwordBasedLogin(String password,
+                            LoginAttempt loginAttempt,
+                            UserDto userInfo,
+                            User user,
+                            LoginParam loginParam);
+
+    /**
+     * Produces a human-readable message describing a blocked login due to the given status/type.
+     *
+     * @param status status string (e.g., ACTIVE/INACTIVE/LOCKED)
+     * @param type   subject type (e.g., "user", "role")
+     * @return formatted message
+     */
+    String generateStatusMessage(String status, String type);
+
+
+
+    /**
+     * Retrives the user profile information.
+     * used during token refresh to ensure user claims are up to date.
+     * @param userId
+     * @return userRole
+     */
+    UserDto getUserProfile(String userId);
+
+    /**
+     * Send otp after correct user id and password entered to initiate the login process
+     *
+     * @param userDto
+     * @return otp initiated for the first time response
+     */
+    Mono<OtpInitiatedResponseDTO> initiateOtpPhase(UserDto userDto);
+
+    /**
+     * Verifies the otp and generate the final successful login response data
+     *
+     * @param requestDto
+     * @return verify otp and final login successful response
+     */
+    Mono<UserDto> verifyOtpAndGetUser(VerifyOtpRequestDTO requestDto);
+
+    /**
+     * Resend otp after a cooldown period of 30 seconds
+     *
+     * @param requestDto
+     * @param clientIp
+     * @return otp resend success response
+     */
+    Mono<OtpResendResponseDTO> resendOtp(ResendOtpRequestDTO requestDto, String clientIp);
+
+}
+
+
+
+
+
+
+
+
+
+
+
+package com.fincore.gateway.Service;
+
+import com.fincore.gateway.utility.LoginUtility;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.ldap.AuthenticationException;
+import org.springframework.ldap.CommunicationException;
+import org.springframework.ldap.NamingException;
+import org.springframework.ldap.core.LdapTemplate;
+import org.springframework.ldap.support.LdapEncoder;
+import org.springframework.stereotype.Service;
+
+/**
+ * Service responsible for interacting with Active Directory.
+ * Handles the "Bind" operation to verify credentials.
+ */
+@Slf4j
+@Service
+@RequiredArgsConstructor
+public class AdAuthenticationService {
+
+    private final LdapTemplate ldapTemplate;
+
+    @Value("${spring.ldap.domain:UATAD.SBI}")
+    private String adDomain;
+
+    /**
+     * Authenticate against Active Directory by attempting a Bind.
+     * * @param username The sAMAccountName (e.g., "7378051")
+     *
+     * @param password The raw password
+     * @return true if credentials are valid, false otherwise.
+     */
+    public boolean authenticate(String username, String password) {
+        if (username == null || username.isBlank() || password == null || password.isBlank()) {
+            log.warn("LDAP Auth failed: Empty username or password");
+            return false;
+        }
+
+        try {
+            // AD usually requires "user@domain.com" or "DOMAIN/user" for binding.
+            // Using the UPN (User Principal Name) format is standard.
+            // Logic: username + "@" + "UATAD.SBI"
+            String principalName = username + "@" + adDomain;
+
+            log.info("Attempting LDAP Bind for principal: {}", LoginUtility.sanitizeLog(principalName));
+
+            String safeUsername = LdapEncoder.filterEncode(username);
+
+            // The authenticate method handles the opening of connection and binding.
+            // Filter: (sAMAccountName=username) checks if the user exists.
+            // Password: The credential to verify.
+            boolean authenticated = ldapTemplate.authenticate(
+                    "",                                  // Base DN is already set in config
+                    "(sAMAccountName=" + safeUsername + ")", // Filter to locate the user
+                    password                             // Password to verify
+            );
+
+            if (authenticated) {
+                log.info("LDAP Authentication SUCCESS for user: {}", LoginUtility.sanitizeLog(username));
+                return true;
+            } else {
+                log.warn("LDAP Authentication FAILED for user (Invalid Credentials)");
+                return false;
+            }
+
+        } catch (AuthenticationException e) {
+            String msg = e.getMessage();
+            if (msg != null && msg.contains("data 775")) {
+                log.warn("AD Account Locked for user: {}", LoginUtility.sanitizeLog(username));
+                // Throw specific exception to trigger 403 Forbidden
+                throw new SecurityException("Your Active Directory account is locked. Please contact IT Helpdesk.");
+            }
+            log.warn("LDAP Bind Failed (Invalid Credentials) for user: {}", LoginUtility.sanitizeLog(username));
+            return false;
+        } catch (CommunicationException e) {
+            log.error("LDAP CONNECTION ERROR: {}", e.getMessage());
+            throw new RuntimeException("LDAP Server Down", e);
+        } catch (NamingException e) {
+            log.error("LDAP Naming Error during auth for user: {}. Error: {}", LoginUtility.sanitizeLog(username), e.getMessage());
+            return false;
+        } catch (Exception e) {
+            log.error("LDAP Unexpected Error during auth for user: {}. Error: {}", LoginUtility.sanitizeLog(username), e.getMessage(), e);
+            return false;
+        }
+    }
+}
+
+
+
+
+
+
+
+
+
+
+
+package com.fincore.gateway.model;
+
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.Id;
+import jakarta.persistence.Table;
+import lombok.Getter;
+import lombok.Setter;
+import lombok.ToString;
+
+/**
+ * Entity representing the system-wide login configuration paramters.
+ * 
+ * Maps to the LOGIN_PARAM table, which holds information such as
+ * the active login mode, OTP validity period, password validity period,
+ * allowed wrong attempts, and interval between attempts.
+ */
+@Entity
+@Getter
+@Setter
+@ToString
+@Table(name = "LOGIN_PARAM")
+public class LoginParam {
+
+    /** Defines the currently active login mode in the system. */
+    @Id
+    @Column(name = "ACTIVE_LOGIN_MODE")
+    private char activeLoginMode;
+
+    /** OTP validity period in minutes. */
+    @Column(name = "OTP_VALIDITY")
+    private int otpValidity;
+
+    /** Password validity period in days. */
+    @Column(name = "PASSWORD_VALIDITY")
+    private int passwordValidity;
+
+    /** Number of consecutive wrong password attemps allowed before blocking. */
+    @Column(name = "WRONG_PASSWORD_ATTEMPTS")
+    private int wrongPasswordAttempts;
+
+    /** Time interval (in minutes) after which a new login attempt is allowed. */
+    @Column(name = "ATTEMPT_INTERVAL")
+    private int attemptInterval;
+
+    /**
+     * Flag to indicate if OTP/MFA is required after primary authentication
+     */
+    @Column(name = "IS_OTP_ENABLED")
+    private String isOtpEnabled;
+}
+
+
+
+
+
+
+
+
+package com.fincore.gateway.model;
+
+import jakarta.persistence.*;
+import lombok.Getter;
+import lombok.Setter;
+import java.sql.Timestamp;
+
+/**
+ * Entity class that stores details of each user login attempt.
+ * 
+ * Maps to the USER_LOGIN_ATTEMPTS table and keeps track of
+ * login activity such as user ID, login method, IP address,
+ * timestamp, and whether the attempt was successful or not.
+ */
+@Entity
+@Getter
+@Setter
+@Table(name = "USER_LOGIN_ATTEMPTS")
+public class LoginAttempt {
+
+    /** Primary key for the login attempt record. */
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "ATTEMPT_ID")
+    private Long attemptId;
+
+    /** ID of the user who tried to log in. */
+    @Column(name = "USER_ID")
+    private String userId;
+
+    /** Type of login method used (e.g. PASSWORD, OTP, BIOMETRIC). */
+    @Column(name = "LOGIN_METHOD")
+    private String loginMethod;
+
+    /** IP address from which the login attempt was made. */
+    @Column(name = "IP_ADDRESS")
+    private String ipAddress;
+
+    /**
+     * Timestamp when the login attempt occurred.
+     * 
+     * This is managed at the database level and not manually updated in code.
+     */
+    @Column(name = "ATTEMPT_TIME", nullable = false, updatable = false, insertable = false)
+    private Timestamp attemptTime;
+
+    /** Indicates if the login was successful (Y/N). */
+    @Column(name = "SUCCESS")
+    private String success;
+
+    /** Reason for failure, if the attempt was not successful. */
+    @Column(name = "FAILURE_REASON")
+    private String failureReason;
+}
+
+
+
+
+
+
+
+
+
+package com.fincore.gateway.Service;
+
+import com.fincore.gateway.utility.LoginUtility;
+import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.data.redis.core.ReactiveStringRedisTemplate;
+import org.springframework.security.authentication.BadCredentialsException;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.oauth2.jwt.Jwt;
+import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
+import org.springframework.stereotype.Component;
+import reactor.core.publisher.Mono;
+
+import java.time.Duration;
+import java.util.Objects;
+
+/**
+ * Validates JWT sessions against Redis using two key families:
+ * <ul>
+ *   <li><b>USR:&lt;username&gt;</b> → stores the latest active JTI for the user</li>
+ *   <li><b>BL:&lt;jti&gt;</b> → blacklisted JTIs (revoked/expired/rotated)</li>
+ * </ul>
+ *
+ * <p><strong>Workflow</strong></p>
+ * <ol>
+ *   <li><b>registerUserSession</b>: On login, blacklist any previous JTI and store the new one.</li>
+ *   <li><b>validateWithRedis</b>: On each request, reject if blacklisted or if JTI != stored latest.</li>
+ *   <li><b>clearUserSession</b>: On logout, remove the USR:&lt;user&gt; pointer.</li>
+ *   <li><b>blacklistToken</b>: On logout or rotation, add JTI to blacklist.</li>
+ * </ol>
+ *
+ * <p><strong>TTL</strong>: Keys are set to the same TTL as the JWT (configurable via
+ * {@code security.jwt.ttl-seconds}).</p>
+ */
+@Component
+@Slf4j
+public class TokenSessionValidator {
+
+    /**
+     * Redis key prefixes.
+     */
+    private static final String USER_PREFIX = "USR:";
+    private static final String BLACKLIST_PREFIX = "BL:";
+    private static final String GRACE_PREFIX = "GRACE:";
+    private final ReactiveStringRedisTemplate redis;
+
+    /**
+     * Token TTL aligned with JWT expiry.
+     */
+    private final Duration tokenTtl;
+
+    /**
+     * Configurable grace period (e.g., 45 seconds for in-flight requests)
+     */
+    private final Duration gracePeriod = Duration.ofSeconds(45);
+
+    public TokenSessionValidator(
+            ReactiveStringRedisTemplate redis,
+            @Value("${security.jwt.refresh-ttl-seconds:86400}") long refreshTtlSeconds // <--- Use Refresh TTL
+    ) {
+        this.redis = redis;
+        this.tokenTtl = Duration.ofSeconds(refreshTtlSeconds); // Set Redis to live for 12h
+    }
+
+    // --------------------------------------------------------------------------------------------
+    // Session management
+    // --------------------------------------------------------------------------------------------
+
+    private static String userKey(String username) {
+        return USER_PREFIX + username;
+    }
+
+    private static String blacklistKey(String jti) {
+        return BLACKLIST_PREFIX + jti;
+    }
+
+    private static String graceKey(String jti) {
+        return GRACE_PREFIX + jti;
+    }
+
+    /**
+     * Register a new session for a user.
+     * <ol>
+     *   <li>Registers a new session. Old sessions are moved to a Grace Period, not instantly killed.</li>
+     *   <li>Store the new JTI under {@code USR:<username>} with {@link #tokenTtl}.</li>
+     * </ol>
+     *
+     * @param username the subject/username
+     * @param newJti   the new token ID
+     * @return completion signal
+     */
+    public Mono<Void> registerUserSession(String username, String newJti) {
+        Objects.requireNonNull(username, "username must not be null");
+        Objects.requireNonNull(newJti, "newJti must not be null");
+
+        final String userKey = userKey(username);
+        log.info("Registering new session user={} jti={}", username, newJti);
+
+        return redis.opsForValue().get(userKey)
+                .flatMap(oldJti -> {
+                    if (oldJti != null && !oldJti.equals(newJti)) {
+                        log.info("Moving old session to Grace Period for user={} -> oldJti={}", LoginUtility.sanitizeLog(username), LoginUtility.sanitizeLog(oldJti));
+                        return redis.opsForValue().set(graceKey(oldJti), username, gracePeriod).then();
+                    }
+                    return Mono.empty();
+                })
+                .then(
+                        redis.opsForValue()
+                                .set(userKey, newJti, tokenTtl)
+                                .doOnSuccess(v -> log.info("Registered active session in Redis user={} jti={}", LoginUtility.sanitizeLog(username), LoginUtility.sanitizeLog(newJti)))
+                                .then()
+                );
+    }
+
+    // --------------------------------------------------------------------------------------------
+    // Request-time validation
+    // --------------------------------------------------------------------------------------------
+
+    /**
+     * Blacklist a JTI (used on logout or token rotation).
+     *
+     * @param jti token id
+     * @return {@code true} if set succeeded
+     */
+    public Mono<Boolean> blacklistToken(String jti) {
+        Objects.requireNonNull(jti, "jti must not be null");
+        final String blKey = blacklistKey(jti);
+        return redis.opsForValue().set(blKey, "true", tokenTtl)
+                .doOnSuccess(v -> log.info("Blacklisted jti={}", jti));
+    }
+
+    // --------------------------------------------------------------------------------------------
+    // Key helpers
+    // --------------------------------------------------------------------------------------------
+
+    /**
+     * Clear the current session pointer for a user.
+     *
+     * @param username the subject/username
+     * @return {@code true} if a key was deleted
+     */
+    public Mono<Boolean> clearUserSession(String username) {
+        Objects.requireNonNull(username, "username must not be null");
+        return redis.delete(userKey(username))
+                .map(deleted -> {
+                    if (deleted > 0) {
+                        log.info("Cleared session for user={}", LoginUtility.sanitizeLog(username));
+                        return true;
+                    }
+                    return false;
+                });
+    }
+
+    /**
+     * Validate an incoming {@link Authentication} against Redis:
+     * <ul>
+     *   <li>Reject if not a {@link JwtAuthenticationToken}</li>
+     *   <li>Reject if JTI is blacklisted</li>
+     *   <li>Reject if JTI != {@code USR:&lt;username&gt;} stored JTI</li>
+     * </ul>
+     *
+     * @param authentication the Spring Security authentication (expected {@link JwtAuthenticationToken})
+     * @return a {@link Mono} with the same {@code authentication} on success, or an error on failure
+     */
+    public Mono<Authentication> validateWithRedis(Authentication authentication) {
+        if (!(authentication instanceof JwtAuthenticationToken jwtAuth)) {
+            log.warn("Validation failed: not a JwtAuthenticationToken -> {}", authentication);
+            return Mono.error(new BadCredentialsException("Invalid authentication type"));
+        }
+
+        Jwt jwt = jwtAuth.getToken();
+        String username = jwt.getSubject();
+        String jti = jwt.getId();
+
+        if (username == null || username.isBlank()) {
+            log.error("Token missing subject -> rejecting");
+            return Mono.error(new BadCredentialsException("Missing subject (sub)"));
+        }
+        if (jti == null || jti.isBlank()) {
+            log.error("Token missing JTI claim -> rejecting user={}", LoginUtility.sanitizeLog(username));
+            return Mono.error(new BadCredentialsException("Missing token ID (jti)"));
+        }
+
+        log.info("Validating token user={} jti={}", username, jti);
+
+        // 1) Check explicit blacklist
+        return redis.hasKey(blacklistKey(jti))
+                .flatMap(isBlacklisted -> {
+                    if (Boolean.TRUE.equals(isBlacklisted)) {
+                        log.warn("Token is blacklisted jti={} user={}", jti, LoginUtility.sanitizeLog(username));
+                        return Mono.error(new BadCredentialsException("Token revoked"));
+                    }
+
+                    // 2) Ensure JTI matches the latest session pointer
+                    return redis.opsForValue().get(userKey(username))
+                            .flatMap(currentJti -> {
+                                log.debug("Redis stored JTI for user={} -> {}", LoginUtility.sanitizeLog(username), LoginUtility.sanitizeLog(currentJti));
+
+                                if (currentJti != null && currentJti.equals(jti)) {
+                                    log.info("Token validation success user={} jti={}", LoginUtility.sanitizeLog(username), LoginUtility.sanitizeLog(jti));
+                                    return Mono.just(authentication); // Valid Primary Session
+                                }
+
+                                // 3) Check if it is in the Grace Period (Handling in-flight requests)
+                                return redis.hasKey(graceKey(jti))
+                                        .flatMap(isInGrace -> {
+                                            if (Boolean.TRUE.equals(isInGrace)) {
+                                                log.warn("Token accepted under Grace Period. user={} jti={}",
+                                                        LoginUtility.sanitizeLog(username), LoginUtility.sanitizeLog(jti));
+                                                return Mono.just(authentication);
+                                            }
+
+                                            // 4) If not primary and not in grace -> Concurrent Login
+                                            log.warn("Token mismatch user={} expectedJti={} gotJti={}", LoginUtility.sanitizeLog(username),
+                                                    LoginUtility.sanitizeLog(currentJti), LoginUtility.sanitizeLog(jti));
+                                            return Mono.error(new BadCredentialsException("Another session is active"));
+                                        });
+                            })
+                            .switchIfEmpty(Mono.error(new BadCredentialsException("No active session")));
+                });
+    }
+}
+
+
+
+
+
+
+
+
 
