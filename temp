@@ -1,3 +1,64 @@
+🛡️ FinCore Login Service V3 — Line-by-Line Production Code Audit Report
+I have completed a comprehensive, line-by-line inspection of all 11 classes in your attached codebase (⁠temp 16.txt⁠), verifying both your existing V1 production flows (LDAP/Password login, JWE token generation, Token Refresh, Logout, Password Update) and your new Phase 3 MFA (OTP) functionalities.
+1. Verification of Applied Changes (What is 100% Working)
+￼ ✅ ⁠LoginParam.java⁠ & ⁠LoginParamCacheService.java⁠: All 6 MFA timers/limits are properly mapped with safe fallback getters (⁠getSafeOtpValidityMin()⁠, etc.) and cached in Caffeine on startup (⁠@PostConstruct⁠).
+￼ ✅ ⁠OtpInitiatedResponseDTO.java⁠ & ⁠OtpResendResponseDTO.java⁠: Both camelCase (⁠otpScreenTimeoutMin⁠, ⁠screenTimeoutSeconds⁠) and uppercase (⁠@JsonProperty("OTP_SCREEN_TIMEOUT_MIN")⁠) fields are present, along with the AppSec-masked ⁠userDetails⁠ and ⁠userName⁠ fields.
+￼ ✅ ⁠VerifyOtpRequestDTO.java⁠: Properly enforces ⁠@Pattern(regexp = "^\\d{6}$")⁠ with the exact Table 2.4 message ⁠"Please enter a valid 6-digit numeric code."⁠
+￼ ✅ ⁠OtpSessionService.java⁠: Smart Session Resumption, 15-minute sliding idle window refresh, user-scoped cooldowns (⁠OTP_COOLDOWN:USR:{userId}⁠), user-scoped 10-minute resend quotas (⁠OTP_RESENDS:USR:{userId}⁠), single active OTP session enforcement (⁠OTP_ACTIVE_TX:USR:{userId}⁠), boundedElastic BCrypt offloading, and double-click verification locks (⁠OTP_VERIFY_LOCK:{txId}⁠) are all in place.
+￼ ✅ V1 Legacy Flows (⁠refreshToken⁠, ⁠logout⁠, ⁠checkUser⁠, ⁠updatePassword⁠): All existing V1 production logic is intact and preserved.
+2. Issues & Discrepancies Found in Line-by-Line Audit (Must Fix Before Production)
+During the line-by-line review of your code, I caught 6 important items—including a critical production security log leak and a missing field mapping—that must be fixed before you deploy to SIT/UAT/Production:
+🔴 Issue 1 (CRITICAL APPSEC / ISD): Plain-Text AES Key & JWE Token Logged in ⁠AuthController.java⁠
+🔴 Issue 2 (BUG): Missing ⁠middleName⁠ Mapping in ⁠LoginServiceImpl.initializeTokenData()⁠
+🟠 Issue 3 (UAT / Solution Doc Contract): Inconsistent ⁠"OTP"⁠ vs ⁠"Code"⁠ Wording in ⁠LoginServiceImpl.java⁠
+￼ Location: ⁠LoginServiceImpl.java⁠ (Lines 402, 432–436, 497, 512–516)
+￼ The Discrepancy Found:
+￼ In ⁠initiateOtpPhase()⁠ (Line 402), you wrote: ⁠"OTP cannot be sent: No valid mobile number or email address is mapped with User ID."⁠
+￼ But in ⁠resendOtp()⁠ (Line 497), you wrote: ⁠"Code cannot be sent: No valid mobile number or email address is mapped with User ID."⁠
+￼ Similarly, in ⁠initiateOtpPhase()⁠ (Line 432) and ⁠resendOtp()⁠ (Line 512), you changed ⁠"Code sent to ..."⁠ / ⁠"New Code sent to ..."⁠ to ⁠"OTP sent to ..."⁠ / ⁠"New OTP sent to ..."⁠.
+￼ Why It Matters: Section 2.4 (Table 2.4) of the bank's Solution Document explicitly specifies:
+￼ ⁠"Code cannot be sent: No valid mobile number or email address is mapped with User ID."⁠
+￼ ⁠"Code sent to ***1234 and a***o@sbi.co.in"⁠
+￼ ⁠"New Code sent to ***1234 and a***o@sbi.co.in"⁠
+￼ Fix Applied: Restored the exact Table 2.4 wording (⁠"Code..."⁠) in ⁠LoginServiceImpl.java⁠ so both methods are 100% consistent and match the Solution Document. (If your UI/BA team specifically requested ⁠"OTP"⁠ instead of ⁠"Code"⁠, you can change the word ⁠"Code"⁠ to ⁠"OTP"⁠ in both places so they match).
+🟠 Issue 4 (DB Parameterization Gap): Hardcoded ⁠expiryMins: 5⁠ in ⁠OtpKafkaProducer.java⁠
+🟡 Issue 5 (Edge Case Bug): Kafka Rollback on First Login Leaving ⁠OTP_RESENDS⁠ in Redis
+￼ Location: ⁠OtpSessionService.java⁠ (⁠rollbackInitialOtpState⁠, Line 377)
+￼ The Bug Found:
+When a user logs in for the very first time, ⁠initiateUserOtpSession⁠ sets ⁠OTP_RESENDS:USR:{userId}⁠ to ⁠"0"⁠ (starting the 10-minute window). If Kafka is down and throws an error on that first login, ⁠rollbackInitialOtpState()⁠ deleted ⁠OTP_SESSION⁠, ⁠OTP_TX⁠, ⁠OTP_FAILURES⁠, ⁠OTP_ACTIVE_TX⁠, and ⁠OTP_COOLDOWN⁠—but forgot to roll back ⁠OTP_RESENDS:USR:{userId}⁠!
+When the user clicks "Sign In" again 5 seconds later, ⁠initiateUserOtpSession⁠ sees ⁠OTP_RESENDS:USR:{userId}⁠ exists (⁠hasResendWindow == true⁠), so it increments ⁠OTP_RESENDS⁠ to ⁠"1"⁠, falsely consuming 1 of their 3 resends even though the first OTP never went out!
+￼ Fix Applied: Updated ⁠rollbackInitialOtpState()⁠ so that if ⁠OTP_RESENDS:USR:{userId}⁠ is ⁠"0"⁠, it deletes the key completely; if ⁠> 0⁠ (a re-login within an active window), it decrements it by 1.
+🟡 Issue 6 (Defensive Hygiene): Trimming ⁠userId⁠ Across All Entry Points
+￼ Location: ⁠LoginServiceImpl.java⁠ (⁠verifyUserCredentials⁠, ⁠checkUser⁠, ⁠updatePassword⁠, ⁠getUserProfile⁠) & ⁠AuthController.java⁠
+￼ The Bug Found: In ⁠verifyUserCredentials⁠ (Line 131), ⁠userCredentials.getUserId().toLowerCase()⁠ did not call ⁠.trim()⁠, and ⁠getUserProfile(userId)⁠ (Line 605) did not normalize ⁠userId⁠. If a user accidentally copies/pastes their User ID with a trailing space (⁠"2488766 "⁠), DB lookups or Redis keys (⁠USR:2488766 ⁠) can mismatch.
+￼ Fix Applied: Added ⁠.trim().toLowerCase()⁠ across all service entry points and removed the duplicate ⁠import com.fincore.gateway.JwtUtil.JweUtil;⁠ in ⁠AuthController.java⁠.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 package com.fincore.gateway.Controller;
 
 import com.fincore.commonutilities.util.AesEncryptionUtil;
@@ -9,6 +70,8 @@ import com.fincore.gateway.dto.*;
 import com.fincore.gateway.utility.Constants;
 import com.fincore.gateway.utility.LoginUtility;
 
+import com.nimbusds.jwt.EncryptedJWT;
+import com.nimbusds.jwt.JWTClaimsSet;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -21,6 +84,7 @@ import org.springframework.http.ResponseCookie;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.server.reactive.ServerHttpRequest;
 import org.springframework.http.server.reactive.ServerHttpResponse;
+import org.springframework.security.oauth2.jwt.BadJwtException;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
@@ -28,16 +92,9 @@ import org.springframework.web.server.ResponseStatusException;
 import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Schedulers;
 
-import tools.jackson.core.type.TypeReference;
 import tools.jackson.databind.ObjectMapper;
 
-import com.fincore.gateway.JwtUtil.JweUtil;
-import com.nimbusds.jwt.EncryptedJWT;
-import com.nimbusds.jwt.JWTClaimsSet;
-import org.springframework.security.oauth2.jwt.BadJwtException;
 import java.text.ParseException;
-import java.util.UUID;
-
 import java.time.Duration;
 import java.util.*;
 
@@ -224,14 +281,14 @@ public class AuthController {
         return decryptTokenManually(refreshToken)
                 .subscribeOn(Schedulers.boundedElastic())
                 .flatMap(claims -> {
-                    String userId = claims.getSubject();
+                    String userId = claims.getSubject() != null ? claims.getSubject().trim() : "";
                     String userKey = USER_PREFIX + userId;
                     log.info("Refreshing Token for User: {}", LoginUtility.sanitizeLog(userId));
 
                     // Check Session in Redis
                     return redisTemplate.opsForValue().get(userKey)
                             .switchIfEmpty(Mono.defer(() -> {
-                                log.warn("Redis returned EMPTY for key: {}. Session expired.", userKey);
+                                log.warn("Redis returned EMPTY for key: {}. Session expired.", LoginUtility.sanitizeLog(userKey));
                                 return Mono.error(new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Session expired. Please login again."));
                             }))
                             .flatMap(currentJti -> {
@@ -292,7 +349,6 @@ public class AuthController {
     }
 
 
-
     // =================================================================================================
     // LOGOUT METHOD
     // =================================================================================================
@@ -342,7 +398,7 @@ public class AuthController {
         return decryptTokenManually(finalToken)
                 .subscribeOn(Schedulers.boundedElastic())
                 .flatMap(claims -> {
-                    String userId = claims.getSubject();
+                    String userId = claims.getSubject() != null ? claims.getSubject().trim() : null;
                     // JWE CHANGE: Nimbus uses getJWTID() instead of getId()
                     String incomingJti = claims.getJWTID();
 
@@ -443,11 +499,12 @@ public class AuthController {
      * Generate Session and Tokens after successful logic pass for both /login and /verify-otp
      */
     private Mono<ResponseEntity<ApiResponse<?>>> generateSessionAndTokens(UserDto user, ServerHttpResponse response) {
-        log.info("Generating JWE Tokens for user {}.", LoginUtility.sanitizeLog(user.getUserId()));
+        final String cleanUserId = user.getUserId() != null ? user.getUserId().trim() : "";
+        log.info("Generating JWE Tokens for user {}.", LoginUtility.sanitizeLog(cleanUserId));
 
         // JWE CHANGE: Because JWE needs the encryption key first, we generate/fetch it before token creation.
-        return generateAndStoreAesKey(user.getUserId())
-                .flatMap(aesKey -> Mono.defer(() -> Mono.fromCallable(() -> loginService.fetchRoleWiseData(user.getUserId())))
+        return generateAndStoreAesKey(cleanUserId)
+                .flatMap(aesKey -> Mono.defer(() -> Mono.fromCallable(() -> loginService.fetchRoleWiseData(cleanUserId)))
                         .subscribeOn(Schedulers.boundedElastic())
                         .flatMap(roleData -> {
 
@@ -458,31 +515,26 @@ public class AuthController {
                             Map<String, Object> claimsMap = mapper.convertValue(user.getUser(), Map.class);
                             claimsMap.put("jti", jti);
 
-                            // Generate JWE strings
-                            String accessToken = JweUtil.generateJwe(aesKey, user.getUserId(), accessTokenTtl, claimsMap);
-
-                            log.info("=== JWE ENCRYPTION DIAGNOSTICS ===");
-                            log.info("User ID: {}", user.getUserId());
-                            log.info("Exact AES Key Used: [{}]", aesKey); // Brackets help spot trailing spaces
-                            log.info("Exact Token Gen'd : [{}]", accessToken);
+                            // Generate JWE strings (AppSec Fix: Removed plain-text key/token diagnostic logging)
+                            String accessToken = JweUtil.generateJwe(aesKey, cleanUserId, accessTokenTtl, claimsMap);
 
                             Map<String, Object> refreshClaims = Map.of("type", "refresh", "jti", UUID.randomUUID().toString());
-                            String refreshToken = JweUtil.generateJwe(aesKey, user.getUserId(), refreshTokenTtl, refreshClaims);
+                            String refreshToken = JweUtil.generateJwe(aesKey, cleanUserId, refreshTokenTtl, refreshClaims);
 
                             response.addCookie(createRefreshTokenCookie(refreshToken));
 
                             // Register JWT Session
-                            return validator.registerUserSession(user.getUserId(), jti)
+                            return validator.registerUserSession(cleanUserId, jti)
                                     .thenReturn(ResponseEntity.ok()
                                             .header("X-Payload-Key", aesKey)
                                             .body(ApiResponse.success(
                                                     LoginResponseDTO.builder()
-                                                            .userId(user.getUserId())
+                                                            .userId(cleanUserId)
                                                             .validCredentials(true)
                                                             .accessToken(accessToken)
                                                             .tokenType("Bearer")
                                                             .expiresIn(accessTokenTtl)
-                                                            .sub(user.getUserId())
+                                                            .sub(cleanUserId)
                                                             .jti(jti)
                                                             .roleData(roleData)
                                                             .userStatus(user.getUserStatus())
@@ -620,12 +672,13 @@ public class AuthController {
                 throw new BadJwtException("Invalid token format");
             }
         }).flatMap(encryptedJWT -> {
-            String userId = encryptedJWT.getHeader().getKeyID();
-            if (userId == null) {
+            String rawUserId = encryptedJWT.getHeader().getKeyID();
+            if (rawUserId == null || rawUserId.isBlank()) {
                 return Mono.error(new BadJwtException("Missing kid header"));
             }
+            String cleanUserId = rawUserId.trim();
 
-            return redisTemplate.opsForValue().get(AES_KEY_PREFIX + userId)
+            return redisTemplate.opsForValue().get(AES_KEY_PREFIX + cleanUserId)
                     .switchIfEmpty(Mono.error(new BadJwtException("Session expired or AES key missing")))
                     .map(aesKey -> JweUtil.decryptJwe(jweToken, aesKey));
         });
@@ -641,128 +694,6 @@ public class AuthController {
 
 
 
-
-
-
-
-
-package com.fincore.gateway.Service;
-
-import com.fincore.gateway.dto.*;
-import com.fincore.gateway.model.LoginAttempt;
-import com.fincore.gateway.model.LoginParam;
-import com.fincore.gateway.model.User;
-import com.fincore.gateway.model.UserRoles;
-import reactor.core.publisher.Mono;
-
-/**
- * Contract for login/authentication workflows, user/session checks, and menu resolution.
- *
- * <p>Implementations should:
- * <ul>
- *   <li>Validate credentials (password-based or SSO-based)</li>
- *   <li>Issue JWTs and compose token-visible user data</li>
- *   <li>Enforce wrong-password attempt limits and track attempts</li>
- *   <li>Transform role permissions to a menu response</li>
- * </ul>
- */
-public interface LoginService {
-
-    /**
-     * Verifies user credentials and, on success, produces a {@link UserDto} containing
-     * validity flags, statuses, and an access token with token-visible user data.
-     *
-     * @param userCredentials input payload with userId (and password for password mode)
-     * @param clientIp        caller's IP address for auditing
-     * @return populated {@link UserDto} describing the outcome
-     */
-    UserDto verifyUserCredentials(UserDto userCredentials, String clientIp);
-
-    /**
-     * Fetches role-wise permissions for the user and transforms them into a menu response.
-     *
-     * @param userId the user identifier
-     * @return {@link MenuResponse} built from ordered permissions (possibly empty)
-     */
-    MenuResponse fetchRoleWiseData(String userId);
-
-    /**
-     * Checks a user's status and requirements prior to login.
-     *
-     * @param userId the user identifier
-     * @return {@link VerifyUserDTO} describing status and next steps (e.g., update password)
-     */
-    VerifyUserDTO checkUser(String userId);
-
-    /**
-     * Updates a user's password hash and related metadata.
-     *
-     * @param userCredentials input DTO containing {@code userId} and new raw {@code password}
-     * @return {@link UpdatePasswordDTO} with status and message
-     */
-    UpdatePasswordDTO updatePassword(UpdatePasswordDTO userCredentials);
-
-    /**
-     * Executes password-based authentication logic, enforcing wrong-password limits and
-     * updating counters/flags in the provided objects.
-     *
-     * @param password     raw password from the request
-     * @param loginAttempt login attempt entity to update with success/failure
-     * @param userInfo     output DTO to set validity flags and attempts left
-     * @param user         the user being authenticated
-     * @param loginParam   login parameters (e.g., permitted attempts)
-     */
-    void passwordBasedLogin(String password,
-                            LoginAttempt loginAttempt,
-                            UserDto userInfo,
-                            User user,
-                            LoginParam loginParam);
-
-    /**
-     * Produces a human-readable message describing a blocked login due to the given status/type.
-     *
-     * @param status status string (e.g., ACTIVE/INACTIVE/LOCKED)
-     * @param type   subject type (e.g., "user", "role")
-     * @return formatted message
-     */
-    String generateStatusMessage(String status, String type);
-
-
-
-    /**
-     * Retrives the user profile information.
-     * used during token refresh to ensure user claims are up to date.
-     * @param userId
-     * @return userRole
-     */
-    UserDto getUserProfile(String userId);
-
-    /**
-     * Send otp after correct user id and password entered to initiate the login process
-     *
-     * @param userDto
-     * @return otp initiated for the first time response
-     */
-    Mono<OtpInitiatedResponseDTO> initiateOtpPhase(UserDto userDto);
-
-    /**
-     * Verifies the otp and generate the final successful login response data
-     *
-     * @param requestDto
-     * @return verify otp and final login successful response
-     */
-    Mono<UserDto> verifyOtpAndGetUser(VerifyOtpRequestDTO requestDto);
-
-    /**
-     * Resend otp after a cooldown period of 30 seconds
-     *
-     * @param requestDto
-     * @param clientIp
-     * @return otp resend success response
-     */
-    Mono<OtpResendResponseDTO> resendOtp(ResendOtpRequestDTO requestDto, String clientIp);
-
-}
 
 
 
@@ -915,7 +846,7 @@ public class LoginServiceImpl implements LoginService {
      */
     public UserDto verifyUserCredentials(UserDto userCredentials, String clientIp) {
 
-        final String userId = userCredentials.getUserId().toLowerCase();
+        final String userId = userCredentials.getUserId() != null ? userCredentials.getUserId().trim().toLowerCase() : "";
         final String encryptedPassword = userCredentials.getPassword();
 
         UserDto result = new UserDto();
@@ -1103,10 +1034,11 @@ public class LoginServiceImpl implements LoginService {
      */
     @Transactional(readOnly = true)
     public VerifyUserDTO checkUser(String userId) {
+        final String cleanUserId = userId != null ? userId.trim().toLowerCase() : "";
         VerifyUserDTO out = new VerifyUserDTO();
-        out.setUserId(userId);
+        out.setUserId(cleanUserId);
 
-        User user = userRepository.findByUserId(userId);
+        User user = userRepository.findByUserId(cleanUserId);
         LoginParam loginParam = loginParamCacheService.getCachedLoginParam();
         out.setLoginMethod(loginParam.getActiveLoginMode());
 
@@ -1131,7 +1063,7 @@ public class LoginServiceImpl implements LoginService {
                 isPasswordValid = true;
             }
 
-            UserRoles userRole = userRepository.getUserRole(userId);
+            UserRoles userRole = userRepository.getUserRole(cleanUserId);
             out.setRoleStatus(userRole.getRoleStatus());
 
             // Logic: Update Password only needed if Mode is Password AND (Password is null OR Expired)
@@ -1163,7 +1095,7 @@ public class LoginServiceImpl implements LoginService {
      */
     @Transactional
     public UpdatePasswordDTO updatePassword(UpdatePasswordDTO userCredentials) {
-        String userId = userCredentials.getUserId();
+        String userId = userCredentials.getUserId() != null ? userCredentials.getUserId().trim().toLowerCase() : "";
         String encryptedPassword = userCredentials.getPassword();
 
         // Always sanitize outbound fields
@@ -1182,7 +1114,7 @@ public class LoginServiceImpl implements LoginService {
             try {
                 rawPassword = KeyUtils.decryptRsaPassword(encryptedPassword, rsaPrivatePem);
             } catch (SecurityException e) {
-                log.error("Update password rejected for user {}: Payload decryption failed", userId);
+                log.error("Update password rejected for user {}: Payload decryption failed", LoginUtility.sanitizeLog(userId));
                 userCredentials.setMessage("Security Error: Invalid encrypted payload");
                 return userCredentials;
             }
@@ -1229,7 +1161,7 @@ public class LoginServiceImpl implements LoginService {
             log.error("Login halted for user {}: No registered mobile or email found.", LoginUtility.sanitizeLog(userDto.getUserId()));
             return Mono.error(new ResponseStatusException(
                     HttpStatus.BAD_REQUEST,
-                    "OTP cannot be sent: No valid mobile number or email address is mapped with User ID."
+                    "Code cannot be sent: No valid mobile number or email address is mapped with User ID."
             ));
         }
 
@@ -1265,11 +1197,11 @@ public class LoginServiceImpl implements LoginService {
         // Construct exact Table 2.4 user message
         String message;
         if (hasMobile && hasEmail) {
-            message = "OTP sent to " + maskedMob + " and " + maskedEm;
+            message = "Code sent to " + maskedMob + " and " + maskedEm;
         } else if (hasMobile) {
-            message = "OTP sent to " + maskedMob;
+            message = "Code sent to " + maskedMob;
         } else {
-            message = "OTP sent to " + maskedEm;
+            message = "Code sent to " + maskedEm;
         }
         final String finalMessage = message;
 
@@ -1382,11 +1314,11 @@ public class LoginServiceImpl implements LoginService {
                                 String maskedEm = hasEmail ? maskEmail(email) : "";
                                 String message;
                                 if (hasMobile && hasEmail) {
-                                    message = "New OTP sent to " + maskedMob + " and " + maskedEm;
+                                    message = "New Code sent to " + maskedMob + " and " + maskedEm;
                                 } else if (hasMobile) {
-                                    message = "New OTP sent to " + maskedMob;
+                                    message = "New Code sent to " + maskedMob;
                                 } else {
-                                    message = "New OTP sent to " + maskedEm;
+                                    message = "New Code sent to " + maskedEm;
                                 }
 
                                 final String finalMessage = message;
@@ -1429,6 +1361,7 @@ public class LoginServiceImpl implements LoginService {
     private UserTokenDataDto initializeTokenData(User user, UserRoles userRole) {
         UserTokenDataDto tokenData = new UserTokenDataDto();
         tokenData.setFirstName(user.getFirstName());
+        tokenData.setMiddleName(user.getMiddleName());
         tokenData.setLastName(user.getLastName());
         tokenData.setPhoneNumber(user.getPhoneNumber());
         tokenData.setUserId(user.getUserId());
@@ -1486,15 +1419,16 @@ public class LoginServiceImpl implements LoginService {
     @Override
     @Transactional(readOnly = true)
     public UserDto getUserProfile(String userId) {
-        User user = userRepository.findByUserId(userId);
-        UserRoles userRole = userRepository.getUserRole(userId);
+        final String cleanUserId = userId != null ? userId.trim().toLowerCase() : "";
+        User user = userRepository.findByUserId(cleanUserId);
+        UserRoles userRole = userRepository.getUserRole(cleanUserId);
 
         // Return null if user doesn't exist, caller handles the error
         if (user == null) {
             return null;
         }
         UserDto userDto = new UserDto();
-        userDto.setUserId(user.getUserId());
+        userDto.setUserId(cleanUserId);
         userDto.setUserStatus(user.getPasswordLogin());
         userDto.setPasswordLoginStatus(user.getPasswordLogin());
         userDto.setUser(initializeTokenData(user, userRole));
@@ -1616,6 +1550,11 @@ public class LoginServiceImpl implements LoginService {
 
 
 
+
+
+
+
+
 package com.fincore.gateway.Service;
 
 import com.fincore.gateway.model.LoginParam;
@@ -1694,16 +1633,6 @@ public class OtpSessionService {
 
     /**
      * Initiates or smartly resumes an OTP session on /login.
-     * <p>
-     * 1. Enforces User-level 60s Cooldown (Blocks rapid "Back to Sign In" and simultaneous 2-device login).
-     * 2. Enforces User-level 10-minute Resend Quota (If user already has an active 10m window, re-login counts against quota).
-     * 3. Invalidates any previous pending OTP transaction (txId) for this user on other devices/tabs.
-     * 4. Returns the remaining resends count for this user so the UI displays accurate state.
-     * 5. If the user clicked "Back to Sign In" and re-authenticated while an existing OTP code is STILL VALID
-     * and either the 60s cooldown is active OR all 3 resends are used, it seamlessly migrates the active OTP
-     * to the new txId without sending a duplicate SMS/Email (Smart Session Resumption).
-     * 6. If the previous OTP was burned/expired and the 60s cooldown or 3-resend limit is reached, it blocks with 429.
-     * 7. Otherwise, it generates a fresh OTP, enforces the 10-minute resend quota, and signals Kafka to dispatch.
      */
     public Mono<OtpSessionInitResult> initiateUserOtpSession(String newTxId, String userId, String newPlainOtp) {
         final String cleanUserId = userId.trim();
@@ -2072,15 +2001,28 @@ public class OtpSessionService {
 
     /**
      * Compensating transaction for Initial Login: Cleans up the Redis state if Kafka fails during /login.
+     * Also rolls back the OTP_RESENDS counter so a retry after Kafka failure is not penalized.
      */
     public Mono<Void> rollbackInitialOtpState(String txId, String userId) {
         final String cleanUserId = userId != null ? userId.trim() : "";
+        final String userResendKey = "OTP_RESENDS:USR:" + cleanUserId;
+
+        Mono<Void> rollbackResendWindow = redis.opsForValue().get(userResendKey)
+                .flatMap(val -> {
+                    if ("0".equals(val)) {
+                        return redis.delete(userResendKey).then();
+                    } else {
+                        return redis.opsForValue().decrement(userResendKey).then();
+                    }
+                });
+
         return Mono.when(
                 redis.delete("OTP_SESSION:" + txId),
                 redis.delete("OTP_TX:" + txId),
                 redis.delete("OTP_FAILURES:" + txId),
                 redis.delete("OTP_ACTIVE_TX:USR:" + cleanUserId),
-                redis.delete("OTP_COOLDOWN:USR:" + cleanUserId)
+                redis.delete("OTP_COOLDOWN:USR:" + cleanUserId),
+                rollbackResendWindow
         ).doOnSuccess(v -> log.info("Rolled back initial OTP state for txId={}", LoginUtility.sanitizeLog(txId)));
     }
 
@@ -2108,6 +2050,19 @@ public class OtpSessionService {
     ) {
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -2156,6 +2111,7 @@ public class OtpKafkaProducer {
     private final KafkaTemplate<String, String> kafkaTemplate;
     private final ObjectMapper mapper;
     private final AesEncryptionUtil aesUtil;
+    private final LoginParamCacheService loginParamCacheService;
 
     @Value("${security.internal.kafka-aes-key}")
     private String internalAesKey;
@@ -2170,11 +2126,12 @@ public class OtpKafkaProducer {
                      * ZERO-TRUST KAFKA PAYLOAD ARCHITECTURE
                      * ====================================================================
                      */
+                    int expiryMins = loginParamCacheService.getCachedLoginParam().getSafeOtpValidityMin();
 
-                    // 1. Build the sensitive inner payload (Updated expiryMins to 5 per Section 2.2.7)
+                    // 1. Build the sensitive inner payload (Dynamically parameterized from LOGIN_PARAM)
                     Map<String, Object> innerPayload = Map.of(
                             "otpPlaintext", plainOtp,
-                            "expiryMins", 5,
+                            "expiryMins", expiryMins,
                             "userName", userName != null ? userName : "User"
                     );
                     String innerJson = mapper.writeValueAsString(innerPayload);
@@ -2216,408 +2173,6 @@ public class OtpKafkaProducer {
 
 
 
-
-
-
-package com.fincore.gateway.Service;
-
-import com.fincore.gateway.model.LoginParam;
-import com.fincore.gateway.repository.LoginParamRepository;
-import com.github.benmanes.caffeine.cache.Cache;
-import com.github.benmanes.caffeine.cache.Caffeine;
-import jakarta.annotation.PostConstruct;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.stereotype.Service;
-
-/**
- * High-performance Caffeine Cache wrapper for LOGIN_PARAM configuration.
- * <p>
- * Loads the DB configuration into JVM memory once and serves all subsequent
- * requests with zero database I/O. Restarting the Login Service automatically
- * evicts the cache and reloads fresh parameters from Oracle DB.
- */
-@Slf4j
-@Service
-@RequiredArgsConstructor
-public class LoginParamCacheService {
-
-    private static final String CACHE_KEY = "GLOBAL_LOGIN_PARAM";
-
-    private final LoginParamRepository loginParamRepository;
-
-    /**
-     * In-memory Caffeine cache bounded to 1 entry with no time-based eviction.
-     * Evicts automatically upon service restart.
-     */
-    private final Cache<String, LoginParam> paramCache = Caffeine.newBuilder()
-            .maximumSize(1)
-            .build();
-
-    /**
-     * Pre-warms the cache on application startup so the very first user login
-     * experiences zero cache-miss latency.
-     */
-    @PostConstruct
-    public void initCache() {
-        try {
-            LoginParam param = loginParamRepository.getLoginParam();
-            if (param != null) {
-                paramCache.put(CACHE_KEY, param);
-                log.info("Successfully pre-warmed Caffeine cache with LOGIN_PARAM: {}", param);
-            } else {
-                log.warn("LOGIN_PARAM table returned null during startup cache warm-up. Using fallback defaults.");
-            }
-        } catch (Exception e) {
-            log.error("Failed to pre-warm LOGIN_PARAM cache at startup. Will retry lazily on first login.", e);
-        }
-    }
-
-    /**
-     * Returns the cached LoginParam instance, loading from DB only if missing.
-     */
-    public LoginParam getCachedLoginParam() {
-        LoginParam param = paramCache.get(CACHE_KEY, key -> {
-            log.info("Loading LOGIN_PARAM from Oracle Database into Caffeine Cache...");
-            return loginParamRepository.getLoginParam();
-        });
-
-        if (param == null) {
-            log.warn("LOGIN_PARAM not found in DB! Returning default safe LoginParam instance.");
-            return new LoginParam();
-        }
-        return param;
-    }
-}
-
-
-
-
-
-
-
-
-
-
-
-
-
-package com.fincore.gateway.dto;
-
-import com.fasterxml.jackson.annotation.JsonProperty;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
-
-/**
- * Payload returned to the frontend when LDAP/Password succeeds and OTP phase is initiated.
- * Includes masked contact hints, timer configurations (including OTP_SCREEN_TIMEOUT_MIN),
- * and AppSec-safe user profile details so the UI can display the user's name on the OTP screen.
- */
-@Data
-@Builder
-@NoArgsConstructor
-@AllArgsConstructor
-public class OtpInitiatedResponseDTO {
-
-    private String transactionId;
-    private String maskedMobile;
-    private String maskedEmail;
-    private int expiresInSeconds;
-    private int resendCooldownSeconds;
-    private int resendsRemaining;
-    private String message;
-
-    // --- Idle Screen Timeout Configuration ---
-    private int otpScreenTimeoutMin;
-    private int screenTimeoutSeconds;
-
-    @JsonProperty("OTP_SCREEN_TIMEOUT_MIN")
-    public int getOtpScreenTimeoutMinUpperCase() {
-        return otpScreenTimeoutMin;
-    }
-
-    // --- User Details for OTP Screen Display (Requirement 2) ---
-    private String userId;
-    private String userName;
-    private String firstName;
-    private String middleName;
-    private String lastName;
-    private UserTokenDataDto userDetails;
-}
-
-
-
-
-
-
-
-
-
-
-package com.fincore.gateway.dto;
-
-import com.fasterxml.jackson.annotation.JsonProperty;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
-
-@Data
-@Builder
-@NoArgsConstructor
-@AllArgsConstructor
-public class OtpResendResponseDTO {
-
-    private int expiresInSeconds;
-    private int resendCooldownSeconds;
-    private int resendsRemaining;
-    private int otpScreenTimeoutMin;
-    private int screenTimeoutSeconds;
-    private String message;
-
-    @JsonProperty("OTP_SCREEN_TIMEOUT_MIN")
-    public int getOtpScreenTimeoutMinUpperCase() {
-        return otpScreenTimeoutMin;
-    }
-}
-
-
-
-
-
-
-
-
-package com.fincore.gateway.dto;
-
-import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.Pattern;
-import lombok.Data;
-
-@Data
-public class VerifyOtpRequestDTO {
-
-    @NotBlank(message = "Transaction ID is required")
-    private String transactionId;
-
-    @NotBlank(message = "Please enter a valid 6-digit numeric code.")
-    @Pattern(regexp = "^\\d{6}$", message = "Please enter a valid 6-digit numeric code.")
-    private String otp;
-}
-
-
-
-
-
-
-
-
-
-
-
-package com.fincore.gateway.dto;
-
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
-
-/**
- * Data Transfer Object (DTO) used to carry the response data after a successful or failed login attempt.
- * It implements the {@link UserLoginDTO} interface and provides comprehensive details about the
- * authenticated user, generated tokens, and login status.
- *
- * <p>
- * Uses Lombok annotations for boilerplate code reduction:
- * <ul>
- *     <li>{@code @Data} generates getters, setters, equals, hashCode, and toString methods.</li>
- *     <li>{@code @Builder} provides a fluent API for creating instances of this DTO.</li>
- * </ul>
- * </p>
- */
-@Data
-@Builder
-@NoArgsConstructor
-@AllArgsConstructor
-public class LoginResponseDTO implements UserLoginDTO {
-
-    /**
-     * The unique identifier of the authenticated user.
-     */
-    private String userId;
-
-    /**
-     * The generated JWT access token used for subsequent authorized requests.
-     */
-    private String accessToken;
-
-    /**
-     * The type of the token, typically "Bearer".
-     */
-    private String tokenType;
-
-    /**
-     * The time until the access token expires, in seconds.
-     */
-    private long expiresIn;
-
-    /**
-     * The subject of the JWT (usually the user ID or username).
-     */
-    private String sub;
-
-    /**
-     * The unique JWT ID (JTI) for session tracking.
-     */
-    private String jti;
-
-    /**
-     * A structured object containing the menu and permissions data associated with the user's role.
-     */
-    private MenuResponse roleData;
-
-    /**
-     * An error message provided in case of a login failure (e.g., bad credentials, locked account).
-     */
-    private String error;
-
-    /**
-     * A flag indicating whether the provided credentials were fundamentally valid.
-     */
-    private boolean validCredentials;
-
-    /**
-     * The current status of the user account (e.g., ACTIVE, INACTIVE, LOCKED).
-     */
-    private String userStatus;
-
-    /**
-     * The status specific to the password validation result (e.g., SUCCESS, EXPIRED, TEMP_PASSWORD).
-     */
-    private String passwordLoginStatus;
-
-    /**
-     * Re-generated token for continue session valid for 12 hours
-     */
-    private String refreshToken;
-
-    /**
-     * Invalid password attempt count
-     */
-    private Integer attemptsLeft;
-
-    /**
-     * User profile details extracted directly for frontend convenience.
-     */
-    private UserTokenDataDto userData;
-}
-
-
-
-
-
-
-
-
-package com.fincore.gateway.model;
-
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.Id;
-import jakarta.persistence.Table;
-import lombok.Getter;
-import lombok.Setter;
-import lombok.ToString;
-
-/**
- * Entity representing the system-wide login configuration paramters.
- * 
- * Maps to the LOGIN_PARAM table, which holds information such as
- * the active login mode, OTP validity period, password validity period,
- * allowed wrong attempts, and interval between attempts etc.
- */
-@Entity
-@Getter
-@Setter
-@ToString
-@Table(name = "LOGIN_PARAM")
-public class LoginParam {
-
-    /** Defines the currently active login mode in the system. */
-    @Id
-    @Column(name = "ACTIVE_LOGIN_MODE")
-    private char activeLoginMode;
-
-    /** OTP validity period in minutes (Default: 5). */
-    @Column(name = "OTP_VALIDITY")
-    private Integer otpValidity = 5;
-
-    /** Password validity period in days/hours. */
-    @Column(name = "PASSWORD_VALIDITY")
-    private int passwordValidity;
-
-    /** Number of consecutive wrong password attemps allowed before blocking. */
-    @Column(name = "WRONG_PASSWORD_ATTEMPTS")
-    private int wrongPasswordAttempts;
-
-    /** Time interval (in minutes) after which a new login attempt is allowed. */
-    @Column(name = "ATTEMPT_INTERVAL")
-    private int attemptInterval;
-
-    /** Flag to indicate if OTP/MFA is required after primary authentication ('Y'/'N'). */
-    @Column(name = "IS_OTP_ENABLED")
-    private String isOtpEnabled;
-
-    // ===========================================================================
-    // ===========================================================================
-
-    /** Maximum wrong verification attempts per generated OTP code (Default: 5). */
-    @Column(name = "OTP_MAX_ATTEMPTS")
-    private Integer otpMaxAttempts = 5;
-
-    /** Cooldown in seconds before Resend OTP is allowed (Default: 60). */
-    @Column(name = "OTP_RESEND_COOLDOWN_SEC")
-    private Integer otpResendCooldownSec = 60;
-
-    /** Maximum number of resends allowed per user within the window (Default: 3). */
-    @Column(name = "OTP_MAX_RESENDS")
-    private Integer otpMaxResends = 3;
-
-    /** Time window in minutes for tracking maximum OTP resends (Default: 10). */
-    @Column(name = "OTP_RESEND_WINDOW_MIN")
-    private Integer otpResendWindowMin = 10;
-
-    /** Overall idle timeout in minutes for the OTP entry screen (Default: 15). */
-    @Column(name = "OTP_SCREEN_TIMEOUT_MIN")
-    private Integer otpScreenTimeoutMin = 15;
-
-    // Safe getters with fallback defaults in case DB columns contain unexpected nulls/zeros
-    public int getSafeOtpValidityMin() {
-        return (otpValidity != null && otpValidity > 0) ? otpValidity : 5;
-    }
-
-    public int getSafeOtpMaxAttempts() {
-        return (otpMaxAttempts != null && otpMaxAttempts > 0) ? otpMaxAttempts : 5;
-    }
-
-    public int getSafeOtpResendCooldownSec() {
-        return (otpResendCooldownSec != null && otpResendCooldownSec > 0) ? otpResendCooldownSec : 60;
-    }
-
-    public int getSafeOtpMaxResends() {
-        return (otpMaxResends != null && otpMaxResends > 0) ? otpMaxResends : 3;
-    }
-
-    public int getSafeOtpResendWindowMin() {
-        return (otpResendWindowMin != null && otpResendWindowMin > 0) ? otpResendWindowMin : 10;
-    }
-
-    public int getSafeOtpScreenTimeoutMin() {
-        return (otpScreenTimeoutMin != null && otpScreenTimeoutMin > 0) ? otpScreenTimeoutMin : 15;
-    }
-}
 
 
 
