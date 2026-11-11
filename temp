@@ -1,122 +1,164 @@
-package com.fincore.gateway.dto;
+package com.fincore.gateway.Service;
 
-import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.Size;
-import lombok.Data;
-import lombok.ToString;
+import com.fincore.gateway.dto.ChildMenu;
+import com.fincore.gateway.dto.MenuResponse;
+import com.fincore.gateway.dto.PermissionRow;
+import com.fincore.gateway.dto.RootMenu;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.stereotype.Service;
 
-@Data
-public class VerifyOtpRequestDTO {
+import java.util.*;
+import java.util.stream.Collectors;
 
-    @NotBlank(message = "Transaction ID is required")
-    private String transactionId;
+/**
+ * Builds navigational menu structures from permission entities or projections.
+ *
+ * <p>Responsibilities:</p>
+ * <ul>
+ *   <li>Group permissions by root menu title</li>
+ *   <li>Create root and child menu DTOs</li>
+ *   <li>Ensure deterministic ordering (by {@code orderId} / {@code permissionOrder})</li>
+ *   <li>Be tolerant to missing/nullable sorting fields</li>
+ * </ul>
+ *
+ * <p><strong>Ordering</strong>: Root menus and child menus are sorted in ascending order using their respective
+ * order fields. Null order values are placed last to keep ordering stable.</p>
+ *
+ * <strong>UPDATED:</strong> Merges 'menuAction' for Root Menus with the same Title.
+ */
+@Slf4j
+@Service
+public class MenuService {
 
     /**
-     * Accepts either a plain 6-digit numeric OTP ("123456") OR an RSA-OAEP
-     * encrypted Base64 string. Strict 6-digit regex validation is enforced
-     * inside LoginServiceImpl.resolveAndValidateOtp() after optional decryption.
+     * Returns a non-null order for {@link PermissionRow} (nulls go to the end).
      */
-    @ToString.Exclude
-    @NotBlank(message = "Please enter a valid 6-digit numeric code.")
-    @Size(min = 6, max = 1024, message = "Please enter a valid 6-digit numeric code.")
-    private String otp;
+    private static int safePermissionOrder(PermissionRow r) {
+        Integer v = r.getPermissionOrder();
+        return v != null ? v : Integer.MAX_VALUE;
+    }
+
+    // --------------------------------------------------------------------------------------------
+    // Builders
+    // --------------------------------------------------------------------------------------------
+
+    /**
+     * Comparator key extractor for root menus.
+     */
+    private static int safeOrderIdRoot(RootMenu r) {
+        Integer v = r.getOrderId();
+        return v != null ? v : Integer.MAX_VALUE;
+    }
+
+    /**
+     * Comparator key extractor for child menus.
+     */
+    private static int safeOrderIdChild(ChildMenu c) {
+        Integer v = c.getOrderId();
+        return v != null ? v : Integer.MAX_VALUE;
+    }
+
+    // --------------------------------------------------------------------------------------------
+    // Null-safe order helpers
+    // --------------------------------------------------------------------------------------------
+
+    /**
+     * Transforms a list of {@link PermissionRow} projections into a {@link MenuResponse}.
+     * <p>Groups by {@code menuTitle}, creates root items, and child items from rows having a non-null {@code subMenu}.</p>
+     *
+     * @param rows permission projection rows (typically from a custom query join)
+     * @return menu response with ordered root and child menus
+     */
+    public MenuResponse transformFromProjection(List<PermissionRow> rows) {
+        MenuResponse response = new MenuResponse();
+
+        if (rows == null || rows.isEmpty()) {
+            response.setRoot_menus(Collections.emptyList());
+            return response;
+        }
+
+        // Group by root menu title
+        Map<String, List<PermissionRow>> grouped = rows.stream().collect(Collectors.groupingBy(PermissionRow::getMenuTitle));
+
+        List<RootMenu> rootMenus = new ArrayList<>();
+
+        for (Map.Entry<String, List<PermissionRow>> entry : grouped.entrySet()) {
+            List<PermissionRow> group = entry.getValue();
+
+            //1. Representative root row: choose the smallest non-null permissionOrder
+            PermissionRow root = group.stream().min(Comparator.comparing(MenuService::safePermissionOrder)).orElse(group.get(0));
+
+            RootMenu rootMenu = buildRootFromProjection(root);
+
+            // 2. MERGE ROOT ACTIONS
+            String mergedAction = group.stream().map(PermissionRow::getMenuAction)       // Get action from each row
+                    .filter(Objects::nonNull)                // Ignore nulls
+                    .flatMap(action -> Arrays.stream(action.split("\\|"))) // Split "create|modify"
+                    .map(String::trim)                       // Clean spaces
+                    .filter(s -> !s.isEmpty())               // Remove empty strings
+                    .distinct()                              // Remove duplicates
+                    .collect(Collectors.joining("|"));       // Join back to "create|modify|block"
+            // Overwrite the single-row action with the merged action
+            rootMenu.setMenuAction(mergedAction);
+
+            // 3.  Children (only rows that actually represent a sub-menu), ordered by permissionOrder asc
+            List<ChildMenu> children = group.stream().filter(r ->
+                    r.getSubMenu() != null)
+                    .map(this::buildChildFromProjection)
+                    .sorted(Comparator.comparing(MenuService::safeOrderIdChild))
+                    .collect(Collectors.toList());
+
+            boolean multiChildren = children.size() > 1;
+            rootMenu.setHasChildren(multiChildren);
+            if (!multiChildren) {
+                // children size is 0 or 1
+                if (children.size() == 1) {
+                    // promote the only child
+                    rootMenu.setTitle(children.get(0).getTitle());
+                }
+            } else {
+                // children > 1 → set children normally
+                rootMenu.setChildren(children);
+            }
+            // add root menu
+            rootMenus.add(rootMenu);
+        }
+
+        // Order root menus as well
+        rootMenus.sort(Comparator.comparing(MenuService::safeOrderIdRoot));
+
+        response.setRoot_menus(rootMenus);
+        return response;
+    }
+
+    private RootMenu buildRootFromProjection(PermissionRow r) {
+        RootMenu root = new RootMenu();
+        root.setId(r.getMenuId());
+        root.setTitle(r.getMenuTitle());
+        root.setIcon(r.getMenuIcon());
+        root.setRoute(r.getMenuUrl());
+        root.setMenuAction(r.getMenuAction());
+        root.setComponentPath(r.getComponentPath());
+        root.setScreenDescription(r.getMenuDescription());
+        root.setOrderId(safePermissionOrder(r));
+        root.setRequestType(r.getRequestType());
+        return root;
+    }
+
+    private ChildMenu buildChildFromProjection(PermissionRow r) {
+        ChildMenu c = new ChildMenu();
+        c.setId(r.getMenuId());
+        c.setTitle(r.getSubMenu());
+        c.setIcon(r.getMenuIcon());
+        c.setRoute(r.getMenuUrl());
+        c.setComponentPath(r.getComponentPath());
+        c.setScreenDescription(r.getMenuDescription());
+        c.setMenuAction(r.getMenuAction());
+        c.setRequestType(r.getRequestType());
+        c.setOrderId(safePermissionOrder(r));
+        return c;
+    }
 }
-
-
-
-
-
-
-
-
-
-
-
-
-package com.fincore.gateway.dto;
-
-import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
-import com.fasterxml.jackson.annotation.JsonProperty;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
-import lombok.ToString;
-
-import java.sql.Timestamp;
-
-@Data
-@Builder
-@NoArgsConstructor
-@AllArgsConstructor
-@JsonIgnoreProperties(ignoreUnknown = true)
-public class UserDto implements UserLoginDTO {
-
-    private String userId;
-    private int userRole;
-    private String firstName;
-    private String middleName;
-    private String lastName;
-
-    @ToString.Exclude
-    private String phoneNumber;
-
-    @ToString.Exclude
-    private String email;
-
-    @ToString.Exclude
-    @JsonProperty(access = JsonProperty.Access.WRITE_ONLY)
-    private String passwordHash;
-
-    @ToString.Exclude
-    @JsonProperty(access = JsonProperty.Access.WRITE_ONLY)
-    private String password;
-
-    private String roleStatus;
-    private Timestamp createdAt;
-    private Timestamp updatedAt;
-    private Timestamp lastLoginAt;
-    private String isDeleted;
-    private Timestamp deletedAt;
-    private Timestamp tempPasswordSetAt;
-    private int userWrongPasswordCount;
-    private int branch;
-    private String message;
-    private char loginMethod;
-    private String userStatus;
-
-    @ToString.Exclude
-    @JsonProperty(access = JsonProperty.Access.READ_ONLY)
-    private String accessToken;
-
-    @ToString.Exclude
-    @JsonProperty(access = JsonProperty.Access.READ_ONLY)
-    private String refreshToken;
-
-    private String passwordLoginStatus;
-    private UserTokenDataDto user;
-
-    // --- Routing Flags for the Controller (READ_ONLY prevents Mass Assignment on @RequestBody) ---
-    @JsonProperty(access = JsonProperty.Access.READ_ONLY)
-    private boolean userCheck;
-
-    @JsonProperty(access = JsonProperty.Access.READ_ONLY)
-    private boolean validCredentials;
-
-    @JsonProperty(access = JsonProperty.Access.READ_ONLY)
-    private boolean updatePassword;
-
-    @JsonProperty(access = JsonProperty.Access.READ_ONLY)
-    private boolean otpRequired;
-
-    @JsonProperty(access = JsonProperty.Access.READ_ONLY)
-    private boolean accountLocked;
-
-    @JsonProperty(access = JsonProperty.Access.READ_ONLY)
-    private int attemptsLeft;
-}
-
-
 
 
 
@@ -175,6 +217,22 @@ import java.util.stream.Stream;
 
 /**
  * Service implementation handling user login/verification, menu resolution, and password updates.
+ *
+ * <p><strong>Responsibilities</strong>
+ * <ul>
+ *   <li>Validate credentials (password-based and LDAP-based)</li>
+ *   <li>Issue HS256 JWTs and embed limited user/role claims</li>
+ *   <li>Transform role permissions into menu responses</li>
+ *   <li>Track login attempts and enforce wrong password limits</li>
+ * </ul>
+ *
+ * <p><strong>Notes</strong>
+ * <ul>
+ *   <li>JWT generation uses an HMAC Base64 secret; ensure it is configured for the environment.</li>
+ *   <li>{@code BCryptPasswordEncoder} is created locally for convenience; consider injecting a singleton bean instead.</li>
+ *   <li>Write operations are wrapped in {@link Transactional} where appropriate.</li>
+ * </ul>
+ *
  */
 @Slf4j
 @Service("LoginService")
@@ -183,6 +241,9 @@ public class LoginServiceImpl implements LoginService {
 
     private static final SecureRandom SECURE_RANDOM = new SecureRandom();
 
+    /**
+     * Prefer injecting a singleton bean; retained local instance for compatibility.
+     */
     private final PasswordEncoder passwordEncoder;
 
     // ======= Config =======
@@ -205,9 +266,15 @@ public class LoginServiceImpl implements LoginService {
     @Value("${security.payload.rsa-private:}")
     private String rsaPrivatePem;
 
+    /**
+     * Base64-encoded HMAC secret used to sign HS256 JWTs.
+     */
     @Value("${security.jwt.hmac-base64-secret:}")
     private String hmacSecret;
 
+    /**
+     * Token time-to-live in seconds.
+     */
     @Value("${security.jwt.ttl-seconds:900}")
     private long ttlSeconds;
 
@@ -215,6 +282,12 @@ public class LoginServiceImpl implements LoginService {
     //                                    AUTH METHODS
     // =========================================================================================
 
+    /**
+     * Fetches role-wise permissions for the given user and transforms them into a menu response.
+     *
+     * @param userId ID of the user
+     * @return {@link MenuResponse} built from ordered permissions; empty if none or on error
+     */
     @Transactional(readOnly = true)
     @Override
     public MenuResponse fetchRoleWiseData(String userId) {
@@ -233,7 +306,16 @@ public class LoginServiceImpl implements LoginService {
         }
     }
 
-    @Override
+
+    /**
+     * Verifies user credentials and, on success, builds {@link UserDto} populated with an access token and token data.
+     * <p>Also records the login attempt and enforces password attempt limits.</p>
+     * NOTE: Local password expiration checks have been disabled as per enterprise environment config.</p>
+     *
+     * @param userCredentials payload containing {@code userId} and (for password mode) {@code password}
+     * @param clientIp        caller's IP address for audit
+     * @return {@link UserDto} with validity flags, statuses, and (if valid) a signed access token
+     */
     public UserDto verifyUserCredentials(UserDto userCredentials, String clientIp) {
 
         final String userId = userCredentials.getUserId() != null ? userCredentials.getUserId().trim().toLowerCase() : "";
@@ -270,7 +352,6 @@ public class LoginServiceImpl implements LoginService {
         result.setOtpRequired("Y".equalsIgnoreCase(loginParam.getIsOtpEnabled()));
 
         UserRoles userRole = userRepository.getUserRole(userId);
-        // Fortify Fix: Guard against Null Dereference on userRole
         if (userRole == null) {
             attempt.setFailureReason("Role Mapping Missing");
             loginAttemptRepository.save(attempt);
@@ -304,6 +385,7 @@ public class LoginServiceImpl implements LoginService {
         }
 
         // 3. TIGHTLY SCOPED RSA DECRYPTION
+        // Explicitly isolated so it doesn't swallow LDAP security exceptions
         String rawPassword;
         try {
             rawPassword = KeyUtils.decryptRsaPassword(encryptedPassword, rsaPrivatePem);
@@ -319,6 +401,9 @@ public class LoginServiceImpl implements LoginService {
 
         // 4. BRANCHED AUTHENTICATION
         if (activeMode == Constants.LDAP) {
+            // ============================================
+            // MODE: LDAP
+            // ============================================
             log.info("Processing LDAP Login for user: {}", LoginUtility.sanitizeLog(userId));
             try {
                 Boolean ldapSuccess = Mono.fromCallable(() -> adAuthenticationService.authenticate(userId, rawPassword))
@@ -328,29 +413,49 @@ public class LoginServiceImpl implements LoginService {
                 if (Boolean.TRUE.equals(ldapSuccess)) {
                     handleSuccess(attempt, result, user, userRole);
                 } else {
+                    // AD rejected password. Do NOT increment local count.
                     attempt.setFailureReason("LDAP Authentication Failed");
                     result.setValidCredentials(false);
                     result.setAccountLocked(false);
                     result.setMessage(genericAuthError);
                 }
             } catch (SecurityException se) {
-                log.warn("LDAP Security Exception for {}: {}", LoginUtility.sanitizeLog(userId), LoginUtility.sanitizeLog(se.getMessage()));
+                // Catches explicit Active Directory errors (e.g. data 775 - Account Locked)
+                log.warn("LDAP Security Exception for {}: {}", LoginUtility.sanitizeLog(userId), se.getMessage());
                 attempt.setFailureReason(se.getMessage());
                 result.setValidCredentials(false);
-                result.setAccountLocked(se.getMessage() != null && se.getMessage().toLowerCase().contains("locked"));
+                result.setAccountLocked(se.getMessage().toLowerCase().contains("locked"));
                 result.setMessage(se.getMessage());
             } catch (RuntimeException e) {
-                log.error("LDAP Server Error for user {}: {}", LoginUtility.sanitizeLog(userId), LoginUtility.sanitizeLog(e.getMessage()));
+                log.error("LDAP Server Error for user {}: {}", LoginUtility.sanitizeLog(userId), e.getMessage());
                 attempt.setFailureReason("LDAP Server Down");
                 result.setValidCredentials(false);
                 result.setAccountLocked(false);
                 result.setMessage("System Error: Unable to connect to Authentication Server. Please try again later.");
             }
         } else if (activeMode == Constants.PWD_MODE) {
+            // ============================================
+            // MODE: LOCAL PASSWORD (DB tracked limits)
+            // ============================================
             if (Constants.INACTIVE.equalsIgnoreCase(user.getPasswordLogin())) {
                 handleAccountLocked(attempt, result, user);
             } else {
+                // Simply validate password. NO local expiration/1-month validity checks required here.
                 passwordBasedLogin(rawPassword, attempt, result, user, loginParam);
+
+//                // Expiry Check ONLY for local passwords
+//                if (result.isValidCredentials()) {
+//                    Timestamp setAt = user.getTempPasswordSetAt();
+//                    boolean isPasswordValid = false;
+//                    if (setAt != null) {
+//                        LocalDateTime lastUpdate = setAt.toLocalDateTime();
+//                        isPasswordValid = LocalDateTime.now().isBefore(lastUpdate.plusHours(loginParam.getPasswordValidity()));
+//                    }
+//                    if (!isPasswordValid) {
+//                        result.setUpdatePassword(true); // Triggers 428 Precondition Required
+//                        result.setMessage("Your password has expired. Please update it.");
+//                    }
+//                }
             }
         }
 
@@ -358,6 +463,19 @@ public class LoginServiceImpl implements LoginService {
         return result;
     }
 
+
+    /**
+     * Password-based authentication flow that enforces wrong password limits and updates counters/flags.
+     * 1. Increments count on failure.
+     * 2. Calculates remaining attempts.
+     * 3. Locks account immediately if limit reached.
+     *
+     * @param password     raw password from the request
+     * @param loginAttempt login attempt entity to be updated with success/failure
+     * @param userInfo     output DTO updated with validity and attempts left
+     * @param user         the user entity being authenticated
+     * @param loginParam   login parameter configuration (e.g., permitted attempts)
+     */
     @Transactional
     @Override
     public void passwordBasedLogin(String password, LoginAttempt loginAttempt, UserDto userInfo,
@@ -377,11 +495,24 @@ public class LoginServiceImpl implements LoginService {
         }
     }
 
+    /**
+     * Produces a human-readable message describing a blocked login due to {@code status} of a given {@code type}.
+     *
+     * @param status status string (e.g., ACTIVE/INACTIVE/LOCKED)
+     * @param type   subject type (e.g., "user", "role")
+     * @return formatted message
+     */
     @Override
     public String generateStatusMessage(String status, String type) {
         return String.format("Trying to login with a %s %s", status, type);
     }
 
+    /**
+     * Checks the status and requirements for a user attempting to log in (without performing login).
+     *
+     * @param userId the user identifier
+     * @return {@link VerifyUserDTO} describing status, password update requirements, and messages
+     */
     @Transactional(readOnly = true)
     public VerifyUserDTO checkUser(String userId) {
         final String cleanUserId = userId != null ? userId.trim().toLowerCase() : "";
@@ -403,11 +534,13 @@ public class LoginServiceImpl implements LoginService {
             Timestamp setAt = user.getTempPasswordSetAt();
             boolean isPasswordValid = false;
 
+            // Validate password expiration only for Password Mode
             if (loginParam.getActiveLoginMode() == Constants.PWD_MODE && setAt != null) {
                 LocalDateTime lastUpdate = setAt.toLocalDateTime();
                 isPasswordValid = LocalDateTime.now()
                         .isBefore(lastUpdate.plusHours(loginParam.getPasswordValidity()));
             } else {
+                // For LDAP/SSO, we rely on their policies, so treat local validity as true
                 isPasswordValid = true;
             }
 
@@ -416,6 +549,7 @@ public class LoginServiceImpl implements LoginService {
                 out.setRoleStatus(userRole.getRoleStatus());
             }
 
+            // Logic: Update Password only needed if Mode is Password AND (Password is null OR Expired)
             boolean updateNeeded = (loginParam.getActiveLoginMode() == Constants.PWD_MODE)
                     && (user.getPasswordHash() == null || !isPasswordValid);
 
@@ -436,13 +570,18 @@ public class LoginServiceImpl implements LoginService {
         return out;
     }
 
+    /**
+     * Updates the user's password hash and resets the temporary password timestamp.
+     *
+     * @param userCredentials input DTO with {@code userId} and new raw {@code password}
+     * @return {@link UpdatePasswordDTO} indicating success and message; sensitive fields are cleared
+     */
     @Transactional
-    @Override
     public UpdatePasswordDTO updatePassword(UpdatePasswordDTO userCredentials) {
         String userId = userCredentials.getUserId() != null ? userCredentials.getUserId().trim().toLowerCase() : "";
         String encryptedPassword = userCredentials.getPassword();
 
-        // Fortify Fix: Use null instead of "" to avoid 'Password Management: Empty Password' Critical finding
+        // Always sanitize outbound fields
         userCredentials.setUpdateFlag(false);
         userCredentials.setPassword(null);
         userCredentials.setOtp(null);
@@ -458,7 +597,7 @@ public class LoginServiceImpl implements LoginService {
             try {
                 rawPassword = KeyUtils.decryptRsaPassword(encryptedPassword, rsaPrivatePem);
             } catch (SecurityException e) {
-                log.error("Update password rejected for user {}: Payload decryption failed", LoginUtility.sanitizeLog(userId));
+                log.error("Update password rejected for user {}: Payload decryption failed", userId);
                 userCredentials.setMessage("Security Error: Invalid encrypted payload");
                 return userCredentials;
             }
@@ -485,6 +624,7 @@ public class LoginServiceImpl implements LoginService {
         return userCredentials;
     }
 
+
     // =========================================================================================
     //                           NEW OTP LIFECYCLE METHODS
     // =========================================================================================
@@ -504,7 +644,7 @@ public class LoginServiceImpl implements LoginService {
             log.error("Login halted for user {}: No registered mobile or email found.", LoginUtility.sanitizeLog(userDto.getUserId()));
             return Mono.error(new ResponseStatusException(
                     HttpStatus.BAD_REQUEST,
-                    "Code cannot be sent: No valid mobile number or email address is mapped with User ID."
+                    "OTP cannot be sent: No valid mobile number or email address is mapped with User ID."
             ));
         }
 
@@ -527,24 +667,14 @@ public class LoginServiceImpl implements LoginService {
         String maskedMob = hasMobile ? maskMobile(mobile) : "Not Registered";
         String maskedEm = hasEmail ? maskEmail(email) : "Not Registered";
 
-        UserTokenDataDto safeUserDetails = null;
-        if (tokenData != null) {
-            safeUserDetails = new UserTokenDataDto();
-            BeanUtils.copyProperties(tokenData, safeUserDetails);
-            // Mask raw PII before MFA is verified
-            safeUserDetails.setPhoneNumber(maskedMob);
-            safeUserDetails.setEmail(maskedEm);
-        }
-        final UserTokenDataDto finalSafeUserDetails = safeUserDetails;
-
         // Construct exact Table 2.4 user message
         String message;
         if (hasMobile && hasEmail) {
-            message = "Code sent to " + maskedMob + " and " + maskedEm;
+            message = "OTP sent to " + maskedMob + " and " + maskedEm;
         } else if (hasMobile) {
-            message = "Code sent to " + maskedMob;
+            message = "OTP sent to " + maskedMob;
         } else {
-            message = "Code sent to " + maskedEm;
+            message = "OTP sent to " + maskedEm;
         }
         final String finalMessage = message;
 
@@ -565,10 +695,11 @@ public class LoginServiceImpl implements LoginService {
                             .firstName(fName)
                             .middleName(mName)
                             .lastName(lName)
-                            .userDetails(finalSafeUserDetails)
                             .message(finalMessage)
                             .build();
 
+                    // If Smart Session Resumption reused an existing valid OTP (< 60s cooldown or 0 resends left),
+                    // skip Kafka dispatch so no duplicate SMS/Email is sent!
                     if (!initResult.shouldDispatchNewOtp()) {
                         return Mono.just(responseDto);
                     }
@@ -576,6 +707,7 @@ public class LoginServiceImpl implements LoginService {
                     return otpKafkaProducer.publishOtpEvent(txId, mobile, email, plainOtp, fName, activeChannels)
                             .thenReturn(responseDto)
                             .onErrorResume(error -> {
+                                // 4. COMPENSATING TRANSACTION (KAFKA DOWN - Table 2.4 message)
                                 log.error("Infrastructure failure during OTP dispatch for txId={}. Rolling back Redis state.",
                                         LoginUtility.sanitizeLog(txId), error);
 
@@ -644,6 +776,7 @@ public class LoginServiceImpl implements LoginService {
         final int screenTimeoutMin = params.getSafeOtpScreenTimeoutMin();
 
         return otpSessionService.checkIpRateLimit(clientIp)
+                // 1. Process Resend atomically in Redis (Enforces DB-configured cooldown & max resends per user)
                 .then(otpSessionService.processResend(txId, generateSecureOtp()))
                 .flatMap(tuple -> {
 
@@ -651,6 +784,7 @@ public class LoginServiceImpl implements LoginService {
                     String userId = tuple.getT2();
                     int remaining = tuple.getT3();
 
+                    // 2. Fetch User Profile for contact info
                     return Mono.fromCallable(() -> getUserProfile(userId))
                             .subscribeOn(Schedulers.boundedElastic())
                             .flatMap(userDto -> {
@@ -661,6 +795,7 @@ public class LoginServiceImpl implements LoginService {
                                 String email = (tokenData != null && tokenData.getEmail() != null) ?
                                         tokenData.getEmail().trim() : "";
 
+                                // 3. THE FAIL-FAST BARRIER
                                 boolean hasMobile = !mobile.isEmpty();
                                 boolean hasEmail = email.contains("@");
 
@@ -668,29 +803,32 @@ public class LoginServiceImpl implements LoginService {
                                     log.error("OTP Resend halted for user {}: No registered mobile or email found.", LoginUtility.sanitizeLog(userId));
                                     return Mono.error(new ResponseStatusException(
                                             HttpStatus.BAD_REQUEST,
-                                            "Code cannot be sent: No valid mobile number or email address is mapped with User ID."
+                                            "OTP cannot be sent: No valid mobile number or email address is mapped with User ID."
                                     ));
                                 }
 
+                                // 4. DYNAMIC CHANNEL ROUTER
                                 List<String> activeChannels = new java.util.ArrayList<>();
                                 if (hasMobile) activeChannels.add("SMS");
                                 if (hasEmail) activeChannels.add("EMAIL");
 
                                 String fName = tokenData.getFirstName() != null ? tokenData.getFirstName() : "User";
 
+                                // Construct exact Table 2.4 RESEND message (Prefixed with "New ")
                                 String maskedMob = hasMobile ? maskMobile(mobile) : "";
                                 String maskedEm = hasEmail ? maskEmail(email) : "";
                                 String message;
                                 if (hasMobile && hasEmail) {
-                                    message = "New Code sent to " + maskedMob + " and " + maskedEm;
+                                    message = "New OTP sent to " + maskedMob + " and " + maskedEm;
                                 } else if (hasMobile) {
-                                    message = "New Code sent to " + maskedMob;
+                                    message = "New OTP sent to " + maskedMob;
                                 } else {
-                                    message = "New Code sent to " + maskedEm;
+                                    message = "New OTP sent to " + maskedEm;
                                 }
 
                                 final String finalMessage = message;
 
+                                // 5. THE SAGA PIPELINE (Kafka Publish -> Rollback Resend Increment on Failure)
                                 return otpKafkaProducer.publishOtpEvent(txId, mobile, email, plainOtp, fName, activeChannels)
                                         .thenReturn(OtpResendResponseDTO.builder()
                                                 .expiresInSeconds(expirySeconds)
@@ -712,10 +850,19 @@ public class LoginServiceImpl implements LoginService {
                 });
     }
 
+
     // =========================================================================================
     //                                   HELPERS
     // =========================================================================================
 
+    /**
+     * Initializes the token-visible user data embedded/returned alongside the JWT.
+     * Fetches branch and circle mapping dynamically.
+     *
+     * @param user     the user entity
+     * @param userRole the role mapping for the user
+     * @return user token DTO with non-sensitive fields
+     */
     private UserTokenDataDto initializeTokenData(User user, UserRoles userRole) {
         UserTokenDataDto tokenData = new UserTokenDataDto();
         tokenData.setFirstName(user.getFirstName());
@@ -725,16 +872,19 @@ public class LoginServiceImpl implements LoginService {
         tokenData.setUserId(user.getUserId());
         tokenData.setBranch(user.getBranch());
         tokenData.setEmail(user.getEmail());
-        if (userRole != null) {
-            tokenData.setRole(userRole.getRole());
-            tokenData.setRoleName(userRole.getRoleName());
-            tokenData.setRoleDescription(userRole.getRoleDescription());
-            tokenData.setRoleAccess(userRole.getRoleAccess());
-            tokenData.setAccessName(userRole.getAccessName());
-            tokenData.setAccessDescription(userRole.getAccessDescription());
-        }
+        tokenData.setRole(userRole.getRole());
+        tokenData.setRoleName(userRole.getRoleName());
 
+        // ========== New code changes as per requirement for role access ========== added by v1015698
+        tokenData.setRoleDescription(userRole.getRoleDescription());
+        tokenData.setRoleAccess(userRole.getRoleAccess());
+        tokenData.setAccessName(userRole.getAccessName());
+        tokenData.setAccessDescription(userRole.getAccessDescription());
+
+        // FORMAT the branch integer to a 5-digit string (e.g., 8080 -> "08080")
         String branchCodeStr = String.format("%05d", user.getBranch());
+
+        // Fetch specific details from the database
         BranchCircleProjection bcInfo = branchRepository.findBranchAndCircleDetails(branchCodeStr);
 
         if (bcInfo != null) {
@@ -753,16 +903,24 @@ public class LoginServiceImpl implements LoginService {
             tokenData.setStateName(bcInfo.getStateName());
             tokenData.setStateCode(bcInfo.getStateCode());
 
+
+            // Check if user's branch matches the Circle's designated branch code
             boolean isCircle = branchCodeStr.equals(bcInfo.getCircleBranch());
             tokenData.setIsCircle(isCircle);
         } else {
+            // Fallback if branch is somehow missing in the master table
             tokenData.setIsCircle(false);
-            log.warn("Branch details not found in BRANCH_MASTER for branch code: {}", LoginUtility.sanitizeLog(branchCodeStr));
+            log.warn("Branch details not found in BRANCH_MASTER for branch code: {}", branchCodeStr);
         }
 
         return tokenData;
     }
 
+
+    /**
+     * Retrieves the full user profile for Token Refresh.
+     * Uses the exact same structure as verifyUserCredentials to ensure token claims are identical.
+     */
     @Override
     @Transactional(readOnly = true)
     public UserDto getUserProfile(String userId) {
@@ -774,8 +932,9 @@ public class LoginServiceImpl implements LoginService {
         if (user == null || userRole == null) {
             return null;
         }
+
         UserDto userDto = new UserDto();
-        userDto.setUserId(cleanUserId);
+        userDto.setUserId(user.getUserId());
         userDto.setUserStatus(user.getPasswordLogin());
         userDto.setPasswordLoginStatus(user.getPasswordLogin());
         userDto.setUser(initializeTokenData(user, userRole));
@@ -808,6 +967,7 @@ public class LoginServiceImpl implements LoginService {
         result.setValidCredentials(true);
         result.setMessage("Login Successful");
 
+        // Reset wrong password count on successful login
         if (user.getUserWrongPasswordCount() > 0) {
             user.setUserWrongPasswordCount(0);
             userRepository.save(user);
@@ -815,6 +975,7 @@ public class LoginServiceImpl implements LoginService {
 
         log.info("Credentials validated. Issuing token for userId={}", LoginUtility.sanitizeLog(user.getUserId()));
 
+        // Fetch contextual user data (including branch and circle)
         UserTokenDataDto tokenData = initializeTokenData(user, userRole);
 
         @SuppressWarnings("unchecked")
@@ -822,7 +983,7 @@ public class LoginServiceImpl implements LoginService {
                 hmacSecret,
                 user.getUserId(),
                 ttlSeconds,
-                mapper.convertValue(tokenData, Map.class)
+                mapper.convertValue(tokenData, Map.class) // Embed all tokenData properties into the JWT claims
         );
 
         result.setAccessToken(accessToken);
@@ -830,7 +991,7 @@ public class LoginServiceImpl implements LoginService {
     }
 
     private void handleFailure(LoginAttempt attempt, UserDto userInfo, User user, LoginParam loginParam, String reason) {
-        log.warn("Login failed for user {}: {}", LoginUtility.sanitizeLog(user.getUserId()), LoginUtility.sanitizeLog(reason));
+        log.warn("Login failed for user {}: {}", LoginUtility.sanitizeLog(user.getUserId()), reason);
         attempt.setSuccess("N");
 
         int currentFailedCount = user.getUserWrongPasswordCount();
@@ -842,6 +1003,7 @@ public class LoginServiceImpl implements LoginService {
 
         if (newFailedCount >= maxAllowed) {
             user.setPasswordLogin(Constants.INACTIVE);
+            // user.setAccountStatus(Constants.LOCKED); // Optional: Depending on business rule
             attempt.setFailureReason(reason + " -> Account Locked");
             userInfo.setMessage("Your account has been locked due to multiple unsuccessful login attempts.");
             userInfo.setPasswordLoginStatus(Constants.INACTIVE);
@@ -859,7 +1021,10 @@ public class LoginServiceImpl implements LoginService {
         userRepository.save(user);
     }
 
-    // ================== OTP Format Utilities ====================
+
+    // =========================================================================================
+    //                                OTP Format Utilities
+    // =========================================================================================
 
     private String generateSecureOtp() {
         int otp = 100000 + SECURE_RANDOM.nextInt(900000);
@@ -872,6 +1037,9 @@ public class LoginServiceImpl implements LoginService {
         return (parts[0].length() <= 2 ? "**" : parts[0].charAt(0) + "***" + parts[0].charAt(parts[0].length() - 1)) + "@" + parts[1];
     }
 
+    /**
+     * Updated to return 3 asterisks (e.g. ***1234) per Table 2.4 of the MFA Solution Document.
+     */
     private String maskMobile(String mobile) {
         if (mobile == null || mobile.length() < 4) return mobile;
         return "***" + mobile.substring(mobile.length() - 4);
@@ -891,695 +1059,137 @@ public class LoginServiceImpl implements LoginService {
 
 
 
+package com.fincore.gateway.Service;
 
-
-
-
-
-
-
-package com.fincore.gateway.Controller;
-
-import com.fincore.commonutilities.util.AesEncryptionUtil;
-import com.fincore.gateway.JwtUtil.JweUtil;
-import com.fincore.gateway.Service.LaunchService;
-import com.fincore.gateway.Service.LoginService;
-import com.fincore.gateway.Service.TokenSessionValidator;
-import com.fincore.gateway.dto.*;
-import com.fincore.gateway.utility.Constants;
-import com.fincore.gateway.utility.LoginUtility;
-
-import com.nimbusds.jwt.EncryptedJWT;
-import com.nimbusds.jwt.JWTClaimsSet;
-import jakarta.validation.Valid;
+import com.fincore.gateway.model.LoginParam;
+import com.fincore.gateway.repository.LoginParamRepository;
+import com.github.benmanes.caffeine.cache.Cache;
+import com.github.benmanes.caffeine.cache.Caffeine;
+import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.stereotype.Service;
 
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.data.redis.core.ReactiveStringRedisTemplate;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.MediaType;
-import org.springframework.http.ResponseCookie;
-import org.springframework.http.ResponseEntity;
-import org.springframework.http.server.reactive.ServerHttpRequest;
-import org.springframework.http.server.reactive.ServerHttpResponse;
-import org.springframework.security.oauth2.jwt.BadJwtException;
-import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
-import org.springframework.web.bind.annotation.*;
-import org.springframework.web.server.ResponseStatusException;
-
-import reactor.core.publisher.Mono;
-import reactor.core.scheduler.Schedulers;
-
-import tools.jackson.databind.ObjectMapper;
-
-import java.text.ParseException;
-import java.time.Duration;
-import java.util.*;
-
+/**
+ * High-performance Caffeine Cache wrapper for LOGIN_PARAM configuration.
+ * <p>
+ * Loads the DB configuration into JVM memory once and serves all subsequent
+ * requests with zero database I/O. Restarting the Login Service automatically
+ * evicts the cache and reloads fresh parameters from Oracle DB.
+ */
 @Slf4j
-@RestController
-@RequestMapping("/api/auth")
+@Service
 @RequiredArgsConstructor
-public class AuthController {
+public class LoginParamCacheService {
 
-    private static final String USER_PREFIX = "USR:";
-    private static final String AES_KEY_PREFIX = "AES:USR:";
+    private static final String CACHE_KEY = "GLOBAL_LOGIN_PARAM";
 
-    private final TokenSessionValidator validator;
-    private final ReactiveStringRedisTemplate redisTemplate;
-    private final LoginService loginService;
-    private final ObjectMapper mapper;
-    private final LaunchService launchService;
-    private final AesEncryptionUtil aesUtil;
+    private final LoginParamRepository loginParamRepository;
 
-    @Value("${security.jwt.hmac-base64-secret:}")
-    private String hmacSecret;
+    /**
+     * In-memory Caffeine cache bounded to 1 entry with no time-based eviction.
+     * Evicts automatically upon service restart.
+     */
+    private final Cache<String, LoginParam> paramCache = Caffeine.newBuilder()
+            .maximumSize(1)
+            .build();
 
-    @Value("${security.jwt.ttl-seconds:900}")
-    private long accessTokenTtl;
+    /**
+     * Pre-warms the cache on application startup so the very first user login
+     * experiences zero cache-miss latency.
+     */
+    @PostConstruct
+    public void initCache() {
+        try {
+            LoginParam param = loginParamRepository.getLoginParam();
+            if (param != null) {
+                paramCache.put(CACHE_KEY, param);
+                log.info("Successfully pre-warmed Caffeine cache with LOGIN_PARAM: {}", param);
+            } else {
+                log.warn("LOGIN_PARAM table returned null during startup cache warm-up. Using fallback defaults.");
+            }
+        } catch (Exception e) {
+            log.error("Failed to pre-warm LOGIN_PARAM cache at startup. Will retry lazily on first login.", e);
+        }
+    }
 
-    @Value("${security.jwt.refresh-ttl-seconds:43200}")
-    private long refreshTokenTtl;
+    /**
+     * Returns the cached LoginParam instance, loading from DB only if missing.
+     */
+    public LoginParam getCachedLoginParam() {
+        LoginParam param = paramCache.get(CACHE_KEY, key -> {
+            log.info("Loading LOGIN_PARAM from Oracle Database into Caffeine Cache...");
+            return loginParamRepository.getLoginParam();
+        });
 
-    @Value("${security.login.blocked-ips:}")
-    private String blockedIpsConfig;
+        if (param == null) {
+            log.warn("LOGIN_PARAM not found in DB! Returning default safe LoginParam instance.");
+            return new LoginParam();
+        }
+        return param;
+    }
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+package com.fincore.gateway.Service;
+
+
+import com.fincore.gateway.dto.LaunchResponse;
+import com.fincore.gateway.model.LaunchConfig;
+import com.fincore.gateway.repository.LaunchConfigRepository;
+import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.stereotype.Service;
+
+import java.time.ZoneId;
+import java.time.ZonedDateTime;
+import java.time.format.DateTimeFormatter;
+
+@Service
+@RequiredArgsConstructor
+public class LaunchServiceImpl implements LaunchService {
+
+    private final LaunchConfigRepository launchConfigRepository;
 
     @Value("${security.payload.rsa-public:}")
     private String rsaPublicPem;
 
-    // =================================================================================================
-    // INITIALIZATION & LOGIN
-    // =================================================================================================
 
-    @GetMapping("/init")
-    public ResponseEntity<LaunchResponse> getLaunchData() {
-        return ResponseEntity.ok(launchService.getLaunchDetails());
-    }
-
-    @PostMapping(value = "/login", produces = MediaType.APPLICATION_JSON_VALUE)
-    public Mono<ResponseEntity<ApiResponse<?>>> login(
-            ServerHttpRequest request, ServerHttpResponse response, @RequestBody @Valid UserDto payload) {
-        final String clientIp = LoginUtility.getClientIp(request);
-        // Fortify Fix: Sanitize clientIp (derived from X-Forwarded-For header) before logging
-        log.info("Login request for user: {} from IP: {}",
-                LoginUtility.sanitizeLog(payload.getUserId()), LoginUtility.sanitizeLog(clientIp));
-
-        // 1. IP BLOCK CHECK
-        if (isIpBlocked(clientIp)) {
-            return Mono.just(ResponseEntity.status(HttpStatus.FORBIDDEN)
-                    .body(ApiResponse.error("Access denied: Your IP address is blocked.", "IP_BLOCKED")));
-        }
-
-        return Mono.fromCallable(() -> loginService.verifyUserCredentials(payload, clientIp))
-                .subscribeOn(Schedulers.boundedElastic())
-                .flatMap(user -> {
-
-                    // =========================================================
-                    // CASE 1: INVALID CREDENTIALS (Wrong Password / Locked)
-                    // =========================================================
-                    if (!user.isValidCredentials()) {
-
-                        log.warn("Login Failed for user: {}. Reason: {}",
-                                LoginUtility.sanitizeLog(payload.getUserId()), LoginUtility.sanitizeLog(user.getMessage()));
-
-                        LoginResponseDTO errorResponse = LoginResponseDTO.builder()
-                                .userId(user.getUserId())
-                                .validCredentials(false)
-                                .userStatus(user.getUserStatus())
-                                .passwordLoginStatus(user.getPasswordLoginStatus())
-                                .attemptsLeft(user.getAttemptsLeft())
-                                .error(user.getMessage())
-                                .build();
-
-                        HttpStatus status = (user.getAttemptsLeft() == 0) ||
-                                user.isAccountLocked() ||
-                                Constants.INACTIVE.equalsIgnoreCase(user.getPasswordLoginStatus())
-                                ? HttpStatus.FORBIDDEN
-                                : HttpStatus.UNAUTHORIZED;
-
-                        return Mono.just(ResponseEntity.status(status)
-                                .body(ApiResponse.success(errorResponse, user.getMessage())));
-                    }
-
-                    // =========================================================
-                    // CASE 3: CONFIG ERROR
-                    // =========================================================
-                    if (hmacSecret == null || hmacSecret.isBlank()) {
-                        return Mono.just(ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                                .body(ApiResponse.error("Server Config Error", "CONFIG_ERROR")));
-                    }
-
-                    // =========================================================
-                    // Dynamic Routing based on MFA Flag
-                    // =========================================================
-                    if (user.isOtpRequired()) {
-                        log.info("MFA Enabled: Routing user {} to OTP Phase.", LoginUtility.sanitizeLog(user.getUserId()));
-                        return loginService.initiateOtpPhase(user)
-                                .map(otpDto -> {
-                                    String msg = (otpDto.getMessage() != null && !otpDto.getMessage().isBlank())
-                                            ? otpDto.getMessage()
-                                            : "OTP Sent to registered contacts.";
-                                    return ResponseEntity.status(HttpStatus.ACCEPTED)
-                                            .body(ApiResponse.<OtpInitiatedResponseDTO>success(otpDto, msg));
-                                });
-                    } else {
-                        log.info("MFA Disabled: Routing user {} to Direct Login.", LoginUtility.sanitizeLog(user.getUserId()));
-                        return generateSessionAndTokens(user, response);
-                    }
-                });
-    }
-
-    // =================================================================================================
-    // REFRESH TOKEN METHOD
-    // =================================================================================================
-
-    @PostMapping(value = "/refresh-token", produces = MediaType.APPLICATION_JSON_VALUE)
-    public Mono<ApiResponse<LoginResponseDTO>> refreshToken(ServerHttpRequest request, ServerHttpResponse response) {
-        org.springframework.http.HttpCookie cookie = request.getCookies().getFirst("refresh_token");
-        String refreshToken = (cookie != null) ? cookie.getValue() : null;
-
-        if (refreshToken == null || refreshToken.isBlank()) {
-            log.warn("Refresh failed: No refresh token cookie.");
-            return Mono.error(new ResponseStatusException(HttpStatus.BAD_REQUEST, "Missing refresh token cookie"));
-        }
-
-        return decryptTokenManually(refreshToken)
-                .subscribeOn(Schedulers.boundedElastic())
-                .flatMap(claims -> {
-                    String userId = claims.getSubject() != null ? claims.getSubject().trim() : "";
-                    String userKey = USER_PREFIX + userId;
-                    log.info("Refreshing Token for User: {}", LoginUtility.sanitizeLog(userId));
-
-                    return redisTemplate.opsForValue().get(userKey)
-                            .switchIfEmpty(Mono.defer(() -> {
-                                log.warn("Redis returned EMPTY for key: {}. Session expired.", LoginUtility.sanitizeLog(userKey));
-                                return Mono.error(new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Session expired. Please login again."));
-                            }))
-                            .flatMap(currentJti -> {
-                                log.info("Session Active in Redis. Fetching Full Profile.");
-
-                                return Mono.fromCallable(() -> loginService.getUserProfile(userId))
-                                        .subscribeOn(Schedulers.boundedElastic())
-                                        .flatMap(userDto -> {
-                                            if (userDto == null) {
-                                                return Mono.error(new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
-                                            }
-
-                                            return Mono.fromCallable(() -> loginService.fetchRoleWiseData(userId))
-                                                    .subscribeOn(Schedulers.boundedElastic())
-                                                    .flatMap(roleData -> fetchAndExtendAesKey(userId)
-                                                            .flatMap(existingAesKey -> {
-
-                                                                String newJti = UUID.randomUUID().toString();
-
-                                                                @SuppressWarnings("unchecked")
-                                                                Map<String, Object> claimsMap = mapper.convertValue(userDto.getUser(), Map.class);
-                                                                claimsMap.put("jti", newJti);
-
-                                                                String newAccessToken = JweUtil.generateJwe(existingAesKey, userId, accessTokenTtl, claimsMap);
-
-                                                                Map<String, Object> refreshClaims = Map.of("type", "refresh", "jti", UUID.randomUUID().toString());
-                                                                String newRefreshToken = JweUtil.generateJwe(existingAesKey, userId, refreshTokenTtl, refreshClaims);
-
-                                                                response.addCookie(createRefreshTokenCookie(newRefreshToken));
-
-                                                                return validator.registerUserSession(userId, newJti)
-                                                                        .then(Mono.fromCallable(() -> {
-                                                                            // Fortify Fix: Strip CR/LF before setting HTTP response header
-                                                                            String safeHeaderKey = existingAesKey.replaceAll("[\\r\\n]", "");
-                                                                            response.getHeaders().add("X-Payload-Key", safeHeaderKey);
-
-                                                                            return ApiResponse.success(
-                                                                                    LoginResponseDTO.builder()
-                                                                                            .accessToken(newAccessToken)
-                                                                                            .userId(userId)
-                                                                                            .jti(newJti)
-                                                                                            .expiresIn(accessTokenTtl)
-                                                                                            .validCredentials(true)
-                                                                                            .roleData(roleData)
-                                                                                            .userStatus(userDto.getUserStatus())
-                                                                                            .passwordLoginStatus(userDto.getPasswordLoginStatus())
-                                                                                            .sub(userId)
-                                                                                            .build(),
-                                                                                    "Token refreshed successfully"
-                                                                            );
-                                                                        }));
-                                                            }));
-                                        });
-                            });
-                });
-    }
-
-    // =================================================================================================
-    // LOGOUT METHOD
-    // =================================================================================================
-
-    @PostMapping(value = "/logout", produces = MediaType.APPLICATION_JSON_VALUE)
-    public Mono<ResponseEntity<ApiResponse<LoginResponseDTO>>> logout(
-            JwtAuthenticationToken jwtAuth, ServerHttpRequest request, ServerHttpResponse response) {
-
-        response.addCookie(createEmptyCookie());
-        String tokenString = null;
-
-        if (jwtAuth != null && jwtAuth.getToken() != null) {
-            tokenString = jwtAuth.getToken().getTokenValue();
-        } else {
-            String header = request.getHeaders().getFirst("Authorization");
-            if (header != null && header.startsWith("Bearer ")) {
-                tokenString = header.substring(7);
-            }
-        }
-
-        if (tokenString == null || tokenString.isBlank()) {
-            log.warn("Logout called without token. Cleaning up cookies only.");
-            return Mono.just(ResponseEntity.ok(
-                    ApiResponse.<LoginResponseDTO>success(
-                            LoginResponseDTO.builder().userId("anonymous").build(),
-                            "Logged out (No Token)"
-                    )
-            ));
-        }
-
-        final String finalToken = tokenString;
-
-        return decryptTokenManually(finalToken)
-                .subscribeOn(Schedulers.boundedElastic())
-                .flatMap(claims -> {
-                    String userId = claims.getSubject() != null ? claims.getSubject().trim() : null;
-                    String incomingJti = claims.getJWTID();
-
-                    if (userId == null || incomingJti == null) {
-                        return Mono.just(ResponseEntity.ok(
-                                ApiResponse.<LoginResponseDTO>success(null, "Invalid Token Claims during logout")
-                        ));
-                    }
-
-                    log.info("Logout Processing for User: {} | JTI: {}", LoginUtility.sanitizeLog(userId), LoginUtility.sanitizeLog(incomingJti));
-
-                    return validator.blacklistToken(incomingJti)
-                            .then(redisTemplate.opsForValue().get(USER_PREFIX + userId))
-                            .flatMap(activeJti -> {
-                                if (activeJti != null && activeJti.equals(incomingJti)) {
-                                    log.info("Session MATCH. Deleting active session for user: {}", LoginUtility.sanitizeLog(userId));
-                                    return validator.clearUserSession(userId)
-                                            .then(redisTemplate.delete(AES_KEY_PREFIX + userId))
-                                            .then(Mono.just(ResponseEntity.ok(
-                                                    ApiResponse.<LoginResponseDTO>success(
-                                                            LoginResponseDTO.builder().userId(userId).error("Logged out").build(),
-                                                            "Logged out successfully"
-                                                    )
-                                            )));
-                                } else {
-                                    log.warn("Session MISMATCH or ALREADY GONE. Active JTI: {}. Incoming JTI: {}. Preserving Redis Session.",
-                                            LoginUtility.sanitizeLog(activeJti), LoginUtility.sanitizeLog(incomingJti));
-                                    return Mono.just(ResponseEntity.ok(
-                                            ApiResponse.<LoginResponseDTO>success(
-                                                    LoginResponseDTO.builder().userId(userId).error("Logged out (Concurrent Session Preserved)").build(),
-                                                    "Logged out (Concurrent Session Preserved)"
-                                            )
-                                    ));
-                                }
-                            })
-                            .switchIfEmpty(Mono.just(ResponseEntity.ok(
-                                    ApiResponse.<LoginResponseDTO>success(
-                                            LoginResponseDTO.builder().userId(userId).error("Logged out (Session already expired)").build(),
-                                            "Logged out (Session already expired)"
-                                    )
-                            )));
-                })
-                .onErrorResume(e -> {
-                    log.error("Logout Unexpected Error: {}", LoginUtility.sanitizeLog(e.getMessage()));
-                    return Mono.just(ResponseEntity.ok(
-                            ApiResponse.<LoginResponseDTO>success(null, "Logged out (System Error handled or Token already expired)")
-                    ));
-                });
-    }
-
-    // =================================================================================================
-    // UPDATE-PASSWORD, VERIFY-OTP, RESEND-OTP
-    // =================================================================================================
-
-    @PostMapping(value = "/update-password")
-    public Mono<ApiResponse<UpdatePasswordDTO>> updatePassword(@RequestBody @Valid UpdatePasswordDTO dto) {
-        return Mono.fromCallable(() -> loginService.updatePassword(dto))
-                .subscribeOn(Schedulers.boundedElastic())
-                .map(result -> ApiResponse.success(result, result.getMessage()));
-    }
-
-    @PostMapping(value = "/verify-otp", produces = MediaType.APPLICATION_JSON_VALUE)
-    public Mono<ResponseEntity<ApiResponse<?>>> verifyOtp(
-            @RequestBody @Valid VerifyOtpRequestDTO requestDto, ServerHttpResponse response) {
-        log.info("OTP Verification for TxId: {}", LoginUtility.sanitizeLog(requestDto.getTransactionId()));
-
-        return loginService.verifyOtpAndGetUser(requestDto)
-                .flatMap(userDto -> generateSessionAndTokens(userDto, response));
-    }
-
-    @PostMapping(value = "/resend-otp", produces = MediaType.APPLICATION_JSON_VALUE)
-    public Mono<ResponseEntity<ApiResponse<OtpResendResponseDTO>>> resendOtp(
-            @RequestBody @Valid ResendOtpRequestDTO requestDto, ServerHttpRequest request) {
-
-        log.info("OTP Resend for TxId: {}", LoginUtility.sanitizeLog(requestDto.getTransactionId()));
-
-        return loginService.resendOtp(requestDto, LoginUtility.getClientIp(request))
-                .map(responseDto -> {
-                    String msg = (responseDto.getMessage() != null && !responseDto.getMessage().isBlank())
-                            ? responseDto.getMessage()
-                            : "A new OTP has been dispatched.";
-                    return ResponseEntity.status(HttpStatus.ACCEPTED)
-                            .body(ApiResponse.success(responseDto, msg));
-                });
-    }
-
-    // =========================================================================================================
-    //                                          GENERATE SESSION METHOD
-    // =========================================================================================================
-
-    private Mono<ResponseEntity<ApiResponse<?>>> generateSessionAndTokens(UserDto user, ServerHttpResponse response) {
-        final String cleanUserId = user.getUserId() != null ? user.getUserId().trim() : "";
-        log.info("Generating JWE Tokens for user {}.", LoginUtility.sanitizeLog(cleanUserId));
-
-        return generateAndStoreAesKey(cleanUserId)
-                .flatMap(aesKey -> Mono.defer(() -> Mono.fromCallable(() -> loginService.fetchRoleWiseData(cleanUserId)))
-                        .subscribeOn(Schedulers.boundedElastic())
-                        .flatMap(roleData -> {
-
-                            String jti = UUID.randomUUID().toString();
-
-                            @SuppressWarnings("unchecked")
-                            Map<String, Object> claimsMap = mapper.convertValue(user.getUser(), Map.class);
-                            claimsMap.put("jti", jti);
-
-                            String accessToken = JweUtil.generateJwe(aesKey, cleanUserId, accessTokenTtl, claimsMap);
-
-                            Map<String, Object> refreshClaims = Map.of("type", "refresh", "jti", UUID.randomUUID().toString());
-                            String refreshToken = JweUtil.generateJwe(aesKey, cleanUserId, refreshTokenTtl, refreshClaims);
-
-                            response.addCookie(createRefreshTokenCookie(refreshToken));
-
-                            // Fortify Fix: Strip CR/LF before setting HTTP response header
-                            final String safeHeaderKey = aesKey.replaceAll("[\\r\\n]", "");
-
-                            return validator.registerUserSession(cleanUserId, jti)
-                                    .thenReturn(ResponseEntity.ok()
-                                            .header("X-Payload-Key", safeHeaderKey)
-                                            .body(ApiResponse.success(
-                                                    LoginResponseDTO.builder()
-                                                            .userId(cleanUserId)
-                                                            .validCredentials(true)
-                                                            .accessToken(accessToken)
-                                                            .tokenType("Bearer")
-                                                            .expiresIn(accessTokenTtl)
-                                                            .sub(cleanUserId)
-                                                            .jti(jti)
-                                                            .roleData(roleData)
-                                                            .userStatus(user.getUserStatus())
-                                                            .passwordLoginStatus(user.getPasswordLoginStatus())
-                                                            .attemptsLeft(null)
-                                                            .build(),
-                                                    "Login successful"
-                                            )));
-                        }));
-    }
-
-    // =========================================================================================================
-    //                                              HELPERS
-    // =========================================================================================================
-
-    private String sanitizeIp(String rawIp) {
-        if (rawIp == null) return "";
-        String ip = rawIp;
-        if (ip.startsWith("/")) ip = ip.substring(1);
-        int colonIndex = ip.indexOf(':');
-        if (colonIndex != -1) ip = ip.substring(0, colonIndex);
-        return ip;
-    }
-
-    private boolean isIpBlocked(String rawClientIp) {
-        if (blockedIpsConfig == null || blockedIpsConfig.trim().isEmpty()) return false;
-        String cleanIp = sanitizeIp(rawClientIp);
-        List<String> blockedIps = Arrays.asList(blockedIpsConfig.split("\\s*,\\s*"));
-        boolean blocked = blockedIps.contains(cleanIp);
-        if (blocked) {
-            log.warn("Blocked IP Match Found: Raw='{}' -> Clean='{}'", LoginUtility.sanitizeLog(rawClientIp), LoginUtility.sanitizeLog(cleanIp));
-        }
-        return blocked;
-    }
-
-    private ResponseCookie createRefreshTokenCookie(String token) {
-        String safeToken = token != null ? token.replaceAll("[\\r\\n]", "") : "";
-        return ResponseCookie.from("refresh_token", safeToken)
-                .httpOnly(true)
-                .secure(true)
-                .path("/")
-                .maxAge(Duration.ofSeconds(refreshTokenTtl))
-                .sameSite("Strict")
-                .build();
-    }
-
-    private ResponseCookie createEmptyCookie() {
-        return ResponseCookie.from("refresh_token", "")
-                .httpOnly(true)
-                .secure(true)
-                .path("/")
-                .maxAge(0)
-                .sameSite("Strict")
-                .build();
-    }
-
-    private String generateNewAesKey() {
-        return aesUtil.generateBase64SessionKey();
-    }
-
-    private Mono<String> generateAndStoreAesKey(String userId) {
-        final String cleanUserId = userId != null ? userId.trim() : "";
-        final String redisKey = AES_KEY_PREFIX + cleanUserId;
-
-        return Mono.fromCallable(this::generateNewAesKey)
-                .flatMap(aesKey -> {
-                    log.info("Attempting to write AES key to Redis. Key: '{}', TTL: {} seconds",
-                            LoginUtility.sanitizeLog(redisKey), refreshTokenTtl);
-
-                    return redisTemplate.opsForValue()
-                            .set(redisKey, aesKey, Duration.ofSeconds(refreshTokenTtl))
-                            .doOnSuccess(success -> {
-                                if (Boolean.TRUE.equals(success)) {
-                                    log.info("SUCCESS: AES Key definitively written to Redis for User: {}", LoginUtility.sanitizeLog(cleanUserId));
-                                } else {
-                                    log.warn("WARNING: Redis returned FALSE. The AES key was NOT saved for User: {}", LoginUtility.sanitizeLog(cleanUserId));
-                                }
-                            })
-                            .doOnError(error -> log.error("CRITICAL ERROR writing AES key to Redis: {}", LoginUtility.sanitizeLog(error.getMessage()), error))
-                            .thenReturn(aesKey);
-                });
-    }
-
-    private Mono<String> fetchAndExtendAesKey(String userId) {
-        final String cleanUserId = userId != null ? userId.trim() : "";
-        final String redisKey = AES_KEY_PREFIX + cleanUserId;
-
-        return redisTemplate.opsForValue().get(redisKey)
-                .switchIfEmpty(Mono.defer(() -> {
-                    log.warn("AES key missing/evicted for user {} during refresh. Generating new fallback key.", LoginUtility.sanitizeLog(cleanUserId));
-                    return Mono.just(generateNewAesKey());
-                }))
-                .flatMap(aesKey ->
-                        redisTemplate.opsForValue()
-                                .set(redisKey, aesKey, Duration.ofSeconds(refreshTokenTtl))
-                                .thenReturn(aesKey)
-                );
-    }
-
-    private Mono<JWTClaimsSet> decryptTokenManually(String jweToken) {
-        return Mono.fromCallable(() -> {
-            try {
-                return EncryptedJWT.parse(jweToken);
-            } catch (ParseException e) {
-                throw new BadJwtException("Invalid token format");
-            }
-        }).flatMap(encryptedJWT -> {
-            String rawUserId = encryptedJWT.getHeader().getKeyID();
-            if (rawUserId == null || rawUserId.isBlank()) {
-                return Mono.error(new BadJwtException("Missing kid header"));
-            }
-            String cleanUserId = rawUserId.trim();
-
-            return redisTemplate.opsForValue().get(AES_KEY_PREFIX + cleanUserId)
-                    .switchIfEmpty(Mono.error(new BadJwtException("Session expired or AES key missing")))
-                    .map(aesKey -> JweUtil.decryptJwe(jweToken, aesKey));
-        });
-    }
-}
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-package com.fincore.gateway.Config;
-
-import com.fincore.commonutilities.config.ResilienceConfig;
-import com.fincore.commonutilities.jwt.JwtUtil;
-import com.fincore.commonutilities.security.DecryptRequestBodyAdvice;
-import com.fincore.commonutilities.util.AesEncryptionUtil;
-import com.fincore.gateway.Service.TokenSessionValidator;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Configuration;
-import org.springframework.context.annotation.Import;
-import org.springframework.http.HttpStatus;
-import org.springframework.security.config.Customizer;
-import org.springframework.security.config.web.server.SecurityWebFiltersOrder;
-import org.springframework.security.config.web.server.ServerHttpSecurity;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
-import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.security.web.server.SecurityWebFilterChain;
-import org.springframework.web.cors.CorsConfiguration;
-import org.springframework.web.cors.reactive.CorsConfigurationSource;
-import org.springframework.web.cors.reactive.UrlBasedCorsConfigurationSource;
-import org.springframework.web.server.ServerWebExchange;
-import org.springframework.web.server.WebFilter;
-import org.springframework.web.server.WebFilterChain;
-import reactor.core.publisher.Mono;
-
-import java.util.Arrays;
-import java.util.Set;
-
-@Slf4j
-@Configuration
-@Import({
-        JwtUtil.class,
-        AesEncryptionUtil.class,
-        DecryptRequestBodyAdvice.class,
-        ResilienceConfig.class,
-})
-public class SecurityConfig {
-
-    private static final Set<String> WHITELIST = Set.of(
-            "/api/auth/login",
-            "/api/auth/verify-otp",
-            "/api/auth/resend-otp",
-            "/api/auth/logout",
-            "/actuator/info",
-            "/actuator/health",
-            "/api/auth/public-key",
-            "/api/auth/init",
-            "/api/auth/update-password");
-
-    private final TokenSessionValidator tokenSessionValidator;
-    private final JweReactiveJwtDecoder jweReactiveJwtDecoder;
-
-    public SecurityConfig(TokenSessionValidator tokenSessionValidator, JweReactiveJwtDecoder jweReactiveJwtDecoder) {
-        this.tokenSessionValidator = tokenSessionValidator;
-        this.jweReactiveJwtDecoder = jweReactiveJwtDecoder;
-    }
-
-    @Bean
-    public PasswordEncoder passwordEncoder() {
-        return new BCryptPasswordEncoder();
-    }
-
-    @Bean
-    public SecurityWebFilterChain securityWebFilterChain(ServerHttpSecurity http) {
-        log.info("Loading SecurityWebFilterChain with JWE Decoder");
-        return http
-                .csrf(ServerHttpSecurity.CsrfSpec::disable)
-                .headers(headers -> headers
-                        .xssProtection(ServerHttpSecurity.HeaderSpec.XssProtectionSpec::disable)
-                        .frameOptions(ServerHttpSecurity.HeaderSpec.FrameOptionsSpec::disable)
-                        .contentTypeOptions(Customizer.withDefaults())
-                )
-                .authorizeExchange(exchanges -> exchanges
-                        .pathMatchers("/api/auth/**", "/actuator/**").permitAll()
-                        .anyExchange().authenticated()
-                )
-                .oauth2ResourceServer(oauth2 -> oauth2
-                        .jwt(jwt -> jwt.jwtDecoder(jweReactiveJwtDecoder))
-                )
-                .addFilterBefore(redisValidationFilter(), SecurityWebFiltersOrder.AUTHORIZATION)
-                .build();
-    }
-
-    @Bean
-    public CorsConfigurationSource corsConfigurationSource() {
-        CorsConfiguration configuration = new CorsConfiguration();
-        // Fortify Fix: Removed "*" wildcard to resolve 'HTML5: Overly Permissive CORS Policy'
-        configuration.setAllowedOrigins(
-                Arrays.asList(
-                        "https://fincore-uat.sbi",
-                        "https://localhost:1000",
-                        "https://fincoreuat.sbi",
-                        "https://fincorest.sbi",
-                        "https://fincore.sbi"
-                )
+    @Override
+    public LaunchResponse getLaunchDetails() {
+        LaunchConfig config = launchConfigRepository.findTopByOrderByIdDesc()
+                .orElseThrow(() -> new RuntimeException("Launch configuration not found in DB"));
+
+        // explicitly setting the timezone to IST
+        ZonedDateTime istLaunchTime = config.getLaunchTimestamp().atZone(ZoneId.of("Asia/Kolkata"));
+
+        DateTimeFormatter dateFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
+        DateTimeFormatter timeFormatter = DateTimeFormatter.ofPattern("HH:mm:ss");
+
+        return new LaunchResponse(
+                istLaunchTime.format(dateFormatter),
+                istLaunchTime.format(timeFormatter),
+                "IST",
+                config.getAppVersion(),
+                config.getAppName(),
+                rsaPublicPem
         );
-        configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS"));
-        configuration.setAllowedHeaders(Arrays.asList("Authorization", "Content-Type", "X-Request-Type"));
-        configuration.setExposedHeaders(Arrays.asList("X-Payload-Key"));
-        configuration.setAllowCredentials(false);
-
-        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
-        source.registerCorsConfiguration("/**", configuration);
-        return source;
-    }
-
-    private WebFilter redisValidationFilter() {
-        return (ServerWebExchange exchange, WebFilterChain chain) -> {
-            String path = exchange.getRequest().getPath().value();
-
-            if (isWhitelisted(path)) {
-                return chain.filter(exchange);
-            }
-
-            Mono<Authentication> principalMono = exchange.getPrincipal().cast(Authentication.class);
-
-            return principalMono
-                    .hasElement()
-                    .flatMap(hasPrincipal -> {
-                        if (!hasPrincipal) {
-                            return chain.filter(exchange);
-                        }
-
-                        return principalMono
-                                .flatMap(auth -> tokenSessionValidator.validateWithRedis(auth)
-                                        .flatMap(validAuth -> {
-                                            if (validAuth == null) {
-                                                log.warn("Redis validation failed for {}", auth.getName());
-                                                exchange.getResponse().setStatusCode(HttpStatus.UNAUTHORIZED);
-                                                return exchange.getResponse().setComplete();
-                                            }
-                                            log.info("Redis validated for {}", validAuth.getName());
-                                            return chain.filter(exchange);
-                                        })
-                                );
-                    })
-                    .onErrorResume(e -> {
-                        log.error("RedisValidationFilter error: {}", e.getMessage(), e);
-                        exchange.getResponse().setStatusCode(HttpStatus.UNAUTHORIZED);
-                        return exchange.getResponse().setComplete();
-                    });
-        };
-    }
-
-    private boolean isWhitelisted(String path) {
-        return WHITELIST.contains(path) || path.startsWith("/api/auth/") || path.startsWith("/actuator/");
     }
 }
 
@@ -1600,7 +1210,219 @@ public class SecurityConfig {
 
 
 
+package com.fincore.gateway.model;
+
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.Id;
+import jakarta.persistence.Table;
+import lombok.Data;
+
+/**
+ * Entity representing permission details for each menu or action in the system.
+ * 
+ * Maps to the PERMISSIONS table and defines information such as menu title,
+ * icon, sub-menu, related action, and route path used within the application.
+ */
+@Entity
+@Data
+@Table(name = "PERMISSIONS")
+public class Permissions {
+
+    /** Unique ID for the menu or permission entry. */
+    @Id
+    @Column(name = "MENU_ID")
+    private int menuId;
+
+    /** Title displayed for this menu item or feature. */
+    @Column(name = "MENU_TITLE")
+    private String menuTitle;
+
+    /** Icon associated with the menu item (used in UI). */
+    @Column(name = "MENU_ICON")
+    private String menuIcon;
+
+    /** Name of the parent or sub menu this item belongs to. */
+    @Column(name = "MENU_SUBMENU")
+    private String subMenu;
+
+    /** Specific action type or permission (like VIEW, EDIT, DELETE etc). */
+    @Column(name = "MENU_ACTION")
+    private String menuAction;
+
+    /** URL path or endpoint linked with this menu. */
+    @Column(name = "MENU_URL")
+    private String menuUrl;
+
+    /** Component path or frontend route used for navigation. */
+    @Column(name = "MENU_COMPONENT_PATH")
+    private String componentPath;
+
+    /** Short description explaining what this permission or menu does. */
+    @Column(name = "MENU_DESCRIPTION")
+    private String menuDescription;
+
+    /** Indicates if this menu depends on another one. */
+    @Column(name = "MENU_DEPENDANT")
+    private String dependent;
+
+    /** Order in which the menu appears in UI. */
+    private int orderId;
+}
 
 
 
+
+
+
+
+
+
+
+package com.fincore.gateway.repository;
+
+import com.fincore.gateway.dto.BranchCircleProjection;
+import com.fincore.gateway.model.User;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
+import org.springframework.stereotype.Repository;
+
+@Repository
+public interface BranchRepository extends JpaRepository<User, String> {
+
+    /**
+     * Fetch Branch and Circle details by performing a LEFT JOIN.
+     * LEFT JOIN ensures that even if a branch doesn't have a mapped circle,
+     * the query won't fail and will still return the branch name.
+     */
+    @Query(value = """
+            SELECT
+                b.CODE                AS branchCode,
+                b.NAME                AS branchName,
+                b.CITY                AS city,
+                b.ADDRESS             AS address,
+                b.PINCODE             AS pincode,
+                b.NMR_CODE            AS nmrCode,
+                b.STATUS              AS branchStatus,
+                b.BRANCH_TYPE         AS branchType,
+                c.CIRCLE_CODE         AS circleCode,
+                c.CIRCLE_NAME         AS circleName,
+                c.ZONE_CODE           AS zoneCode,
+                z.ZONE_DESC           AS zoneName,
+                c.BRANCH_CODE         AS circleBranch,
+                s.NAME                AS stateName,
+                s.STATE_CODE          AS stateCode
+            FROM BRANCH_MASTER b
+            LEFT JOIN CIRCLE_MASTER c ON b.CIRCLE_CODE = c.CIRCLE_CODE
+            LEFT JOIN ZONE_MASTER z   ON c.ZONE_CODE = z.ID
+            LEFT JOIN STATE_MASTER s  ON b.STATE = s.STATE_CODE
+            WHERE b.CODE = :branchCode
+            """, nativeQuery = true)
+    BranchCircleProjection findBranchAndCircleDetails(@Param("branchCode") String branchCode);
+}
+
+
+
+
+
+
+
+
+
+
+
+package com.fincore.gateway.repository;
+
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
+
+import com.fincore.gateway.dto.PermissionRow;
+import com.fincore.gateway.model.Permissions;
+import com.fincore.gateway.model.RolePermissions;
+
+import java.util.List;
+
+/**
+ * Repository interface for managing {@link RolePermissions} entities and retrieving
+ * related permission data based on user roles.
+ * <p>
+ * This interface extends {@link JpaRepository} to provide standard data access operations
+ * and includes custom native queries to fetch menu items and permissions associated
+ * with a specific user ID.
+ * </p>
+ */
+public interface RolePermissionsRepository extends JpaRepository<RolePermissions, Integer> {
+
+    /**
+     * Retrieves a list of {@link Permissions} entities (menu items) associated with a specific user ID.
+     * <p>
+     * This native query joins {@code permissions}, {@code role_permissions}, and {@code user_roles}
+     * tables to find all distinct menu items granted to the user through their roles, ordered
+     * by the assigned permission order. This query maps results directly to the {@link Permissions} entity.
+     * </p>
+     *
+     * @param userid The unique identifier of the user.
+     * @return A list of {@link Permissions} objects representing the user's menu access.
+     */
+    @Query(nativeQuery = true, value = """
+                        SELECT DISTINCT
+                p.menu_id,
+                p.menu_title,
+                p.menu_icon,
+                p.menu_submenu,
+                p.menu_action,
+                p.menu_url,
+                p.menu_component_path,
+                p.MENU_DESCRIPTION,
+                p.menu_dependant,
+                rp.permission_order
+            FROM
+                     permissions p
+                JOIN role_permissions rp ON p.menu_id = rp.permission_id
+                JOIN user_roles       ur ON ur.role_id = rp.role_id
+            WHERE
+                ur.user_id = :userid
+            ORDER BY
+            	rp.permission_order
+            """)
+    List<Permissions> findAllByUserId(@Param("userid") String userid);
+
+    /**
+     * Retrieves a list of permission details mapped to the Data Transfer Object {@link PermissionRow}
+     * for a specific user ID.
+     * <p>
+     * Similar to {@link #findAllByUserId(String)}, this native query fetches all relevant permissions
+     * but maps the selected columns to the {@link PermissionRow DTO} interface using SQL aliases
+     * (JPA projection). The results are ordered by {@code rp.permission_order}.
+     * </p>
+     *
+     * @param userId The unique identifier of the user.
+     * @return A list of {@link PermissionRow} objects containing key details of the user's permissions.
+     */
+    @Query(value = """
+                     SELECT DISTINCT
+                         p.menu_id             AS menuid,
+                         p.menu_title          AS menutitle,
+                         p.menu_icon           AS menuicon,
+                         p.menu_submenu        AS submenu,
+                         p.menu_action         AS menuaction,
+                         p.menu_url            AS menuurl,
+                         p.menu_component_path AS componentpath,
+                         p.menu_description    AS menudescription,
+                         p.menu_dependant      AS dependant,
+                         p.MAPPED_REQUEST_TYPE AS requestType,
+                         rp.permission_order   AS permissionorder
+                     FROM
+                              permissions p
+                         JOIN role_permissions rp ON p.menu_id = rp.permission_id
+                         JOIN user_roles       ur ON ur.role_id = rp.role_id
+                     WHERE
+                         ur.user_id = :userid
+                     ORDER BY
+                         rp.permission_order
+            """, nativeQuery = true)
+    List<PermissionRow> findAllPermissionsByUserId(@Param("userid") String userId);
+}
 
