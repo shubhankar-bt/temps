@@ -1,3 +1,61 @@
+package com.fincore.gateway.dto;
+
+import com.fasterxml.jackson.annotation.JsonProperty;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
+/**
+ * Payload returned to the frontend when LDAP/Password succeeds and OTP phase is initiated.
+ * Includes masked contact hints, timer configurations (including OTP_SCREEN_TIMEOUT_MIN),
+ * and AppSec-safe user profile details so the UI can display the user's name on the OTP screen.
+ */
+@Data
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
+public class OtpInitiatedResponseDTO {
+
+    private String transactionId;
+    private String maskedMobile;
+    private String maskedEmail;
+    private int expiresInSeconds;
+    private int resendCooldownSeconds;
+    private int resendsRemaining;
+    private String message;
+
+    // --- Idle Screen Timeout Configuration ---
+    private int otpScreenTimeoutMin;
+    private int screenTimeoutSeconds;
+
+    @JsonProperty("OTP_SCREEN_TIMEOUT_MIN")
+    public int getOtpScreenTimeoutMinUpperCase() {
+        return otpScreenTimeoutMin;
+    }
+
+    // --- User Details for OTP Screen Display (Requirement 2) ---
+    private String userId;
+    private String userName;
+    private String firstName;
+    private String middleName;
+    private String lastName;
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 package com.fincore.gateway.Service;
 
 import com.fincore.gateway.dto.ChildMenu;
