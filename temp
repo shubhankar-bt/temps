@@ -51,6 +51,326 @@ public class OtpInitiatedResponseDTO {
 
 
 
+package com.fincore.gateway.dto;
+
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
+/**
+ * Data Transfer Object (DTO) representing a child menu item within a hierarchical menu structure.
+ * This class is used to structure the menu data returned to the client application.
+ *
+ * <p>
+ * Uses Lombok annotations for boilerplate code reduction:
+ * <ul>
+ *     <li>{@code @Data} generates getters, setters, equals, hashCode, and toString methods.</li>
+ *     <li>{@code @NoArgsConstructor} generates a no-argument constructor.</li>
+ *     <li>{@code @AllArgsConstructor} generates a constructor with all fields as arguments.</li>
+ * </ul>
+ * </p>
+ */
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+public class ChildMenu {
+
+    /**
+     * The unique identifier for the menu item. Corresponds to a permission ID in the database.
+     */
+    private int id;
+
+    /**
+     * The title or display name of the menu item shown in the UI.
+     */
+    private String title;
+
+    /**
+     * The name of the icon to be used for this menu item in the UI.
+     */
+    private String icon;
+
+    /**
+     * The client-side route or URL fragment used for navigation to this menu item's view/screen.
+     */
+    private String route;
+
+    // A field for ScreenDetails was commented out in the original source.
+    // private ScreenDetails screenDetails;
+
+    /**
+     * The internal path to the frontend component that corresponds to this menu item.
+     */
+    private String componentPath;
+
+    /**
+     * A brief description of what the screen/menu item does.
+     */
+    private String screenDescription;
+
+    /**
+     * The display order of this child menu item within its parent menu or list.
+     */
+    private int orderId;
+
+    private String menuAction;
+
+    private String requestType;
+}
+
+
+
+
+
+
+
+
+package com.fincore.gateway.dto;
+
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
+import java.util.List;
+
+/**
+ * Data Transfer Object (DTO) used to structure the complete menu configuration returned to the client
+ * after a successful login or during application initialization. It acts as a container for
+ * a list of top-level (root) menu items.
+ *
+ * <p>
+ * Uses Lombok annotations for boilerplate code reduction:
+ * <ul>
+ *     <li>{@code @Data} generates getters, setters, equals, hashCode, and toString methods.</li>
+ *     <li>{@code @NoArgsConstructor} generates a no-argument constructor.</li>
+ *     <li>{@code @AllArgsConstructor} generates a constructor with all fields as arguments.</li>
+ * </ul>
+ * </p>
+ */
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+public class MenuResponse {
+
+    /**
+     * A list of {@link RootMenu} DTOs, representing the top-level navigation structure of the application
+     * accessible by the user's role.
+     */
+    private List<RootMenu> root_menus;
+}
+
+
+
+
+
+
+
+
+package com.fincore.gateway.dto;
+
+
+/**
+ * Projection interface used by Spring Data JPA repositories to retrieve specific,
+ * mapped columns from a native database query result.
+ * <p>
+ * This interface defines the contract for accessing data returned by the
+ * {@link com.fincore.gateway.repository.RolePermissionsRepository#findAllPermissionsByUserId(String) RolePermissionsRepository.findAllPermissionsByUserId}
+ * method, mapping SQL aliases to Java method names (e.g., SQL column {@code menuId} maps to {@code getMenuId()}).
+ * This pattern is often referred to as a "DTO projection" or "interface projection" in Spring Data JPA documentation.
+ * </p>
+ */
+public interface PermissionRow {
+
+    /**
+     * Retrieves the menu item's unique identifier.
+     * Corresponds to the SQL column aliased as {@code menuId}.
+     *
+     * @return The menu ID.
+     */
+    int getMenuId();
+
+    /**
+     * Retrieves the display title of the menu item.
+     * Corresponds to the SQL column aliased as {@code menuTitle}.
+     *
+     * @return The menu title.
+     */
+    String getMenuTitle();
+
+    /**
+     * Retrieves the icon identifier for the menu item.
+     * Corresponds to the SQL column aliased as {@code menuIcon}.
+     *
+     * @return The menu icon name/path.
+     */
+    String getMenuIcon();
+
+    /**
+     * Indicates if this item is a submenu/parent item.
+     * Corresponds to the SQL column aliased as {@code subMenu}.
+     *
+     * @return A string indicating submenu status (e.g., "Y" or "N").
+     */
+    String getSubMenu();
+
+    /**
+     * Retrieves the action associated with the menu item (e.g., READ, WRITE).
+     * Corresponds to the SQL column aliased as {@code menuAction}.
+     *
+     * @return The associated action string.
+     */
+    String getMenuAction();
+
+    /**
+     * Retrieves the URL path for client-side routing.
+     * Corresponds to the SQL column aliased as {@code menuUrl}.
+     *
+     * @return The destination URL.
+     */
+    String getMenuUrl();
+
+    /**
+     * Retrieves the internal application component path.
+     * Corresponds to the SQL column aliased as {@code componentPath}.
+     *
+     * @return The path to the UI component.
+     */
+    String getComponentPath();
+
+    /**
+     * Retrieves the description of the menu item/screen.
+     * Corresponds to the SQL column aliased as {@code menuDescription}.
+     *
+     * @return The menu description.
+     */
+    String getMenuDescription();
+
+    /**
+     * Retrieves the ID of a parent or dependent menu item if this item is hierarchical.
+     * Corresponds to the SQL column aliased as {@code dependant}.
+     *
+     * @return The ID of the dependent item, or null/empty if none.
+     */
+    String getDependant();
+
+    /**
+     * Retrieves the x-request type for gateway level validation.
+     * Corresponds to the SQL column aliased as {@code requestType}.
+     *
+     * @return The requestType of item, or null/empty if none.
+     */
+    String getRequestType();
+
+    /**
+     * Retrieves the order in which the menu item should be displayed.
+     * Corresponds to the SQL column aliased as {@code permissionOrder}.
+     *
+     * @return The display order ID.
+     */
+    int getPermissionOrder();
+
+}
+
+
+
+
+
+
+
+
+
+package com.fincore.gateway.dto;
+
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
+import java.util.List;
+
+/**
+ * Data Transfer Object (DTO) representing a top-level (root) menu item in a hierarchical navigation structure.
+ * This class typically holds references to a list of {@link ChildMenu} DTOs.
+ *
+ * <p>
+ * Uses Lombok annotations for boilerplate code reduction:
+ * <ul>
+ *     <li>{@code @Data} generates getters, setters, equals, hashCode, and toString methods.</li>
+ *     <li>{@code @NoArgsConstructor} generates a no-argument constructor.</li>
+ *     <li>{@code @AllArgsConstructor} generates a constructor with all fields as arguments.</li>
+ * </ul>
+ * </p>
+ */
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+public class RootMenu {
+
+    /**
+     * The unique identifier for the root menu item.
+     */
+    private int id;
+
+    /**
+     * The title or display name of the root menu item shown in the UI.
+     */
+    private String title;
+
+    /**
+     * The name of the icon to be used for this root menu item.
+     */
+    private String icon;
+
+    /**
+     * The client-side route or URL fragment for this menu item.
+     */
+    private String route;
+
+    /**
+     * A flag indicating whether this root menu item contains nested child menus.
+     */
+    private boolean hasChildren;
+
+
+    /**
+     * The internal path to the frontend component associated with this root menu item.
+     */
+    private String componentPath;
+
+    /**
+     * A brief description of the screen or functionality provided by this menu item.
+     */
+    private String screenDescription;
+
+    /**
+     * The display order ID for positioning this root menu item in the main navigation bar/list.
+     */
+    private int orderId;
+
+    /**
+     * The display menu action for special access in root menu item in the main navigation bar/list.
+     */
+    private String menuAction;
+
+    /**
+     * The display x-requestType for root menu item in the main navigation bar/list.
+     */
+    private String requestType;
+
+    /**
+     * A list of {@link ChildMenu} DTOs representing the sub-items within this root menu.
+     */
+    private List<ChildMenu> children;
+}
+
+
+
+
+
+
+
+
+
+
 
 
 
