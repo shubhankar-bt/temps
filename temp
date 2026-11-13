@@ -1,25 +1,39 @@
  Initialized JPA EntityManagerFactory for persistence unit 'default'
-2026-11-13 :: 12:52:33.879 || INFO :: QueryEnhancerFactories.java: | 48 | :: Hibernate is in classpath; If applicable, HQL parser will be used.
-2026-11-13 :: 12:52:34.525 || INFO :: LoginParamCacheService.java: | 78 | :: Successfully pre-warmed jittered Caffeine cache with LOGIN_PARAM: LoginParam(activeLoginMode=P, otpValidity=5, passwordValidity=720, wrongPasswordAttempts=5, attemptInterval=24, isOtpEnabled=Y, otpMaxAttempts=5, otpResendCooldownSec=60, otpMaxResends=3, otpResendWindowMin=10, otpScreenTimeoutMin=15)
-2026-11-13 :: 12:52:34.650 || INFO :: LdapConfig.java: | 47 | :: ===================================================
-2026-11-13 :: 12:52:34.650 || INFO :: LdapConfig.java: | 48 | :: INITIALIZING LDAP CONTEXT SOURCE
-2026-11-13 :: 12:52:34.650 || INFO :: LdapConfig.java: | 49 | :: Configured URLs: ldaps://uatrootdc1.uatad.sbi:3269
-2026-11-13 :: 12:52:34.651 || INFO :: LdapConfig.java: | 125 | :: DNS Lookup for Host [uatrootdc1.uatad.sbi]:
-2026-11-13 :: 12:52:34.651 || INFO :: LdapConfig.java: | 127 | ::   -> Resolved IP: 10.189.42.83
-2026-11-13 :: 12:52:34.651 || INFO :: LdapConfig.java: | 60 | :: Loading External Truststore from: /etc/fincore/secrets/ad-truststore.jks
-2026-11-13 :: 12:52:34.669 || INFO :: LdapConfig.java: | 79 | :: Setting LDAP Bind User (Service Account): fincorecbops@UATAD.SBI
-2026-11-13 :: 12:52:34.669 || INFO :: LdapConfig.java: | 101 | :: ===================================================
-2026-11-13 :: 12:52:35.386 || INFO :: SecurityConfig.java: | 92 | :: Loading SecurityWebFilterChain with JWE Decoder
-2026-11-13 :: 12:52:36.051 || INFO :: EndpointLinksResolver.java: | 60 | :: Exposing 3 endpoints beneath base path '/actuator'
-2026-11-13 :: 12:52:37.191 || INFO :: NettyWebServer.java: | 142 | :: Netty started on port 8085 (http)
-2026-11-13 :: 12:52:37.202 || INFO :: StartupInfoLogger.java: | 60 | :: Started LoginService in 11.691 seconds (process running for 12.305)
+2026-11-13 :: 12:57:11.479 || INFO :: QueryEnhancerFactories.java: | 48 | :: Hibernate is in classpath; If applicable, HQL parser will be used.
+2026-11-13 :: 12:57:12.021 || INFO :: LoginParamCacheService.java: | 78 | :: Successfully pre-warmed jittered Caffeine cache with LOGIN_PARAM: LoginParam(activeLoginMode=P, otpValidity=5, passwordValidity=720, wrongPasswordAttempts=5, attemptInterval=24, isOtpEnabled=Y, otpMaxAttempts=5, otpResendCooldownSec=60, otpMaxResends=3, otpResendWindowMin=10, otpScreenTimeoutMin=15)
+2026-11-13 :: 12:57:12.137 || INFO :: LdapConfig.java: | 47 | :: ===================================================
+2026-11-13 :: 12:57:12.138 || INFO :: LdapConfig.java: | 48 | :: INITIALIZING LDAP CONTEXT SOURCE
+2026-11-13 :: 12:57:12.138 || INFO :: LdapConfig.java: | 49 | :: Configured URLs: ldaps://uatrootdc1.uatad.sbi:3269
+2026-11-13 :: 12:57:12.138 || INFO :: LdapConfig.java: | 125 | :: DNS Lookup for Host [uatrootdc1.uatad.sbi]:
+2026-11-13 :: 12:57:12.139 || INFO :: LdapConfig.java: | 127 | ::   -> Resolved IP: 10.189.42.83
+2026-11-13 :: 12:57:12.139 || INFO :: LdapConfig.java: | 60 | :: Loading External Truststore from: /etc/fincore/secrets/ad-truststore.jks
+2026-11-13 :: 12:57:12.149 || INFO :: LdapConfig.java: | 79 | :: Setting LDAP Bind User (Service Account): fincorecbops@UATAD.SBI
+2026-11-13 :: 12:57:12.150 || INFO :: LdapConfig.java: | 101 | :: ===================================================
+2026-11-13 :: 12:57:12.837 || INFO :: SecurityConfig.java: | 92 | :: Loading SecurityWebFilterChain with JWE Decoder
+2026-11-13 :: 12:57:13.429 || INFO :: EndpointLinksResolver.java: | 60 | :: Exposing 3 endpoints beneath base path '/actuator'
+2026-11-13 :: 12:57:14.457 || INFO :: NettyWebServer.java: | 142 | :: Netty started on port 8085 (http)
+2026-11-13 :: 12:57:14.468 || INFO :: StartupInfoLogger.java: | 60 | :: Started LoginService in 11.149 seconds (process running for 11.758)
 
 
-2026-11-13 :: 12:53:19.395 || INFO :: LaunchServiceImpl.java: | 44 | :: Loading LAUNCH_CONFIG from Oracle Database into jittered Caffeine Cache...
-2026-11-13 :: 12:53:25.690 || INFO :: LoginUtility.java: | 14 | :: X-Forwarded-For ip : 10.0.17.242
-2026-11-13 :: 12:53:26.153 || INFO :: LoginUtility.java: | 14 | :: X-Forwarded-For ip : 10.0.17.242
-2026-11-13 :: 12:53:26.153 || INFO :: AuthController.java: | 119 | :: Login request for user: v1018405 from IP: 10.0.17.242
-2026-11-13 :: 12:53:26.260 || WARN :: KeyUtils.java: | 145 | :: Payload decryption failed. Invalid ciphertext provided.
-2026-11-13 :: 12:53:26.261 || ERROR:: LoginServiceImpl.java: | 227 | :: Login rejected for user v1018405: Payload decryption failed
-2026-11-13 :: 12:53:26.322 || WARN :: AuthController.java: | 136 | :: Login Failed for user: v1018405. Reason: Security Error: Invalid encrypted payload.
 
+
+
+
+
+2026-11-13 :: 12:58:09.487 || INFO :: LaunchServiceImpl.java: | 44 | :: Loading LAUNCH_CONFIG from Oracle Database into jittered Caffeine Cache...
+2026-11-13 :: 12:58:09.912 || INFO :: AuthController.java: | 106 | :: Value returned by launch Response : LaunchResponse[prodDate=2026-03-26, launchTime=15:30:00, timezone=IST, version=1.0.0, appName=Fincore, publicKey=-----BEGIN PUBLIC KEY-----
+MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAtt8NKnEjq603s2G7/wkX
+4kRoGVzJu/7V5OpE/AKQB2Bv+D6/BSfRJ34nCRvUyv6mdCTV1jKpiw83EPYGAlk0
+O6u+3Uz0lytRT+mLlVSLkYCQFWIx54kbun9ErLXosq3xL1xIuLCmzn2Gq24+s9qG
+gMsZvIOgRokx+13yfcldB3Ia5K2EH2Ox5JTO6zwsSy8Wes61Gcfy4Ndqx/+hY43k
+DTE06XGRwN65YaAxmEE9AndY1y4AcsRMNHxKCEcjHPnlgeJhP7hjYeR/UpzUOWnI
+0jB56L4n5qCRvUh4xOQy5rQtZjpv/j6lwo4M7FRGUyNHYfAhla8xFdqs6SxHY/dW
+ZQIDAQAB
+-----END PUBLIC KEY-----
+]
+2026-11-13 :: 12:58:20.392 || INFO :: LoginUtility.java: | 14 | :: X-Forwarded-For ip : 10.0.17.242
+2026-11-13 :: 12:58:20.864 || INFO :: LoginUtility.java: | 14 | :: X-Forwarded-For ip : 10.0.17.242
+2026-11-13 :: 12:58:20.864 || INFO :: AuthController.java: | 121 | :: Login request for user: v1018405 from IP: 10.0.17.242
+2026-11-13 :: 12:58:20.970 || WARN :: KeyUtils.java: | 145 | :: Payload decryption failed. Invalid ciphertext provided.
+2026-11-13 :: 12:58:20.971 || ERROR:: LoginServiceImpl.java: | 227 | :: Login rejected for user v1018405: Payload decryption failed
+2026-11-13 :: 12:58:21.033 || WARN :: AuthController.java: | 138 | :: Login Failed for user: v1018405. Reason: Security Error: Invalid encrypted payload.
