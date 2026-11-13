@@ -3,7 +3,7 @@
 2026-11-13 :: 13:40:38.840 || INFO :: LoginServiceImpl.java: | 317 | :: Password-based login for userId=v1018405
 2026-11-13 :: 13:40:38.914 || INFO :: LoginServiceImpl.java: | 847 | :: Credentials validated for userId=v1018405
 2026-11-13 :: 13:40:38.925 || INFO :: AuthController.java: | 181 | :: MFA Enabled: Routing user v1018405 to OTP Phase.
-2026-11-13 :: 13:40:38.932 || INFO :: OtpSessionService.java: | 156 | :: Smart Session Resumption for user=v1018405: Migrating valid OTP to newTxId= (cooldown=0s, resendsLeft=0)
+2026-11-13 :: 13:40:38.932 || INFO :: OtpSessionService.java: | 156 | :: Smart Session Resumption for user=v1018405: Migrating valid OTP to newTxId=************************* (cooldown=0s, resendsLeft=0)
 
 
 
