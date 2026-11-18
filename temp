@@ -1,474 +1,5 @@
 package com.fincore.gateway.Service;
 
-import com.fincore.gateway.model.LoginParam;
-import com.fincore.gateway.utility.LoginUtility;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.data.redis.core.ReactiveStringRedisTemplate;
-import org.springframework.http.HttpStatus;
-import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.stereotype.Service;
-import org.springframework.web.server.ResponseStatusException;
-import reactor.core.publisher.Mono;
-import reactor.core.scheduler.Schedulers;
-import reactor.util.function.Tuple3;
-import reactor.util.function.Tuples;
-import tools.jackson.core.type.TypeReference;
-import tools.jackson.databind.ObjectMapper;
-
-import java.time.Duration;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-
-/**
- * ============================================================================
- * PRODUCTION OTP LIFECYCLE & CONCURRENCY ENGINE
- * ============================================================================
- * All timers and limits are dynamically fetched from LoginParamCacheService:
- * - OTP Validity               : LOGIN_PARAM.OTP_VALIDITY (Default: 5 min)
- * - OTP Screen Idle Timeout    : LOGIN_PARAM.OTP_SCREEN_TIMEOUT_MIN (Default: 15 min)
- * - Max Wrong Attempts         : LOGIN_PARAM.OTP_MAX_ATTEMPTS (Default: 5)
- * - Resend Cooldown            : LOGIN_PARAM.OTP_RESEND_COOLDOWN_SEC (Default: 60 sec)
- * - Max Resend Count           : LOGIN_PARAM.OTP_MAX_RESENDS (Default: 3)
- * - Resend Window              : LOGIN_PARAM.OTP_RESEND_WINDOW_MIN (Default: 10 min)
- * <p>
- * REDIS KEYS ARCHITECTURE:
- * 1. OTP_ACTIVE_TX:USR:{userId} -> Active txId (TTL: 15m - Enforces 1 OTP session per user)
- * 2. OTP_COOLDOWN:USR:{userId}  -> "locked" (TTL: 60s - Enforces cooldown across Resend AND Back-to-Login)
- * 3. OTP_RESENDS:USR:{userId}   -> Integer count (TTL: 10m - Enforces max 3 resends per user in 10m)
- * 4. OTP_SESSION:{txId}         -> userId (TTL: 15m - Tracks overall OTP screen sliding idle timeout)
- * 5. OTP_TX:{txId}              -> { "userId": "...", "otpHash": "..." } (TTL: 5m - Active code)
- * 6. OTP_FAILURES:{txId}        -> Integer count (TTL: 5m)
- * 7. OTP_VERIFY_LOCK:{txId}     -> "verifying" (TTL: 10s - Prevents double-click race condition)
- * 8. RATE_LIMIT:OTP_REQ:IP:{ip} -> Integer count (TTL: 1h)
- * ============================================================================
- */
-@Slf4j
-@Service
-@RequiredArgsConstructor
-public class OtpSessionService {
-
-    private static final int MAX_HOURLY_IP_REQUESTS = 50;
-
-    private final ReactiveStringRedisTemplate redis;
-    private final PasswordEncoder passwordEncoder;
-    private final ObjectMapper mapper;
-    private final LoginParamCacheService loginParamCacheService;
-
-    /**
-     * Rate limits OTP requests by IP to prevent API abuse and SMS Toll Fraud.
-     */
-    public Mono<Void> checkIpRateLimit(String clientIp) {
-        String key = "RATE_LIMIT:OTP_REQ:IP:" + clientIp;
-        return redis.opsForValue().increment(key)
-                .flatMap(count -> {
-                    if (count == 1) {
-                        return redis.expire(key, Duration.ofHours(1)).then();
-                    } else if (count > MAX_HOURLY_IP_REQUESTS) {
-                        log.warn("SECURITY ALERT: IP {} exceeded hourly OTP limit.", LoginUtility.sanitizeLog(clientIp));
-                        return Mono.error(new ResponseStatusException(HttpStatus.TOO_MANY_REQUESTS,
-                                "Maximum resend limit reached. Kindly Wait."));
-                    }
-                    return Mono.empty();
-                });
-    }
-
-    /**
-     * Initiates a fresh OTP session on /login:
-     * 1. Checks user-level 60s cooldown FIRST (Blocks rapid "Back to Sign In" and concurrent 2nd-device login
-     *    without destroying the 1st device's active OTP session).
-     * 2. Checks user-level 10-minute resend quota (If all 3 resends are exhausted, blocks immediately on Sign-In
-     *    screen with 429 so the user is never dropped onto the OTP screen without a new SMS).
-     * 3. If allowed (> 60s elapsed and quota available), evicts any previous abandoned OTP transaction (oldTxId)
-     *    for this user, increments the 10-minute counter if a window is already active, and saves the new OTP.
-     */
-    public Mono<OtpSessionInitResult> initiateUserOtpSession(String newTxId, String userId, String newPlainOtp) {
-        final String cleanUserId = userId.trim();
-        final LoginParam params = loginParamCacheService.getCachedLoginParam();
-
-        final int otpValidityMin = params.getSafeOtpValidityMin();
-        final int cooldownSec = params.getSafeOtpResendCooldownSec();
-        final int maxResends = params.getSafeOtpMaxResends();
-        final int resendWindowMin = params.getSafeOtpResendWindowMin();
-        final int screenTimeoutMin = params.getSafeOtpScreenTimeoutMin();
-
-        final Duration cooldownDuration = Duration.ofSeconds(cooldownSec);
-        final Duration resendWindowDuration = Duration.ofMinutes(resendWindowMin);
-
-        final String activeTxKey = "OTP_ACTIVE_TX:USR:" + cleanUserId;
-        final String userCooldownKey = "OTP_COOLDOWN:USR:" + cleanUserId;
-        final String userResendKey = "OTP_RESENDS:USR:" + cleanUserId;
-
-        return Mono.zip(
-                redis.opsForValue().get(activeTxKey).defaultIfEmpty(""),
-                redis.getExpire(userCooldownKey).defaultIfEmpty(Duration.ZERO),
-                redis.opsForValue().get(userResendKey).defaultIfEmpty("")
-        ).flatMap(userState -> {
-            String oldTxId = userState.getT1();
-            long cooldownRemainingSec = Math.max(0, userState.getT2().getSeconds());
-            String resendCountStr = userState.getT3();
-
-            boolean hasResendWindow = !resendCountStr.isEmpty();
-            int currentResends = hasResendWindow ? Integer.parseInt(resendCountStr) : 0;
-
-            // 1. FAIL-FAST: If 60s Cooldown is active, block BEFORE touching oldTxId (Protects active Device 1 session)
-            if (cooldownRemainingSec > 0) {
-                return Mono.error(new ResponseStatusException(
-                        HttpStatus.TOO_MANY_REQUESTS,
-                        "Please wait " + cooldownRemainingSec + " seconds before requesting another code."
-                ));
-            }
-
-            // 2. FAIL-FAST: If 10-minute Resend Quota (3 resends) is exhausted, block on Sign-In screen
-            if (hasResendWindow && currentResends >= maxResends) {
-                return Mono.error(new ResponseStatusException(
-                        HttpStatus.TOO_MANY_REQUESTS,
-                        "Maximum resend limit reached. Kindly Wait."
-                ));
-            }
-
-            // 3. Acquire Atomic 60s User Cooldown Lock (SETNX prevents simultaneous 2-device race condition)
-            return redis.opsForValue().setIfAbsent(userCooldownKey, "locked", cooldownDuration)
-                    .flatMap(acquired -> {
-                        if (!Boolean.TRUE.equals(acquired)) {
-                            return redis.getExpire(userCooldownKey)
-                                    .flatMap(ttl -> Mono.error(new ResponseStatusException(
-                                            HttpStatus.TOO_MANY_REQUESTS,
-                                            "Please wait " + Math.max(1, ttl.getSeconds()) + " seconds before requesting another code."
-                                    )));
-                        }
-
-                        // 4. Evict any previous abandoned OTP session for this user (Single Active Session enforcement)
-                        Mono<Void> evictOldTx = oldTxId.isEmpty()
-                                ? Mono.empty()
-                                : Mono.when(
-                                        redis.delete("OTP_SESSION:" + oldTxId),
-                                        redis.delete("OTP_TX:" + oldTxId),
-                                        redis.delete("OTP_FAILURES:" + oldTxId),
-                                        redis.delete("OTP_VERIFY_LOCK:" + oldTxId)
-                                ).doOnSuccess(v -> log.info("Evicted previous OTP txId={} for user={}",
-                                        LoginUtility.sanitizeLog(oldTxId), LoginUtility.sanitizeLog(cleanUserId)));
-
-                        // 5. Track 10-Minute Resend Window (Initial login = 0; subsequent re-logins in 10m window increment count)
-                        Mono<Long> updateResendCounter;
-                        if (!hasResendWindow) {
-                            updateResendCounter = redis.opsForValue()
-                                    .set(userResendKey, "0", resendWindowDuration)
-                                    .thenReturn(0L);
-                        } else {
-                            updateResendCounter = redis.opsForValue().increment(userResendKey);
-                        }
-
-                        return evictOldTx.then(updateResendCounter)
-                                .flatMap(updatedResends -> {
-                                    if (updatedResends > maxResends) {
-                                        return redis.delete(userCooldownKey)
-                                                .then(Mono.error(new ResponseStatusException(
-                                                        HttpStatus.TOO_MANY_REQUESTS,
-                                                        "Maximum resend limit reached. Kindly Wait."
-                                                )));
-                                    }
-
-                                    int remainingResends = maxResends - updatedResends.intValue();
-
-                                    return saveOtpStateInternal(newTxId, cleanUserId, newPlainOtp, params)
-                                            .thenReturn(new OtpSessionInitResult(
-                                                    otpValidityMin * 60,
-                                                    cooldownSec,
-                                                    remainingResends,
-                                                    screenTimeoutMin
-                                            ));
-                                });
-                    });
-        });
-    }
-
-    /**
-     * Executes an OTP Resend on the OTP screen.
-     * Enforces 15-minute screen timeout, 60-second cooldown, and maximum 3 resends per 10-minute window.
-     * Refreshes the 15-minute sliding idle window on success.
-     * Returns Tuple3 of (NewPlainOtp, UserId, RemainingResends).
-     */
-    public Mono<Tuple3<String, String, Integer>> processResend(String txId, String newPlainOtp) {
-        final LoginParam params = loginParamCacheService.getCachedLoginParam();
-        final Duration cooldownDuration = Duration.ofSeconds(params.getSafeOtpResendCooldownSec());
-        final Duration resendWindowDuration = Duration.ofMinutes(params.getSafeOtpResendWindowMin());
-        final int maxResends = params.getSafeOtpMaxResends();
-
-        final String sessionKey = "OTP_SESSION:" + txId;
-
-        // 1. Check 15-Minute OTP Entry Screen Timeout
-        return redis.opsForValue().get(sessionKey)
-                .switchIfEmpty(Mono.error(new ResponseStatusException(
-                        HttpStatus.UNAUTHORIZED,
-                        "Your session has timed out. Please log in again."
-                )))
-                .flatMap(userId -> {
-                    final String cleanUserId = userId.trim();
-                    final String userCooldownKey = "OTP_COOLDOWN:USR:" + cleanUserId;
-                    final String userResendKey = "OTP_RESENDS:USR:" + cleanUserId;
-
-                    // 2. Check 60-Second User Cooldown Lock (Section 2.2.5 & 2.4)
-                    return redis.opsForValue().setIfAbsent(userCooldownKey, "locked", cooldownDuration)
-                            .flatMap(acquired -> {
-                                if (!Boolean.TRUE.equals(acquired)) {
-                                    return redis.getExpire(userCooldownKey)
-                                            .flatMap(ttl -> {
-                                                long secondsLeft = Math.max(1, ttl.getSeconds());
-                                                return Mono.error(new ResponseStatusException(
-                                                        HttpStatus.TOO_MANY_REQUESTS,
-                                                        "Please wait " + secondsLeft + " seconds before requesting another code."
-                                                ));
-                                            });
-                                }
-
-                                // 3. Atomic Increment User Resends within 10-Minute Window (Section 2.2.5 & 2.4)
-                                return redis.opsForValue().increment(userResendKey)
-                                        .flatMap(resendCount -> {
-                                            if (resendCount == 1) {
-                                                return redis.expire(userResendKey, resendWindowDuration).thenReturn(resendCount);
-                                            }
-                                            return Mono.just(resendCount);
-                                        })
-                                        .flatMap(resendCount -> {
-                                            if (resendCount > maxResends) {
-                                                return redis.delete(userCooldownKey)
-                                                        .then(Mono.error(new ResponseStatusException(
-                                                                HttpStatus.TOO_MANY_REQUESTS,
-                                                                "Maximum resend limit reached. Kindly Wait."
-                                                        )));
-                                            }
-
-                                            int remainingResends = maxResends - resendCount.intValue();
-
-                                            // 4. Save new OTP state (resets failure count to 0 & refreshes 15m idle session)
-                                            return saveOtpStateInternal(txId, cleanUserId, newPlainOtp, params)
-                                                    .thenReturn(Tuples.of(newPlainOtp, cleanUserId, remainingResends));
-                                        });
-                            });
-                });
-    }
-
-    /**
-     * Verifies the OTP using constant-time cryptographic matching (BCrypt) on boundedElastic scheduler.
-     * Refreshes the 15-minute sliding idle window on user activity.
-     * Protected by an atomic lock to prevent double-click race conditions.
-     */
-    public Mono<String> verifyOtp(String txId, String inputOtp) {
-        final LoginParam params = loginParamCacheService.getCachedLoginParam();
-        final int maxFailures = params.getSafeOtpMaxAttempts();
-        final Duration screenTimeout = Duration.ofMinutes(params.getSafeOtpScreenTimeoutMin());
-
-        final String sessionKey = "OTP_SESSION:" + txId;
-        final String txKey = "OTP_TX:" + txId;
-        final String failKey = "OTP_FAILURES:" + txId;
-        final String verifyLockKey = "OTP_VERIFY_LOCK:" + txId;
-
-        // 0. Atomic Double-Click Protection Lock (10s TTL)
-        return redis.opsForValue().setIfAbsent(verifyLockKey, "verifying", Duration.ofSeconds(10))
-                .flatMap(lockAcquired -> {
-                    if (!Boolean.TRUE.equals(lockAcquired)) {
-                        return Mono.error(new ResponseStatusException(
-                                HttpStatus.TOO_MANY_REQUESTS,
-                                "Verification already in progress. Please wait."
-                        ));
-                    }
-
-                    // 1. Check if the 15-minute OTP entry screen session is still active
-                    return redis.opsForValue().get(sessionKey)
-                            .switchIfEmpty(
-                                    redis.delete(verifyLockKey).then(Mono.error(new ResponseStatusException(
-                                            HttpStatus.UNAUTHORIZED,
-                                            "Your session has timed out. Please log in again."
-                                    )))
-                            )
-                            .flatMap(sessionUserId -> {
-                                final String cleanUserId = sessionUserId.trim();
-                                // Refresh the 15-minute sliding idle timeout since the user is actively interacting
-                                return Mono.when(
-                                                redis.expire(sessionKey, screenTimeout),
-                                                redis.expire("OTP_ACTIVE_TX:USR:" + cleanUserId, screenTimeout)
-                                        )
-                                        .then(redis.opsForValue().get(txKey))
-                                        .switchIfEmpty(
-                                                redis.delete(verifyLockKey).then(Mono.error(new ResponseStatusException(
-                                                        HttpStatus.BAD_REQUEST,
-                                                        "The code is invalid or has expired. Please request a new code."
-                                                )))
-                                        )
-                                        .flatMap(payload ->
-                                                Mono.fromCallable(() -> {
-                                                            Map<String, String> data = mapper.readValue(payload, new TypeReference<>() {
-                                                            });
-                                                            String userId = data.get("userId");
-                                                            String storedHash = data.get("otpHash");
-                                                            boolean matched = passwordEncoder.matches(inputOtp, storedHash);
-                                                            return Tuples.of(userId, matched);
-                                                        })
-                                                        .subscribeOn(Schedulers.boundedElastic())
-                                                        .flatMap(result -> {
-                                                            String userId = result.getT1().trim();
-                                                            boolean matched = result.getT2();
-
-                                                            if (matched) {
-                                                                // SUCCESS (Section 2.2.8): Delete all OTP & User quota keys
-                                                                return cleanupAllOtpKeysOnSuccess(txId, userId).thenReturn(userId);
-                                                            } else {
-                                                                // FAILURE (Section 2.2.6): Atomic increment wrong attempts
-                                                                return redis.opsForValue().increment(failKey)
-                                                                        .flatMap(failCount -> {
-                                                                            if (failCount >= maxFailures) {
-                                                                                return Mono.when(
-                                                                                                redis.delete(txKey),
-                                                                                                redis.delete(failKey),
-                                                                                                redis.delete(verifyLockKey)
-                                                                                        )
-                                                                                        .then(Mono.error(new ResponseStatusException(
-                                                                                                HttpStatus.BAD_REQUEST,
-                                                                                                "Too many incorrect attempts. The code has been expired. Please request a new code."
-                                                                                        )));
-                                                                            }
-                                                                            long remaining = maxFailures - failCount;
-                                                                            return redis.delete(verifyLockKey)
-                                                                                    .then(Mono.error(new ResponseStatusException(
-                                                                                            HttpStatus.BAD_REQUEST,
-                                                                                            "Invalid code. " + remaining + " attempts remaining."
-                                                                                    )));
-                                                                        });
-                                                            }
-                                                        })
-                                        );
-                            })
-                            .onErrorResume(e -> {
-                                if (e instanceof ResponseStatusException) {
-                                    return Mono.error(e);
-                                }
-                                log.error("Unexpected error during OTP verification for txId={}", LoginUtility.sanitizeLog(txId), e);
-                                return redis.delete(verifyLockKey)
-                                        .then(Mono.error(new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR,
-                                                "Redis payload corruption")));
-                            });
-                });
-    }
-
-    /**
-     * Internal helper: Hashes the OTP on boundedElastic and saves the transaction state in Redis.
-     */
-    private Mono<Void> saveOtpStateInternal(String txId, String userId, String plainOtp, LoginParam params) {
-        final Duration otpValidity = Duration.ofMinutes(params.getSafeOtpValidityMin());
-        final Duration screenTimeout = Duration.ofMinutes(params.getSafeOtpScreenTimeoutMin());
-
-        return Mono.fromCallable(() -> {
-                    String hash = passwordEncoder.encode(plainOtp);
-                    return mapper.writeValueAsString(Map.of("userId", userId, "otpHash", hash));
-                })
-                .subscribeOn(Schedulers.boundedElastic())
-                .flatMap(payload -> {
-                    List<Mono<?>> operations = new ArrayList<>();
-
-                    // 1. Register this txId as the ONLY active OTP session for this user
-                    operations.add(redis.opsForValue().set("OTP_ACTIVE_TX:USR:" + userId, txId, screenTimeout));
-
-                    // 2. Overall 15-Minute OTP Screen Session Tracker
-                    operations.add(redis.opsForValue().set("OTP_SESSION:" + txId, userId, screenTimeout));
-
-                    // 3. Active 5-Minute OTP Code Hash
-                    operations.add(redis.opsForValue().set("OTP_TX:" + txId, payload, otpValidity));
-
-                    // 4. Reset wrong attempt counter to 0 for the new code
-                    operations.add(redis.opsForValue().set("OTP_FAILURES:" + txId, "0", otpValidity));
-
-                    return Mono.when(operations)
-                            .doOnSuccess(v -> log.info("Saved OTP State txId={} for user={}",
-                                    LoginUtility.sanitizeLog(txId), LoginUtility.sanitizeLog(userId)));
-                });
-    }
-
-    /**
-     * Deletes all Redis keys (both txId keys and User quota keys) upon successful verification.
-     */
-    private Mono<Void> cleanupAllOtpKeysOnSuccess(String txId, String userId) {
-        return Mono.when(
-                redis.delete("OTP_SESSION:" + txId),
-                redis.delete("OTP_TX:" + txId),
-                redis.delete("OTP_FAILURES:" + txId),
-                redis.delete("OTP_VERIFY_LOCK:" + txId),
-                redis.delete("OTP_ACTIVE_TX:USR:" + userId),
-                redis.delete("OTP_COOLDOWN:USR:" + userId),
-                redis.delete("OTP_RESENDS:USR:" + userId)
-        );
-    }
-
-    /**
-     * Compensating transaction for Initial Login: Cleans up the Redis state if Kafka fails during /login.
-     * Also rolls back the OTP_RESENDS counter so a retry after Kafka failure is not penalized.
-     */
-    public Mono<Void> rollbackInitialOtpState(String txId, String userId) {
-        final String cleanUserId = userId != null ? userId.trim() : "";
-        final String userResendKey = "OTP_RESENDS:USR:" + cleanUserId;
-
-        Mono<Void> rollbackResendWindow = redis.opsForValue().get(userResendKey)
-                .flatMap(val -> {
-                    if ("0".equals(val)) {
-                        return redis.delete(userResendKey).then();
-                    } else {
-                        return redis.opsForValue().decrement(userResendKey).then();
-                    }
-                });
-
-        return Mono.when(
-                redis.delete("OTP_SESSION:" + txId),
-                redis.delete("OTP_TX:" + txId),
-                redis.delete("OTP_FAILURES:" + txId),
-                redis.delete("OTP_ACTIVE_TX:USR:" + cleanUserId),
-                redis.delete("OTP_COOLDOWN:USR:" + cleanUserId),
-                rollbackResendWindow
-        ).doOnSuccess(v -> log.info("Rolled back initial OTP state for txId={}", LoginUtility.sanitizeLog(txId)));
-    }
-
-    /**
-     * Compensating transaction for Resend: If Kafka fails during /resend-otp,
-     * preserves OTP_SESSION, decrements the resend counter, and releases the 60s cooldown lock.
-     */
-    public Mono<Void> rollbackResendState(String txId, String userId) {
-        final String cleanUserId = userId != null ? userId.trim() : "";
-        return Mono.when(
-                redis.delete("OTP_COOLDOWN:USR:" + cleanUserId),
-                redis.opsForValue().decrement("OTP_RESENDS:USR:" + cleanUserId)
-        ).doOnSuccess(v -> log.info("Rolled back resend increment and cooldown for txId={}", LoginUtility.sanitizeLog(txId)));
-    }
-
-    /**
-     * Value object returned when initiating a user's OTP session on /login.
-     */
-    public record OtpSessionInitResult(
-            int expiresInSeconds,
-            int resendCooldownSeconds,
-            int resendsRemaining,
-            int otpScreenTimeoutMin
-    ) {
-    }
-}
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-package com.fincore.gateway.Service;
-
 import com.fincore.gateway.Config.KeyUtils;
 import com.fincore.gateway.dto.*;
 import com.fincore.gateway.model.LoginAttempt;
@@ -936,14 +467,41 @@ public class LoginServiceImpl implements LoginService {
         return Mono.fromCallable(() -> resolveAndValidateOtp(requestDto.getOtp()))
                 .subscribeOn(Schedulers.boundedElastic())
                 .flatMap(plainOtp -> otpSessionService.verifyOtp(requestDto.getTransactionId(), plainOtp))
-                .flatMap(userId -> Mono.fromCallable(() -> {
-                    UserDto userDto = getUserProfile(userId);
-                    if (userDto == null) {
-                        throw new IllegalStateException("User missing post OTP verification");
-                    }
-                    userDto.setValidCredentials(true);
-                    return userDto;
-                }).subscribeOn(Schedulers.boundedElastic()));
+                .flatMap(userId -> Mono.fromCallable(() -> recordMfaLoginSuccessAndGetProfile(userId))
+                        .subscribeOn(Schedulers.boundedElastic()));
+    }
+
+    /**
+     * Updates USERS.LAST_LOGIN_AT upon successful MFA (OTP) verification
+     * and returns the populated UserDto for JWE token generation.
+     */
+    @Transactional
+    protected UserDto recordMfaLoginSuccessAndGetProfile(String userId) {
+        final String cleanUserId = sanitizeAndValidateUserId(userId);
+        if (cleanUserId.isEmpty()) {
+            throw new IllegalStateException("Invalid userId post OTP verification");
+        }
+
+        User user = userRepository.findByUserId(cleanUserId);
+        UserRoles userRole = userRepository.getUserRole(cleanUserId);
+
+        if (user == null || userRole == null) {
+            throw new IllegalStateException("User or Role missing post OTP verification");
+        }
+
+        // Update LAST_LOGIN_AT now that Factor 2 (OTP) is verified
+        Timestamp now = Timestamp.valueOf(LocalDateTime.now());
+        user.setLastLoginAt(now);
+        userRepository.save(user);
+
+        UserDto userDto = new UserDto();
+        userDto.setUserId(user.getUserId());
+        userDto.setLastLoginAt(now);
+        userDto.setUserStatus(user.getPasswordLogin());
+        userDto.setPasswordLoginStatus(user.getPasswordLogin());
+        userDto.setValidCredentials(true);
+        userDto.setUser(initializeTokenData(user, userRole));
+        return userDto;
     }
 
     /**
@@ -1125,6 +683,7 @@ public class LoginServiceImpl implements LoginService {
 
         UserDto userDto = new UserDto();
         userDto.setUserId(user.getUserId());
+        userDto.setLastLoginAt(user.getLastLoginAt());
         userDto.setUserStatus(user.getPasswordLogin());
         userDto.setPasswordLoginStatus(user.getPasswordLogin());
         userDto.setUser(initializeTokenData(user, userRole));
@@ -1172,8 +731,24 @@ public class LoginServiceImpl implements LoginService {
         result.setValidCredentials(true);
         result.setMessage("Login Successful");
 
+        boolean shouldSaveUser = false;
+
+        // 1. Reset wrong password count on successful credential validation
         if (user.getUserWrongPasswordCount() > 0) {
             user.setUserWrongPasswordCount(0);
+            shouldSaveUser = true;
+        }
+
+        // 2. If MFA is disabled (Direct Login), record LAST_LOGIN_AT immediately.
+        // If MFA is enabled, LAST_LOGIN_AT will be recorded only after OTP verification succeeds.
+        if (!result.isOtpRequired()) {
+            Timestamp now = Timestamp.valueOf(LocalDateTime.now());
+            user.setLastLoginAt(now);
+            result.setLastLoginAt(now);
+            shouldSaveUser = true;
+        }
+
+        if (shouldSaveUser) {
             userRepository.save(user);
         }
 
