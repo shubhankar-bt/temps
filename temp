@@ -1,4 +1,176 @@
-In email allowed domain this one also allowed as test reciver email in uat6 region.
+package com.fincore.gateway.utility;
 
-ebms_uat_receiver@sbiuat.bank.in
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.server.reactive.ServerHttpRequest;
 
+import java.util.Locale;
+import java.util.Set;
+import java.util.regex.Pattern;
+
+@Slf4j
+public class LoginUtility {
+
+    private static final Set<String> ALLOWED_EMAIL_DOMAINS = Set.of(
+            "sbi.co.in",
+            "sbiuat.bank.in"
+    );
+    private static final Pattern INDIAN_MOBILE_PATTERN = Pattern.compile("^[6-9]\\d{9}$");
+    private static final Pattern EMAIL_LOCAL_PART_PATTERN = Pattern.compile("^[a-zA-Z0-9._%+-]{2,64}$");
+
+    public static String getClientIp(ServerHttpRequest request) {
+        String ip = request.getHeaders().getFirst("X-Forwarded-For");
+
+        if (ip == null || ip.isEmpty() || "unknown".equalsIgnoreCase(ip)) {
+            if (request.getRemoteAddress() != null) {
+                ip = String.valueOf(request.getRemoteAddress().getAddress().getHostAddress());
+            }
+        }
+
+        if (ip != null) {
+            if (ip.contains(",")) {
+                ip = ip.split(",")[0].trim();
+            } else if (ip.startsWith("::ffff:")) {
+                ip = ip.substring(7);
+            } else if (ip.startsWith("::1")) {
+                ip = "127.0.0.1";
+            }
+        }
+
+        return ip;
+    }
+
+    /**
+     * Fortify Fix: Log Forging & Privacy Violations.
+     * Strips CRLF/tab characters before logging any external input.
+     */
+    public static String sanitizeLog(String input) {
+        if (input == null) {
+            return "null";
+        }
+        return input.replaceAll("[\n\r\t]", "_");
+    }
+
+    /**
+     * Normalizes and validates an Indian 10-digit mobile number (Option M1):
+     * - Strips spaces, hyphens, parentheses, and dots.
+     * - Normalizes optional +91, 0091, 91, and leading 0 prefixes.
+     * - Enforces strictly 10 digits starting with 6, 7, 8, or 9.
+     * - Rejects all-same-digit numbers (e.g., 6666666666, 7777777777, 8888888888, 9999999999).
+     *
+     * @param rawMobile raw phone string from database
+     * @return clean 10-digit Indian mobile number, or "" if invalid
+     */
+    public static String normalizeAndValidateMobile(String rawMobile) {
+        if (rawMobile == null || rawMobile.isBlank()) {
+            return "";
+        }
+
+        // Remove only formatting punctuation; letters or non-Indian prefixes (+44, +1) remain and fail validation
+        String cleaned = rawMobile.trim().replaceAll("[\\s\\-().]", "");
+
+        if (cleaned.startsWith("+91")) {
+            cleaned = cleaned.substring(3);
+        } else if (cleaned.startsWith("0091") && cleaned.length() >= 14) {
+            cleaned = cleaned.substring(4);
+        } else if (cleaned.startsWith("91") && cleaned.length() == 12) {
+            cleaned = cleaned.substring(2);
+        }
+
+        // Strip single leading trunk '0' (e.g., 09876543210 or +91 09876543210)
+        if (cleaned.startsWith("0") && cleaned.length() == 11) {
+            cleaned = cleaned.substring(1);
+        }
+
+        if (!INDIAN_MOBILE_PATTERN.matcher(cleaned).matches()) {
+            return "";
+        }
+
+        if (isAllSameDigit(cleaned)) {
+            return "";
+        }
+
+        return cleaned;
+    }
+
+    /**
+     * Normalizes and validates an official SBI email address:
+     * - Rejects whitespace, lengths > 254, missing/multiple '@', leading/trailing/consecutive dots.
+     * - Enforces local part length 2-64 matching safe RFC characters (letters, digits, '.', '_', '%', '+', '-').
+     * - Restricts domain to approved SBI domains ("sbi.co.in", "sbiuat.bank.in" - case-insensitive).
+     *
+     * @param rawEmail raw email string from database
+     * @return normalized lowercase email address, or "" if invalid
+     */
+    public static String normalizeAndValidateEmail(String rawEmail) {
+        if (rawEmail == null || rawEmail.isBlank()) {
+            return "";
+        }
+
+        String cleaned = rawEmail.trim();
+        if (cleaned.length() > 254 || cleaned.chars().anyMatch(Character::isWhitespace)) {
+            return "";
+        }
+
+        int atIndex = cleaned.indexOf('@');
+        if (atIndex <= 0 || atIndex != cleaned.lastIndexOf('@')) {
+            return "";
+        }
+
+        String localPart = cleaned.substring(0, atIndex);
+        String normalizedDomain = cleaned.substring(atIndex + 1).toLowerCase(Locale.ROOT);
+
+        if (!ALLOWED_EMAIL_DOMAINS.contains(normalizedDomain)) {
+            return "";
+        }
+
+        if (localPart.startsWith(".") || localPart.endsWith(".") || localPart.contains("..")) {
+            return "";
+        }
+
+        if (!EMAIL_LOCAL_PART_PATTERN.matcher(localPart).matches()) {
+            return "";
+        }
+
+        return localPart.toLowerCase(Locale.ROOT) + "@" + normalizedDomain;
+    }
+
+    /**
+     * Masks a validated 10-digit Indian mobile number as "***1234" per Table 2.4.
+     * Never returns raw unmasked digits on invalid input.
+     */
+    public static String maskMobile(String mobile) {
+        String valid = normalizeAndValidateMobile(mobile);
+        if (valid.isEmpty()) {
+            return "Not Registered";
+        }
+        return "***" + valid.substring(valid.length() - 4);
+    }
+
+    /**
+     * Masks a validated SBI email address as "s***s@sbi.co.in" (or "a***@sbi.co.in" for 2-char local parts).
+     * Crash-proof against malformed strings like "@" or "a@".
+     */
+    public static String maskEmail(String email) {
+        String valid = normalizeAndValidateEmail(email);
+        if (valid.isEmpty()) {
+            return "Not Registered";
+        }
+        String[] parts = valid.split("@", 2);
+        String local = parts[0];
+        String domain = parts[1];
+        if (local.length() <= 2) {
+            return local.charAt(0) + "***@" + domain;
+        }
+        return local.charAt(0) + "***" + local.charAt(local.length() - 1) + "@" + domain;
+    }
+
+    private static boolean isAllSameDigit(String digits) {
+        char first = digits.charAt(0);
+        for (int i = 1; i < digits.length(); i++) {
+            if (digits.charAt(i) != first) {
+                return false;
+            }
+        }
+        return true;
+    }
+}
