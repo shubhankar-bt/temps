@@ -1,558 +1,165 @@
-package com.fincore.gateway.Service;
 
-import com.fincore.gateway.utility.LoginUtility;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.ldap.AuthenticationException;
-import org.springframework.ldap.CommunicationException;
-import org.springframework.ldap.core.AttributesMapper;
-import org.springframework.ldap.core.LdapTemplate;
-import org.springframework.ldap.support.LdapEncoder;
-import org.springframework.ldap.support.LdapUtils;
-import org.springframework.stereotype.Service;
-
-import javax.naming.directory.Attribute;
-import javax.naming.directory.DirContext;
-import javax.naming.directory.SearchControls;
-import java.util.List;
-
-@Slf4j
-@Service
-@RequiredArgsConstructor
-public class AdAuthenticationService {
-
-    private final LdapTemplate ldapTemplate;
-
-    @Value("${spring.ldap.domain:UATAD.SBI}")
-    private String adDomain;
-
-    /**
-     * Authenticates a user against Active Directory using a two-step non-object-returning
-     * search (AttributesMapper + returningObjFlag=false) followed by a direct ContextSource bind.
-     *
-     * Fortify Fix: Replaces ldapTemplate.authenticate(...) to eliminate
-     * 'LDAP Entry Poisoning' (High) while preserving exact AD error handling (including data 775 lockouts).
-     */
-    public boolean authenticate(String username, String password) {
-        if (username == null || username.isBlank() || password == null || password.isBlank()) {
-            log.warn("LDAP Auth failed: Empty username or password");
-            return false;
-        }
-
-        DirContext userCtx = null;
-        try {
-            String principalName = username + "@" + adDomain;
-            log.info("Attempting LDAP Bind for principal: {}", LoginUtility.sanitizeLog(principalName));
-
-            // 1. LDAP Injection Prevention
-            String safeUsername = LdapEncoder.filterEncode(username);
-
-            // 2. Non-Object-Returning Search using AttributesMapper (Prevents LDAP Entry Poisoning)
-            SearchControls searchControls = new SearchControls();
-            searchControls.setSearchScope(SearchControls.SUBTREE_SCOPE);
-            searchControls.setReturningObjFlag(false);
-            searchControls.setCountLimit(2);
-            searchControls.setReturningAttributes(new String[]{"distinguishedName"});
-
-            List<String> matchedDns = ldapTemplate.search(
-                    "",
-                    "(sAMAccountName=" + safeUsername + ")",
-                    searchControls,
-                    (AttributesMapper<String>) attrs -> {
-                        Attribute dnAttr = attrs.get("distinguishedName");
-                        return (dnAttr != null && dnAttr.get() != null) ? dnAttr.get().toString() : null;
-                    }
-            );
-
-            if (matchedDns == null || matchedDns.isEmpty()) {
-                log.warn("LDAP Authentication FAILED: User DN not found for user: {}", LoginUtility.sanitizeLog(username));
-                return false;
-            }
-
-            // Use resolved DN if present, otherwise fall back to UPN (username@adDomain)
-            String bindPrincipal = (matchedDns.get(0) != null && !matchedDns.get(0).isBlank())
-                    ? matchedDns.get(0)
-                    : principalName;
-
-            // 3. Direct Bind with User Credentials (Throws AuthenticationException on wrong pwd / data 775 lock)
-            userCtx = ldapTemplate.getContextSource().getContext(bindPrincipal, password);
-
-            log.info("LDAP Authentication SUCCESS for user: {}", LoginUtility.sanitizeLog(username));
-            return true;
-
-        } catch (AuthenticationException e) {
-            String msg = e.getMessage();
-            if (msg != null && msg.contains("data 775")) {
-                log.warn("AD Account Locked for user: {}", LoginUtility.sanitizeLog(username));
-                throw new SecurityException("Your Active Directory account is locked. Please contact IT Helpdesk.");
-            }
-            log.warn("LDAP Bind Failed (Invalid Credentials) for user: {}", LoginUtility.sanitizeLog(username));
-            return false;
-        } catch (CommunicationException e) {
-            log.error("LDAP CONNECTION ERROR");
-            throw new RuntimeException("LDAP Server Down");
-        } catch (Exception e) {
-            log.error("LDAP Generic Error during auth");
-            return false;
-        } finally {
-            LdapUtils.closeContext(userCtx);
-        }
-    }
-}
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-package com.fincore.gateway.Service;
-
-import com.fincore.gateway.dto.BranchCircleProjection;
-import com.fincore.gateway.dto.MenuResponse;
-import com.fincore.gateway.model.LoginParam;
-import com.fincore.gateway.repository.LoginParamRepository;
-import com.github.benmanes.caffeine.cache.Cache;
-import com.github.benmanes.caffeine.cache.Caffeine;
-import com.github.benmanes.caffeine.cache.Expiry;
-import jakarta.annotation.PostConstruct;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.stereotype.Service;
-
-import java.security.SecureRandom;
-import java.time.Duration;
-import java.util.function.Function;
-
-/**
- * High-performance Multi-Pod L1 Caffeine Cache Manager for Login Service.
- * Uses SecureRandom for randomized jittered TTLs (Fortify Insecure Randomness compliant).
- */
-@Slf4j
-@Service
-@RequiredArgsConstructor
-public class LoginParamCacheService {
-
-    private static final String PARAM_CACHE_KEY = "GLOBAL_LOGIN_PARAM";
-    private static final SecureRandom SECURE_RANDOM = new SecureRandom();
-
-    private final LoginParamRepository loginParamRepository;
-
-    private final Cache<String, LoginParam> paramCache = Caffeine.newBuilder()
-            .maximumSize(1)
-            .expireAfter(createJitteredExpiry(Duration.ofMinutes(10), Duration.ofMinutes(2)))
-            .build();
-
-    private final Cache<String, BranchCircleProjection> branchCircleCache = Caffeine.newBuilder()
-            .maximumSize(2500)
-            .expireAfter(createJitteredExpiry(Duration.ofMinutes(30), Duration.ofMinutes(5)))
-            .build();
-
-    private final Cache<String, MenuResponse> menuResponseCache = Caffeine.newBuilder()
-            .maximumSize(5000)
-            .expireAfter(createJitteredExpiry(Duration.ofMinutes(10), Duration.ofMinutes(2)))
-            .build();
-
-    @PostConstruct
-    public void initCache() {
-        try {
-            LoginParam param = loginParamRepository.getLoginParam();
-            if (param != null) {
-                paramCache.put(PARAM_CACHE_KEY, param);
-                log.info("Successfully pre-warmed jittered Caffeine cache with LOGIN_PARAM.");
-            } else {
-                log.warn("LOGIN_PARAM table returned null during startup cache warm-up. Using fallback defaults.");
-            }
-        } catch (Exception e) {
-            log.error("Failed to pre-warm LOGIN_PARAM cache at startup. Will retry lazily on first login.");
-        }
-    }
-
-    public LoginParam getCachedLoginParam() {
-        LoginParam param = paramCache.get(PARAM_CACHE_KEY, key -> {
-            log.info("Loading LOGIN_PARAM from Oracle Database into jittered Caffeine Cache...");
-            return loginParamRepository.getLoginParam();
-        });
-
-        if (param == null) {
-            log.warn("LOGIN_PARAM not found in DB! Returning default safe LoginParam instance.");
-            return new LoginParam();
-        }
-        return param;
-    }
-
-    public BranchCircleProjection getCachedBranchCircle(
-            String branchCode, Function<String, BranchCircleProjection> dbLoader) {
-        if (branchCode == null || branchCode.isBlank()) {
-            return null;
-        }
-        return branchCircleCache.get(branchCode, dbLoader);
-    }
-
-    public MenuResponse getCachedMenuResponse(
-            String userId, Function<String, MenuResponse> dbLoader) {
-        if (userId == null || userId.isBlank()) {
-            return null;
-        }
-        return menuResponseCache.get(userId, dbLoader);
-    }
-
-    public void evictUserMenu(String userId) {
-        if (userId != null) {
-            menuResponseCache.invalidate(userId.trim().toLowerCase());
-        }
-    }
-
-    /**
-     * Creates a Caffeine Expiry policy that applies random +/- jitter to every entry's TTL.
-     * Fortify Fix: Uses SecureRandom instead of ThreadLocalRandom to resolve 'Insecure Randomness' (High).
-     */
-    public static <K, V> Expiry<K, V> createJitteredExpiry(Duration baseTtl, Duration maxJitter) {
-        final long baseNanos = baseTtl.toNanos();
-        final long jitterNanos = maxJitter.toNanos();
-
-        return new Expiry<>() {
-            @Override
-            public long expireAfterCreate(K key, V value, long currentTime) {
-                long offset = SECURE_RANDOM.nextLong(-jitterNanos, jitterNanos + 1);
-                return Math.max(Duration.ofSeconds(30).toNanos(), baseNanos + offset);
-            }
-
-            @Override
-            public long expireAfterUpdate(K key, V value, long currentTime, long currentDuration) {
-                long offset = SECURE_RANDOM.nextLong(-jitterNanos, jitterNanos + 1);
-                return Math.max(Duration.ofSeconds(30).toNanos(), baseNanos + offset);
-            }
-
-            @Override
-            public long expireAfterRead(K key, V value, long currentTime, long currentDuration) {
-                return currentDuration;
-            }
-        };
-    }
-}
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-package com.fincore.gateway.Config;
-
-import com.fincore.commonutilities.config.ResilienceConfig;
-import com.fincore.commonutilities.jwt.JwtUtil;
-import com.fincore.commonutilities.security.DecryptRequestBodyAdvice;
-import com.fincore.commonutilities.util.AesEncryptionUtil;
-import com.fincore.gateway.Service.TokenSessionValidator;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Configuration;
-import org.springframework.context.annotation.Import;
-import org.springframework.http.HttpStatus;
-import org.springframework.security.config.Customizer;
-import org.springframework.security.config.web.server.SecurityWebFiltersOrder;
-import org.springframework.security.config.web.server.ServerHttpSecurity;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
-import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.security.web.server.SecurityWebFilterChain;
-import org.springframework.web.cors.CorsConfiguration;
-import org.springframework.web.cors.reactive.CorsConfigurationSource;
-import org.springframework.web.cors.reactive.UrlBasedCorsConfigurationSource;
-import org.springframework.web.server.ServerWebExchange;
-import org.springframework.web.server.WebFilter;
-import org.springframework.web.server.WebFilterChain;
-import reactor.core.publisher.Mono;
-
-import java.util.Arrays;
-import java.util.Set;
-
-@Slf4j
-@Configuration
-@Import({
-        JwtUtil.class,
-        AesEncryptionUtil.class,
-        DecryptRequestBodyAdvice.class,
-        ResilienceConfig.class,
-})
-public class SecurityConfig {
-
-    private static final Set<String> WHITELIST = Set.of(
-            "/api/auth/login",
-            "/api/auth/verify-otp",
-            "/api/auth/resend-otp",
-            "/api/auth/logout",
-            "/actuator/info",
-            "/actuator/health",
-            "/api/auth/public-key",
-            "/api/auth/init"
-    );
-
-    private final TokenSessionValidator tokenSessionValidator;
-    private final JweReactiveJwtDecoder jweReactiveJwtDecoder;
-
-    public SecurityConfig(TokenSessionValidator tokenSessionValidator, JweReactiveJwtDecoder jweReactiveJwtDecoder) {
-        this.tokenSessionValidator = tokenSessionValidator;
-        this.jweReactiveJwtDecoder = jweReactiveJwtDecoder;
-    }
-
-    @Bean
-    public PasswordEncoder passwordEncoder() {
-        return new BCryptPasswordEncoder();
-    }
-
-    @Bean
-    public SecurityWebFilterChain securityWebFilterChain(ServerHttpSecurity http) {
-        log.info("Loading SecurityWebFilterChain with JWE Decoder");
-        return http
-                .csrf(ServerHttpSecurity.CsrfSpec::disable)
-                .headers(headers -> headers
-                        .xssProtection(ServerHttpSecurity.HeaderSpec.XssProtectionSpec::disable)
-                        .frameOptions(ServerHttpSecurity.HeaderSpec.FrameOptionsSpec::disable)
-                        .contentTypeOptions(Customizer.withDefaults())
-                        // Fortify Fix: Resolves 'HTML5: Missing Content Security Policy' (Critical)
-                        .contentSecurityPolicy(csp -> csp.policyDirectives(
-                                "default-src 'self'; frame-ancestors 'none'; object-src 'none'; base-uri 'self'"
-                        ))
-                )
-                .authorizeExchange(exchanges -> exchanges
-                        .pathMatchers(
-                                "/api/auth/login",
-                                "/api/auth/verify-otp",
-                                "/api/auth/resend-otp",
-                                "/api/auth/logout",
-                                "/api/auth/refresh-token",
-                                "/api/auth/public-key",
-                                "/api/auth/init",
-                                "/actuator/**"
-                        ).permitAll()
-                        .anyExchange().authenticated()
-                )
-                .oauth2ResourceServer(oauth2 -> oauth2
-                        .jwt(jwt -> jwt.jwtDecoder(jweReactiveJwtDecoder))
-                )
-                .addFilterBefore(redisValidationFilter(), SecurityWebFiltersOrder.AUTHORIZATION)
-                .build();
-    }
-
-    @Bean
-    public CorsConfigurationSource corsConfigurationSource() {
-        CorsConfiguration configuration = new CorsConfiguration();
-        // Fortify Fix: Explicit trusted origins only (No "*" wildcard)
-        configuration.setAllowedOrigins(
-                Arrays.asList(
-                        "https://fincore-uat.sbi",
-                        "https://localhost:1000",
-                        "https://fincoreuat.sbi",
-                        "https://fincorest.sbi",
-                        "https://fincore.sbi"
-                )
-        );
-        configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS"));
-        configuration.setAllowedHeaders(Arrays.asList("Authorization", "Content-Type", "X-Request-Type"));
-        configuration.setExposedHeaders(Arrays.asList("X-Payload-Key"));
-        configuration.setAllowCredentials(false);
-
-        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
-        source.registerCorsConfiguration("/**", configuration);
-        return source;
-    }
-
-    private WebFilter redisValidationFilter() {
-        return (ServerWebExchange exchange, WebFilterChain chain) -> {
-            String path = exchange.getRequest().getPath().value();
-
-            if (isWhitelisted(path)) {
-                return chain.filter(exchange);
-            }
-
-            Mono<Authentication> principalMono = exchange.getPrincipal().cast(Authentication.class);
-
-            return principalMono
-                    .hasElement()
-                    .flatMap(hasPrincipal -> {
-                        if (!hasPrincipal) {
-                            return chain.filter(exchange);
-                        }
-
-                        return principalMono
-                                .flatMap(auth -> tokenSessionValidator.validateWithRedis(auth)
-                                        .flatMap(validAuth -> {
-                                            if (validAuth == null) {
-                                                log.warn("Redis validation failed for {}", auth.getName());
-                                                exchange.getResponse().setStatusCode(HttpStatus.UNAUTHORIZED);
-                                                return exchange.getResponse().setComplete();
-                                            }
-                                            log.info("Redis validated for {}", validAuth.getName());
-                                            return chain.filter(exchange);
-                                        })
-                                );
-                    })
-                    .onErrorResume(e -> {
-                        log.error("RedisValidationFilter error occurred");
-                        exchange.getResponse().setStatusCode(HttpStatus.UNAUTHORIZED);
-                        return exchange.getResponse().setComplete();
-                    });
-        };
-    }
-
-    private boolean isWhitelisted(String path) {
-        return WHITELIST.contains(path) || path.equals("/api/auth/refresh-token") || path.startsWith("/actuator/");
-    }
-}
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-package com.fincore.gateway.exception;
-
-import com.fincore.gateway.dto.ApiResponse;
-import com.fincore.gateway.utility.LoginUtility;
-import io.jsonwebtoken.ExpiredJwtException;
-import io.jsonwebtoken.JwtException;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.ExceptionHandler;
-import org.springframework.web.bind.annotation.RestControllerAdvice;
-import org.springframework.web.bind.support.WebExchangeBindException;
-import org.springframework.web.server.ResponseStatusException;
-
-@Slf4j
-@RestControllerAdvice
-public class GlobalExceptionHandler {
-
-    @ExceptionHandler(ResponseStatusException.class)
-    public ResponseEntity<ApiResponse<Void>> handleResponseStatusException(ResponseStatusException ex) {
-        log.warn("Auth Status Error: {} - {}", ex.getStatusCode(), LoginUtility.sanitizeLog(ex.getReason()));
-        String errorCode = mapStatusToCode(ex.getStatusCode().value());
-        return ResponseEntity.status(ex.getStatusCode())
-                .body(ApiResponse.error(ex.getReason(), errorCode));
-    }
-
-    @ExceptionHandler(ExpiredJwtException.class)
-    public ResponseEntity<ApiResponse<Void>> handleExpiredJwt(ExpiredJwtException ex) {
-        log.warn("Token Expired");
-        return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                .body(ApiResponse.error("Token has expired", "TOKEN_EXPIRED"));
-    }
-
-    @ExceptionHandler(JwtException.class)
-    public ResponseEntity<ApiResponse<Void>> handleJwtException(JwtException ex) {
-        log.error("JWT validation failed");
-        return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                .body(ApiResponse.error("Invalid token", "INVALID_TOKEN"));
-    }
-
-    @ExceptionHandler(SecurityException.class)
-    public ResponseEntity<ApiResponse<Void>> handleSecurityException(SecurityException ex) {
-        log.warn("Security Violation: {}", LoginUtility.sanitizeLog(ex.getMessage()));
-        // Fortify Fix: Never return raw ex.getMessage() in HTTP response (Resolves System Information Leak: External)
-        return ResponseEntity.status(HttpStatus.FORBIDDEN)
-                .body(ApiResponse.error("Access denied.", "ACCESS_DENIED"));
-    }
-
-    @ExceptionHandler(WebExchangeBindException.class)
-    public ResponseEntity<ApiResponse<Void>> handleValidationException(WebExchangeBindException ex) {
-        String errorMsg = ex.getBindingResult().getAllErrors().get(0).getDefaultMessage();
-        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                .body(ApiResponse.error(errorMsg, "VALIDATION_ERROR"));
-    }
-
-    @ExceptionHandler(Exception.class)
-    public ResponseEntity<ApiResponse<Void>> handleGenericException(Exception ex) {
-        log.error("Internal System Error occurred");
-        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body(ApiResponse.error("Internal System Error", "SYSTEM_ERROR"));
-    }
-
-    private String mapStatusToCode(int status) {
-        return switch (status) {
-            case 401 -> "UNAUTHORIZED";
-            case 403 -> "FORBIDDEN";
-            case 400 -> "BAD_REQUEST";
-            case 404 -> "NOT_FOUND";
-            case 429 -> "TOO_MANY_REQUESTS";
-            case 503 -> "SERVICE_UNAVAILABLE";
-            default -> "ERROR";
-        };
-    }
-}
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+2026-11-23T06:11:44.521Z  INFO 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.consumer.PriorityOtpConsumer       : Received raw Kafka message: {"priority":"CRITICAL","payload":"ddaGdgxDGnvCJpPx:phb0frYlwJuvZXgUxMvlyKhgslYwXCObHq5Vr+vu2dHm6mZoHvXpAahBPWiUA3sgT0GjHD967MmU1KmxlTPFRHzqujxEepLoHpaJQGXE0Z0=","templateId":"AUTH_LOGIN_OTP_V1","recipient":{"mobile":"9064632186","email":"ebms_uat_receiver@sbiuat.bank.in"},"txId":"58cac2f2-5b59-49e6-bdc7-c8b13ad09e65","createdAt":"2026-11-23T06:11:44.518003122Z","channel":["SMS","EMAIL"],"eventType":"LOGIN_OTP","eventId":"evt-92b8f6d9-3fc1-4436-9b33-7de7a27f12f7"}
+2026-11-23T06:11:44.527Z  INFO 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.service.SmsServiceImpl             : Reached sendSms service. templateId=AUTH_LOGIN_OTP_V1, mobile=******2186
+2026-11-23T06:11:44.528Z  INFO 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.client.SmsGatewayClient            : Sending SMS to ******2186
+2026-11-23T06:11:44.629Z ERROR 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.client.SmsGatewayClient            : Network Exception while sending SMS: 403 Forbidden: "<solace-error-response><EOL><EOL><code>403</code><EOL><EOL><reason><![CDATA[Unauthorized]]></reason><EOL><EOL><detail><![CDATA[<EOL><EOL>SMF ClientCtrl response error<EOL><EOL>]]></detail><EOL><EOL><internal-use>2:14261</internal-use><EOL><EOL></solace-error-response><EOL><EOL>"
+2026-11-23T06:11:44.629Z ERROR 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.service.SmsServiceImpl             : CRITICAL: SMS Infrastructure Failure for ******2186. Error : SMS Provider rejected request : null
+2026-11-23T06:11:45.130Z  INFO 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.service.SmsServiceImpl             : Reached sendSms service. templateId=AUTH_LOGIN_OTP_V1, mobile=******2186
+2026-11-23T06:11:45.130Z  INFO 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.client.SmsGatewayClient            : Sending SMS to ******2186
+2026-11-23T06:11:45.194Z ERROR 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.client.SmsGatewayClient            : Network Exception while sending SMS: 403 Forbidden: "<solace-error-response><EOL><EOL><code>403</code><EOL><EOL><reason><![CDATA[Unauthorized]]></reason><EOL><EOL><detail><![CDATA[<EOL><EOL>SMF ClientCtrl response error<EOL><EOL>]]></detail><EOL><EOL><internal-use>2:14261</internal-use><EOL><EOL></solace-error-response><EOL><EOL>"
+2026-11-23T06:11:45.195Z ERROR 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.service.SmsServiceImpl             : CRITICAL: SMS Infrastructure Failure for ******2186. Error : SMS Provider rejected request : null
+2026-11-23T06:11:45.695Z  INFO 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.service.SmsServiceImpl             : Reached sendSms service. templateId=AUTH_LOGIN_OTP_V1, mobile=******2186
+2026-11-23T06:11:45.696Z  INFO 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.client.SmsGatewayClient            : Sending SMS to ******2186
+2026-11-23T06:11:45.760Z ERROR 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.client.SmsGatewayClient            : Network Exception while sending SMS: 403 Forbidden: "<solace-error-response><EOL><EOL><code>403</code><EOL><EOL><reason><![CDATA[Unauthorized]]></reason><EOL><EOL><detail><![CDATA[<EOL><EOL>SMF ClientCtrl response error<EOL><EOL>]]></detail><EOL><EOL><internal-use>2:14261</internal-use><EOL><EOL></solace-error-response><EOL><EOL>"
+2026-11-23T06:11:45.760Z ERROR 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.service.SmsServiceImpl             : CRITICAL: SMS Infrastructure Failure for ******2186. Error : SMS Provider rejected request : null
+2026-11-23T06:11:45.760Z ERROR 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.service.SmsServiceImpl             : CRITICAL: SMS Infrastructure Failure for ******2186. Error : Total SMS Infrastructure Failure
+2026-11-23T06:11:45.761Z ERROR 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.consumer.PriorityOtpConsumer       : Vendor dispatch failed for eventId=evt-92b8f6d9-3fc1-4436-9b33-7de7a27f12f7 channel=SMS. Reason: Total SMS Infrastructure Failure
+2026-11-23T06:11:45.801Z ERROR 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.client.EmailGatewayClient          : Network I/O Exception calling Email Vendor API: I/O error on POST request for "https://ebms-pepiapi.sbiuat.bank.in:443/v5/mail/send": null
+2026-11-23T06:11:45.801Z ERROR 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.service.EmailServiceImpl           : CRITICAL: Bank Email API unreachable for ebms_uat_receiver@sbiuat.bank.in. Error: Network communication with Email Vendor failed
+2026-11-23T06:11:47.805Z ERROR 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.client.EmailGatewayClient          : Network I/O Exception calling Email Vendor API: I/O error on POST request for "https://ebms-pepiapi.sbiuat.bank.in:443/v5/mail/send": null
+2026-11-23T06:11:47.805Z ERROR 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.service.EmailServiceImpl           : CRITICAL: Bank Email API unreachable for ebms_uat_receiver@sbiuat.bank.in. Error: Network communication with Email Vendor failed
+2026-11-23T06:11:49.808Z ERROR 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.client.EmailGatewayClient          : Network I/O Exception calling Email Vendor API: I/O error on POST request for "https://ebms-pepiapi.sbiuat.bank.in:443/v5/mail/send": null
+2026-11-23T06:11:49.808Z ERROR 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.service.EmailServiceImpl           : CRITICAL: Bank Email API unreachable for ebms_uat_receiver@sbiuat.bank.in. Error: Network communication with Email Vendor failed
+2026-11-23T06:11:49.808Z ERROR 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.service.EmailServiceImpl           : CRITICAL: Bank Email API unreachable for ebms_uat_receiver@sbiuat.bank.in. Error: Total Bank API Infrastructure Failure
+2026-11-23T06:11:49.809Z ERROR 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.consumer.PriorityOtpConsumer       : Vendor dispatch failed for eventId=evt-92b8f6d9-3fc1-4436-9b33-7de7a27f12f7 channel=EMAIL. Reason: Total Bank API Infrastructure Failure
+2026-11-23T06:11:49.810Z ERROR 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.consumer.PriorityOtpConsumer       : Unexpected error processing Kafka message
+
+com.fincore.CommunicationService.exception.CommunicationExceptions$VendorDeliveryException: One or more channels failed to deliver. Triggering Retry.
+        at com.fincore.CommunicationService.consumer.PriorityOtpConsumer.consumeOtpEvent(PriorityOtpConsumer.java:201) ~[!/:0.0.1-SNAPSHOT]
+        at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:103) ~[na:na]
+        at java.base/java.lang.reflect.Method.invoke(Method.java:580) ~[na:na]
+        at org.springframework.messaging.handler.invocation.InvocableHandlerMethod.doInvoke(InvocableHandlerMethod.java:168) ~[spring-messaging-7.0.9.jar!/:7.0.9]
+        at org.springframework.kafka.listener.adapter.KotlinAwareInvocableHandlerMethod.doInvoke(KotlinAwareInvocableHandlerMethod.java:48) ~[spring-kafka-4.1.1.jar!/:4.1.1]
+        at org.springframework.messaging.handler.invocation.InvocableHandlerMethod.invoke(InvocableHandlerMethod.java:119) ~[spring-messaging-7.0.9.jar!/:7.0.9]
+        at org.springframework.kafka.listener.adapter.HandlerAdapter.invoke(HandlerAdapter.java:80) ~[spring-kafka-4.1.1.jar!/:4.1.1]
+        at org.springframework.kafka.listener.adapter.MessagingMessageListenerAdapter.invokeHandler(MessagingMessageListenerAdapter.java:489) ~[spring-kafka-4.1.1.jar!/:4.1.1]
+        at org.springframework.kafka.listener.adapter.MessagingMessageListenerAdapter.invoke(MessagingMessageListenerAdapter.java:426) ~[spring-kafka-4.1.1.jar!/:4.1.1]
+        at org.springframework.kafka.listener.adapter.RecordMessagingMessageListenerAdapter.onMessage(RecordMessagingMessageListenerAdapter.java:92) ~[spring-kafka-4.1.1.jar!/:4.1.1]
+        at org.springframework.kafka.listener.adapter.RecordMessagingMessageListenerAdapter.onMessage(RecordMessagingMessageListenerAdapter.java:52) ~[spring-kafka-4.1.1.jar!/:4.1.1]
+        at org.springframework.kafka.listener.adapter.KafkaBackoffAwareMessageListenerAdapter.invokeDelegateOnMessage(KafkaBackoffAwareMessageListenerAdapter.java:110) ~[spring-kafka-4.1.1.jar!/:4.1.1]
+        at org.springframework.kafka.listener.adapter.KafkaBackoffAwareMessageListenerAdapter.onMessage(KafkaBackoffAwareMessageListenerAdapter.java:101) ~[spring-kafka-4.1.1.jar!/:4.1.1]
+        at org.springframework.kafka.listener.adapter.KafkaBackoffAwareMessageListenerAdapter.onMessage(KafkaBackoffAwareMessageListenerAdapter.java:51) ~[spring-kafka-4.1.1.jar!/:4.1.1]
+        at org.springframework.kafka.listener.KafkaMessageListenerContainer$ListenerConsumer.doInvokeOnMessage(KafkaMessageListenerContainer.java:3099) ~[spring-kafka-4.1.1.jar!/:4.1.1]
+        at org.springframework.kafka.listener.KafkaMessageListenerContainer$ListenerConsumer.invokeOnMessage(KafkaMessageListenerContainer.java:3078) ~[spring-kafka-4.1.1.jar!/:4.1.1]
+        at org.springframework.kafka.listener.KafkaMessageListenerContainer$ListenerConsumer.doInvokeRecordListener(KafkaMessageListenerContainer.java:2988) ~[spring-kafka-4.1.1.jar!/:4.1.1]
+        at org.springframework.kafka.listener.KafkaMessageListenerContainer$ListenerConsumer.doInvokeWithRecords(KafkaMessageListenerContainer.java:2806) ~[spring-kafka-4.1.1.jar!/:4.1.1]
+        at org.springframework.kafka.listener.KafkaMessageListenerContainer$ListenerConsumer.invokeRecordListener(KafkaMessageListenerContainer.java:2692) ~[spring-kafka-4.1.1.jar!/:4.1.1]
+        at org.springframework.kafka.listener.KafkaMessageListenerContainer$ListenerConsumer.invokeListener(KafkaMessageListenerContainer.java:2323) ~[spring-kafka-4.1.1.jar!/:4.1.1]
+        at org.springframework.kafka.listener.KafkaMessageListenerContainer$ListenerConsumer.invokeIfHaveRecords(KafkaMessageListenerContainer.java:1621) ~[spring-kafka-4.1.1.jar!/:4.1.1]
+        at org.springframework.kafka.listener.KafkaMessageListenerContainer$ListenerConsumer.pollAndInvoke(KafkaMessageListenerContainer.java:1523) ~[spring-kafka-4.1.1.jar!/:4.1.1]
+        at org.springframework.kafka.listener.KafkaMessageListenerContainer$ListenerConsumer.run(KafkaMessageListenerContainer.java:1384) ~[spring-kafka-4.1.1.jar!/:4.1.1]
+        at java.base/java.util.concurrent.CompletableFuture$AsyncRun.run(CompletableFuture.java:1804) ~[na:na]
+        at java.base/java.lang.Thread.run(Thread.java:1570) ~[na:na]
+
+2026-11-23T06:11:49.820Z  INFO 1 --- [CommunicationService] [1-retry-0-0-C-1] o.a.k.c.c.i.ClassicKafkaConsumer         : [Consumer clientId=consumer-communication-login-otp-group-v7-retry-0-46, groupId=communication-login-otp-group-v7-retry-0] Seeking to offset 426 for partition fincore.auth.otp.priority-retry-0-0
+2026-11-23T06:11:49.820Z  INFO 1 --- [CommunicationService] [1-retry-0-0-C-1] o.s.k.l.KafkaMessageListenerContainer    : Record in retry and not yet recovered
+2026-11-23T06:11:51.812Z  INFO 1 --- [CommunicationService] [1-retry-0-0-C-1] c.f.C.consumer.PriorityOtpConsumer       : Received raw Kafka message: {"priority":"CRITICAL","payload":"ddaGdgxDGnvCJpPx:phb0frYlwJuvZXgUxMvlyKhgslYwXCObHq5Vr+vu2dHm6mZoHvXpAahBPWiUA3sgT0GjHD967MmU1KmxlTPFRHzqujxEepLoHpaJQGXE0Z0=","templateId":"AUTH_LOGIN_OTP_V1","recipient":{"mobile":"9064632186","email":"ebms_uat_receiver@sbiuat.bank.in"},"txId":"58cac2f2-5b59-49e6-bdc7-c8b13ad09e65","createdAt":"2026-11-23T06:11:44.518003122Z","channel":["SMS","EMAIL"],"eventType":"LOGIN_OTP","eventId":"evt-92b8f6d9-3fc1-4436-9b33-7de7a27f12f7"}
+2026-11-23T06:11:51.815Z  INFO 1 --- [CommunicationService] [1-retry-0-0-C-1] c.f.C.service.SmsServiceImpl             : Reached sendSms service. templateId=AUTH_LOGIN_OTP_V1, mobile=******2186
+2026-11-23T06:11:51.816Z  INFO 1 --- [CommunicationService] [1-retry-0-0-C-1] c.f.C.client.SmsGatewayClient            : Sending SMS to ******2186
+2026-11-23T06:11:51.890Z ERROR 1 --- [CommunicationService] [1-retry-0-0-C-1] c.f.C.client.SmsGatewayClient            : Network Exception while sending SMS: 403 Forbidden: "<solace-error-response><EOL><EOL><code>403</code><EOL><EOL><reason><![CDATA[Unauthorized]]></reason><EOL><EOL><detail><![CDATA[<EOL><EOL>SMF ClientCtrl response error<EOL><EOL>]]></detail><EOL><EOL><internal-use>2:14261</internal-use><EOL><EOL></solace-error-response><EOL><EOL>"
+2026-11-23T06:11:51.890Z ERROR 1 --- [CommunicationService] [1-retry-0-0-C-1] c.f.C.service.SmsServiceImpl             : CRITICAL: SMS Infrastructure Failure for ******2186. Error : SMS Provider rejected request : null
+2026-11-23T06:11:52.390Z  INFO 1 --- [CommunicationService] [1-retry-0-0-C-1] c.f.C.service.SmsServiceImpl             : Reached sendSms service. templateId=AUTH_LOGIN_OTP_V1, mobile=******2186
+2026-11-23T06:11:52.391Z  INFO 1 --- [CommunicationService] [1-retry-0-0-C-1] c.f.C.client.SmsGatewayClient            : Sending SMS to ******2186
+2026-11-23T06:11:52.512Z ERROR 1 --- [CommunicationService] [1-retry-0-0-C-1] c.f.C.client.SmsGatewayClient            : Network Exception while sending SMS: 403 Forbidden: "<solace-error-response><EOL><EOL><code>403</code><EOL><EOL><reason><![CDATA[Unauthorized]]></reason><EOL><EOL><detail><![CDATA[<EOL><EOL>SMF ClientCtrl response error<EOL><EOL>]]></detail><EOL><EOL><internal-use>2:14261</internal-use><EOL><EOL></solace-error-response><EOL><EOL>"
+2026-11-23T06:11:52.513Z ERROR 1 --- [CommunicationService] [1-retry-0-0-C-1] c.f.C.service.SmsServiceImpl             : CRITICAL: SMS Infrastructure Failure for ******2186. Error : SMS Provider rejected request : null
+2026-11-23T06:11:53.013Z  INFO 1 --- [CommunicationService] [1-retry-0-0-C-1] c.f.C.service.SmsServiceImpl             : Reached sendSms service. templateId=AUTH_LOGIN_OTP_V1, mobile=******2186
+2026-11-23T06:11:53.014Z  INFO 1 --- [CommunicationService] [1-retry-0-0-C-1] c.f.C.client.SmsGatewayClient            : Sending SMS to ******2186
+2026-11-23T06:11:53.078Z ERROR 1 --- [CommunicationService] [1-retry-0-0-C-1] c.f.C.client.SmsGatewayClient            : Network Exception while sending SMS: 403 Forbidden: "<solace-error-response><EOL><EOL><code>403</code><EOL><EOL><reason><![CDATA[Unauthorized]]></reason><EOL><EOL><detail><![CDATA[<EOL><EOL>SMF ClientCtrl response error<EOL><EOL>]]></detail><EOL><EOL><internal-use>2:14261</internal-use><EOL><EOL></solace-error-response><EOL><EOL>"
+2026-11-23T06:11:53.078Z ERROR 1 --- [CommunicationService] [1-retry-0-0-C-1] c.f.C.service.SmsServiceImpl             : CRITICAL: SMS Infrastructure Failure for ******2186. Error : SMS Provider rejected request : null
+2026-11-23T06:11:53.078Z ERROR 1 --- [CommunicationService] [1-retry-0-0-C-1] c.f.C.service.SmsServiceImpl             : CRITICAL: SMS Infrastructure Failure for ******2186. Error : Total SMS Infrastructure Failure
+2026-11-23T06:11:53.078Z ERROR 1 --- [CommunicationService] [1-retry-0-0-C-1] c.f.C.consumer.PriorityOtpConsumer       : Vendor dispatch failed for eventId=evt-92b8f6d9-3fc1-4436-9b33-7de7a27f12f7 channel=SMS. Reason: Total SMS Infrastructure Failure
+2026-11-23T06:11:53.083Z ERROR 1 --- [CommunicationService] [1-retry-0-0-C-1] c.f.C.client.EmailGatewayClient          : Network I/O Exception calling Email Vendor API: I/O error on POST request for "https://ebms-pepiapi.sbiuat.bank.in:443/v5/mail/send": null
+2026-11-23T06:11:53.083Z ERROR 1 --- [CommunicationService] [1-retry-0-0-C-1] c.f.C.service.EmailServiceImpl           : CRITICAL: Bank Email API unreachable for ebms_uat_receiver@sbiuat.bank.in. Error: Network communication with Email Vendor failed
+2026-11-23T06:11:55.087Z ERROR 1 --- [CommunicationService] [1-retry-0-0-C-1] c.f.C.client.EmailGatewayClient          : Network I/O Exception calling Email Vendor API: I/O error on POST request for "https://ebms-pepiapi.sbiuat.bank.in:443/v5/mail/send": null
+2026-11-23T06:11:55.087Z ERROR 1 --- [CommunicationService] [1-retry-0-0-C-1] c.f.C.service.EmailServiceImpl           : CRITICAL: Bank Email API unreachable for ebms_uat_receiver@sbiuat.bank.in. Error: Network communication with Email Vendor failed
+2026-11-23T06:11:57.099Z ERROR 1 --- [CommunicationService] [1-retry-0-0-C-1] c.f.C.client.EmailGatewayClient          : Network I/O Exception calling Email Vendor API: I/O error on POST request for "https://ebms-pepiapi.sbiuat.bank.in:443/v5/mail/send": null
+2026-11-23T06:11:57.099Z ERROR 1 --- [CommunicationService] [1-retry-0-0-C-1] c.f.C.service.EmailServiceImpl           : CRITICAL: Bank Email API unreachable for ebms_uat_receiver@sbiuat.bank.in. Error: Network communication with Email Vendor failed
+2026-11-23T06:11:57.100Z ERROR 1 --- [CommunicationService] [1-retry-0-0-C-1] c.f.C.service.EmailServiceImpl           : CRITICAL: Bank Email API unreachable for ebms_uat_receiver@sbiuat.bank.in. Error: Total Bank API Infrastructure Failure
+2026-11-23T06:11:57.100Z ERROR 1 --- [CommunicationService] [1-retry-0-0-C-1] c.f.C.consumer.PriorityOtpConsumer       : Vendor dispatch failed for eventId=evt-92b8f6d9-3fc1-4436-9b33-7de7a27f12f7 channel=EMAIL. Reason: Total Bank API Infrastructure Failure
+2026-11-23T06:11:57.101Z ERROR 1 --- [CommunicationService] [1-retry-0-0-C-1] c.f.C.consumer.PriorityOtpConsumer       : Unexpected error processing Kafka message
+
+com.fincore.CommunicationService.exception.CommunicationExceptions$VendorDeliveryException: One or more channels failed to deliver. Triggering Retry.
+        at com.fincore.CommunicationService.consumer.PriorityOtpConsumer.consumeOtpEvent(PriorityOtpConsumer.java:201) ~[!/:0.0.1-SNAPSHOT]
+        at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:103) ~[na:na]
+        at java.base/java.lang.reflect.Method.invoke(Method.java:580) ~[na:na]
+        at org.springframework.messaging.handler.invocation.InvocableHandlerMethod.doInvoke(InvocableHandlerMethod.java:168) ~[spring-messaging-7.0.9.jar!/:7.0.9]
+        at org.springframework.kafka.listener.adapter.KotlinAwareInvocableHandlerMethod.doInvoke(KotlinAwareInvocableHandlerMethod.java:48) ~[spring-kafka-4.1.1.jar!/:4.1.1]
+        at org.springframework.messaging.handler.invocation.InvocableHandlerMethod.invoke(InvocableHandlerMethod.java:119) ~[spring-messaging-7.0.9.jar!/:7.0.9]
+        at org.springframework.kafka.listener.adapter.HandlerAdapter.invoke(HandlerAdapter.java:80) ~[spring-kafka-4.1.1.jar!/:4.1.1]
+        at org.springframework.kafka.listener.adapter.MessagingMessageListenerAdapter.invokeHandler(MessagingMessageListenerAdapter.java:489) ~[spring-kafka-4.1.1.jar!/:4.1.1]
+        at org.springframework.kafka.listener.adapter.MessagingMessageListenerAdapter.invoke(MessagingMessageListenerAdapter.java:426) ~[spring-kafka-4.1.1.jar!/:4.1.1]
+        at org.springframework.kafka.listener.adapter.RecordMessagingMessageListenerAdapter.onMessage(RecordMessagingMessageListenerAdapter.java:92) ~[spring-kafka-4.1.1.jar!/:4.1.1]
+        at org.springframework.kafka.listener.adapter.RecordMessagingMessageListenerAdapter.onMessage(RecordMessagingMessageListenerAdapter.java:52) ~[spring-kafka-4.1.1.jar!/:4.1.1]
+        at org.springframework.kafka.listener.adapter.KafkaBackoffAwareMessageListenerAdapter.invokeDelegateOnMessage(KafkaBackoffAwareMessageListenerAdapter.java:110) ~[spring-kafka-4.1.1.jar!/:4.1.1]
+        at org.springframework.kafka.listener.adapter.KafkaBackoffAwareMessageListenerAdapter.onMessage(KafkaBackoffAwareMessageListenerAdapter.java:101) ~[spring-kafka-4.1.1.jar!/:4.1.1]
+        at org.springframework.kafka.listener.adapter.KafkaBackoffAwareMessageListenerAdapter.onMessage(KafkaBackoffAwareMessageListenerAdapter.java:51) ~[spring-kafka-4.1.1.jar!/:4.1.1]
+        at org.springframework.kafka.listener.KafkaMessageListenerContainer$ListenerConsumer.doInvokeOnMessage(KafkaMessageListenerContainer.java:3099) ~[spring-kafka-4.1.1.jar!/:4.1.1]
+        at org.springframework.kafka.listener.KafkaMessageListenerContainer$ListenerConsumer.invokeOnMessage(KafkaMessageListenerContainer.java:3078) ~[spring-kafka-4.1.1.jar!/:4.1.1]
+        at org.springframework.kafka.listener.KafkaMessageListenerContainer$ListenerConsumer.doInvokeRecordListener(KafkaMessageListenerContainer.java:2988) ~[spring-kafka-4.1.1.jar!/:4.1.1]
+        at org.springframework.kafka.listener.KafkaMessageListenerContainer$ListenerConsumer.doInvokeWithRecords(KafkaMessageListenerContainer.java:2806) ~[spring-kafka-4.1.1.jar!/:4.1.1]
+        at org.springframework.kafka.listener.KafkaMessageListenerContainer$ListenerConsumer.invokeRecordListener(KafkaMessageListenerContainer.java:2692) ~[spring-kafka-4.1.1.jar!/:4.1.1]
+        at org.springframework.kafka.listener.KafkaMessageListenerContainer$ListenerConsumer.invokeListener(KafkaMessageListenerContainer.java:2323) ~[spring-kafka-4.1.1.jar!/:4.1.1]
+        at org.springframework.kafka.listener.KafkaMessageListenerContainer$ListenerConsumer.invokeIfHaveRecords(KafkaMessageListenerContainer.java:1621) ~[spring-kafka-4.1.1.jar!/:4.1.1]
+        at org.springframework.kafka.listener.KafkaMessageListenerContainer$ListenerConsumer.pollAndInvoke(KafkaMessageListenerContainer.java:1523) ~[spring-kafka-4.1.1.jar!/:4.1.1]
+        at org.springframework.kafka.listener.KafkaMessageListenerContainer$ListenerConsumer.run(KafkaMessageListenerContainer.java:1384) ~[spring-kafka-4.1.1.jar!/:4.1.1]
+        at java.base/java.util.concurrent.CompletableFuture$AsyncRun.run(CompletableFuture.java:1804) ~[na:na]
+        at java.base/java.lang.Thread.run(Thread.java:1570) ~[na:na]
+
+2026-11-23T06:11:57.111Z  INFO 1 --- [CommunicationService] [1-retry-1-0-C-1] o.a.k.c.c.i.ClassicKafkaConsumer         : [Consumer clientId=consumer-communication-login-otp-group-v7-retry-1-56, groupId=communication-login-otp-group-v7-retry-1] Seeking to offset 425 for partition fincore.auth.otp.priority-retry-1-0
+2026-11-23T06:11:57.112Z  INFO 1 --- [CommunicationService] [1-retry-1-0-C-1] o.s.k.l.KafkaMessageListenerContainer    : Record in retry and not yet recovered
+2026-11-23T06:12:01.105Z  INFO 1 --- [CommunicationService] [1-retry-1-0-C-1] c.f.C.consumer.PriorityOtpConsumer       : Received raw Kafka message: {"priority":"CRITICAL","payload":"ddaGdgxDGnvCJpPx:phb0frYlwJuvZXgUxMvlyKhgslYwXCObHq5Vr+vu2dHm6mZoHvXpAahBPWiUA3sgT0GjHD967MmU1KmxlTPFRHzqujxEepLoHpaJQGXE0Z0=","templateId":"AUTH_LOGIN_OTP_V1","recipient":{"mobile":"9064632186","email":"ebms_uat_receiver@sbiuat.bank.in"},"txId":"58cac2f2-5b59-49e6-bdc7-c8b13ad09e65","createdAt":"2026-11-23T06:11:44.518003122Z","channel":["SMS","EMAIL"],"eventType":"LOGIN_OTP","eventId":"evt-92b8f6d9-3fc1-4436-9b33-7de7a27f12f7"}
+2026-11-23T06:12:01.108Z  INFO 1 --- [CommunicationService] [1-retry-1-0-C-1] c.f.C.service.SmsServiceImpl             : Reached sendSms service. templateId=AUTH_LOGIN_OTP_V1, mobile=******2186
+2026-11-23T06:12:01.109Z  INFO 1 --- [CommunicationService] [1-retry-1-0-C-1] c.f.C.client.SmsGatewayClient            : Sending SMS to ******2186
+2026-11-23T06:12:01.246Z ERROR 1 --- [CommunicationService] [1-retry-1-0-C-1] c.f.C.client.SmsGatewayClient            : Network Exception while sending SMS: 403 Forbidden: "<solace-error-response><EOL><EOL><code>403</code><EOL><EOL><reason><![CDATA[Unauthorized]]></reason><EOL><EOL><detail><![CDATA[<EOL><EOL>SMF ClientCtrl response error<EOL><EOL>]]></detail><EOL><EOL><internal-use>2:14261</internal-use><EOL><EOL></solace-error-response><EOL><EOL>"
+2026-11-23T06:12:01.246Z ERROR 1 --- [CommunicationService] [1-retry-1-0-C-1] c.f.C.service.SmsServiceImpl             : CRITICAL: SMS Infrastructure Failure for ******2186. Error : SMS Provider rejected request : null
+2026-11-23T06:12:01.747Z  INFO 1 --- [CommunicationService] [1-retry-1-0-C-1] c.f.C.service.SmsServiceImpl             : Reached sendSms service. templateId=AUTH_LOGIN_OTP_V1, mobile=******2186
+2026-11-23T06:12:01.747Z  INFO 1 --- [CommunicationService] [1-retry-1-0-C-1] c.f.C.client.SmsGatewayClient            : Sending SMS to ******2186
+2026-11-23T06:12:01.852Z ERROR 1 --- [CommunicationService] [1-retry-1-0-C-1] c.f.C.client.SmsGatewayClient            : Network Exception while sending SMS: 403 Forbidden: "<solace-error-response><EOL><EOL><code>403</code><EOL><EOL><reason><![CDATA[Unauthorized]]></reason><EOL><EOL><detail><![CDATA[<EOL><EOL>SMF ClientCtrl response error<EOL><EOL>]]></detail><EOL><EOL><internal-use>2:14261</internal-use><EOL><EOL></solace-error-response><EOL><EOL>"
+2026-11-23T06:12:01.852Z ERROR 1 --- [CommunicationService] [1-retry-1-0-C-1] c.f.C.service.SmsServiceImpl             : CRITICAL: SMS Infrastructure Failure for ******2186. Error : SMS Provider rejected request : null
+2026-11-23T06:12:02.353Z  INFO 1 --- [CommunicationService] [1-retry-1-0-C-1] c.f.C.service.SmsServiceImpl             : Reached sendSms service. templateId=AUTH_LOGIN_OTP_V1, mobile=******2186
+2026-11-23T06:12:02.354Z  INFO 1 --- [CommunicationService] [1-retry-1-0-C-1] c.f.C.client.SmsGatewayClient            : Sending SMS to ******2186
+2026-11-23T06:12:02.418Z ERROR 1 --- [CommunicationService] [1-retry-1-0-C-1] c.f.C.client.SmsGatewayClient            : Network Exception while sending SMS: 403 Forbidden: "<solace-error-response><EOL><EOL><code>403</code><EOL><EOL><reason><![CDATA[Unauthorized]]></reason><EOL><EOL><detail><![CDATA[<EOL><EOL>SMF ClientCtrl response error<EOL><EOL>]]></detail><EOL><EOL><internal-use>2:14261</internal-use><EOL><EOL></solace-error-response><EOL><EOL>"
+2026-11-23T06:12:02.418Z ERROR 1 --- [CommunicationService] [1-retry-1-0-C-1] c.f.C.service.SmsServiceImpl             : CRITICAL: SMS Infrastructure Failure for ******2186. Error : SMS Provider rejected request : null
+2026-11-23T06:12:02.419Z ERROR 1 --- [CommunicationService] [1-retry-1-0-C-1] c.f.C.service.SmsServiceImpl             : CRITICAL: SMS Infrastructure Failure for ******2186. Error : Total SMS Infrastructure Failure
+2026-11-23T06:12:02.419Z ERROR 1 --- [CommunicationService] [1-retry-1-0-C-1] c.f.C.consumer.PriorityOtpConsumer       : Vendor dispatch failed for eventId=evt-92b8f6d9-3fc1-4436-9b33-7de7a27f12f7 channel=SMS. Reason: Total SMS Infrastructure Failure
+2026-11-23T06:12:02.426Z ERROR 1 --- [CommunicationService] [1-retry-1-0-C-1] c.f.C.client.EmailGatewayClient          : Network I/O Exception calling Email Vendor API: I/O error on POST request for "https://ebms-pepiapi.sbiuat.bank.in:443/v5/mail/send": null
+2026-11-23T06:12:02.426Z ERROR 1 --- [CommunicationService] [1-retry-1-0-C-1] c.f.C.service.EmailServiceImpl           : CRITICAL: Bank Email API unreachable for ebms_uat_receiver@sbiuat.bank.in. Error: Network communication with Email Vendor failed
+2026-11-23T06:12:04.430Z ERROR 1 --- [CommunicationService] [1-retry-1-0-C-1] c.f.C.client.EmailGatewayClient          : Network I/O Exception calling Email Vendor API: I/O error on POST request for "https://ebms-pepiapi.sbiuat.bank.in:443/v5/mail/send": null
+2026-11-23T06:12:04.430Z ERROR 1 --- [CommunicationService] [1-retry-1-0-C-1] c.f.C.service.EmailServiceImpl           : CRITICAL: Bank Email API unreachable for ebms_uat_receiver@sbiuat.bank.in. Error: Network communication with Email Vendor failed
+2026-11-23T06:12:06.434Z ERROR 1 --- [CommunicationService] [1-retry-1-0-C-1] c.f.C.client.EmailGatewayClient          : Network I/O Exception calling Email Vendor API: I/O error on POST request for "https://ebms-pepiapi.sbiuat.bank.in:443/v5/mail/send": null
+2026-11-23T06:12:06.435Z ERROR 1 --- [CommunicationService] [1-retry-1-0-C-1] c.f.C.service.EmailServiceImpl           : CRITICAL: Bank Email API unreachable for ebms_uat_receiver@sbiuat.bank.in. Error: Network communication with Email Vendor failed
+2026-11-23T06:12:06.435Z ERROR 1 --- [CommunicationService] [1-retry-1-0-C-1] c.f.C.service.EmailServiceImpl           : CRITICAL: Bank Email API unreachable for ebms_uat_receiver@sbiuat.bank.in. Error: Total Bank API Infrastructure Failure
+2026-11-23T06:12:06.435Z ERROR 1 --- [CommunicationService] [1-retry-1-0-C-1] c.f.C.consumer.PriorityOtpConsumer       : Vendor dispatch failed for eventId=evt-92b8f6d9-3fc1-4436-9b33-7de7a27f12f7 channel=EMAIL. Reason: Total Bank API Infrastructure Failure
+2026-11-23T06:12:06.437Z ERROR 1 --- [CommunicationService] [1-retry-1-0-C-1] c.f.C.consumer.PriorityOtpConsumer       : Unexpected error processing Kafka message
+
+com.fincore.CommunicationService.exception.CommunicationExceptions$VendorDeliveryException: One or more channels failed to deliver. Triggering Retry.
+        at com.fincore.CommunicationService.consumer.PriorityOtpConsumer.consumeOtpEvent(PriorityOtpConsumer.java:201) ~[!/:0.0.1-SNAPSHOT]
+        at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:103) ~[na:na]
+        at java.base/java.lang.reflect.Method.invoke(Method.java:580) ~[na:na]
+        at org.springframework.messaging.handler.invocation.InvocableHandlerMethod.doInvoke(InvocableHandlerMethod.java:168) ~[spring-messaging-7.0.9.jar!/:7.0.9]
+        at org.springframework.kafka.listener.adapter.KotlinAwareInvocableHandlerMethod.doInvoke(KotlinAwareInvocableHandlerMethod.java:48) ~[spring-kafka-4.1.1.jar!/:4.1.1]
+        at org.springframework.messaging.handler.invocation.InvocableHandlerMethod.invoke(InvocableHandlerMethod.java:119) ~[spring-messaging-7.0.9.jar!/:7.0.9]
+        at org.springframework.kafka.listener.adapter.HandlerAdapter.invoke(HandlerAdapter.java:80) ~[spring-kafka-4.1.1.jar!/:4.1.1]
+        at org.springframework.kafka.listener.adapter.MessagingMessageListenerAdapter.invokeHandler(MessagingMessageListenerAdapter.java:489) ~[spring-kafka-4.1.1.jar!/:4.1.1]
+        at org.springframework.kafka.listener.adapter.MessagingMessageListenerAdapter.invoke(MessagingMessageListenerAdapter.java:426) ~[spring-kafka-4.1.1.jar!/:4.1.1]
+        at org.springframework.kafka.listener.adapter.RecordMessagingMessageListenerAdapter.onMessage(RecordMessagingMessageListenerAdapter.java:92) ~[spring-kafka-4.1.1.jar!/:4.1.1]
+        at org.springframework.kafka.listener.adapter.RecordMessagingMessageListenerAdapter.onMessage(RecordMessagingMessageListenerAdapter.java:52) ~[spring-kafka-4.1.1.jar!/:4.1.1]
+        at org.springframework.kafka.listener.adapter.KafkaBackoffAwareMessageListenerAdapter.invokeDelegateOnMessage(KafkaBackoffAwareMessageListenerAdapter.java:110) ~[spring-kafka-4.1.1.jar!/:4.1.1]
+        at org.springframework.kafka.listener.adapter.KafkaBackoffAwareMessageListenerAdapter.onMessage(KafkaBackoffAwareMessageListenerAdapter.java:101) ~[spring-kafka-4.1.1.jar!/:4.1.1]
+        at org.springframework.kafka.listener.adapter.KafkaBackoffAwareMessageListenerAdapter.onMessage(KafkaBackoffAwareMessageListenerAdapter.java:51) ~[spring-kafka-4.1.1.jar!/:4.1.1]
+        at org.springframework.kafka.listener.KafkaMessageListenerContainer$ListenerConsumer.doInvokeOnMessage(KafkaMessageListenerContainer.java:3099) ~[spring-kafka-4.1.1.jar!/:4.1.1]
+        at org.springframework.kafka.listener.KafkaMessageListenerContainer$ListenerConsumer.invokeOnMessage(KafkaMessageListenerContainer.java:3078) ~[spring-kafka-4.1.1.jar!/:4.1.1]
+        at org.springframework.kafka.listener.KafkaMessageListenerContainer$ListenerConsumer.doInvokeRecordListener(KafkaMessageListenerContainer.java:2988) ~[spring-kafka-4.1.1.jar!/:4.1.1]
+        at org.springframework.kafka.listener.KafkaMessageListenerContainer$ListenerConsumer.doInvokeWithRecords(KafkaMessageListenerContainer.java:2806) ~[spring-kafka-4.1.1.jar!/:4.1.1]
+        at org.springframework.kafka.listener.KafkaMessageListenerContainer$ListenerConsumer.invokeRecordListener(KafkaMessageListenerContainer.java:2692) ~[spring-kafka-4.1.1.jar!/:4.1.1]
+        at org.springframework.kafka.listener.KafkaMessageListenerContainer$ListenerConsumer.invokeListener(KafkaMessageListenerContainer.java:2323) ~[spring-kafka-4.1.1.jar!/:4.1.1]
+        at org.springframework.kafka.listener.KafkaMessageListenerContainer$ListenerConsumer.invokeIfHaveRecords(KafkaMessageListenerContainer.java:1621) ~[spring-kafka-4.1.1.jar!/:4.1.1]
+        at org.springframework.kafka.listener.KafkaMessageListenerContainer$ListenerConsumer.pollAndInvoke(KafkaMessageListenerContainer.java:1523) ~[spring-kafka-4.1.1.jar!/:4.1.1]
+        at org.springframework.kafka.listener.KafkaMessageListenerContainer$ListenerConsumer.run(KafkaMessageListenerContainer.java:1384) ~[spring-kafka-4.1.1.jar!/:4.1.1]
+        at java.base/java.util.concurrent.CompletableFuture$AsyncRun.run(CompletableFuture.java:1804) ~[na:na]
+        at java.base/java.lang.Thread.run(Thread.java:1570) ~[na:na]
+
+2026-11-23T06:12:06.445Z  INFO 1 --- [CommunicationService] [1-retry-2-0-C-1] o.a.k.c.c.i.ClassicKafkaConsumer         : [Consumer clientId=consumer-communication-login-otp-group-v7-retry-2-66, groupId=communication-login-otp-group-v7-retry-2] Seeking to offset 416 for partition fincore.auth.otp.priority-retry-2-0
+2026-11-23T06:12:06.445Z  INFO 1 --- [CommunicationService] [1-retry-2-0-C-1] o.s.k.l.KafkaMessageListenerContainer    : Record in retry and not yet recovered
+^C[root@fcuatgateway ~]# ^C
+[root@fcuatgateway ~]# ^C
