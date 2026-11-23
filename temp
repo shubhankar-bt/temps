@@ -12,3 +12,28 @@
 2026-11-23T07:37:52.009Z  INFO 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.client.EmailGatewayClient          : Vendor Email API responded with HTTP 202
 2026-11-23T07:37:52.009Z  INFO 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.client.EmailGatewayClient          : Vendor Email API response body: {"data":{"message_id":"5d54e78e9bd92850248f5f17e26c23dc","token_bcc":[""],"token_cc":[""],"token_to":[""]},"message":"OK","status":"success"}
 2026-11-23T07:37:52.019Z  INFO 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.consumer.PriorityOtpConsumer       : Successfully completed OTP Pipeline for eventId=evt-a47ec690-5950-4973-ae5a-964f6574b3b3
+
+
+
+
+
+
+
+2026-11-23T07:39:06.228Z  INFO 1 --- [CommunicationService] [ntainer#0-0-C-1] c.f.C.c.GenericCommunicationConsumer     : Received Generic Communication Event : {"eventId":"evt-r6qQvojWRi68EHOLaMriqw==","traceId":"trc-r6qQvojWRi68EHOLaMriqw==","eventType":"COMMUNICATION","isPersonalized":true,"channels":["EMAIL"],"recipients":{"userIds":["v1018405"]},"templateId":"FINCORE_NOTIFICATION","payload":{"message":"INTR Report (Core Interbranch Report) downloaded successfully.\n\nPlease find the attached reports."},"attachments":[{"attachmentId":"intr_report_31032026","attachmentType":"INTR Report (Core Interbranch Report)","fileName":"intr_report"}]}
+2026-11-23T07:39:06.241Z  INFO 1 --- [CommunicationService] [ntainer#0-0-C-1] c.f.C.c.GenericCommunicationConsumer     : Validated Generic Communication Event : evt-r6qQvojWRi68EHOLaMriqw==
+2026-11-23T07:39:06.241Z  INFO 1 --- [CommunicationService] [ntainer#0-0-C-1] c.f.C.o.CommunicationOrchestrator        : Orchestrator executing Event: evt-r6qQvojWRi68EHOLaMriqw== | Personalized Flag: true
+2026-11-23T07:39:06.241Z  INFO 1 --- [CommunicationService] [ntainer#0-0-C-1] c.f.C.recipient.RecipientResolver        : Recipient Resolution Started.
+2026-11-23T07:39:06.247Z  INFO 1 --- [CommunicationService] [    virtual-592] c.f.C.r.provider.UserRecipientProvider   : Resolving 1 User(s).
+2026-11-23T07:39:06.266Z  INFO 1 --- [CommunicationService] [ntainer#0-0-C-1] c.f.C.recipient.RecipientResolver        : Recipient Resolution Completed. Total Unique Recipients : 1
+2026-11-23T07:39:06.266Z  INFO 1 --- [CommunicationService] [ntainer#0-0-C-1] c.f.C.o.CommunicationOrchestrator        : Delegating 1 attachments to AttachmentPreparationService.
+2026-11-23T07:39:06.266Z  INFO 1 --- [CommunicationService] [ntainer#0-0-C-1] c.f.C.a.AttachmentPreparationServiceImpl : Initiating attachment preparation for 1 items.
+2026-11-23T07:39:06.267Z  INFO 1 --- [CommunicationService] [ntainer#0-0-C-1] c.f.C.client.ReportServiceClient         : Initiating upstream request to Report Service: http://report-service.uat-cbops1.svc.cluster.local:80/api/reports/attachment/download
+2026-11-23T07:39:06.489Z  INFO 1 --- [CommunicationService] [ntainer#0-0-C-1] c.f.C.client.ReportServiceClient         : Attachment fetched to disk!
+2026-11-23T07:39:06.490Z  INFO 1 --- [CommunicationService] [ntainer#0-0-C-1] c.f.C.o.CommunicationOrchestrator        : Event evt-r6qQvojWRi68EHOLaMriqw== requires 1 total recipients. Partitioned into 1 execution chunks.
+2026-11-23T07:39:06.495Z  INFO 1 --- [CommunicationService] [    virtual-602] c.f.C.service.TemplateCacheService       : L1 CACHE MISS: Fetching and Compiling Template FINCORE_NOTIFICATION for EMAIL from Oracle DB.
+2026-11-23T07:39:06.517Z  INFO 1 --- [CommunicationService] [    virtual-602] c.f.C.client.EmailGatewayClient          : Executing streaming JSON payload dispatch with attachment: attach-8245840106582213039.tmp
+2026-11-23T07:39:06.546Z  INFO 1 --- [CommunicationService] [    virtual-602] c.f.C.client.EmailGatewayClient          : Vendor Email API responded with HTTP 202
+2026-11-23T07:39:06.546Z  INFO 1 --- [CommunicationService] [    virtual-602] c.f.C.client.EmailGatewayClient          : Vendor Email API response body: {"data":{"message_id":"28f342229758322e7de27a9c2c0995bf","token_bcc":[""],"token_cc":[""],"token_to":[""]},"message":"OK","status":"success"}
+2026-11-23T07:39:06.547Z  INFO 1 --- [CommunicationService] [    virtual-602] c.f.C.o.CommunicationOrchestrator        : STUB: Triggered Vendor sendEmail for e***r@sbiuat.bank.in
+2026-11-23T07:39:06.549Z  INFO 1 --- [CommunicationService] [ntainer#0-0-C-1] c.f.C.o.CommunicationOrchestrator        : Event evt-r6qQvojWRi68EHOLaMriqw== processed successfully across all chunks.
+2026-11-23T07:39:06.556Z  INFO 1 --- [CommunicationService] [ntainer#0-0-C-1] c.f.C.c.GenericCommunicationConsumer     : Successfully processed Generic Communication Event : evt-r6qQvojWRi68EHOLaMriqw==
