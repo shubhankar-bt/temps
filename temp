@@ -1,17 +1,12 @@
+package com.fincore.CommunicationService.attachment;
+import com.fincore.CommunicationService.dto.GenericCommunicationEvent.AttachmentRef;
+import org.springframework.core.io.Resource;
+import java.util.List;
+import java.io.IOException;
 
-
-2026-11-23T07:37:47.078Z  INFO 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.consumer.PriorityOtpConsumer       : Received raw Kafka message: {"payload":"kXvKw2Bt50XKyc2w:mGTFWp/HLoYTwDVtJVirvNkZN+TGxfh3oWrsnE0rz7Rcnsscz7bOFT1iX+aNNBg4gwuaIyk8VB3PwwFSiMmhCKSJeLig/LyvVX41gwZ1hgA=","priority":"CRITICAL","eventId":"evt-a47ec690-5950-4973-ae5a-964f6574b3b3","eventType":"LOGIN_OTP","channel":["SMS","EMAIL"],"createdAt":"2026-11-23T07:37:47.073029410Z","txId":"59a4acb0-83e0-4d29-9477-a00fe222f154","recipient":{"email":"ebms_uat_receiver@sbiuat.bank.in","mobile":"9064632186"},"templateId":"AUTH_LOGIN_OTP_V1"}
-2026-11-23T07:37:47.118Z  INFO 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.service.SmsServiceImpl             : Reached sendSms service. templateId=AUTH_LOGIN_OTP_V1, mobile=******2186
-2026-11-23T07:37:47.178Z  INFO 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.service.TemplateCacheService       : L1 CACHE MISS: Fetching and Compiling Template AUTH_LOGIN_OTP_V1 for SMS from Oracle DB.
-2026-11-23T07:37:47.355Z  INFO 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.client.SmsGatewayClient            : Sending SMS to ******2186 using senderId=SBIOTP
-2026-11-23T07:37:51.927Z  INFO 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.client.SmsGatewayClient            : SMS Response Code : 200
-2026-11-23T07:37:51.927Z  INFO 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.client.SmsGatewayClient            : SMS Provider Response : error_code=0&error_desc=MESSAGE_SUBMIT_SUCCESS&umid=1126112313075191308604554
-2026-11-23T07:37:51.928Z  INFO 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.service.SmsServiceImpl             : SMS sent successfully to ******2186
-2026-11-23T07:37:51.933Z  INFO 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.service.TemplateCacheService       : L1 CACHE MISS: Fetching and Compiling Template AUTH_LOGIN_OTP_V1 for EMAIL from Oracle DB.
-2026-11-23T07:37:51.968Z  INFO 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.client.EmailGatewayClient          : Executing buffered JSON payload dispatch (no attachment).
-2026-11-23T07:37:52.009Z  INFO 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.client.EmailGatewayClient          : Vendor Email API responded with HTTP 202
-2026-11-23T07:37:52.009Z  INFO 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.client.EmailGatewayClient          : Vendor Email API response body: {"data":{"message_id":"5d54e78e9bd92850248f5f17e26c23dc","token_bcc":[""],"token_cc":[""],"token_to":[""]},"message":"OK","status":"success"}
-2026-11-23T07:37:52.019Z  INFO 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.consumer.PriorityOtpConsumer       : Successfully completed OTP Pipeline for eventId=evt-a47ec690-5950-4973-ae5a-964f6574b3b3
+public interface AttachmentPreparationService {
+    Resource prepareAttachments(List<AttachmentRef> attachments) throws IOException;
+}
 
 
 
@@ -19,21 +14,1079 @@
 
 
 
-2026-11-23T07:39:06.228Z  INFO 1 --- [CommunicationService] [ntainer#0-0-C-1] c.f.C.c.GenericCommunicationConsumer     : Received Generic Communication Event : {"eventId":"evt-r6qQvojWRi68EHOLaMriqw==","traceId":"trc-r6qQvojWRi68EHOLaMriqw==","eventType":"COMMUNICATION","isPersonalized":true,"channels":["EMAIL"],"recipients":{"userIds":["v1018405"]},"templateId":"FINCORE_NOTIFICATION","payload":{"message":"INTR Report (Core Interbranch Report) downloaded successfully.\n\nPlease find the attached reports."},"attachments":[{"attachmentId":"intr_report_31032026","attachmentType":"INTR Report (Core Interbranch Report)","fileName":"intr_report"}]}
-2026-11-23T07:39:06.241Z  INFO 1 --- [CommunicationService] [ntainer#0-0-C-1] c.f.C.c.GenericCommunicationConsumer     : Validated Generic Communication Event : evt-r6qQvojWRi68EHOLaMriqw==
-2026-11-23T07:39:06.241Z  INFO 1 --- [CommunicationService] [ntainer#0-0-C-1] c.f.C.o.CommunicationOrchestrator        : Orchestrator executing Event: evt-r6qQvojWRi68EHOLaMriqw== | Personalized Flag: true
-2026-11-23T07:39:06.241Z  INFO 1 --- [CommunicationService] [ntainer#0-0-C-1] c.f.C.recipient.RecipientResolver        : Recipient Resolution Started.
-2026-11-23T07:39:06.247Z  INFO 1 --- [CommunicationService] [    virtual-592] c.f.C.r.provider.UserRecipientProvider   : Resolving 1 User(s).
-2026-11-23T07:39:06.266Z  INFO 1 --- [CommunicationService] [ntainer#0-0-C-1] c.f.C.recipient.RecipientResolver        : Recipient Resolution Completed. Total Unique Recipients : 1
-2026-11-23T07:39:06.266Z  INFO 1 --- [CommunicationService] [ntainer#0-0-C-1] c.f.C.o.CommunicationOrchestrator        : Delegating 1 attachments to AttachmentPreparationService.
-2026-11-23T07:39:06.266Z  INFO 1 --- [CommunicationService] [ntainer#0-0-C-1] c.f.C.a.AttachmentPreparationServiceImpl : Initiating attachment preparation for 1 items.
-2026-11-23T07:39:06.267Z  INFO 1 --- [CommunicationService] [ntainer#0-0-C-1] c.f.C.client.ReportServiceClient         : Initiating upstream request to Report Service: http://report-service.uat-cbops1.svc.cluster.local:80/api/reports/attachment/download
-2026-11-23T07:39:06.489Z  INFO 1 --- [CommunicationService] [ntainer#0-0-C-1] c.f.C.client.ReportServiceClient         : Attachment fetched to disk!
-2026-11-23T07:39:06.490Z  INFO 1 --- [CommunicationService] [ntainer#0-0-C-1] c.f.C.o.CommunicationOrchestrator        : Event evt-r6qQvojWRi68EHOLaMriqw== requires 1 total recipients. Partitioned into 1 execution chunks.
-2026-11-23T07:39:06.495Z  INFO 1 --- [CommunicationService] [    virtual-602] c.f.C.service.TemplateCacheService       : L1 CACHE MISS: Fetching and Compiling Template FINCORE_NOTIFICATION for EMAIL from Oracle DB.
-2026-11-23T07:39:06.517Z  INFO 1 --- [CommunicationService] [    virtual-602] c.f.C.client.EmailGatewayClient          : Executing streaming JSON payload dispatch with attachment: attach-8245840106582213039.tmp
-2026-11-23T07:39:06.546Z  INFO 1 --- [CommunicationService] [    virtual-602] c.f.C.client.EmailGatewayClient          : Vendor Email API responded with HTTP 202
-2026-11-23T07:39:06.546Z  INFO 1 --- [CommunicationService] [    virtual-602] c.f.C.client.EmailGatewayClient          : Vendor Email API response body: {"data":{"message_id":"28f342229758322e7de27a9c2c0995bf","token_bcc":[""],"token_cc":[""],"token_to":[""]},"message":"OK","status":"success"}
-2026-11-23T07:39:06.547Z  INFO 1 --- [CommunicationService] [    virtual-602] c.f.C.o.CommunicationOrchestrator        : STUB: Triggered Vendor sendEmail for e***r@sbiuat.bank.in
-2026-11-23T07:39:06.549Z  INFO 1 --- [CommunicationService] [ntainer#0-0-C-1] c.f.C.o.CommunicationOrchestrator        : Event evt-r6qQvojWRi68EHOLaMriqw== processed successfully across all chunks.
-2026-11-23T07:39:06.556Z  INFO 1 --- [CommunicationService] [ntainer#0-0-C-1] c.f.C.c.GenericCommunicationConsumer     : Successfully processed Generic Communication Event : evt-r6qQvojWRi68EHOLaMriqw==
+
+
+
+
+package com.fincore.CommunicationService.attachment;
+
+import com.fincore.CommunicationService.client.ReportServiceClient;
+import com.fincore.CommunicationService.dto.GenericCommunicationEvent.AttachmentRef;
+import com.fincore.CommunicationService.dto.attachment.AttachmentDownloadRequest;
+import com.fincore.CommunicationService.dto.attachment.AttachmentDownloadResponse;
+import com.fincore.CommunicationService.dto.attachment.DownloadedAttachment;
+import com.fincore.CommunicationService.exception.CommunicationExceptions;
+import com.fincore.commonutilities.annotation.NoRetry;
+import io.github.resilience4j.retry.annotation.Retry;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.io.Resource;
+import org.springframework.stereotype.Service;
+
+import java.io.IOException;
+import java.io.OutputStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.Base64;
+import java.util.List;
+
+/**
+ * <p>UPDATED Attachment Preparation Service.</p>
+ *
+ * <p>
+ * This service explicitly avoids loading entire files into the JVM heap.
+ * It decodes Base64 streams chunk-by-chunk and writes directly to ephemeral disk storage.
+ * The resulting payload is returned as a Spring {@link Resource} to allow downstream
+ * REST clients to stream the bytes directly over the socket.</p>
+ *
+ * @since 2026-07
+ */
+@Slf4j
+@Service
+@RequiredArgsConstructor
+public class AttachmentPreparationServiceImpl
+        implements AttachmentPreparationService {
+
+    private final ReportServiceClient reportServiceClient;
+
+    private final ZipService zipService;
+
+    @Value("${attachment.max.count:10}")
+    private int maxAttachmentCount;
+
+    @Value("${attachment.max.size.mb:20}")
+    private long maxAttachmentSizeMb;
+
+    @Override
+//  @Retry(name = "attachmentRetry", fallbackMethod = "handleFailedAttachments")
+    public Resource prepareAttachments(List<AttachmentRef> attachments) throws IOException {
+        log.info("Initiating attachment preparation for {} items.", attachments.size());
+
+        AttachmentDownloadRequest request = AttachmentDownloadRequest.builder()
+                .attachments(attachments)
+                .build();
+
+        return reportServiceClient.downloadAttachments(request);
+    }
+
+    private Resource handleFailedAttachments(List<AttachmentRef> attachments, Throwable ex) throws Throwable {
+        if(ex instanceof CommunicationExceptions.AttachmentDownloadException){
+            throw ex;
+        }
+        throw new CommunicationExceptions.AttachmentDownloadException(ex.getMessage());
+    }
+
+    private void deleteTemporaryFiles(List<Path> paths) {
+        if (paths == null) return;
+        for (Path path : paths) {
+            try {
+                Files.deleteIfExists(path);
+                log.trace("Deleted ephemeral file: {}", path);
+            } catch (IOException | SecurityException e) {
+                log.error("MEMORY LEAK WARNING: Failed to delete ephemeral file at {}", path, e);
+            }
+        }
+    }
+}
+
+
+
+
+
+
+
+
+
+
+
+package com.fincore.CommunicationService.attachment;
+
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.core.io.FileSystemResource;
+
+import java.io.File;
+import java.io.FilterInputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.nio.file.Files;
+
+/**
+ * <p>A self-cleaning Spring Resource extension.</p>
+ *
+ * <p>When Spring's {@link org.springframework.web.client.RestClient} finishes transmitting
+ * the multipart/form-data payload over the socket, it automatically calls {@code .close()}
+// * on the Resource's InputStream. This wrapper hooks into that event to instantly delete
+ * the ephemeral file from disk, guaranteeing zero file descriptor/storage leaks.</p>
+ *
+ * @since 2026-07
+ */
+@Slf4j
+public class AutoDeletingResource extends FileSystemResource {
+
+    public AutoDeletingResource(File file) {
+        super(file);
+    }
+
+    @Override
+    public InputStream getInputStream() throws IOException {
+        return new FilterInputStream(super.getInputStream()) {
+            @Override
+            public void close() throws IOException {
+                try {
+                    super.close();
+                } finally {
+                    try {
+                        Files.deleteIfExists(getFile().toPath());
+                        log.trace("Auto-deleted ephemeral file post-transmission: {}", getFile().getName());
+                    } catch (IOException | SecurityException e) {
+                        log.error("LEAK WARNING: Could not auto-delete file: {}", getFile().getName(), e);
+                    }
+                }
+            }
+        };
+    }
+}
+
+
+
+
+
+
+
+
+
+
+package com.fincore.CommunicationService.attachment;
+
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.stereotype.Service;
+
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.util.List;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipOutputStream;
+
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.stereotype.Service;
+
+import java.io.BufferedInputStream;
+import java.io.BufferedOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.List;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipOutputStream;
+
+/**
+ * <p>Compression service.</p>
+ *
+ * <p>Utilizes {@link BufferedOutputStream} and {@link BufferedInputStream} to maximize
+ * disk throughput without pinning Virtual Threads for excessive durations.</p>
+ *
+ * @since 2026-07
+ */
+@Slf4j
+@Service
+public class ZipService {
+
+    /**
+     * Compresses a list of ephemeral files into a single ZIP archive.
+     *
+     * @param files List of paths to compress.
+     * @return Path to the generated ZIP file.
+     * @throws IOException if disk exhaustion or permission issues occur.
+     */
+    public Path createZip(List<Path> files) throws IOException {
+        Path zipFile = Files.createTempFile("fincore_bulk_", ".zip");
+
+        // Buffering is very important to avoid massive context-switching overhead in Virtual Threads during file I/O
+        try (ZipOutputStream zos = new ZipOutputStream(new BufferedOutputStream(Files.newOutputStream(zipFile)))) {
+
+            for (Path file : files) {
+                if (file == null || !Files.exists(file)) {
+                    log.warn("Skipping missing file during ZIP creation: {}", file);
+                    continue;
+                }
+
+                try (InputStream fis = new BufferedInputStream(Files.newInputStream(file))) {
+                    ZipEntry entry = new ZipEntry(file.getFileName().toString());
+                    zos.putNextEntry(entry);
+
+                    fis.transferTo(zos);
+                    zos.closeEntry();
+                }
+            }
+        } catch (IOException e) {
+            log.error("Failed to construct ZIP archive. Cleaning up partial file {}", zipFile);
+            Files.deleteIfExists(zipFile);
+            throw e;
+        }
+
+        log.debug("ZIP archive created successfully at {}", zipFile);
+        return zipFile;
+    }
+}
+
+
+
+
+
+
+
+
+
+
+package com.fincore.CommunicationService.client;
+
+import com.fincore.CommunicationService.dto.ApiResponse;
+import com.fincore.CommunicationService.dto.attachment.AttachmentDownloadRequest;
+import com.fincore.CommunicationService.dto.attachment.AttachmentDownloadResponse;
+import com.fincore.CommunicationService.exception.CommunicationExceptions;
+import jakarta.annotation.PostConstruct;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.ParameterizedTypeReference;
+import org.springframework.core.io.FileSystemResource;
+import org.springframework.core.io.Resource;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
+import org.springframework.stereotype.Component;
+import org.springframework.web.client.RestClient;
+import org.springframework.web.client.RestClientException;
+
+import java.io.*;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
+
+/**
+ * <p>HTTP Client for upstream Report Service interactions.</p>
+ *
+ * @since 2026-07
+ */
+@Slf4j
+@Component
+@RequiredArgsConstructor
+public class ReportServiceClient {
+
+    // Injected automatically from common-utilities (S2SRestClientConfig)
+    private final RestClient interServiceClient;
+
+    @Value("${app.temp-report.dir}")
+    private String tempDir;
+
+    private final String preFix="attach-";
+    private final String suffix=".tmp";
+
+
+    @Value("${report.service.url}")
+    private String reportServiceUrl;
+
+    @Value("${security.internal.report-service-token:TEST_TOKEN_123}")
+    private String internalServiceToken;
+
+    /**
+     * V1021256
+     * fetch zip file and save to the disk.
+     */
+    public Resource downloadAttachments(AttachmentDownloadRequest request) throws IOException {
+        String endpoint = reportServiceUrl + "/api/reports/attachment/download";
+        log.info("Initiating upstream request to Report Service: {}", endpoint);
+
+        Path path=interServiceClient.post()
+                .uri(endpoint)
+                .contentType(MediaType.APPLICATION_JSON)   // ← request is a JSON object
+                .accept(MediaType.APPLICATION_OCTET_STREAM,MediaType.APPLICATION_JSON)
+                .body(request)
+                .exchange((req, resp) -> {
+                    if(resp.getStatusCode().is2xxSuccessful()) {
+                        // Read filename from Content-Disposition
+//                        String disposition = resp.getHeaders().getFirst(HttpHeaders.CONTENT_DISPOSITION);
+//                        String filename = "fallback";
+//                        if (disposition != null && disposition.contains("filename=")) {
+//                            filename = disposition
+//                                    .substring(disposition.indexOf("filename=") + "filename=".length())
+//                                    .replace("\"", "")
+//                                    .trim();
+//                        }
+
+                        Path dir = Path.of(tempDir);
+                        if (!Files.exists(dir)) {
+                            Files.createDirectory(dir);
+                        }
+                        Path filePath = Files.createTempFile(dir, preFix, suffix);
+
+                        //fetching chunks and writing to file
+                        try (InputStream in = resp.getBody()) {
+                            Files.copy(in, filePath, StandardCopyOption.REPLACE_EXISTING);
+                        } catch (IOException e) {
+                            Files.deleteIfExists(filePath);
+                            throw new CommunicationExceptions.AttachmentStreamingException("Attachment could not be fetched!", e);
+                        }
+                        return filePath;
+                    }else{
+                        String errorMessage = new String(resp.getBody().readAllBytes(), StandardCharsets.UTF_8);
+                        throw new CommunicationExceptions.AttachmentDownloadException(String.format("Report download exception: [%s] %s",resp.getStatusCode(),errorMessage));
+                    }
+                });
+        if(path==null){
+            throw new CommunicationExceptions.AttachmentDownloadException("Attachment could not be fetched!");
+        }
+        log.info("Attachment fetched to disk!");
+        return new FileSystemResource(path.toFile());
+    }
+
+    @PostConstruct
+    public void init() {
+        // Check the condition and modify the variable
+        if (reportServiceUrl != null && !reportServiceUrl.startsWith("http://") && !reportServiceUrl.startsWith("https://")) {
+            reportServiceUrl = "http://" + reportServiceUrl;
+        }
+    }
+}
+
+
+
+
+
+
+
+
+
+
+package com.fincore.CommunicationService.dto.attachment;
+
+import lombok.Data;
+import lombok.AllArgsConstructor;
+import lombok.NoArgsConstructor;
+import java.util.List;
+import lombok.Builder;
+import com.fincore.CommunicationService.dto.GenericCommunicationEvent.AttachmentRef;
+
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
+
+@Data
+@AllArgsConstructor
+@NoArgsConstructor
+@Builder
+public class AttachmentDownloadRequest{
+
+    @NotNull(message = "Attachments are required")
+    @Size(min=3, max=3, message=" Exactly 3 attachments are required")
+    @Valid
+    private List<AttachmentRef> attachments;
+
+}
+
+
+
+
+
+package com.fincore.CommunicationService.dto.attachment;
+
+import lombok.Data;
+import lombok.AllArgsConstructor;
+import lombok.NoArgsConstructor;
+import java.util.List;
+
+@Data
+@AllArgsConstructor
+@NoArgsConstructor
+public class AttachmentDownloadResponse{
+
+    private List<DownloadedAttachment> attachments;
+}
+
+
+
+
+
+package com.fincore.CommunicationService.dto.attachment;
+
+import lombok.Data;
+import lombok.AllArgsConstructor;
+import lombok.NoArgsConstructor;
+
+@Data
+@AllArgsConstructor
+@NoArgsConstructor
+public class AttachmentReference{
+    
+    private String attachmentId;
+
+    private String attachmentType;
+
+    private String fileName;
+}
+
+
+
+
+
+
+
+
+
+package com.fincore.CommunicationService.dto.attachment;
+
+import lombok.Data;
+import lombok.AllArgsConstructor;
+import lombok.NoArgsConstructor;
+
+@Data
+@AllArgsConstructor
+@NoArgsConstructor
+public class DownloadedAttachment{
+
+    private String fileName;
+
+    private String contentType;
+
+    private String base64;
+
+    private long fileSize;
+
+
+}
+
+
+
+
+
+
+
+
+package com.fincore.CommunicationService.dto.attachment;
+
+import lombok.Data;
+import lombok.AllArgsConstructor;
+import lombok.NoArgsConstructor;
+import java.io.File;
+import java.util.List;
+
+@Data
+@AllArgsConstructor
+@NoArgsConstructor
+public class PreparedAttachmentResponse{
+
+    private List<File> files;
+
+    private boolean zip;
+
+    private long totalSize;
+
+    private int attachmentCount;
+}
+
+
+
+
+
+
+
+
+
+package com.fincore.CommunicationService.dto;
+
+import com.fasterxml.jackson.annotation.*;
+import lombok.*;
+
+import java.util.List;
+import java.util.Map;
+
+/**
+ * Generic communication event consumed by the Communication Service.
+ *
+ * Producer services publish this event to the
+ * 'fincore.communication.generic' Kafka topic.
+ *
+ * The Communication Service is responsible for resolving recipients,
+ * generating communication content, downloading attachments and
+ * dispatching notifications through the requested channels.
+ *
+ * @since 2026-07
+ */
+@Data
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
+@JsonInclude(JsonInclude.Include.NON_EMPTY)
+@JsonIgnoreProperties(ignoreUnknown = true)
+public class GenericCommunicationEvent {
+
+    /**
+     * Unique identifier for this specific event instance.
+     * Used as the primary correlation key across Kafka, Redis, and Oracle.
+     */
+    private String eventId;
+
+    /**
+     * Distributed tracing ID (e.g., from Jaeger/Zipkin).
+     * Vital for cross-microservice observability.
+     */
+    private String traceId;
+
+    private String correlationId;
+
+    private String producerService;
+
+    /**
+     * The business context of the event (e.g., 'EOD_REPORT', 'BALANCE_ALERT').
+     */
+    private String eventType;
+
+    /**
+     * FLAG: Determines the routing pipeline.
+     * If true, routes via Virtual Threads for 1-by-1 personalized vendor dispatch.
+     * If false, routes via Redis Pipelining and Vendor BCC arrays for massive scale.
+     * Defaults to true to ensure backward compatibility for legacy producers.
+     */
+    @JsonProperty("isPersonalized")
+    private Boolean isPersonalized;
+    /**
+     * Defines SLA priority. E.g., 'HIGH', 'NORMAL'.
+     */
+    private String priority;
+
+    /**
+     * The communication channels requested (e.g., ["EMAIL", "SMS"]).
+     */
+    @JsonProperty("channels")
+    private List<String> channels;
+
+    /**
+     * Dynamic recipient resolution matrix. Producers can supply Roles, UserIds, or raw Emails/Mobiles.
+     */
+    @JsonProperty("recipients")
+    private Recipients recipients;
+
+    /**
+     * The exact template ID to fetch from the L1 Caffeine Cache / Oracle COMM_TEMPLATE_MASTER.
+     */
+    private String templateId;
+
+    /**
+     * The dynamic FreeMarker variable bindings (e.g., Names, Account Balances).
+     */
+    private Map<String, Object> payload;
+
+    private List<AttachmentRef> attachments;
+
+    private List<DeepLinkRef> deepLinks;
+
+    private Map<String, String> metadata;
+
+    /**
+     * Recipient details supplied by the producer service.
+     * Communication Service resolves UserIds and Roles into
+     * Email and Mobile recipients.
+     */
+    @Data
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    @JsonInclude(JsonInclude.Include.NON_EMPTY)
+    public static class Recipients {
+
+        private List<String> userIds;
+
+        private List<String> roles;
+
+        private List<String> emails;
+
+        private List<String> mobiles;
+    }
+
+    /**
+     * Reference to an attachment.
+     *
+     * Files are never sent through Kafka. The AttachmentService
+     * downloads the file using this information.
+     */
+    @Data
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class AttachmentRef {
+
+        private String attachmentId;
+
+        private String attachmentType;
+
+        private String fileName;
+    }
+
+    /**
+     * Reference used by the DeepLinkGenerator to create
+     * application-specific URLs.
+     */
+    @Data
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class DeepLinkRef {
+
+        private String module;
+
+        private String entityId;
+
+        private String action;
+    }
+}
+
+
+
+
+
+
+
+
+
+
+package com.fincore.CommunicationService.orchestrator;
+
+import com.fincore.CommunicationService.dto.GenericCommunicationEvent;
+import com.fincore.CommunicationService.dto.ResolvedRecipient;
+import com.fincore.CommunicationService.exception.CommunicationExceptions;
+import com.fincore.CommunicationService.exception.CommunicationExceptions.VendorDeliveryException;
+import com.fincore.CommunicationService.model.CommAuditLog;
+import com.fincore.CommunicationService.recipient.RecipientResolver;
+import com.fincore.CommunicationService.service.CommunicationAuditService;
+import com.fincore.CommunicationService.service.EmailService;
+import com.fincore.CommunicationService.service.SmsService;
+import com.fincore.CommunicationService.attachment.AttachmentPreparationService;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.io.Resource;
+import org.springframework.dao.DataAccessException;
+import org.springframework.data.redis.core.RedisCallback;
+import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.stereotype.Service;
+import org.springframework.web.client.RestClientException;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.time.Duration;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.Semaphore;
+import java.util.concurrent.atomic.AtomicInteger;
+
+/**
+ * <p>
+ * Central orchestration component responsible for processing all
+ * Generic Communication Events consumed from Kafka.
+ * </p>
+ *
+ * <p>Responsibilities:</p>
+ * <ol>
+ * <li>Resolve recipients via {@link RecipientResolver}.</li>
+ * <li>Chunk large recipient lists to protect JVM memory and external APIs.</li>
+ * <li>Execute dispatches concurrently using Java 21 Virtual Threads.</li>
+ * <li>Enforce idempotency via Redis to prevent duplicate blasts on retry.</li>
+ * <li>Aggregate partial failures and trigger Kafka retries safely.</li>
+ * </ol>
+ *
+ * <p>
+ * This class contains no vendor specific implementation.
+ * All communication logic is delegated to the respective services.
+ * </p>
+ *
+ * @since 2026-07-28
+ */
+@Slf4j
+@Service
+@RequiredArgsConstructor
+public class CommunicationOrchestrator {
+
+    private final RecipientResolver recipientResolver;
+    private final CommunicationAuditService auditService;
+    private final EmailService emailService;
+    private final SmsService smsService;
+    private final StringRedisTemplate redisTemplate;
+    private final AttachmentPreparationService attachmentPreparationService;
+
+    /**
+     * Partitions large recipient arrays into manageable chunks (e.g., 500).
+     * Protects the JVM Heap from OutOfMemoryErrors (OOM) during massive EOD processing.
+     */
+    @Value("${communication.chunk.size:500}")
+    private int chunkSize;
+
+    /**
+     * Rate Limiter.
+     * Prevents 10,000 Virtual Threads from simultaneously opening socket connections to the vendor.
+     * Permits exactly 50 concurrent outbound HTTP dispatches.
+     */
+    private final Semaphore vendorRateLimiter = new Semaphore(50);
+
+    /**
+     * Primary entry point invoked by the Kafka Consumer.
+     *
+     * @param event The deserialized, validated communication event.
+     * @throws VendorDeliveryException if chunk processing encounters a high volume of failures, triggering a Kafka NACK.
+     */
+    public void process(GenericCommunicationEvent event) {
+        final String eventId = event.getEventId();
+        log.info("Orchestrator executing Event: {} | Personalized Flag: {}", eventId, Optional.ofNullable(event.getIsPersonalized()).orElse(true));
+
+        // 1. Resolve Recipients (Abstracts away Roles, UserIds into raw Contacts)
+        List<ResolvedRecipient> recipients = recipientResolver.resolveRecipients(event.getRecipients());
+        if (recipients.isEmpty()) {
+            log.warn("Recipient Resolution yielded 0 contacts for Event: {}. Dropping payload gracefully.", eventId);
+            return;
+        }
+
+        Resource attachment = null;
+        try {
+            // 2. Prepare Attachments (Fetch Zip and wraps in FileSystemResource)
+            if (event.getAttachments() != null && !event.getAttachments().isEmpty()) {
+                log.info("Delegating {} attachments to AttachmentPreparationService.", event.getAttachments().size());
+
+                // The service now safely streams to disk and returns a FileSystemResource
+                attachment = attachmentPreparationService.prepareAttachments(event.getAttachments());
+            }
+
+            // 3. Chunking logic to cap memory per processing cycle
+            List<List<ResolvedRecipient>> chunks = partitionList(recipients, chunkSize);
+            AtomicInteger failureCount = new AtomicInteger(0);
+
+            log.info("Event {} requires {} total recipients. Partitioned into {} execution chunks.",
+                    eventId, recipients.size(), chunks.size());
+
+//             4. Spin up Virtual Threads to execute chunks concurrently
+            try (ExecutorService virtualExecutor = Executors.newVirtualThreadPerTaskExecutor()) {
+                List<Callable<Void>> tasks = new ArrayList<>();
+
+                for (List<ResolvedRecipient> chunk : chunks) {
+                    final Resource currentAttachment = attachment;
+
+                    tasks.add(() -> {
+                        if (Optional.ofNullable(event.getIsPersonalized()).orElse(true)) {
+                            processPersonalizedChunk(chunk, event, failureCount, currentAttachment);
+                        } else {
+                            processBulkChunk(chunk, event, failureCount, currentAttachment);
+                        }
+                        return null;
+                    });
+                }
+
+                // Block orchestrator thread until all chunk virtual threads complete
+                List<Future<Void>> futures = virtualExecutor.invokeAll(tasks);
+                for (Future<Void> future : futures) {
+                    future.get(); // Re-throws any internal Virtual Thread exception
+                }
+
+            } catch (InterruptedException | ExecutionException e) {
+                log.error("CRITICAL: Concurrency error during chunk dispatch for Event: {}", eventId, e);
+                throw new VendorDeliveryException("Threading error during dispatch loop", e);
+            }
+
+            // 5. Aggregate failures. Throwing here utilizes Spring Kafka's native retry backoff policy.
+            if (failureCount.get() > 0) {
+                log.error("Event {} encountered {} partial dispatch failures. Routing to Retry Topic.", eventId, failureCount.get());
+                throw new VendorDeliveryException("Partial Vendor Dispatch Failure. Check DLQ/Audit Logs.", null);
+            }
+
+            log.info("Event {} processed successfully across all chunks.", eventId);
+
+        }catch(CommunicationExceptions.AttachmentDownloadException e){
+            log.error("Report download exception: {}", eventId, e);
+            throw e;
+        }
+        catch (IOException e) {
+            log.error("Fatal I/O error preparing attachments for Event: {}", eventId, e);
+            throw new VendorDeliveryException("Attachment processing failed on local disk/network", e);
+        }
+        catch (RestClientException e) {
+            log.error("Upstream Report Service / Vendor HTTP network failure for Event: {}", eventId, e);
+            throw new VendorDeliveryException("Upstream REST dependency failed", e);
+        }
+        catch (DataAccessException e) {
+            log.error("Oracle DB / Redis failure while orchestrating Event: {}", eventId, e);
+            throw new VendorDeliveryException("Database/Cache dependency failed", e);
+        }
+        catch (RuntimeException e) {
+            log.error("Unexpected runtime bug orchestrating Event: {}", eventId, e);
+            throw new VendorDeliveryException("Unexpected orchestration failure", e);
+        }
+        finally {
+            // deletion of local /tmp ZIP files.
+            if (attachment != null) {
+                try {
+                    Files.deleteIfExists(attachment.getFilePath());
+                    log.debug("Successfully purged attachment I/O resources for Event: {}", eventId);
+                } catch (IOException e) {
+                    log.error("Failed to delete temporary attachment resource for Event: {}", eventId, e);
+                }
+            }
+        }
+    }
+
+    /**
+     * Executes the standard 1-by-1 dispatch pipeline.
+     * Optimal for highly dynamic templates (e.g., containing user account balances).
+     */
+    private void processPersonalizedChunk(List<ResolvedRecipient> chunk, GenericCommunicationEvent event,
+                                          AtomicInteger failureCount, Resource attachment) {
+        log.debug("Initiating Personalized Pipeline for chunk of size {}", chunk.size());
+
+        try (ExecutorService ioExecutor = Executors.newVirtualThreadPerTaskExecutor()) {
+            List<Callable<Void>> dispatchTasks = new ArrayList<>();
+
+            for (ResolvedRecipient recipient : chunk) {
+                for (String channel : event.getChannels()) {
+                    dispatchTasks.add(() -> {
+                        dispatchToChannel(recipient, channel, event, failureCount, attachment);
+                        return null;
+                    });
+                }
+            }
+            ioExecutor.invokeAll(dispatchTasks);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            log.error("Personalized chunk processing was interrupted by the OS.", e);
+        }
+    }
+
+    /**
+     * Executes the Bulk Pipeline.
+     * Replaces 500 network calls with single Redis Pipelined operations and JDBC Batches.
+     */
+    private void processBulkChunk(List<ResolvedRecipient> chunk, GenericCommunicationEvent event, AtomicInteger failureCount,
+                                  Resource attachment) {
+        log.debug("Initiating Bulk Pipeline for chunk of size {}", chunk.size());
+
+        for (String channel : event.getChannels()) {
+
+            // DEGRADATION: SMS providers typically reject 500-number arrays.
+            if ("SMS".equalsIgnoreCase(channel)) {
+                log.info("SMS Degradation Triggered: Routing bulk SMS traffic to personalized pipeline for Event: {}", event.getEventId());
+                processPersonalizedChunk(chunk, event, failureCount, attachment);
+                continue;
+            }
+
+            // Extract valid emails
+            List<String> validEmails = chunk.stream()
+                    .map(ResolvedRecipient::getEmail)
+                    .filter(Objects::nonNull)
+                    .filter(e -> !e.isBlank())
+                    .toList();
+
+            if (validEmails.isEmpty()) continue;
+
+            // Generate deterministic idempotency keys
+            List<String> idempotencyKeys = validEmails.stream()
+                    .map(email -> "COMM_IDEMP:" + event.getEventId() + ":EMAIL:" + email)
+                    .toList();
+
+            // 1. REDIS PIPELINING: Send 500 SETNX commands in ONE physical TCP packet.
+            List<Object> redisResults = redisTemplate.executePipelined((RedisCallback<Object>) connection -> {
+                for (String key : idempotencyKeys) {
+                    connection.stringCommands().setNX(key.getBytes(), "PROCESSING".getBytes());
+                    connection.keyCommands().expire(key.getBytes(), Duration.ofHours(24).getSeconds());
+                }
+                return null;
+            });
+
+            List<String> emailsToProcess = new ArrayList<>();
+            List<String> auditIds = new ArrayList<>();
+            List<CommAuditLog> auditLogs = new ArrayList<>();
+
+            // 2. Evaluate Pipelined Results
+            for (int i = 0; i < redisResults.size(); i++) {
+                // TRUE means we successfully acquired the processing lock. FALSE means it was already processed.
+                if (Boolean.TRUE.equals(redisResults.get(i))) {
+                    String email = validEmails.get(i);
+                    emailsToProcess.add(email);
+
+                    String auditId = event.getEventId() + "_EMAIL_" + Math.abs(email.hashCode());
+                    auditIds.add(auditId);
+
+                    auditLogs.add(CommAuditLog.builder()
+                            .auditId(auditId)
+                            .eventId(event.getEventId())
+                            .traceId(event.getTraceId())
+                            .producerService(event.getProducerService() != null ? event.getProducerService() : "GENERIC_EVENT")
+                            .eventType(event.getEventType())
+                            .templateId(event.getTemplateId())
+                            .channel("EMAIL")
+                            .maskedRecipient(email)
+                            .status("PROCESSING")
+                            .build());
+                }
+            }
+
+            if (emailsToProcess.isEmpty()) {
+                log.debug("Idempotency Shield: All {} emails in chunk already processed.", chunk.size());
+                continue;
+            }
+
+            // 3. JDBC BATCH INSERT: Writes all PROCESSING rows in one DB hit.
+            auditService.logBulkAttempt(auditLogs);
+
+            try {
+                // 4. Only wrap the actual Vendor API call.
+                vendorRateLimiter.acquire();
+                try {
+                    // Send 1 API call containing up to 500 BCC addresses.
+                     emailService.sendBulkEmail(event.getTemplateId(), emailsToProcess, event.getPayload(), attachment);
+                    log.info("STUB: Triggered Vendor sendBulkEmail for {} recipients.", emailsToProcess.size());
+                } finally {
+                    vendorRateLimiter.release();
+                }
+
+                // 5. JDBC BATCH UPDATE: Updates all to SUCCESS in one DB hit.
+                auditService.logBulkSuccess(auditIds);
+
+                // 6. REDIS PIPELINE UPDATE: Marks keys as permanently successful.
+                redisTemplate.executePipelined((RedisCallback<Object>) connection -> {
+                    for (String email : emailsToProcess) {
+                        connection.stringCommands().set(
+                                ("COMM_IDEMP:" + event.getEventId() + ":EMAIL:" + email).getBytes(),
+                                "SUCCESS".getBytes()
+                        );
+                    }
+                    return null;
+                });
+
+            } catch (Exception e) {
+                log.error("VENDOR OUTAGE: Bulk dispatch failed for Event: {}. Rolling back locks.", event.getEventId(), e);
+
+                // Rollback database status to failed, and DELETE redis keys so Kafka retry can pick them up.
+                auditService.logBulkFailure(auditIds, e.getMessage());
+                redisTemplate.delete(idempotencyKeys);
+
+                failureCount.addAndGet(emailsToProcess.size());
+            }
+        }
+    }
+
+    /**
+     * Core processing logic for an individual recipient (Personalized Flow).
+     */
+    private void dispatchToChannel(ResolvedRecipient recipient, String channel, GenericCommunicationEvent event,
+                                   AtomicInteger failureCount, Resource attachment) {
+        String recipientIdentifier = "EMAIL".equalsIgnoreCase(channel) ? recipient.getEmail() : recipient.getMobile();
+
+        // Defensive drop: Producer requested SMS, but recipient user account has no mobile number.
+        if (recipientIdentifier == null || recipientIdentifier.isBlank()) {
+            return;
+        }
+
+        String auditId = event.getEventId() + "_" + channel + "_" + Math.abs(recipientIdentifier.hashCode());
+        String idempotencyKey = "COMM_IDEMP:" + auditId + ":" + channel + ":" + recipientIdentifier;
+
+        // Atomic Set-If-Absent prevents duplicate SMS/Emails if Kafka replays an event.
+        Boolean isNew = redisTemplate.opsForValue().setIfAbsent(idempotencyKey, "PROCESSING", Duration.ofHours(24));
+        if (Boolean.FALSE.equals(isNew)) {
+            log.trace("Idempotency Lock Active for {}. Skipping.", recipientIdentifier);
+            return;
+        }
+
+        auditService.logAttempt(auditId, event.getEventId(), event.getTraceId(), event.getTemplateId(), channel, recipientIdentifier);
+
+        try {
+            if ("EMAIL".equalsIgnoreCase(channel)) {
+                vendorRateLimiter.acquire();
+                try {
+                    emailService.sendEmail(event.getTemplateId(), recipient.getEmail(), event.getPayload(), attachment);
+                    log.info("STUB: Triggered Vendor sendEmail for {}", auditService.maskSensitiveData(recipient.getEmail(), "EMAIL"));
+                } finally {
+                    vendorRateLimiter.release();
+                }
+            } else if ("SMS".equalsIgnoreCase(channel)) {
+                vendorRateLimiter.acquire();
+                try {
+                    smsService.sendSms(event.getTemplateId(), recipient.getMobile(), event.getPayload());
+                } finally {
+                    vendorRateLimiter.release();
+                }
+            }
+
+            auditService.logSuccess(auditId);
+
+            // Mark as definitively complete.
+            redisTemplate.opsForValue().set(idempotencyKey, "SUCCESS", Duration.ofHours(24));
+
+        } catch (Exception e) {
+            log.error("Delivery Exception for {} via {}. Reverting idempotency lock.", auditService.maskSensitiveData(recipientIdentifier, channel), channel, e);
+            auditService.logFailure(auditId, e.getMessage());
+
+            // REVERT: If we hit a timeout, remove the lock so the retry consumer can attempt delivery again.
+            redisTemplate.delete(idempotencyKey);
+            failureCount.incrementAndGet();
+        }
+    }
+
+    /**
+     * Utility method to safely partition a massive list into smaller sub-lists.
+     */
+    private <T> List<List<T>> partitionList(List<T> list, int size) {
+        List<List<T>> partitions = new ArrayList<>();
+        if (list == null || list.isEmpty()) return partitions;
+
+        for (int i = 0; i < list.size(); i += size) {
+            partitions.add(new ArrayList<>(list.subList(i, Math.min(i + size, list.size()))));
+        }
+        return partitions;
+    }
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
