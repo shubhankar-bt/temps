@@ -1,165 +1,1397 @@
+package com.fincore.CommunicationService.consumer;
 
-2026-11-23T06:11:44.521Z  INFO 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.consumer.PriorityOtpConsumer       : Received raw Kafka message: {"priority":"CRITICAL","payload":"ddaGdgxDGnvCJpPx:phb0frYlwJuvZXgUxMvlyKhgslYwXCObHq5Vr+vu2dHm6mZoHvXpAahBPWiUA3sgT0GjHD967MmU1KmxlTPFRHzqujxEepLoHpaJQGXE0Z0=","templateId":"AUTH_LOGIN_OTP_V1","recipient":{"mobile":"9064632186","email":"ebms_uat_receiver@sbiuat.bank.in"},"txId":"58cac2f2-5b59-49e6-bdc7-c8b13ad09e65","createdAt":"2026-11-23T06:11:44.518003122Z","channel":["SMS","EMAIL"],"eventType":"LOGIN_OTP","eventId":"evt-92b8f6d9-3fc1-4436-9b33-7de7a27f12f7"}
-2026-11-23T06:11:44.527Z  INFO 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.service.SmsServiceImpl             : Reached sendSms service. templateId=AUTH_LOGIN_OTP_V1, mobile=******2186
-2026-11-23T06:11:44.528Z  INFO 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.client.SmsGatewayClient            : Sending SMS to ******2186
-2026-11-23T06:11:44.629Z ERROR 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.client.SmsGatewayClient            : Network Exception while sending SMS: 403 Forbidden: "<solace-error-response><EOL><EOL><code>403</code><EOL><EOL><reason><![CDATA[Unauthorized]]></reason><EOL><EOL><detail><![CDATA[<EOL><EOL>SMF ClientCtrl response error<EOL><EOL>]]></detail><EOL><EOL><internal-use>2:14261</internal-use><EOL><EOL></solace-error-response><EOL><EOL>"
-2026-11-23T06:11:44.629Z ERROR 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.service.SmsServiceImpl             : CRITICAL: SMS Infrastructure Failure for ******2186. Error : SMS Provider rejected request : null
-2026-11-23T06:11:45.130Z  INFO 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.service.SmsServiceImpl             : Reached sendSms service. templateId=AUTH_LOGIN_OTP_V1, mobile=******2186
-2026-11-23T06:11:45.130Z  INFO 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.client.SmsGatewayClient            : Sending SMS to ******2186
-2026-11-23T06:11:45.194Z ERROR 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.client.SmsGatewayClient            : Network Exception while sending SMS: 403 Forbidden: "<solace-error-response><EOL><EOL><code>403</code><EOL><EOL><reason><![CDATA[Unauthorized]]></reason><EOL><EOL><detail><![CDATA[<EOL><EOL>SMF ClientCtrl response error<EOL><EOL>]]></detail><EOL><EOL><internal-use>2:14261</internal-use><EOL><EOL></solace-error-response><EOL><EOL>"
-2026-11-23T06:11:45.195Z ERROR 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.service.SmsServiceImpl             : CRITICAL: SMS Infrastructure Failure for ******2186. Error : SMS Provider rejected request : null
-2026-11-23T06:11:45.695Z  INFO 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.service.SmsServiceImpl             : Reached sendSms service. templateId=AUTH_LOGIN_OTP_V1, mobile=******2186
-2026-11-23T06:11:45.696Z  INFO 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.client.SmsGatewayClient            : Sending SMS to ******2186
-2026-11-23T06:11:45.760Z ERROR 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.client.SmsGatewayClient            : Network Exception while sending SMS: 403 Forbidden: "<solace-error-response><EOL><EOL><code>403</code><EOL><EOL><reason><![CDATA[Unauthorized]]></reason><EOL><EOL><detail><![CDATA[<EOL><EOL>SMF ClientCtrl response error<EOL><EOL>]]></detail><EOL><EOL><internal-use>2:14261</internal-use><EOL><EOL></solace-error-response><EOL><EOL>"
-2026-11-23T06:11:45.760Z ERROR 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.service.SmsServiceImpl             : CRITICAL: SMS Infrastructure Failure for ******2186. Error : SMS Provider rejected request : null
-2026-11-23T06:11:45.760Z ERROR 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.service.SmsServiceImpl             : CRITICAL: SMS Infrastructure Failure for ******2186. Error : Total SMS Infrastructure Failure
-2026-11-23T06:11:45.761Z ERROR 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.consumer.PriorityOtpConsumer       : Vendor dispatch failed for eventId=evt-92b8f6d9-3fc1-4436-9b33-7de7a27f12f7 channel=SMS. Reason: Total SMS Infrastructure Failure
-2026-11-23T06:11:45.801Z ERROR 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.client.EmailGatewayClient          : Network I/O Exception calling Email Vendor API: I/O error on POST request for "https://ebms-pepiapi.sbiuat.bank.in:443/v5/mail/send": null
-2026-11-23T06:11:45.801Z ERROR 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.service.EmailServiceImpl           : CRITICAL: Bank Email API unreachable for ebms_uat_receiver@sbiuat.bank.in. Error: Network communication with Email Vendor failed
-2026-11-23T06:11:47.805Z ERROR 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.client.EmailGatewayClient          : Network I/O Exception calling Email Vendor API: I/O error on POST request for "https://ebms-pepiapi.sbiuat.bank.in:443/v5/mail/send": null
-2026-11-23T06:11:47.805Z ERROR 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.service.EmailServiceImpl           : CRITICAL: Bank Email API unreachable for ebms_uat_receiver@sbiuat.bank.in. Error: Network communication with Email Vendor failed
-2026-11-23T06:11:49.808Z ERROR 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.client.EmailGatewayClient          : Network I/O Exception calling Email Vendor API: I/O error on POST request for "https://ebms-pepiapi.sbiuat.bank.in:443/v5/mail/send": null
-2026-11-23T06:11:49.808Z ERROR 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.service.EmailServiceImpl           : CRITICAL: Bank Email API unreachable for ebms_uat_receiver@sbiuat.bank.in. Error: Network communication with Email Vendor failed
-2026-11-23T06:11:49.808Z ERROR 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.service.EmailServiceImpl           : CRITICAL: Bank Email API unreachable for ebms_uat_receiver@sbiuat.bank.in. Error: Total Bank API Infrastructure Failure
-2026-11-23T06:11:49.809Z ERROR 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.consumer.PriorityOtpConsumer       : Vendor dispatch failed for eventId=evt-92b8f6d9-3fc1-4436-9b33-7de7a27f12f7 channel=EMAIL. Reason: Total Bank API Infrastructure Failure
-2026-11-23T06:11:49.810Z ERROR 1 --- [CommunicationService] [ntainer#1-0-C-1] c.f.C.consumer.PriorityOtpConsumer       : Unexpected error processing Kafka message
+import com.fasterxml.jackson.core.JsonProcessingException;
+import tools.jackson.core.type.TypeReference;
+import tools.jackson.databind.ObjectMapper;
+import com.fincore.CommunicationService.dto.KafkaEvent;
+import com.fincore.CommunicationService.exception.CommunicationExceptions.DecryptionFailureException;
+import com.fincore.CommunicationService.exception.CommunicationExceptions.InvalidPayloadException;
+import com.fincore.CommunicationService.exception.CommunicationExceptions.TemplateNotFoundException;
+import com.fincore.CommunicationService.exception.CommunicationExceptions.VendorDeliveryException;
+import com.fincore.CommunicationService.service.CommunicationAuditService;
+import com.fincore.CommunicationService.service.EmailService;
+import com.fincore.CommunicationService.service.SmsService;
+import com.fincore.commonutilities.util.AesEncryptionUtil;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.kafka.annotation.DltHandler;
+import org.springframework.kafka.annotation.EnableKafka;
+import org.springframework.kafka.annotation.KafkaListener;
+import org.springframework.kafka.annotation.RetryableTopic;
+import org.springframework.kafka.retrytopic.TopicSuffixingStrategy;
+import org.springframework.kafka.support.Acknowledgment;
+import org.springframework.kafka.support.KafkaHeaders;
+import org.springframework.messaging.handler.annotation.Header;
+import org.springframework.messaging.handler.annotation.Payload;
+import org.springframework.kafka.annotation.BackOff;
+import org.springframework.stereotype.Component;
 
-com.fincore.CommunicationService.exception.CommunicationExceptions$VendorDeliveryException: One or more channels failed to deliver. Triggering Retry.
-        at com.fincore.CommunicationService.consumer.PriorityOtpConsumer.consumeOtpEvent(PriorityOtpConsumer.java:201) ~[!/:0.0.1-SNAPSHOT]
-        at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:103) ~[na:na]
-        at java.base/java.lang.reflect.Method.invoke(Method.java:580) ~[na:na]
-        at org.springframework.messaging.handler.invocation.InvocableHandlerMethod.doInvoke(InvocableHandlerMethod.java:168) ~[spring-messaging-7.0.9.jar!/:7.0.9]
-        at org.springframework.kafka.listener.adapter.KotlinAwareInvocableHandlerMethod.doInvoke(KotlinAwareInvocableHandlerMethod.java:48) ~[spring-kafka-4.1.1.jar!/:4.1.1]
-        at org.springframework.messaging.handler.invocation.InvocableHandlerMethod.invoke(InvocableHandlerMethod.java:119) ~[spring-messaging-7.0.9.jar!/:7.0.9]
-        at org.springframework.kafka.listener.adapter.HandlerAdapter.invoke(HandlerAdapter.java:80) ~[spring-kafka-4.1.1.jar!/:4.1.1]
-        at org.springframework.kafka.listener.adapter.MessagingMessageListenerAdapter.invokeHandler(MessagingMessageListenerAdapter.java:489) ~[spring-kafka-4.1.1.jar!/:4.1.1]
-        at org.springframework.kafka.listener.adapter.MessagingMessageListenerAdapter.invoke(MessagingMessageListenerAdapter.java:426) ~[spring-kafka-4.1.1.jar!/:4.1.1]
-        at org.springframework.kafka.listener.adapter.RecordMessagingMessageListenerAdapter.onMessage(RecordMessagingMessageListenerAdapter.java:92) ~[spring-kafka-4.1.1.jar!/:4.1.1]
-        at org.springframework.kafka.listener.adapter.RecordMessagingMessageListenerAdapter.onMessage(RecordMessagingMessageListenerAdapter.java:52) ~[spring-kafka-4.1.1.jar!/:4.1.1]
-        at org.springframework.kafka.listener.adapter.KafkaBackoffAwareMessageListenerAdapter.invokeDelegateOnMessage(KafkaBackoffAwareMessageListenerAdapter.java:110) ~[spring-kafka-4.1.1.jar!/:4.1.1]
-        at org.springframework.kafka.listener.adapter.KafkaBackoffAwareMessageListenerAdapter.onMessage(KafkaBackoffAwareMessageListenerAdapter.java:101) ~[spring-kafka-4.1.1.jar!/:4.1.1]
-        at org.springframework.kafka.listener.adapter.KafkaBackoffAwareMessageListenerAdapter.onMessage(KafkaBackoffAwareMessageListenerAdapter.java:51) ~[spring-kafka-4.1.1.jar!/:4.1.1]
-        at org.springframework.kafka.listener.KafkaMessageListenerContainer$ListenerConsumer.doInvokeOnMessage(KafkaMessageListenerContainer.java:3099) ~[spring-kafka-4.1.1.jar!/:4.1.1]
-        at org.springframework.kafka.listener.KafkaMessageListenerContainer$ListenerConsumer.invokeOnMessage(KafkaMessageListenerContainer.java:3078) ~[spring-kafka-4.1.1.jar!/:4.1.1]
-        at org.springframework.kafka.listener.KafkaMessageListenerContainer$ListenerConsumer.doInvokeRecordListener(KafkaMessageListenerContainer.java:2988) ~[spring-kafka-4.1.1.jar!/:4.1.1]
-        at org.springframework.kafka.listener.KafkaMessageListenerContainer$ListenerConsumer.doInvokeWithRecords(KafkaMessageListenerContainer.java:2806) ~[spring-kafka-4.1.1.jar!/:4.1.1]
-        at org.springframework.kafka.listener.KafkaMessageListenerContainer$ListenerConsumer.invokeRecordListener(KafkaMessageListenerContainer.java:2692) ~[spring-kafka-4.1.1.jar!/:4.1.1]
-        at org.springframework.kafka.listener.KafkaMessageListenerContainer$ListenerConsumer.invokeListener(KafkaMessageListenerContainer.java:2323) ~[spring-kafka-4.1.1.jar!/:4.1.1]
-        at org.springframework.kafka.listener.KafkaMessageListenerContainer$ListenerConsumer.invokeIfHaveRecords(KafkaMessageListenerContainer.java:1621) ~[spring-kafka-4.1.1.jar!/:4.1.1]
-        at org.springframework.kafka.listener.KafkaMessageListenerContainer$ListenerConsumer.pollAndInvoke(KafkaMessageListenerContainer.java:1523) ~[spring-kafka-4.1.1.jar!/:4.1.1]
-        at org.springframework.kafka.listener.KafkaMessageListenerContainer$ListenerConsumer.run(KafkaMessageListenerContainer.java:1384) ~[spring-kafka-4.1.1.jar!/:4.1.1]
-        at java.base/java.util.concurrent.CompletableFuture$AsyncRun.run(CompletableFuture.java:1804) ~[na:na]
-        at java.base/java.lang.Thread.run(Thread.java:1570) ~[na:na]
+import javax.crypto.BadPaddingException;
+import javax.crypto.IllegalBlockSizeException;
+import java.security.GeneralSecurityException;
+import java.time.Duration;
+import java.util.Map;
 
-2026-11-23T06:11:49.820Z  INFO 1 --- [CommunicationService] [1-retry-0-0-C-1] o.a.k.c.c.i.ClassicKafkaConsumer         : [Consumer clientId=consumer-communication-login-otp-group-v7-retry-0-46, groupId=communication-login-otp-group-v7-retry-0] Seeking to offset 426 for partition fincore.auth.otp.priority-retry-0-0
-2026-11-23T06:11:49.820Z  INFO 1 --- [CommunicationService] [1-retry-0-0-C-1] o.s.k.l.KafkaMessageListenerContainer    : Record in retry and not yet recovered
-2026-11-23T06:11:51.812Z  INFO 1 --- [CommunicationService] [1-retry-0-0-C-1] c.f.C.consumer.PriorityOtpConsumer       : Received raw Kafka message: {"priority":"CRITICAL","payload":"ddaGdgxDGnvCJpPx:phb0frYlwJuvZXgUxMvlyKhgslYwXCObHq5Vr+vu2dHm6mZoHvXpAahBPWiUA3sgT0GjHD967MmU1KmxlTPFRHzqujxEepLoHpaJQGXE0Z0=","templateId":"AUTH_LOGIN_OTP_V1","recipient":{"mobile":"9064632186","email":"ebms_uat_receiver@sbiuat.bank.in"},"txId":"58cac2f2-5b59-49e6-bdc7-c8b13ad09e65","createdAt":"2026-11-23T06:11:44.518003122Z","channel":["SMS","EMAIL"],"eventType":"LOGIN_OTP","eventId":"evt-92b8f6d9-3fc1-4436-9b33-7de7a27f12f7"}
-2026-11-23T06:11:51.815Z  INFO 1 --- [CommunicationService] [1-retry-0-0-C-1] c.f.C.service.SmsServiceImpl             : Reached sendSms service. templateId=AUTH_LOGIN_OTP_V1, mobile=******2186
-2026-11-23T06:11:51.816Z  INFO 1 --- [CommunicationService] [1-retry-0-0-C-1] c.f.C.client.SmsGatewayClient            : Sending SMS to ******2186
-2026-11-23T06:11:51.890Z ERROR 1 --- [CommunicationService] [1-retry-0-0-C-1] c.f.C.client.SmsGatewayClient            : Network Exception while sending SMS: 403 Forbidden: "<solace-error-response><EOL><EOL><code>403</code><EOL><EOL><reason><![CDATA[Unauthorized]]></reason><EOL><EOL><detail><![CDATA[<EOL><EOL>SMF ClientCtrl response error<EOL><EOL>]]></detail><EOL><EOL><internal-use>2:14261</internal-use><EOL><EOL></solace-error-response><EOL><EOL>"
-2026-11-23T06:11:51.890Z ERROR 1 --- [CommunicationService] [1-retry-0-0-C-1] c.f.C.service.SmsServiceImpl             : CRITICAL: SMS Infrastructure Failure for ******2186. Error : SMS Provider rejected request : null
-2026-11-23T06:11:52.390Z  INFO 1 --- [CommunicationService] [1-retry-0-0-C-1] c.f.C.service.SmsServiceImpl             : Reached sendSms service. templateId=AUTH_LOGIN_OTP_V1, mobile=******2186
-2026-11-23T06:11:52.391Z  INFO 1 --- [CommunicationService] [1-retry-0-0-C-1] c.f.C.client.SmsGatewayClient            : Sending SMS to ******2186
-2026-11-23T06:11:52.512Z ERROR 1 --- [CommunicationService] [1-retry-0-0-C-1] c.f.C.client.SmsGatewayClient            : Network Exception while sending SMS: 403 Forbidden: "<solace-error-response><EOL><EOL><code>403</code><EOL><EOL><reason><![CDATA[Unauthorized]]></reason><EOL><EOL><detail><![CDATA[<EOL><EOL>SMF ClientCtrl response error<EOL><EOL>]]></detail><EOL><EOL><internal-use>2:14261</internal-use><EOL><EOL></solace-error-response><EOL><EOL>"
-2026-11-23T06:11:52.513Z ERROR 1 --- [CommunicationService] [1-retry-0-0-C-1] c.f.C.service.SmsServiceImpl             : CRITICAL: SMS Infrastructure Failure for ******2186. Error : SMS Provider rejected request : null
-2026-11-23T06:11:53.013Z  INFO 1 --- [CommunicationService] [1-retry-0-0-C-1] c.f.C.service.SmsServiceImpl             : Reached sendSms service. templateId=AUTH_LOGIN_OTP_V1, mobile=******2186
-2026-11-23T06:11:53.014Z  INFO 1 --- [CommunicationService] [1-retry-0-0-C-1] c.f.C.client.SmsGatewayClient            : Sending SMS to ******2186
-2026-11-23T06:11:53.078Z ERROR 1 --- [CommunicationService] [1-retry-0-0-C-1] c.f.C.client.SmsGatewayClient            : Network Exception while sending SMS: 403 Forbidden: "<solace-error-response><EOL><EOL><code>403</code><EOL><EOL><reason><![CDATA[Unauthorized]]></reason><EOL><EOL><detail><![CDATA[<EOL><EOL>SMF ClientCtrl response error<EOL><EOL>]]></detail><EOL><EOL><internal-use>2:14261</internal-use><EOL><EOL></solace-error-response><EOL><EOL>"
-2026-11-23T06:11:53.078Z ERROR 1 --- [CommunicationService] [1-retry-0-0-C-1] c.f.C.service.SmsServiceImpl             : CRITICAL: SMS Infrastructure Failure for ******2186. Error : SMS Provider rejected request : null
-2026-11-23T06:11:53.078Z ERROR 1 --- [CommunicationService] [1-retry-0-0-C-1] c.f.C.service.SmsServiceImpl             : CRITICAL: SMS Infrastructure Failure for ******2186. Error : Total SMS Infrastructure Failure
-2026-11-23T06:11:53.078Z ERROR 1 --- [CommunicationService] [1-retry-0-0-C-1] c.f.C.consumer.PriorityOtpConsumer       : Vendor dispatch failed for eventId=evt-92b8f6d9-3fc1-4436-9b33-7de7a27f12f7 channel=SMS. Reason: Total SMS Infrastructure Failure
-2026-11-23T06:11:53.083Z ERROR 1 --- [CommunicationService] [1-retry-0-0-C-1] c.f.C.client.EmailGatewayClient          : Network I/O Exception calling Email Vendor API: I/O error on POST request for "https://ebms-pepiapi.sbiuat.bank.in:443/v5/mail/send": null
-2026-11-23T06:11:53.083Z ERROR 1 --- [CommunicationService] [1-retry-0-0-C-1] c.f.C.service.EmailServiceImpl           : CRITICAL: Bank Email API unreachable for ebms_uat_receiver@sbiuat.bank.in. Error: Network communication with Email Vendor failed
-2026-11-23T06:11:55.087Z ERROR 1 --- [CommunicationService] [1-retry-0-0-C-1] c.f.C.client.EmailGatewayClient          : Network I/O Exception calling Email Vendor API: I/O error on POST request for "https://ebms-pepiapi.sbiuat.bank.in:443/v5/mail/send": null
-2026-11-23T06:11:55.087Z ERROR 1 --- [CommunicationService] [1-retry-0-0-C-1] c.f.C.service.EmailServiceImpl           : CRITICAL: Bank Email API unreachable for ebms_uat_receiver@sbiuat.bank.in. Error: Network communication with Email Vendor failed
-2026-11-23T06:11:57.099Z ERROR 1 --- [CommunicationService] [1-retry-0-0-C-1] c.f.C.client.EmailGatewayClient          : Network I/O Exception calling Email Vendor API: I/O error on POST request for "https://ebms-pepiapi.sbiuat.bank.in:443/v5/mail/send": null
-2026-11-23T06:11:57.099Z ERROR 1 --- [CommunicationService] [1-retry-0-0-C-1] c.f.C.service.EmailServiceImpl           : CRITICAL: Bank Email API unreachable for ebms_uat_receiver@sbiuat.bank.in. Error: Network communication with Email Vendor failed
-2026-11-23T06:11:57.100Z ERROR 1 --- [CommunicationService] [1-retry-0-0-C-1] c.f.C.service.EmailServiceImpl           : CRITICAL: Bank Email API unreachable for ebms_uat_receiver@sbiuat.bank.in. Error: Total Bank API Infrastructure Failure
-2026-11-23T06:11:57.100Z ERROR 1 --- [CommunicationService] [1-retry-0-0-C-1] c.f.C.consumer.PriorityOtpConsumer       : Vendor dispatch failed for eventId=evt-92b8f6d9-3fc1-4436-9b33-7de7a27f12f7 channel=EMAIL. Reason: Total Bank API Infrastructure Failure
-2026-11-23T06:11:57.101Z ERROR 1 --- [CommunicationService] [1-retry-0-0-C-1] c.f.C.consumer.PriorityOtpConsumer       : Unexpected error processing Kafka message
+/**
+ * <p>A non-blocking Kafka consumer responsible for processing high-priority OTP events.
+ * This component handles decryption, validation, and dispatching of OTPs via SMS or Email.</p>
+ *
+ * <p><strong>Retry Architecture:</strong></p>
+ * <ul>
+ *   <li><strong>Attempts:</strong> 4 total (1 initial + 3 retries).</li>
+ *   <li><strong>Backoff Strategy:</strong> Exponential delay (2s, 4s, 8s).</li>
+ *   <li><strong>Retryable Exceptions:</strong> Transient errors like {@link VendorDeliveryException} (e.g., API timeouts).</li>
+ *   <li><strong>Non-Retryable Exceptions:</strong> Deterministic errors such as {@link DecryptionFailureException},
+ *       {@link InvalidPayloadException}, and {@link TemplateNotFoundException} bypass retries and go straight to the DLQ.</li>
+ * </ul>
+ *
+ * <p>Failed messages are routed to a Dead Letter Queue (DLQ) for manual inspection or further automated processing.</p>
+ *
+ * @see RetryableTopic
+ * @see DltHandler
+ * @since 2026-06-22
+ */
+@Slf4j
+@Component
+@RequiredArgsConstructor
+@EnableKafka
+public class PriorityOtpConsumer {
 
-com.fincore.CommunicationService.exception.CommunicationExceptions$VendorDeliveryException: One or more channels failed to deliver. Triggering Retry.
-        at com.fincore.CommunicationService.consumer.PriorityOtpConsumer.consumeOtpEvent(PriorityOtpConsumer.java:201) ~[!/:0.0.1-SNAPSHOT]
-        at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:103) ~[na:na]
-        at java.base/java.lang.reflect.Method.invoke(Method.java:580) ~[na:na]
-        at org.springframework.messaging.handler.invocation.InvocableHandlerMethod.doInvoke(InvocableHandlerMethod.java:168) ~[spring-messaging-7.0.9.jar!/:7.0.9]
-        at org.springframework.kafka.listener.adapter.KotlinAwareInvocableHandlerMethod.doInvoke(KotlinAwareInvocableHandlerMethod.java:48) ~[spring-kafka-4.1.1.jar!/:4.1.1]
-        at org.springframework.messaging.handler.invocation.InvocableHandlerMethod.invoke(InvocableHandlerMethod.java:119) ~[spring-messaging-7.0.9.jar!/:7.0.9]
-        at org.springframework.kafka.listener.adapter.HandlerAdapter.invoke(HandlerAdapter.java:80) ~[spring-kafka-4.1.1.jar!/:4.1.1]
-        at org.springframework.kafka.listener.adapter.MessagingMessageListenerAdapter.invokeHandler(MessagingMessageListenerAdapter.java:489) ~[spring-kafka-4.1.1.jar!/:4.1.1]
-        at org.springframework.kafka.listener.adapter.MessagingMessageListenerAdapter.invoke(MessagingMessageListenerAdapter.java:426) ~[spring-kafka-4.1.1.jar!/:4.1.1]
-        at org.springframework.kafka.listener.adapter.RecordMessagingMessageListenerAdapter.onMessage(RecordMessagingMessageListenerAdapter.java:92) ~[spring-kafka-4.1.1.jar!/:4.1.1]
-        at org.springframework.kafka.listener.adapter.RecordMessagingMessageListenerAdapter.onMessage(RecordMessagingMessageListenerAdapter.java:52) ~[spring-kafka-4.1.1.jar!/:4.1.1]
-        at org.springframework.kafka.listener.adapter.KafkaBackoffAwareMessageListenerAdapter.invokeDelegateOnMessage(KafkaBackoffAwareMessageListenerAdapter.java:110) ~[spring-kafka-4.1.1.jar!/:4.1.1]
-        at org.springframework.kafka.listener.adapter.KafkaBackoffAwareMessageListenerAdapter.onMessage(KafkaBackoffAwareMessageListenerAdapter.java:101) ~[spring-kafka-4.1.1.jar!/:4.1.1]
-        at org.springframework.kafka.listener.adapter.KafkaBackoffAwareMessageListenerAdapter.onMessage(KafkaBackoffAwareMessageListenerAdapter.java:51) ~[spring-kafka-4.1.1.jar!/:4.1.1]
-        at org.springframework.kafka.listener.KafkaMessageListenerContainer$ListenerConsumer.doInvokeOnMessage(KafkaMessageListenerContainer.java:3099) ~[spring-kafka-4.1.1.jar!/:4.1.1]
-        at org.springframework.kafka.listener.KafkaMessageListenerContainer$ListenerConsumer.invokeOnMessage(KafkaMessageListenerContainer.java:3078) ~[spring-kafka-4.1.1.jar!/:4.1.1]
-        at org.springframework.kafka.listener.KafkaMessageListenerContainer$ListenerConsumer.doInvokeRecordListener(KafkaMessageListenerContainer.java:2988) ~[spring-kafka-4.1.1.jar!/:4.1.1]
-        at org.springframework.kafka.listener.KafkaMessageListenerContainer$ListenerConsumer.doInvokeWithRecords(KafkaMessageListenerContainer.java:2806) ~[spring-kafka-4.1.1.jar!/:4.1.1]
-        at org.springframework.kafka.listener.KafkaMessageListenerContainer$ListenerConsumer.invokeRecordListener(KafkaMessageListenerContainer.java:2692) ~[spring-kafka-4.1.1.jar!/:4.1.1]
-        at org.springframework.kafka.listener.KafkaMessageListenerContainer$ListenerConsumer.invokeListener(KafkaMessageListenerContainer.java:2323) ~[spring-kafka-4.1.1.jar!/:4.1.1]
-        at org.springframework.kafka.listener.KafkaMessageListenerContainer$ListenerConsumer.invokeIfHaveRecords(KafkaMessageListenerContainer.java:1621) ~[spring-kafka-4.1.1.jar!/:4.1.1]
-        at org.springframework.kafka.listener.KafkaMessageListenerContainer$ListenerConsumer.pollAndInvoke(KafkaMessageListenerContainer.java:1523) ~[spring-kafka-4.1.1.jar!/:4.1.1]
-        at org.springframework.kafka.listener.KafkaMessageListenerContainer$ListenerConsumer.run(KafkaMessageListenerContainer.java:1384) ~[spring-kafka-4.1.1.jar!/:4.1.1]
-        at java.base/java.util.concurrent.CompletableFuture$AsyncRun.run(CompletableFuture.java:1804) ~[na:na]
-        at java.base/java.lang.Thread.run(Thread.java:1570) ~[na:na]
+    private final ObjectMapper mapper;
+    private final AesEncryptionUtil aesUtil;
+    private final StringRedisTemplate redisTemplate;
+    private final CommunicationAuditService auditService;
+    private final SmsService smsService;
+    private final EmailService emailService;
 
-2026-11-23T06:11:57.111Z  INFO 1 --- [CommunicationService] [1-retry-1-0-C-1] o.a.k.c.c.i.ClassicKafkaConsumer         : [Consumer clientId=consumer-communication-login-otp-group-v7-retry-1-56, groupId=communication-login-otp-group-v7-retry-1] Seeking to offset 425 for partition fincore.auth.otp.priority-retry-1-0
-2026-11-23T06:11:57.112Z  INFO 1 --- [CommunicationService] [1-retry-1-0-C-1] o.s.k.l.KafkaMessageListenerContainer    : Record in retry and not yet recovered
-2026-11-23T06:12:01.105Z  INFO 1 --- [CommunicationService] [1-retry-1-0-C-1] c.f.C.consumer.PriorityOtpConsumer       : Received raw Kafka message: {"priority":"CRITICAL","payload":"ddaGdgxDGnvCJpPx:phb0frYlwJuvZXgUxMvlyKhgslYwXCObHq5Vr+vu2dHm6mZoHvXpAahBPWiUA3sgT0GjHD967MmU1KmxlTPFRHzqujxEepLoHpaJQGXE0Z0=","templateId":"AUTH_LOGIN_OTP_V1","recipient":{"mobile":"9064632186","email":"ebms_uat_receiver@sbiuat.bank.in"},"txId":"58cac2f2-5b59-49e6-bdc7-c8b13ad09e65","createdAt":"2026-11-23T06:11:44.518003122Z","channel":["SMS","EMAIL"],"eventType":"LOGIN_OTP","eventId":"evt-92b8f6d9-3fc1-4436-9b33-7de7a27f12f7"}
-2026-11-23T06:12:01.108Z  INFO 1 --- [CommunicationService] [1-retry-1-0-C-1] c.f.C.service.SmsServiceImpl             : Reached sendSms service. templateId=AUTH_LOGIN_OTP_V1, mobile=******2186
-2026-11-23T06:12:01.109Z  INFO 1 --- [CommunicationService] [1-retry-1-0-C-1] c.f.C.client.SmsGatewayClient            : Sending SMS to ******2186
-2026-11-23T06:12:01.246Z ERROR 1 --- [CommunicationService] [1-retry-1-0-C-1] c.f.C.client.SmsGatewayClient            : Network Exception while sending SMS: 403 Forbidden: "<solace-error-response><EOL><EOL><code>403</code><EOL><EOL><reason><![CDATA[Unauthorized]]></reason><EOL><EOL><detail><![CDATA[<EOL><EOL>SMF ClientCtrl response error<EOL><EOL>]]></detail><EOL><EOL><internal-use>2:14261</internal-use><EOL><EOL></solace-error-response><EOL><EOL>"
-2026-11-23T06:12:01.246Z ERROR 1 --- [CommunicationService] [1-retry-1-0-C-1] c.f.C.service.SmsServiceImpl             : CRITICAL: SMS Infrastructure Failure for ******2186. Error : SMS Provider rejected request : null
-2026-11-23T06:12:01.747Z  INFO 1 --- [CommunicationService] [1-retry-1-0-C-1] c.f.C.service.SmsServiceImpl             : Reached sendSms service. templateId=AUTH_LOGIN_OTP_V1, mobile=******2186
-2026-11-23T06:12:01.747Z  INFO 1 --- [CommunicationService] [1-retry-1-0-C-1] c.f.C.client.SmsGatewayClient            : Sending SMS to ******2186
-2026-11-23T06:12:01.852Z ERROR 1 --- [CommunicationService] [1-retry-1-0-C-1] c.f.C.client.SmsGatewayClient            : Network Exception while sending SMS: 403 Forbidden: "<solace-error-response><EOL><EOL><code>403</code><EOL><EOL><reason><![CDATA[Unauthorized]]></reason><EOL><EOL><detail><![CDATA[<EOL><EOL>SMF ClientCtrl response error<EOL><EOL>]]></detail><EOL><EOL><internal-use>2:14261</internal-use><EOL><EOL></solace-error-response><EOL><EOL>"
-2026-11-23T06:12:01.852Z ERROR 1 --- [CommunicationService] [1-retry-1-0-C-1] c.f.C.service.SmsServiceImpl             : CRITICAL: SMS Infrastructure Failure for ******2186. Error : SMS Provider rejected request : null
-2026-11-23T06:12:02.353Z  INFO 1 --- [CommunicationService] [1-retry-1-0-C-1] c.f.C.service.SmsServiceImpl             : Reached sendSms service. templateId=AUTH_LOGIN_OTP_V1, mobile=******2186
-2026-11-23T06:12:02.354Z  INFO 1 --- [CommunicationService] [1-retry-1-0-C-1] c.f.C.client.SmsGatewayClient            : Sending SMS to ******2186
-2026-11-23T06:12:02.418Z ERROR 1 --- [CommunicationService] [1-retry-1-0-C-1] c.f.C.client.SmsGatewayClient            : Network Exception while sending SMS: 403 Forbidden: "<solace-error-response><EOL><EOL><code>403</code><EOL><EOL><reason><![CDATA[Unauthorized]]></reason><EOL><EOL><detail><![CDATA[<EOL><EOL>SMF ClientCtrl response error<EOL><EOL>]]></detail><EOL><EOL><internal-use>2:14261</internal-use><EOL><EOL></solace-error-response><EOL><EOL>"
-2026-11-23T06:12:02.418Z ERROR 1 --- [CommunicationService] [1-retry-1-0-C-1] c.f.C.service.SmsServiceImpl             : CRITICAL: SMS Infrastructure Failure for ******2186. Error : SMS Provider rejected request : null
-2026-11-23T06:12:02.419Z ERROR 1 --- [CommunicationService] [1-retry-1-0-C-1] c.f.C.service.SmsServiceImpl             : CRITICAL: SMS Infrastructure Failure for ******2186. Error : Total SMS Infrastructure Failure
-2026-11-23T06:12:02.419Z ERROR 1 --- [CommunicationService] [1-retry-1-0-C-1] c.f.C.consumer.PriorityOtpConsumer       : Vendor dispatch failed for eventId=evt-92b8f6d9-3fc1-4436-9b33-7de7a27f12f7 channel=SMS. Reason: Total SMS Infrastructure Failure
-2026-11-23T06:12:02.426Z ERROR 1 --- [CommunicationService] [1-retry-1-0-C-1] c.f.C.client.EmailGatewayClient          : Network I/O Exception calling Email Vendor API: I/O error on POST request for "https://ebms-pepiapi.sbiuat.bank.in:443/v5/mail/send": null
-2026-11-23T06:12:02.426Z ERROR 1 --- [CommunicationService] [1-retry-1-0-C-1] c.f.C.service.EmailServiceImpl           : CRITICAL: Bank Email API unreachable for ebms_uat_receiver@sbiuat.bank.in. Error: Network communication with Email Vendor failed
-2026-11-23T06:12:04.430Z ERROR 1 --- [CommunicationService] [1-retry-1-0-C-1] c.f.C.client.EmailGatewayClient          : Network I/O Exception calling Email Vendor API: I/O error on POST request for "https://ebms-pepiapi.sbiuat.bank.in:443/v5/mail/send": null
-2026-11-23T06:12:04.430Z ERROR 1 --- [CommunicationService] [1-retry-1-0-C-1] c.f.C.service.EmailServiceImpl           : CRITICAL: Bank Email API unreachable for ebms_uat_receiver@sbiuat.bank.in. Error: Network communication with Email Vendor failed
-2026-11-23T06:12:06.434Z ERROR 1 --- [CommunicationService] [1-retry-1-0-C-1] c.f.C.client.EmailGatewayClient          : Network I/O Exception calling Email Vendor API: I/O error on POST request for "https://ebms-pepiapi.sbiuat.bank.in:443/v5/mail/send": null
-2026-11-23T06:12:06.435Z ERROR 1 --- [CommunicationService] [1-retry-1-0-C-1] c.f.C.service.EmailServiceImpl           : CRITICAL: Bank Email API unreachable for ebms_uat_receiver@sbiuat.bank.in. Error: Network communication with Email Vendor failed
-2026-11-23T06:12:06.435Z ERROR 1 --- [CommunicationService] [1-retry-1-0-C-1] c.f.C.service.EmailServiceImpl           : CRITICAL: Bank Email API unreachable for ebms_uat_receiver@sbiuat.bank.in. Error: Total Bank API Infrastructure Failure
-2026-11-23T06:12:06.435Z ERROR 1 --- [CommunicationService] [1-retry-1-0-C-1] c.f.C.consumer.PriorityOtpConsumer       : Vendor dispatch failed for eventId=evt-92b8f6d9-3fc1-4436-9b33-7de7a27f12f7 channel=EMAIL. Reason: Total Bank API Infrastructure Failure
-2026-11-23T06:12:06.437Z ERROR 1 --- [CommunicationService] [1-retry-1-0-C-1] c.f.C.consumer.PriorityOtpConsumer       : Unexpected error processing Kafka message
+    @Value("${security.internal.kafka-aes-key}")
+    private String internalAesKey;
 
-com.fincore.CommunicationService.exception.CommunicationExceptions$VendorDeliveryException: One or more channels failed to deliver. Triggering Retry.
-        at com.fincore.CommunicationService.consumer.PriorityOtpConsumer.consumeOtpEvent(PriorityOtpConsumer.java:201) ~[!/:0.0.1-SNAPSHOT]
-        at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:103) ~[na:na]
-        at java.base/java.lang.reflect.Method.invoke(Method.java:580) ~[na:na]
-        at org.springframework.messaging.handler.invocation.InvocableHandlerMethod.doInvoke(InvocableHandlerMethod.java:168) ~[spring-messaging-7.0.9.jar!/:7.0.9]
-        at org.springframework.kafka.listener.adapter.KotlinAwareInvocableHandlerMethod.doInvoke(KotlinAwareInvocableHandlerMethod.java:48) ~[spring-kafka-4.1.1.jar!/:4.1.1]
-        at org.springframework.messaging.handler.invocation.InvocableHandlerMethod.invoke(InvocableHandlerMethod.java:119) ~[spring-messaging-7.0.9.jar!/:7.0.9]
-        at org.springframework.kafka.listener.adapter.HandlerAdapter.invoke(HandlerAdapter.java:80) ~[spring-kafka-4.1.1.jar!/:4.1.1]
-        at org.springframework.kafka.listener.adapter.MessagingMessageListenerAdapter.invokeHandler(MessagingMessageListenerAdapter.java:489) ~[spring-kafka-4.1.1.jar!/:4.1.1]
-        at org.springframework.kafka.listener.adapter.MessagingMessageListenerAdapter.invoke(MessagingMessageListenerAdapter.java:426) ~[spring-kafka-4.1.1.jar!/:4.1.1]
-        at org.springframework.kafka.listener.adapter.RecordMessagingMessageListenerAdapter.onMessage(RecordMessagingMessageListenerAdapter.java:92) ~[spring-kafka-4.1.1.jar!/:4.1.1]
-        at org.springframework.kafka.listener.adapter.RecordMessagingMessageListenerAdapter.onMessage(RecordMessagingMessageListenerAdapter.java:52) ~[spring-kafka-4.1.1.jar!/:4.1.1]
-        at org.springframework.kafka.listener.adapter.KafkaBackoffAwareMessageListenerAdapter.invokeDelegateOnMessage(KafkaBackoffAwareMessageListenerAdapter.java:110) ~[spring-kafka-4.1.1.jar!/:4.1.1]
-        at org.springframework.kafka.listener.adapter.KafkaBackoffAwareMessageListenerAdapter.onMessage(KafkaBackoffAwareMessageListenerAdapter.java:101) ~[spring-kafka-4.1.1.jar!/:4.1.1]
-        at org.springframework.kafka.listener.adapter.KafkaBackoffAwareMessageListenerAdapter.onMessage(KafkaBackoffAwareMessageListenerAdapter.java:51) ~[spring-kafka-4.1.1.jar!/:4.1.1]
-        at org.springframework.kafka.listener.KafkaMessageListenerContainer$ListenerConsumer.doInvokeOnMessage(KafkaMessageListenerContainer.java:3099) ~[spring-kafka-4.1.1.jar!/:4.1.1]
-        at org.springframework.kafka.listener.KafkaMessageListenerContainer$ListenerConsumer.invokeOnMessage(KafkaMessageListenerContainer.java:3078) ~[spring-kafka-4.1.1.jar!/:4.1.1]
-        at org.springframework.kafka.listener.KafkaMessageListenerContainer$ListenerConsumer.doInvokeRecordListener(KafkaMessageListenerContainer.java:2988) ~[spring-kafka-4.1.1.jar!/:4.1.1]
-        at org.springframework.kafka.listener.KafkaMessageListenerContainer$ListenerConsumer.doInvokeWithRecords(KafkaMessageListenerContainer.java:2806) ~[spring-kafka-4.1.1.jar!/:4.1.1]
-        at org.springframework.kafka.listener.KafkaMessageListenerContainer$ListenerConsumer.invokeRecordListener(KafkaMessageListenerContainer.java:2692) ~[spring-kafka-4.1.1.jar!/:4.1.1]
-        at org.springframework.kafka.listener.KafkaMessageListenerContainer$ListenerConsumer.invokeListener(KafkaMessageListenerContainer.java:2323) ~[spring-kafka-4.1.1.jar!/:4.1.1]
-        at org.springframework.kafka.listener.KafkaMessageListenerContainer$ListenerConsumer.invokeIfHaveRecords(KafkaMessageListenerContainer.java:1621) ~[spring-kafka-4.1.1.jar!/:4.1.1]
-        at org.springframework.kafka.listener.KafkaMessageListenerContainer$ListenerConsumer.pollAndInvoke(KafkaMessageListenerContainer.java:1523) ~[spring-kafka-4.1.1.jar!/:4.1.1]
-        at org.springframework.kafka.listener.KafkaMessageListenerContainer$ListenerConsumer.run(KafkaMessageListenerContainer.java:1384) ~[spring-kafka-4.1.1.jar!/:4.1.1]
-        at java.base/java.util.concurrent.CompletableFuture$AsyncRun.run(CompletableFuture.java:1804) ~[na:na]
-        at java.base/java.lang.Thread.run(Thread.java:1570) ~[na:na]
+    /**
+     * <p>Consumes OTP events from the priority Kafka topic.</p>
+     *
+     * <p>This method orchestrates the following steps:</p>
+     * <ol>
+     *   <li>Deserializes the incoming message.</li>
+     *   <li>Decrypts sensitive payload data using the configured AES key.</li>
+     *   <li>Maintain the channel Idempotency [SMS, EMAIL using redis idempotencyKe]</li>
+     *   <li>Dispatches the OTP via the appropriate channel (SMS/Email).</li>
+     *   <li>Audits the transaction status.</li>
+     * </ol>
+     *
+     * <p>Transient failures (e.g., vendor timeouts) trigger the configured retry mechanism.
+     * Permanent failures (e.g., decryption errors) immediately route the message to the DLQ.</p>
+     *
+     * @param message        The raw JSON payload from the Kafka topic.
+     * @param acknowledgment The Kafka acknowledgment handle to commit offsets upon successful processing.
+     * @throws JsonProcessingException    if the message cannot be deserialized.
+     * @throws VendorDeliveryException    if the external vendor API fails (triggers retry).
+     * @throws DecryptionFailureException if payload decryption fails (triggers DLQ).
+     * @throws InvalidPayloadException    if the message structure is invalid (triggers DLQ).
+     * @throws TemplateNotFoundException  if the required OTP template is missing (triggers DLQ).
+     */
+    @RetryableTopic(
+            attempts = "4",
+            backOff = @BackOff(delay = 2000, multiplier = 2.0),
+            topicSuffixingStrategy = TopicSuffixingStrategy.SUFFIX_WITH_INDEX_VALUE,
+            dltTopicSuffix = "-dlq",
+            exclude = {
+                    DecryptionFailureException.class,
+                    InvalidPayloadException.class,
+                    TemplateNotFoundException.class
+            }
+    )
+    @KafkaListener(
+            topics = "fincore.auth.otp.priority",
+            groupId = "communication-login-otp-group-v7",
+            containerFactory = "priorityOtpContainerFactory"
+    )
+    public void consumeOtpEvent(@Payload String message, Acknowledgment acknowledgment) throws JsonProcessingException {
 
-2026-11-23T06:12:06.445Z  INFO 1 --- [CommunicationService] [1-retry-2-0-C-1] o.a.k.c.c.i.ClassicKafkaConsumer         : [Consumer clientId=consumer-communication-login-otp-group-v7-retry-2-66, groupId=communication-login-otp-group-v7-retry-2] Seeking to offset 416 for partition fincore.auth.otp.priority-retry-2-0
-2026-11-23T06:12:06.445Z  INFO 1 --- [CommunicationService] [1-retry-2-0-C-1] o.s.k.l.KafkaMessageListenerContainer    : Record in retry and not yet recovered
-^C[root@fcuatgateway ~]# ^C
-[root@fcuatgateway ~]# ^C
+        log.info("Received raw Kafka message: {}", message);
+        String txId = "UNKNOWN";
+
+        String eventId = "UNKNOWN";
+
+        try {
+            // ====================================================================
+            // 1. DESERIALIZATION & VALIDATION
+            // ====================================================================
+            KafkaEvent event;
+            try {
+                event = mapper.readValue(message, KafkaEvent.class);
+                txId = event.getTxId();
+                eventId = event.getEventId();
+            } catch (Exception e) {
+                throw new InvalidPayloadException("Malformed JSON Payload: " + e.getMessage());
+            }
+
+            if (txId == null || eventId == null || event.getPayload() == null) {
+                throw new InvalidPayloadException("Missing txId or eventId or encrypted payload");
+            }
+
+            // ====================================================================
+            // 2. DECRYPTION (AES-256)
+            // ====================================================================
+            String decryptedJson;
+            try {
+                decryptedJson = aesUtil.decrypt(event.getPayload(), internalAesKey);
+            } catch (BadPaddingException | IllegalBlockSizeException e) {
+                log.error("SECURITY ALERT: Decryption failed for eventId={}. Data tampered or key mismatch.", eventId, e);
+                throw new DecryptionFailureException("AES Decryption Failed: Invalid Padding", e);
+            } catch (GeneralSecurityException e) {
+                throw new DecryptionFailureException("AES Decryption Failed", e);
+            }
+
+            // Map decrypted JSON into a generic map to pass to TemplateService
+            Map<String, Object> templateDataMap = mapper.readValue(decryptedJson, new TypeReference<>() {
+            });
+
+            // Track partial failures to trigger Spring Kafka Retry
+            boolean requiresRetry = false;
+
+            // ======================================================================================================================
+            // 3. CHANNEL ROUTING, IDEMPOTENCY & DISPATCH (for sms and email - if one fail only that needs to be retried not the both)
+            // ======================================================================================================================
+            for (String channel : event.getChannel()) {
+                String recipientData = "EMAIL".equalsIgnoreCase(channel) ? event.getRecipient().getEmail() : event.getRecipient().getMobile();
+                String auditId = eventId + "_" + channel.toUpperCase();
+
+                // Idempotency Key ensures we don't spam users with multiple OTPs during a Kafka replay/retry
+                String idempotencyKey = "COMM_IDEMP:" + eventId + ":" + channel.toUpperCase();
+
+                // 15-minute TTL is optimal for OTP lifecycles
+                Boolean isNew = redisTemplate.opsForValue().setIfAbsent(idempotencyKey, "PROCESSED", Duration.ofMinutes(15));
+                if (Boolean.FALSE.equals(isNew)) {
+                    log.debug("Idempotency hit: Already processed {} for eventId={}. Skipping.", channel, eventId);
+                    continue;
+                }
+
+                // Log intention to database via non-blocking Virtual Thread
+                auditService.logAttempt(auditId, eventId, txId, event.getTemplateId(), channel, recipientData);
+
+                try {
+                    // Vendor Dispatch
+                    if ("SMS".equalsIgnoreCase(channel)) {
+                        smsService.sendSms(event.getTemplateId(), event.getRecipient().getMobile(), templateDataMap);
+                    } else if ("EMAIL".equalsIgnoreCase(channel)) {
+                        emailService.sendEmail(event.getTemplateId(), event.getRecipient().getEmail(), templateDataMap);
+                    }
+
+                    // success logging
+                    auditService.logSuccess(auditId);
+
+                } catch (Exception e) {
+                    log.error("Vendor dispatch failed for eventId={} channel={}. Reason: {}", eventId, channel, e.getMessage());
+
+                    // We must remove the idempotency key so the specific failed channel can be retried
+                    redisTemplate.delete(idempotencyKey);
+                    requiresRetry = true;
+                }
+            }
+
+            // ====================================================================
+            // 4. RESOLUTION & ACKNOWLEDGEMENT
+            // ====================================================================
+            if (requiresRetry) {
+                // By throwing this runtime exception, Spring Kafka NACKs the message and routes it to the Retry Topic
+                throw new VendorDeliveryException("One or more channels failed to deliver. Triggering Retry.", null);
+            }
+
+            // Manual Acknowledgment.
+            acknowledgment.acknowledge();
+            log.info("Successfully completed OTP Pipeline for eventId={}", eventId);
+
+        } catch (DecryptionFailureException | InvalidPayloadException | TemplateNotFoundException e) {
+            log.error("Fatal deterministic error processing txId={}. Routing to DLQ. Reason: {}", txId, e.getMessage());
+            throw e;
+        } catch (Exception e) {
+            log.error("Unexpected error processing Kafka message", e);
+            throw e;
+        }
+    }
+
+
+    /**
+     * <p>Handles messages that have failed processing and been routed to the Dead Letter Queue (DLQ).</p>
+     *
+     * <p>This method is automatically invoked by Spring Kafka when:</p>
+     * <ol>
+     *   <li>All 4 retry attempts for retryable exceptions (e.g., {@link VendorDeliveryException}) are exhausted.</li>
+     *   <li>A non-retryable exception (e.g., {@link DecryptionFailureException}) is thrown during processing.</li>
+     * </ol>
+     *
+     * <p>Typical actions include logging the failure details, auditing the error.</p>
+     * <p>
+     * {@code @todo} implement potential alert functionality.
+     *
+     * @param message          The original Kafka message payload that failed processing.
+     * @param headerTopic      The name of the original topic from which the message was consumed.
+     * @param exceptionMessage The message of the final exception that caused the DLQ routing.
+     */
+    @DltHandler
+    public void handleDltPayment(
+            String message,
+            @Header(KafkaHeaders.ORIGINAL_TOPIC) String headerTopic,
+            @Header(KafkaHeaders.EXCEPTION_MESSAGE) String exceptionMessage) {
+
+        log.error("=====================================================");
+        log.error("DLQ ALERT: OTP Delivery Permanently Failed!");
+        log.error("Original Topic: {}", headerTopic);
+        log.error("Failure Reason: {}", exceptionMessage);
+        log.error("Failed Message Payload: {}", message);
+        log.error("=====================================================");
+
+        String eventId = "UNKNOWN";
+        try {
+            KafkaEvent failedEvent = mapper.readValue(message, KafkaEvent.class);
+            eventId = failedEvent.getEventId();
+        } catch (Exception ex) {
+            log.error("DLQ Deserialization failed. Cannot extract eventId from poisoned payload.", ex);
+        }
+
+        if (!"UNKNOWN".equals(eventId)) {
+            // Delegate the terminal failure to the Audit Service for permanent persistence
+            auditService.logFailure(eventId, exceptionMessage);
+        }
+
+    }
+
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+package com.fincore.CommunicationService.service;
+
+import com.fincore.CommunicationService.exception.CommunicationExceptions.*;
+import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
+import io.github.resilience4j.retry.annotation.Retry;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.stereotype.Service;
+import com.fincore.CommunicationService.cache.ExternalApiConfigProvider;
+import com.fincore.CommunicationService.client.EmailGatewayClient;
+import com.fincore.CommunicationService.dto.EmailResponse;
+import com.fincore.CommunicationService.model.FincoreSettings;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import org.springframework.core.io.Resource;
+
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+/**
+ * <p><b> Business Logic Layer for Email Dispatch.</b></p>
+ * <p>Handles the functionality for sending emails through a primary provider,
+ * incorporating a circuit breaker pattern to ensure system resilience.</p>
+ *
+ * <p>This class is designed to support a fallback mechanism for future upgrades.
+ * Currently, failed messages are routed to a Dead Letter Queue (DLQ) as the fallback strategy.</p>
+ *
+ * <p>In the event of any errors during processing, a {@link VendorDeliveryException} is thrown.
+ * This exception is intended to be caught and handled by the OTP consumer.</p>
+ *
+
+ * @contributor [Add contributor names/IDs here]
+ * @version 1.0
+ * @since 2026-06-22
+ * @see VendorDeliveryException
+ */
+@Service
+@RequiredArgsConstructor
+@Slf4j
+public class EmailServiceImpl implements EmailService {
+
+    @Value("${app.preIpString:UAT}")
+    private String environment;
+
+    private final ExternalApiConfigProvider configProvider;
+    private final TemplateEngineService templateService;
+    private final EmailGatewayClient emailGatewayClient;
+
+    private static final String FUNCTIONALITY_EMAIL = "EMAIL";
+
+    @Override
+    @Retry(name = "bankApiRetry", fallbackMethod = "handleTotalApiFailure")
+    @CircuitBreaker(name = "bankApiCircuit", fallbackMethod = "handleTotalApiFailure")
+    public EmailResponse sendEmail(String templateId, String toEmail, Map<String, Object> templateData) {
+        return executeEmailDispatch(templateId, toEmail, null, templateData, null);
+    }
+
+    @Override
+    @Retry(name = "bankApiRetry", fallbackMethod = "handleTotalApiFailure")
+    @CircuitBreaker(name = "bankApiCircuit", fallbackMethod = "handleTotalApiFailure")
+    public EmailResponse sendEmail(String templateId, String toEmail, Map<String, Object> templateData, Resource attachment) {
+        return executeEmailDispatch(templateId, toEmail, null, templateData, attachment);
+    }
+
+    @Override
+    @Retry(name = "bankApiRetry", fallbackMethod = "handleBulkApiFailure")
+    @CircuitBreaker(name = "bankApiCircuit", fallbackMethod = "handleBulkApiFailure")
+    public EmailResponse sendBulkEmail(String templateId, List<String> bccEmails, Map<String, Object> templateData, Resource attachment) {
+        return executeEmailDispatch(templateId, null, bccEmails, templateData, attachment);
+    }
+
+    /**
+     * Private core execution logic.
+     */
+    private EmailResponse executeEmailDispatch(String templateId, String toEmail, List<String> bccEmails,
+                                               Map<String, Object> templateData, Resource attachment) {
+        log.debug("Initiating Email Dispatch Pipeline for Template ID: {}", templateId);
+
+        String emailBody = templateService.renderTemplate(templateId, "EMAIL", "EN", templateData);
+        String subject = templateService.getTemplateSubject(templateId, "EMAIL", "EN");
+        FincoreSettings config = configProvider.getConfig(FUNCTIONALITY_EMAIL, environment);
+
+        Map<String, Object> emailRequestBody = new HashMap<>();
+        emailRequestBody.put("url", config.getUrl());
+        emailRequestBody.put("api_key", config.getApiKey());
+        emailRequestBody.put("senderId", config.getSenderId());
+        emailRequestBody.put("subject", subject);
+        emailRequestBody.put("emailBody", emailBody);
+
+        if (toEmail != null) emailRequestBody.put("toEmail", toEmail);
+        if (bccEmails != null) emailRequestBody.put("bccEmails", bccEmails);
+
+        int responseCode = emailGatewayClient.sendEmail(emailRequestBody, attachment);
+
+        EmailResponse responseDto = new EmailResponse();
+        responseDto.setStatus(responseCode);
+
+        if (responseCode >= 200 && responseCode < 300) {
+            responseDto.setMessage("Email Sent Successfully");
+        } else {
+            responseDto.setMessage("Email Sending Failed");
+            throw new VendorDeliveryException("Email Provider rejected request. HTTP " + responseCode, null);
+        }
+        return responseDto;
+    }
+
+    //===========================================================================================
+    //                                  Fallback Hooks
+    //===========================================================================================
+
+    public EmailResponse handleTotalApiFailure(String templateId, String toEmail, Map<String, Object> templateData, Throwable ex) {
+        return processFallback(toEmail, ex);
+    }
+
+    public EmailResponse handleTotalApiFailure(String templateId, String toEmail, Map<String, Object> templateData, Resource attachment, Throwable ex) {
+        return processFallback(toEmail, ex);
+    }
+
+    public EmailResponse handleBulkApiFailure(String templateId, List<String> bccEmails, Map<String, Object> templateData, Resource attachment, Throwable ex) {
+        return processFallback("BULK_ARRAY", ex);
+    }
+
+    private EmailResponse processFallback(String identifier, Throwable ex) {
+        log.error("CRITICAL: Bank Email API unreachable for {}. Error: {}", identifier, ex.getMessage());
+        if (ex instanceof TemplateNotFoundException || ex instanceof TemplateProcessingException) {
+            throw (RuntimeException) ex;
+        }
+        throw new VendorDeliveryException("Total Bank API Infrastructure Failure", ex);
+    }
+
+    /**
+     * Mask the email to satisfy PII Data masking.
+     * @param email Recipients email
+     * @return Masked email
+     */
+	private String maskEmail(String email) {
+		if (email == null || !email.contains("@"))
+			return email;
+		String[] p = email.split("@");
+		return (p[0].length() <= 2 ? "**" : p[0].charAt(0) + "***" + p[0].charAt(p[0].length() - 1)) + "@" + p[1];
+	}
+}
+
+
+
+
+
+
+
+
+
+package com.fincore.CommunicationService.service;
+
+import com.fincore.CommunicationService.cache.ExternalApiConfigProvider;
+import com.fincore.CommunicationService.client.SmsGatewayClient;
+import com.fincore.CommunicationService.dto.SmsResponseDTO;
+import com.fincore.CommunicationService.exception.CommunicationExceptions.TemplateNotFoundException;
+import com.fincore.CommunicationService.exception.CommunicationExceptions.TemplateProcessingException;
+import com.fincore.CommunicationService.exception.CommunicationExceptions.VendorDeliveryException;
+import com.fincore.CommunicationService.model.FincoreSettings;
+import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
+import io.github.resilience4j.retry.annotation.Retry;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.stereotype.Service;
+
+import java.util.Map;
+
+@Service
+@RequiredArgsConstructor
+@Slf4j
+public class SmsServiceImpl implements SmsService {
+
+    private static final String FUNCTIONALITY_SMS = "SMS";
+    private final SmsGatewayClient smsGatewayClient;
+
+    private final ExternalApiConfigProvider configProvider;
+    private final TemplateEngineService templateService;
+
+    @Value("${app.preIpString:UAT}")
+    private String environment;
+
+    @Override
+    @Retry(name = "bankSmsApiRetry", fallbackMethod = "handleSmsApiFailure")
+    @CircuitBreaker(name = "bankSmsApiCircuit", fallbackMethod = "handleSmsApiFailure")
+    public SmsResponseDTO sendSms(String templateId, String toMobile, Map<String, Object> templateData) {
+
+        log.info("Reached sendSms service. templateId={}, mobile={}", templateId, maskMobile(toMobile));
+
+        // 1. Generate SMS Body from Template
+        String smsBody = templateService.renderTemplate(templateId, "SMS", "EN", templateData);
+
+        // 2. Fetch SMS Configuration
+        FincoreSettings config = configProvider.getConfig(FUNCTIONALITY_SMS, environment);
+
+        // 3. Send SMS
+        SmsResponseDTO response = smsGatewayClient.sendSms(config, toMobile, smsBody);
+
+        // 4. Trigger Retry Flow if Vendor Rejects
+        if (!response.isSuccess()) {
+            throw new VendorDeliveryException("SMS Provider rejected request : " + response.getProviderResponse(),
+                    null);
+        }
+
+        log.info("SMS sent successfully to {}", maskMobile(toMobile));
+        return response;
+    }
+
+    @Override
+    public SmsResponseDTO sendTestSms(
+            String mobileNumber,
+            String message,
+            String env) {
+
+        log.info("Testing SMS API for {}", maskMobile(mobileNumber));
+
+        FincoreSettings config = configProvider.getConfig(FUNCTIONALITY_SMS, env);
+
+        return smsGatewayClient.sendSms(
+                config,
+                mobileNumber,
+                message);
+    }
+
+    /**
+     * Invoked by Resilience4j after retries are exhausted
+     * or Circuit Breaker is OPEN.
+     */
+    public SmsResponseDTO handleSmsApiFailure(String templateId, String toMobile, Map<String, Object> templateData,
+            Throwable ex) {
+        log.error("CRITICAL: SMS Infrastructure Failure for {}. Error : {}", maskMobile(toMobile), ex.getMessage());
+
+        if (ex instanceof TemplateNotFoundException) {
+            throw (TemplateNotFoundException) ex;
+        }
+
+        if (ex instanceof TemplateProcessingException) {
+            throw (TemplateProcessingException) ex;
+        }
+
+        throw new VendorDeliveryException("Total SMS Infrastructure Failure", ex);
+    }
+
+    /**
+     * Mask Mobile Number for Logs
+     */
+    private String maskMobile(String mobile) {
+        if (mobile == null || mobile.length() < 4) {
+            return mobile;
+        }
+        return "******" + mobile.substring(mobile.length() - 4);
+    }
+}
+
+
+
+
+
+
+
+
+
+package com.fincore.CommunicationService.cache;
+
+import org.springframework.cache.annotation.Cacheable;
+import org.springframework.stereotype.Service;
+
+import com.fincore.CommunicationService.model.FincoreSettings;
+import com.fincore.CommunicationService.repository.FincoreSettingsRepository;
+
+import lombok.RequiredArgsConstructor;
+
+@Service
+@RequiredArgsConstructor
+public class ExternalApiConfigProvider {
+
+	private final FincoreSettingsRepository repository;
+
+	@Cacheable(value = "externalApiConfigs", key = "#functionality + '_' + #environment")
+	public FincoreSettings getConfig(String functionality, String environment) {
+		return repository.findByFunctionalityAndEnv(functionality, environment)
+				.orElseThrow(() -> new RuntimeException("Configuration not found"));
+	}
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+package com.fincore.CommunicationService.client;
+
+import com.fincore.CommunicationService.exception.CommunicationExceptions.VendorDeliveryException;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.core.io.Resource;
+import org.springframework.http.HttpStatusCode;
+import org.springframework.http.MediaType;
+import org.springframework.http.StreamingHttpOutputMessage;
+import org.springframework.stereotype.Component;
+import org.springframework.web.client.RestClient;
+import org.springframework.web.client.RestClientException;
+import tools.jackson.core.JacksonException;
+import tools.jackson.core.JsonEncoding;
+import tools.jackson.core.JsonGenerator;
+import tools.jackson.core.ObjectWriteContext;
+import tools.jackson.core.json.JsonFactory;
+
+import java.io.*;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
+
+/**
+ * <p>Email Vendor Gateway.</p>
+ *
+ * @since 2026-08-04
+ */
+@Slf4j
+@Component
+@RequiredArgsConstructor
+public class EmailGatewayClient {
+
+    private final RestClient restClient;
+    private final JsonFactory jsonFactory = JsonFactory.builder().build();
+
+    /**
+     * Streams the email and optional attachment to the vendor.
+     */
+    public int sendEmail(Map<String, Object> emailRequest, Resource attachment) {
+        try {
+            String apiUrl = (String) emailRequest.get("url");
+            String apiKey = (String) emailRequest.get("api_key");
+
+            //execute non blocking request
+            HttpStatusCode status = restClient.post()
+                    .uri(apiUrl)
+                    .header("api_key", apiKey)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .body(buildBody(emailRequest,attachment))
+                    .retrieve()
+                    .toBodilessEntity()
+                    .getStatusCode();
+
+            int responseCode = status.value();
+            log.info("Vendor Email API responded with HTTP {}", responseCode);
+
+            return responseCode;
+
+        } catch (JacksonException e) {
+            log.error("JSON Streaming failed: {}", e.getMessage());
+            throw new RuntimeException(e.getMessage());
+        } catch (RestClientException e) {
+            log.error("Network I/O Exception calling Email Vendor API: {}", e.getMessage());
+            throw new VendorDeliveryException("Network communication with Email Vendor failed", e);
+        }
+    }
+
+    /**
+     * V1021256
+     * Chunked JSON constructor for streaming request payload.
+     */
+    private StreamingHttpOutputMessage.Body buildBody(Map<String, Object> emailRequest, Resource attachment) throws JacksonException {
+        return outputStream -> {
+            try (JsonGenerator jsonGenerator = jsonFactory.createGenerator(ObjectWriteContext.empty(), outputStream, JsonEncoding.UTF8);
+            ) {
+                // --- "JSON START" ---
+                jsonGenerator.writeStartObject();
+
+                // --- "from" ---
+                jsonGenerator.writeObjectPropertyStart("from");
+                jsonGenerator.writeStringProperty("email", (String) emailRequest.get("senderId"));
+                jsonGenerator.writeStringProperty("name", "FINCORE");
+                jsonGenerator.writeEndObject();
+
+                // --- "subject" ---
+                jsonGenerator.writeStringProperty("subject", (String) emailRequest.get("subject"));
+
+                // --- "content" ---
+                jsonGenerator.writeName("content");
+                jsonGenerator.writeStartArray();
+                jsonGenerator.writeStartObject();
+                jsonGenerator.writeStringProperty("type", "html");
+                jsonGenerator.writeStringProperty("value", (String) emailRequest.get("emailBody"));
+                jsonGenerator.writeEndObject();
+                jsonGenerator.writeEndArray();
+
+                // --- "personalizations" ---
+                jsonGenerator.writeName("personalizations");
+                jsonGenerator.writeStartArray();
+                jsonGenerator.writeStartObject();
+
+                if (emailRequest.containsKey("toEmail")) {
+                    jsonGenerator.writeName("to");
+                    jsonGenerator.writeStartArray();
+                    jsonGenerator.writeStartObject();
+                    jsonGenerator.writeStringProperty("email", (String) emailRequest.get("toEmail"));
+                    jsonGenerator.writeEndObject();
+                    jsonGenerator.writeEndArray();
+                }
+
+                if (emailRequest.containsKey("bccEmails")) {
+                    @SuppressWarnings("unchecked")
+                    List<String> bccEmails = (List<String>) emailRequest.get("bccEmails");
+                    jsonGenerator.writeName("bcc");
+                    jsonGenerator.writeStartArray();
+                    for (String email : bccEmails) {
+                        jsonGenerator.writeStartObject();
+                        jsonGenerator.writeStringProperty("email", email);
+                        jsonGenerator.writeEndObject();
+                    }
+                    jsonGenerator.writeEndArray();
+                }
+
+                if (emailRequest.containsKey("ccToEmail")) {
+                    jsonGenerator.writeName("cc");
+                    jsonGenerator.writeStartArray();
+                    jsonGenerator.writeStartObject();
+                    jsonGenerator.writeStringProperty("email", (String) emailRequest.get("ccToEmail"));
+                    jsonGenerator.writeEndObject();
+                    jsonGenerator.writeEndArray();
+                }
+                jsonGenerator.writeEndObject(); // personalizations[0]
+                jsonGenerator.writeEndArray();  // personalizations
+
+                // --- "settings" ---
+                jsonGenerator.writeObjectPropertyStart("settings");
+                jsonGenerator.writeBooleanProperty("open_track", true);
+                jsonGenerator.writeBooleanProperty("click_track", true);
+                jsonGenerator.writeBooleanProperty("unsubscribe_track", true);
+                jsonGenerator.writeEndObject();
+
+                // --- "attachments" ---
+                if (attachment != null) {
+                    InputStream fileInputStream = attachment.getInputStream();
+                    jsonGenerator.writeName("attachments");
+                    jsonGenerator.writeStartArray();
+                    jsonGenerator.writeStartObject();
+                    jsonGenerator.writeStringProperty("name","attachment_" + UUID.randomUUID().toString() + ".zip");
+                    jsonGenerator.writeName("content");
+                    jsonGenerator.writeBinary(fileInputStream, -1); // streams base64 in chunks
+                    jsonGenerator.writeEndObject();
+                    jsonGenerator.writeEndArray();
+                    fileInputStream.close();
+                }
+
+                // --- "JSON END" ---
+                jsonGenerator.writeEndObject();
+                jsonGenerator.flush();
+            }
+        };
+    }
+
+
+}
+
+
+
+
+
+
+
+
+
+package com.fincore.CommunicationService.client;
+
+import com.fincore.CommunicationService.dto.SmsResponseDTO;
+import com.fincore.CommunicationService.model.FincoreSettings;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
+import org.springframework.stereotype.Component;
+import org.springframework.util.LinkedMultiValueMap;
+import org.springframework.util.MultiValueMap;
+import org.springframework.web.client.RestClient;
+import org.springframework.web.client.RestClientException;
+
+import java.nio.charset.StandardCharsets;
+import java.util.Base64;
+
+/**
+ * <p>SMS Vendor Gateway.</p>
+ *
+
+ * @since 2026-08-04
+ */
+@Slf4j
+@Component
+@RequiredArgsConstructor
+public class SmsGatewayClient {
+
+    private final RestClient restClient;
+
+    public SmsResponseDTO sendSms(FincoreSettings config, String mobileNumber, String message) {
+        try {
+            log.info("Sending SMS to ******{}", mobileNumber.substring(Math.max(mobileNumber.length() - 4, 0)));
+
+            // 1. Build Basic Auth Header safely
+            String authHeader = null;
+            if (config.getUsername() != null && config.getPassword() != null) {
+                String auth = config.getUsername() + ":" + config.getPassword();
+                authHeader = "Basic " + Base64.getEncoder().encodeToString(auth.getBytes(StandardCharsets.UTF_8));
+            }
+
+            // 2. Build x-www-form-urlencoded Body
+            MultiValueMap<String, String> formData = new LinkedMultiValueMap<>();
+            formData.add("content_type", "text");
+            formData.add("sender_id", config.getSenderId());
+            formData.add("mobile", "0" + mobileNumber);
+            formData.add("message", message);
+            formData.add("intflag", "0");
+            formData.add("charging", "0");
+
+            // 3. Execute Request Builder
+            var requestSpec = restClient.post()
+                    .uri(config.getUrl())
+                    .contentType(MediaType.APPLICATION_FORM_URLENCODED)
+                    .accept(MediaType.APPLICATION_FORM_URLENCODED)
+                    .body(formData);
+
+            if (authHeader != null) {
+                requestSpec.header(HttpHeaders.AUTHORIZATION, authHeader);
+            }
+
+            // 4. Retrieve Response
+            ResponseEntity<String> response = requestSpec.retrieve().toEntity(String.class);
+
+            int responseCode = response.getStatusCode().value();
+            String responseBody = response.getBody() != null ? response.getBody() : "";
+
+            log.info("SMS Response Code : {}", responseCode);
+            log.debug("SMS Provider Response : {}", responseBody);
+
+            boolean success = (responseCode >= 200 && responseCode < 300) && responseBody.contains("MESSAGE_SUBMIT_SUCCESS");
+
+            return SmsResponseDTO.builder()
+                    .success(success)
+                    .message(success ? "SMS Sent Successfully" : "SMS Sending Failed")
+                    .providerResponse(responseBody)
+                    .build();
+
+        } catch (RestClientException ex) {
+            log.error("Network Exception while sending SMS: {}", ex.getMessage());
+            return SmsResponseDTO.builder()
+                    .success(false)
+                    .message("Network exception occurred!")
+                    .build();
+        }
+    }
+}
+
+
+
+
+
+
+
+
+package com.fincore.CommunicationService.config;
+
+import com.github.benmanes.caffeine.cache.Caffeine;
+import org.springframework.cache.CacheManager;
+import org.springframework.cache.annotation.EnableCaching;
+import org.springframework.cache.caffeine.CaffeineCacheManager;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+
+import java.util.concurrent.TimeUnit;
+
+/**
+ * Caching Configuration for Communication Service.
+ * Implements a High-Speed L1 (In-Memory) Cache using Caffeine.
+ */
+@EnableCaching
+@Configuration
+public class CacheConfig {
+
+    @Bean
+    public CacheManager cacheManager() {
+        CaffeineCacheManager cacheManager = new CaffeineCacheManager();
+
+        cacheManager.setCaffeine(Caffeine.newBuilder()
+                // Evict entries 12 hours after they were written to the cache
+                .expireAfterWrite(12, TimeUnit.HOURS)
+                // Prevent memory leaks by capping the maximum number of cached templates
+                .maximumSize(1000)
+                // Record stats for APM (e.g., Datadog/Prometheus) tracking cache hit ratios
+                .recordStats());
+
+        return cacheManager;
+    }
+}
+
+
+
+
+
+
+
+
+
+
+
+
+package com.fincore.CommunicationService.config;
+
+import com.fincore.CommunicationService.subscriber.CacheSyncSubscriber;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.data.redis.connection.RedisConnectionFactory;
+import org.springframework.data.redis.listener.ChannelTopic;
+import org.springframework.data.redis.listener.RedisMessageListenerContainer;
+import org.springframework.data.redis.listener.adapter.MessageListenerAdapter;
+
+/**
+ * <p>Distributed Cache Synchronization Configuration.</p>
+ *
+ * <p><b>Architectural Context:</b>
+ * This configuration establishes a Redis Pub/Sub subscriber that listens for invalidation events.
+ * When a business user updates a template, an event is published here, causing all Kubernetes pods
+ * to instantly flush their local L1 caches simultaneously.</p>
+ *
+ * @since 2026-07
+ */
+@Slf4j
+@Configuration
+public class CacheSyncConfig {
+
+    public static final String CACHE_EVICT_TOPIC = "fincore_cache_evict_topic";
+
+    @Bean
+    public ChannelTopic cacheEvictTopic() {
+        return new ChannelTopic(CACHE_EVICT_TOPIC);
+    }
+
+    /**
+     * Creates the container that binds the Redis connection directly to our native listener.
+     */
+    @Bean
+    public RedisMessageListenerContainer redisContainer(
+            RedisConnectionFactory connectionFactory,
+            CacheSyncSubscriber cacheSyncSubscriber) {
+        log.info("Initializing Redis Pub/Sub Container for Distributed Cache Synchronization.");
+
+        RedisMessageListenerContainer container = new RedisMessageListenerContainer();
+        container.setConnectionFactory(connectionFactory);
+        container.addMessageListener(cacheSyncSubscriber, cacheEvictTopic());
+
+        return container;
+    }
+}
+
+
+
+
+
+
+
+package com.fincore.CommunicationService.config;
+
+import org.apache.kafka.clients.consumer.ConsumerConfig;
+import org.apache.kafka.common.serialization.StringDeserializer;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.kafka.annotation.EnableKafka;
+import org.springframework.kafka.config.ConcurrentKafkaListenerContainerFactory;
+import org.springframework.kafka.core.DefaultKafkaConsumerFactory;
+import org.springframework.kafka.listener.ContainerProperties;
+
+import java.util.HashMap;
+import java.util.Map;
+
+@EnableKafka
+@Configuration
+public class KafkaConsumerConfig {
+
+    @Value("${spring.kafka.consumer.bootstrap-servers}")
+    private String bootstrapServers;
+
+    @Bean
+    public DefaultKafkaConsumerFactory<String, String> stringConsumerFactory() {
+        Map<String, Object> props = new HashMap<>();
+        props.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
+        props.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest");
+        props.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class);
+        props.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class);
+        return new DefaultKafkaConsumerFactory<>(props);
+    }
+
+    /**
+     * THE BULKHEAD: Dedicated Thread Pool for Tier-0 OTPs.
+     * Prevents End-of-Day PDF emails from starving the OTP pipeline.
+     */
+    @Bean("priorityOtpContainerFactory")
+    public ConcurrentKafkaListenerContainerFactory<String, String> priorityOtpContainerFactory() {
+        ConcurrentKafkaListenerContainerFactory<String, String> factory = new ConcurrentKafkaListenerContainerFactory<>();
+        factory.setConsumerFactory(stringConsumerFactory());
+        // Match this concurrency to the number of partitions on
+        // 'fincore.auth.otp.priority' (e.g., 10-20)
+        factory.setConcurrency(10);
+        // Strict Manual Acknowledgment. We only ACK when the SMS/Email is securely
+        // handed to the Vendor.
+        factory.getContainerProperties().setAckMode(ContainerProperties.AckMode.MANUAL_IMMEDIATE);
+        // We set the poll interval high enough to outlast the Resilience4j max timeout.
+        factory.getContainerProperties().setPollTimeout(3000);
+
+        return factory;
+    }
+
+    /**
+     * Dedicated Kafka Listener Container for Generic Communication Events.
+     *
+     * Supports bulk communication processing independently
+     * from the Priority OTP pipeline.
+     */
+    @Bean("genericCommunicationContainerFactory")
+    public ConcurrentKafkaListenerContainerFactory<String, String> genericCommunicationContainerFactory() {
+
+        ConcurrentKafkaListenerContainerFactory<String, String> factory = new ConcurrentKafkaListenerContainerFactory<>();
+
+        factory.setConsumerFactory(stringConsumerFactory());
+
+        /*
+         * Configure according to the number of partitions
+         * on fincore.communication.generic topic.
+         */
+        factory.setConcurrency(5);
+
+        /*
+         * Manual acknowledgement.
+         */
+        factory.getContainerProperties()
+                .setAckMode(ContainerProperties.AckMode.MANUAL_IMMEDIATE);
+
+        /*
+         * Poll timeout.
+         */
+        factory.getContainerProperties()
+                .setPollTimeout(3000);
+
+        return factory;
+    }
+}
+
+
+
+
+
+
+package com.fincore.CommunicationService.config;
+
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.http.client.JdkClientHttpRequestFactory;
+import org.springframework.web.client.RestClient;
+
+import javax.net.ssl.SSLContext;
+import javax.net.ssl.TrustManager;
+import javax.net.ssl.X509TrustManager;
+import java.net.http.HttpClient;
+import java.security.SecureRandom;
+import java.security.cert.X509Certificate;
+import java.time.Duration;
+
+/**
+ * <p>Centralized HTTP Configuration for Virtual Thread Native I/O.</p>
+ *
+ * <p><b>Architectural Context:</b>
+ * Utilizes Java's native {@link HttpClient} via {@link JdkClientHttpRequestFactory}.
+ * This specific combination ensures that blocking network calls are seamlessly intercepted
+ * by Java 21, parking the Virtual Thread without pinning the OS carrier thread.</p>
+ *
+ * @since 2026-07
+ */
+@Slf4j
+@Configuration
+public class RestClientConfig {
+
+    @Value("${app.preIpString:UAT}")
+    private String environment;
+
+    @Bean
+    public RestClient restClient(RestClient.Builder builder) {
+        log.info("Initializing Virtual-Thread Optimized RestClient.");
+
+        HttpClient.Builder httpClientBuilder = HttpClient.newBuilder()
+                .connectTimeout(Duration.ofSeconds(3));
+
+        if (!"PROD".equalsIgnoreCase(environment)) {
+            log.warn("SECURITY OVERRIDE: Bypassing SSL Verification for environment [{}]", environment);
+            httpClientBuilder.sslContext(insecureSslContext());
+        }
+
+        JdkClientHttpRequestFactory factory = new JdkClientHttpRequestFactory(httpClientBuilder.build());
+        factory.setReadTimeout(Duration.ofSeconds(3));
+
+        return builder
+                .requestFactory(factory)
+                .build();
+    }
+
+    /**
+     * Generates a TrustManager that accepts all certificates (For UAT/DEV only).
+     */
+    private SSLContext insecureSslContext() {
+        try {
+            TrustManager[] trustAllCerts = new TrustManager[]{
+                    new X509TrustManager() {
+                        public X509Certificate[] getAcceptedIssuers() { return null; }
+                        public void checkClientTrusted(X509Certificate[] certs, String authType) {}
+                        public void checkServerTrusted(X509Certificate[] certs, String authType) {}
+                    }
+            };
+            SSLContext sc = SSLContext.getInstance("TLS");
+            sc.init(null, trustAllCerts, new SecureRandom());
+            return sc;
+        } catch (Exception e) {
+            log.error("Failed to initialize insecure SSL context", e);
+            throw new RuntimeException(e);
+        }
+    }
+}
+
+
+
+
+
+
+package com.fincore.CommunicationService.model;
+
+import jakarta.persistence.*;
+import lombok.*;
+
+@Entity
+@Table(name = "FINCORE_SETTINGS")
+@Getter
+@Setter
+public class FincoreSettings {
+
+    @Id
+    @Column(name = "ID")
+    private Long id;
+
+    @Column(name = "FUNCTIONALITY")
+    private String functionality;
+
+    @Column(name = "ENV")
+    private String env;
+
+    @Column(name = "URL")
+    private String url;
+
+    @Column(name = "API_KEY")
+    private String apiKey;
+
+    @Column(name = "EMAIL_SENDER_ID")
+    private String senderId;
+
+    // Future columns
+    @Column(name = "USERNAME")
+    private String username;
+
+    @Column(name = "PASSWORD")
+    private String password;
+}
+
+
+
+
+
+
+
+
+
+
+
+package com.fincore.CommunicationService.repository;
+
+import java.util.Optional;
+
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.stereotype.Repository;
+
+import com.fincore.CommunicationService.model.FincoreSettings;
+
+@Repository
+public interface FincoreSettingsRepository
+        extends JpaRepository<FincoreSettings, Long> {
+
+    Optional<FincoreSettings> findByFunctionalityAndEnv(
+            String functionality,
+            String env);
+}
+
+
+
+
+
+
+
+package com.fincore.CommunicationService.service;
+
+import com.fincore.CommunicationService.exception.CommunicationExceptions;
+import com.fincore.CommunicationService.model.CommTemplateMaster;
+import com.fincore.CommunicationService.model.TemplateId;
+import com.fincore.CommunicationService.repository.TemplateRepository;
+import freemarker.template.Configuration;
+import freemarker.template.Template;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
+import org.springframework.stereotype.Service;
+
+import java.io.IOException;
+import java.io.StringReader;
+
+/**
+ * <p>Handles retrieval and caching of compiled FreeMarker templates.</p>
+ *
+ * <p>This service isolates caching logic from business logic, ensuring clean separation
+ * of concerns and proper Spring AOP proxy interception without self-invocation hacks.</p>
+ *
+ * @since 2026-06-22
+ */
+@Slf4j
+@Service
+@RequiredArgsConstructor
+public class TemplateCacheService {
+
+    private final TemplateRepository templateRepository;
+    private final Configuration freeMarkerConfig;
+
+    /**
+     * <p>Fetches the template CLOB from Oracle and compiles it into a FreeMarker {@link Template} object.</p>
+     *
+     * <p><strong>Caching Strategy:</strong></p>
+     * <ul>
+     *   <li><strong>Key:</strong> Composite ({@code code:channel:language}).</li>
+     *   <li><strong>TTL:</strong> 12 hours (configured externally).</li>
+     *   <li><strong>Condition:</strong> Caches only if result is not {@code null}.</li>
+     * </ul>
+     *
+     * @param templateCode The unique template identifier.
+     * @param channel      The communication channel.
+     * @param language     The locale language code.
+     * @return The compiled FreeMarker {@link Template} object.
+     * @throws CommunicationExceptions.TemplateNotFoundException   if the template is not found or inactive.
+     * @throws CommunicationExceptions.TemplateProcessingException if compilation fails.
+     */
+    @Cacheable(value = "templates", key = "#templateCode + ':' + #channel + ':' + #language", unless = "#result == null")
+    public Template getCompiledTemplate(String templateCode, String channel, String language) {
+        log.info("L1 CACHE MISS: Fetching and Compiling Template {} for {} from Oracle DB.", templateCode, channel);
+
+        // 1. Database Lookup
+        CommTemplateMaster tmpl = templateRepository.findById(new TemplateId(templateCode, channel, language))
+                .orElseThrow(() -> new CommunicationExceptions.TemplateNotFoundException("Template not found in Oracle: " + templateCode));
+
+        if (!"Y".equalsIgnoreCase(tmpl.getIsActive().trim())) {
+            throw new CommunicationExceptions.TemplateNotFoundException("Template is disabled: " + templateCode);
+        }
+
+        String rawClobContent = tmpl.getBodyContent();
+
+        // 2. Compile into Abstract Syntax Tree (AST)
+        try {
+            return new Template(templateCode, new StringReader(rawClobContent), freeMarkerConfig);
+        } catch (IOException e) {
+            log.error("Syntax error in FreeMarker template {}.", templateCode, e);
+            throw new CommunicationExceptions.TemplateProcessingException("Syntax error compiling template: " + templateCode, e);
+        }
+    }
+
+    /**
+     * <p>Retrieves the cached subject line for a specific template.</p>
+     *
+     * @param templateCode The unique template identifier.
+     * @param channel      The communication channel.
+     * @param language     The locale language code.
+     * @return The subject line string.
+     * @throws CommunicationExceptions.TemplateNotFoundException if the template does not exist.
+     */
+    @Cacheable(value = "template_subjects", key = "#templateCode + ':' + #channel + ':' + #language")
+    public String getTemplateSubject(String templateCode, String channel, String language) {
+        CommTemplateMaster tmpl = templateRepository.findById(new TemplateId(templateCode, channel, language))
+                .orElseThrow(() -> new CommunicationExceptions.TemplateNotFoundException("Template not found in Oracle: " + templateCode));
+
+        if (!"Y".equalsIgnoreCase(tmpl.getIsActive().trim())) {
+            throw new CommunicationExceptions.TemplateNotFoundException("Template is disabled: " + templateCode);
+        }
+
+        return tmpl.getSubject();
+    }
+
+    /**
+     * <p>Evicts all entries from the template caches.</p>
+     *
+     * @see TemplateEngineService#flushTemplateCache()
+     */
+    @CacheEvict(value = {"templates", "template_subjects"}, allEntries = true)
+    public void flushCache() {
+        log.warn("ADMIN ACTION: All communication templates evicted from L1/L2 Cache.");
+    }
+}
+
+
+
+
+
+
+
+
+
+
+
+package com.fincore.CommunicationService.service;
+
+import com.fincore.CommunicationService.exception.CommunicationExceptions;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.stereotype.Service;
+import freemarker.template.Template;
+import freemarker.template.TemplateException;
+
+import java.io.IOException;
+import java.io.StringWriter;
+import java.util.Map;
+
+/**
+ * <p>A high-speed template rendering engine optimized for low-latency OTP delivery.</p>
+ *
+ * <p>This service delegates caching and compilation to {@link TemplateCacheService},
+ * ensuring strict separation of concerns and thread-safe proxy interception.</p>
+ *
+ * @since 2026-06-22
+ * @see TemplateCacheService
+ */
+@Slf4j
+@Service
+@RequiredArgsConstructor
+public class TemplateEngineService {
+
+    private final TemplateCacheService templateCacheService;
+
+    /**
+     * <p>Renders the final output string by merging dynamic data into a pre-compiled template.</p>
+     *
+     * <p><strong>Security Note:</strong> This method is <em>not</em> cached. It processes dynamic
+     * variables on every request to prevent cross-pollination data leaks.</p>
+     *
+     * @param templateCode The unique identifier for the template.
+     * @param channel The communication channel.
+     * @param language The locale language code.
+     * @param templateData A map of dynamic key-value pairs to bind to the template.
+     * @return The fully rendered string ready for delivery.
+     * @throws CommunicationExceptions.TemplateProcessingException if variable binding fails.
+     */
+    public String renderTemplate(String templateCode, String channel, String language, Map<String, Object> templateData) {
+        // 1. Fetch the cached, pre-compiled Template AST Object from the dedicated cache service
+        Template compiledTemplate = templateCacheService.getCompiledTemplate(templateCode, channel, language);
+
+        // 2. Merge dynamic data (OTP, Names) into the template
+        try (StringWriter writer = new StringWriter()) {
+            compiledTemplate.process(templateData, writer);
+            return writer.toString();
+        } catch (IOException | TemplateException e) {
+            log.error("Fatal error binding dynamic variables to template {}.", templateCode, e);
+            throw new CommunicationExceptions.TemplateProcessingException("Failed to bind dynamic variables to template: " + templateCode, e);
+        }
+    }
+
+    /**
+     * <p>Public API to retrieve a template subject.</p>
+     *
+     * @param templateCode The unique identifier for the template.
+     * @param channel The communication channel.
+     * @param language The locale language code.
+     * @return The subject line string.
+     */
+    public String getTemplateSubject(String templateCode, String channel, String language) {
+        return templateCacheService.getTemplateSubject(templateCode, channel, language);
+    }
+
+    /**
+     * <p>Emergency cache flush mechanism.</p>
+     *
+     * <p>Delegates to {@link TemplateCacheService} to evict all cached templates.</p>
+     */
+    public void flushTemplateCache() {
+        templateCacheService.flushCache();
+    }
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
