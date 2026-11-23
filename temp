@@ -1076,6 +1076,92 @@ public class CommunicationOrchestrator {
 
 
 
+package com.fincore.CommunicationService.util;
+
+import jakarta.annotation.PostConstruct;
+import jakarta.annotation.PreDestroy;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.stereotype.Component;
+
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+
+@Slf4j
+@Component
+public class DirectoryCleaner {
+    @Value("${app.temp-report.dir}")
+    private String directoryPath;
+
+    @PostConstruct
+    public void onStartup() throws IOException {
+        log.info("Application starting: Cleaning directory...");
+        Path path = Paths.get(directoryPath);
+        cleanDirectory(path);
+    }
+
+    @PreDestroy
+    public void onShutdown() throws IOException {
+        log.info("Application stopping: Cleaning directory...");
+        Path path = Paths.get(directoryPath);
+        cleanDirectory(path);
+    }
+
+    private void cleanDirectory(Path path){
+        if (Files.exists(path) && Files.isDirectory(path)) {
+            try{
+            deleteRecursively(path);
+            }catch(IOException | RuntimeException e){
+                log.error("FileSystem Operation Failed: {}",e.getMessage(),e);
+            }
+        } else {
+            try {
+                Files.createDirectory(path);
+            } catch (IOException e) {
+                log.error("Could not create directory: {} ", e.getMessage());
+            }
+        }
+    }
+
+    private void deleteRecursively(Path path) throws IOException, RuntimeException {
+        if (Files.isDirectory(path)) {
+            try (var entries = Files.list(path)) {
+                entries.forEach(p -> {
+                    try {
+                        deleteRecursively(p);
+                        Files.delete(p);
+                    } catch (IOException e) {
+                        throw new RuntimeException("File operation failed!",e);
+                    }
+                });
+            }
+        }
+    }
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
