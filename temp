@@ -1,15 +1,6 @@
--- 1. Compare FINCORE_SETTINGS vs old working FINCORE_SETTINGS_TEMP
-SELECT 'NEW' AS SRC, ID, FUNCTIONALITY, ENV, URL, USERNAME, PASSWORD, API_KEY, EMAIL_SENDER_ID
-FROM FINCORE_SETTINGS
-WHERE ENV = 'UAT'
-UNION ALL
-SELECT 'OLD' AS SRC, ID, FUNCTIONALITY, ENV, URL, USERNAME, PASSWORD, API_KEY, EMAIL_SENDER_ID
-FROM FINCORE_SETTINGS_TEMP
-WHERE ENV = 'UAT'
-ORDER BY FUNCTIONALITY, SRC;
-
--- 2. Verify the SMS template body being rendered for AUTH_LOGIN_OTP_V1
-SELECT TEMPLATE_CODE, CHANNEL, LANGUAGE, IS_ACTIVE, BODY_CONTENT
-FROM COMM_TEMPLATE_MASTER
-WHERE TEMPLATE_CODE = 'AUTH_LOGIN_OTP_V1'
-  AND CHANNEL = 'SMS';
+curl -X POST "https://smsapipprod.sbi.co.in:9443/bmg/sms/crsdomotp" \
+  -u "crsdomotp:crsdomotp@123" \
+  -H "Content-Type: application/x-www-form-urlencoded" \
+  -H "Accept: application/x-www-form-urlencoded" \
+  -k \
+  -d "content_type=text&sender_id=SBIOTP&mobile=08096858329&message=153236%20is%20your%20OTP%20for%20login%20to%20FinCore-SBI.%20This%20OTP%20is%20valid%20for%203%20mins.&intflag=0&charging=0"
