@@ -1394,4 +1394,9 @@ public class TemplateEngineService {
 
 
 
+changed the db table name from fincore_settings_temp to fincore_settings, data are same like the previous one, once confirm the data with our working data credentials if everything is correcc or not - 
+
+7	EMAIL	UAT	0	https://ebms-pepiapi.sbiuat.bank.in:443/v5/mail/send			5c00203f90d734255c4c60928f68010e	ebms_uat_sender@sbiuat.bank.in
+8	SMS	UAT	0	https://smsapipprod.sbi.co.in:9443/bmg/sms/crsdomotp	crsdomotp	crsdomotp@789		SBIBNK
+
 
