@@ -1,6 +1,453 @@
-curl -X POST "https://smsapipprod.sbi.co.in:9443/bmg/sms/crsdomotp" \
-  -u "crsdomotp:crsdomotp@123" \
-  -H "Content-Type: application/x-www-form-urlencoded" \
-  -H "Accept: application/x-www-form-urlencoded" \
-  -k \
-  -d "content_type=text&sender_id=SBIOTP&mobile=08096858329&message=153236%20is%20your%20OTP%20for%20login%20to%20FinCore-SBI.%20This%20OTP%20is%20valid%20for%203%20mins.&intflag=0&charging=0"
+package com.fincore.CommunicationService.config;
+
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.http.client.SimpleClientHttpRequestFactory;
+import org.springframework.web.client.RestClient;
+
+import javax.net.ssl.HttpsURLConnection;
+import javax.net.ssl.SSLContext;
+import javax.net.ssl.TrustManager;
+import javax.net.ssl.X509TrustManager;
+import java.io.IOException;
+import java.net.HttpURLConnection;
+import java.security.SecureRandom;
+import java.security.cert.X509Certificate;
+import java.time.Duration;
+
+/**
+ * <p>Centralized HTTP Configuration for Vendor APIs.</p>
+ *
+ * <p>Uses {@link SimpleClientHttpRequestFactory} ({@link HttpURLConnection}) under Spring's
+ * {@link RestClient} so JVM proxy settings, HTTP/1.1 compatibility, and non-PROD SSL/Hostname
+ * verification bypasses work reliably in UAT while parking cleanly on Java 21 Virtual Threads.</p>
+ */
+@Slf4j
+@Configuration
+public class RestClientConfig {
+
+    private static final Duration HTTP_TIMEOUT = Duration.ofSeconds(5);
+
+    @Value("${app.preIpString:UAT}")
+    private String environment;
+
+    @Bean
+    public RestClient restClient(RestClient.Builder builder) {
+        log.info("Initializing RestClient with SimpleClientHttpRequestFactory for environment [{}].", environment);
+
+        final SSLContext nonProdSslContext = !"PROD".equalsIgnoreCase(environment) ? insecureSslContext() : null;
+        if (nonProdSslContext != null) {
+            log.warn("SECURITY OVERRIDE: Bypassing SSL & Hostname Verification for non-PROD environment [{}]", environment);
+        }
+
+        SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory() {
+            @Override
+            protected void prepareConnection(HttpURLConnection connection, String httpMethod) throws IOException {
+                if (connection instanceof HttpsURLConnection httpsConnection && nonProdSslContext != null) {
+                    httpsConnection.setSSLSocketFactory(nonProdSslContext.getSocketFactory());
+                    httpsConnection.setHostnameVerifier((hostname, session) -> true);
+                }
+                super.prepareConnection(connection, httpMethod);
+            }
+        };
+
+        factory.setConnectTimeout(HTTP_TIMEOUT);
+        factory.setReadTimeout(HTTP_TIMEOUT);
+
+        return builder
+                .requestFactory(factory)
+                .build();
+    }
+
+    private SSLContext insecureSslContext() {
+        try {
+            TrustManager[] trustAllCerts = new TrustManager[]{
+                    new X509TrustManager() {
+                        @Override
+                        public X509Certificate[] getAcceptedIssuers() {
+                            return null;
+                        }
+
+                        @Override
+                        public void checkClientTrusted(X509Certificate[] certs, String authType) {
+                        }
+
+                        @Override
+                        public void checkServerTrusted(X509Certificate[] certs, String authType) {
+                        }
+                    }
+            };
+            SSLContext sc = SSLContext.getInstance("TLS");
+            sc.init(null, trustAllCerts, new SecureRandom());
+            return sc;
+        } catch (Exception e) {
+            log.error("Failed to initialize insecure SSL context", e);
+            throw new IllegalStateException("Failed to initialize insecure SSL context", e);
+        }
+    }
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+package com.fincore.CommunicationService.client;
+
+import com.fincore.CommunicationService.dto.SmsResponseDTO;
+import com.fincore.CommunicationService.model.FincoreSettings;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
+import org.springframework.stereotype.Component;
+import org.springframework.util.LinkedMultiValueMap;
+import org.springframework.util.MultiValueMap;
+import org.springframework.web.client.RestClient;
+import org.springframework.web.client.RestClientException;
+
+import java.nio.charset.StandardCharsets;
+import java.util.Base64;
+
+/**
+ * <p>SMS Vendor Gateway.</p>
+ *
+ * <p>Uses the centralized {@link RestClient} (backed by {@code SimpleClientHttpRequestFactory})
+ * for HTTP/1.1 compatibility, JVM proxy support, and Virtual Thread friendliness.</p>
+ */
+@Slf4j
+@Component
+@RequiredArgsConstructor
+public class SmsGatewayClient {
+
+    private final RestClient restClient;
+
+    public SmsResponseDTO sendSms(FincoreSettings config, String mobileNumber, String message) {
+        try {
+            log.info("Sending SMS to ******{} using senderId={}",
+                    mobileNumber.substring(Math.max(mobileNumber.length() - 4, 0)),
+                    config.getSenderId());
+
+            String authHeader = null;
+            if (config.getUsername() != null && config.getPassword() != null) {
+                String auth = config.getUsername() + ":" + config.getPassword();
+                authHeader = "Basic " + Base64.getEncoder().encodeToString(auth.getBytes(StandardCharsets.UTF_8));
+            }
+
+            String formattedMobile = mobileNumber.startsWith("0") ? mobileNumber : "0" + mobileNumber;
+
+            MultiValueMap<String, String> formData = new LinkedMultiValueMap<>();
+            formData.add("content_type", "text");
+            formData.add("sender_id", config.getSenderId());
+            formData.add("mobile", formattedMobile);
+            formData.add("message", message);
+            formData.add("intflag", "0");
+            formData.add("charging", "0");
+
+            var requestSpec = restClient.post()
+                    .uri(config.getUrl())
+                    .contentType(MediaType.APPLICATION_FORM_URLENCODED)
+                    .accept(MediaType.APPLICATION_FORM_URLENCODED)
+                    .body(formData);
+
+            if (authHeader != null) {
+                requestSpec.header(HttpHeaders.AUTHORIZATION, authHeader);
+            }
+
+            ResponseEntity<String> response = requestSpec.retrieve().toEntity(String.class);
+
+            int responseCode = response.getStatusCode().value();
+            String responseBody = response.getBody() != null ? response.getBody() : "";
+
+            log.info("SMS Response Code : {}", responseCode);
+            log.info("SMS Provider Response : {}", responseBody);
+
+            boolean success = (responseCode >= 200 && responseCode < 300)
+                    && responseBody.contains("MESSAGE_SUBMIT_SUCCESS");
+
+            return SmsResponseDTO.builder()
+                    .success(success)
+                    .message(success ? "SMS Sent Successfully" : "SMS Sending Failed")
+                    .providerResponse(responseBody)
+                    .build();
+
+        } catch (RestClientException ex) {
+            log.error("Network Exception while sending SMS", ex);
+            return SmsResponseDTO.builder()
+                    .success(false)
+                    .message("Network exception occurred!")
+                    .providerResponse(ex.getMessage())
+                    .build();
+        }
+    }
+}
+
+
+
+
+
+
+
+
+
+
+
+
+package com.fincore.CommunicationService.client;
+
+import com.fincore.CommunicationService.exception.CommunicationExceptions.VendorDeliveryException;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.core.io.Resource;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
+import org.springframework.http.StreamingHttpOutputMessage;
+import org.springframework.stereotype.Component;
+import org.springframework.web.client.RestClient;
+import org.springframework.web.client.RestClientException;
+import tools.jackson.core.JacksonException;
+import tools.jackson.core.JsonEncoding;
+import tools.jackson.core.JsonGenerator;
+import tools.jackson.core.ObjectWriteContext;
+import tools.jackson.core.json.JsonFactory;
+
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
+
+/**
+ * <p>Email Vendor Gateway (EBMS / Pepipost v5 JSON Contract).</p>
+ *
+ * <p>Buffers small non-attachment payloads (e.g., OTPs) so an explicit {@code Content-Length}
+ * header is sent, and streams Base64-encoded JSON attachments in chunks via Jackson 3
+ * {@link JsonGenerator} with guaranteed stream closure.</p>
+ */
+@Slf4j
+@Component
+@RequiredArgsConstructor
+public class EmailGatewayClient {
+
+    private final RestClient restClient;
+    private final JsonFactory jsonFactory = JsonFactory.builder().build();
+
+    public int sendEmail(Map<String, Object> emailRequest, Resource attachment) {
+        try {
+            String apiUrl = (String) emailRequest.get("url");
+            String apiKey = (String) emailRequest.get("api_key");
+
+            ResponseEntity<String> response;
+
+            if (attachment == null) {
+                log.info("Executing buffered JSON payload dispatch (no attachment).");
+                byte[] jsonBytes = buildBufferedJson(emailRequest);
+
+                response = restClient.post()
+                        .uri(apiUrl)
+                        .header("api_key", apiKey)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .accept(MediaType.APPLICATION_JSON)
+                        .body(jsonBytes)
+                        .retrieve()
+                        .toEntity(String.class);
+            } else {
+                log.info("Executing streaming JSON payload dispatch with attachment: {}", attachment.getFilename());
+                response = restClient.post()
+                        .uri(apiUrl)
+                        .header("api_key", apiKey)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .accept(MediaType.APPLICATION_JSON)
+                        .body(buildStreamingBody(emailRequest, attachment))
+                        .retrieve()
+                        .toEntity(String.class);
+            }
+
+            int responseCode = response.getStatusCode().value();
+            log.info("Vendor Email API responded with HTTP {}", responseCode);
+            log.info("Vendor Email API response body: {}", response.getBody());
+
+            return responseCode;
+
+        } catch (JacksonException e) {
+            log.error("JSON serialization failed for Email Vendor API", e);
+            throw new VendorDeliveryException("JSON serialization failed for Email Vendor API", e);
+        } catch (RestClientException e) {
+            log.error("Network I/O Exception calling Email Vendor API", e);
+            throw new VendorDeliveryException("Network communication with Email Vendor failed", e);
+        } catch (IOException e) {
+            log.error("I/O failure preparing Email payload", e);
+            throw new VendorDeliveryException("I/O failure preparing Email payload", e);
+        }
+    }
+
+    private byte[] buildBufferedJson(Map<String, Object> emailRequest) throws IOException {
+        ByteArrayOutputStream baos = new ByteArrayOutputStream(1024);
+        writeEmailJson(baos, emailRequest, null);
+        return baos.toByteArray();
+    }
+
+    private StreamingHttpOutputMessage.Body buildStreamingBody(Map<String, Object> emailRequest, Resource attachment) {
+        return outputStream -> writeEmailJson(outputStream, emailRequest, attachment);
+    }
+
+    @SuppressWarnings("unchecked")
+    private void writeEmailJson(OutputStream outputStream, Map<String, Object> emailRequest, Resource attachment) throws IOException {
+        try (JsonGenerator jsonGenerator = jsonFactory.createGenerator(ObjectWriteContext.empty(), outputStream, JsonEncoding.UTF8)) {
+            jsonGenerator.writeStartObject();
+
+            // --- "from" ---
+            jsonGenerator.writeObjectPropertyStart("from");
+            jsonGenerator.writeStringProperty("email", (String) emailRequest.get("senderId"));
+            jsonGenerator.writeStringProperty("name", "FINCORE");
+            jsonGenerator.writeEndObject();
+
+            // --- "subject" ---
+            jsonGenerator.writeStringProperty("subject", (String) emailRequest.get("subject"));
+
+            // --- "content" ---
+            String emailBody = (String) emailRequest.get("emailBody");
+            if (emailBody != null && emailBody.length() >= 2 && emailBody.startsWith("\"") && emailBody.endsWith("\"")) {
+                emailBody = emailBody.substring(1, emailBody.length() - 1);
+            }
+            jsonGenerator.writeName("content");
+            jsonGenerator.writeStartArray();
+            jsonGenerator.writeStartObject();
+            jsonGenerator.writeStringProperty("type", "html");
+            jsonGenerator.writeStringProperty("value", emailBody);
+            jsonGenerator.writeEndObject();
+            jsonGenerator.writeEndArray();
+
+            // --- "personalizations" ---
+            jsonGenerator.writeName("personalizations");
+            jsonGenerator.writeStartArray();
+            jsonGenerator.writeStartObject();
+
+            String toEmail = (String) emailRequest.get("toEmail");
+            if (toEmail != null && !toEmail.isBlank()) {
+                jsonGenerator.writeName("to");
+                jsonGenerator.writeStartArray();
+                jsonGenerator.writeStartObject();
+                jsonGenerator.writeStringProperty("email", toEmail);
+                jsonGenerator.writeEndObject();
+                jsonGenerator.writeEndArray();
+            }
+
+            List<String> bccEmails = (List<String>) emailRequest.get("bccEmails");
+            if (bccEmails != null && !bccEmails.isEmpty()) {
+                jsonGenerator.writeName("bcc");
+                jsonGenerator.writeStartArray();
+                for (String email : bccEmails) {
+                    jsonGenerator.writeStartObject();
+                    jsonGenerator.writeStringProperty("email", email);
+                    jsonGenerator.writeEndObject();
+                }
+                jsonGenerator.writeEndArray();
+            }
+
+            String ccToEmail = (String) emailRequest.get("ccToEmail");
+            if (ccToEmail != null && !ccToEmail.isBlank()) {
+                jsonGenerator.writeName("cc");
+                jsonGenerator.writeStartArray();
+                jsonGenerator.writeStartObject();
+                jsonGenerator.writeStringProperty("email", ccToEmail);
+                jsonGenerator.writeEndObject();
+                jsonGenerator.writeEndArray();
+            }
+
+            jsonGenerator.writeEndObject(); // personalizations[0]
+            jsonGenerator.writeEndArray();  // personalizations
+
+            // --- "settings" ---
+            jsonGenerator.writeObjectPropertyStart("settings");
+            jsonGenerator.writeBooleanProperty("open_track", true);
+            jsonGenerator.writeBooleanProperty("click_track", true);
+            jsonGenerator.writeBooleanProperty("unsubscribe_track", true);
+            jsonGenerator.writeEndObject();
+
+            // --- "attachments" ---
+            if (attachment != null) {
+                String attachmentName = (attachment.getFilename() != null && !attachment.getFilename().isBlank())
+                        ? attachment.getFilename()
+                        : "attachment_" + UUID.randomUUID() + ".zip";
+
+                try (InputStream fileInputStream = attachment.getInputStream()) {
+                    jsonGenerator.writeName("attachments");
+                    jsonGenerator.writeStartArray();
+                    jsonGenerator.writeStartObject();
+                    jsonGenerator.writeStringProperty("name", attachmentName);
+                    jsonGenerator.writeName("content");
+                    jsonGenerator.writeBinary(fileInputStream, -1); // streams Base64 in chunks
+                    jsonGenerator.writeEndObject();
+                    jsonGenerator.writeEndArray();
+                }
+            }
+
+            jsonGenerator.writeEndObject();
+            jsonGenerator.flush();
+        }
+    }
+}
+
+
+
+
+
+
+
+
+
+
+
+
+UPDATE FINCORE_SETTINGS
+SET EMAIL_SENDER_ID = 'SBIOTP',
+    PASSWORD        = 'crsdomotp@123'
+WHERE FUNCTIONALITY = 'SMS'
+  AND ENV           = 'UAT';
+
+COMMIT;
+
+
+
+
+
+
+
+
+
+curl -i -k -X POST "https://ebms-pepiapi.sbiuat.bank.in:443/v5/mail/send" \
+  -H "Content-Type: application/json" \
+  -H "Accept: application/json" \
+  -H "api_key: 5c00203f90d734255c4c60928f68010e" \
+  -d '{"from":{"email":"ebms_uat_sender@sbiuat.bank.in","name":"FINCORE"},"subject":"UAT Curl Test","content":[{"type":"html","value":"<p>Test OTP</p>"}],"personalizations":[{"to":[{"email":"ebms_uat_receiver@sbiuat.bank.in"}]}],"settings":{"open_track":true,"click_track":true,"unsubscribe_track":true}}'
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
