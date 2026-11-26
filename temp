@@ -1,49 +1,35 @@
 {
-    "detail": "The Analytics engine encountered an error while processing the query.",
-    "instance": "/api/analytics/drill-down",
-    "status": 502,
-    "title": "Analytics Query Failed"
+    "viewCode": "YSA_BRANCH",
+    "headCodes": [
+        "01160"
+    ],
+    "dimensions": [
+        "HeadCode"
+    ],
+    "metrics": [
+        "AMOUNT"
+    ],
+    "filters": [
+        {
+            "logicalField": "ReportDate",
+            "operator": "EQUALS",
+            "value": "31-03-2026"
+        },
+        {
+            "logicalField": "BranchCode",
+            "operator": "EQUALS",
+            "value": "00454"
+        }
+    ]
 }
 
-https://fincore.sbi/api/analytics/drill-down
 
 
 
 
-
-
-
-
-
-
-
-
-2026-11-26 15:04:22.371	
-2026-11-26T09:34:22.371Z ERROR 1 --- [AnalyticsService] [handler-1619911] c.f.c.security.ContextRbacFilter         : Auth Error: The parsed JWT indicates it was signed with the 'RS256' signature algorithm, but the provided javax.crypto.spec.SecretKeySpec key may not be used to verify RS256 signatures.  Because the specified key reflects a specific and expected algorithm, and the JWT does not reflect this algorithm, it is likely that the JWT was not expected and therefore should not be trusted.  Another possibility is that the parser was provided the incorrect signature verification key, but this cannot be assumed for security reasons.
-2026-11-26 15:04:27.569	
-2026-11-26T09:34:27.569Z  INFO 1 --- [AnalyticsService] [handler-1619914] c.f.a.controller.AnalyticsController     : Executing autocomplete search for report: [ysa_report], query: [01160]
-2026-11-26 15:04:27.582	
-2026-11-26T09:34:27.582Z  INFO 1 --- [AnalyticsService] [handler-1619914] c.f.a.controller.AnalyticsController     : suggestions : [HeadSearchResponse[headCode=01160, headName=FCNB DEPOSITS]]
-2026-11-26 15:05:00.410	
-2026-11-26T09:35:00.410Z  INFO 1 --- [AnalyticsService] [handler-1619927] c.f.a.service.SemanticDrillDownService   : Executing DrillDown for view: [YSA_BANK], logicalDim: [HeadCode]
-2026-11-26 15:05:00.418	
-2026-11-26T09:35:00.418Z  INFO 1 --- [AnalyticsService] [handler-1619927] c.f.a.service.SemanticDrillDownService   : Final druid payload to be executed: {parameters=[{value=01160, type=VARCHAR}, {value=31-03-2026, type=VARCHAR}], query=SELECT "YSA_HEADCODE" AS "HeadCode", ROUND(SUM("BALANCE"), 2) AS "AMOUNT" FROM "PRODUCT_WISE" WHERE 1=1  AND ARRAY_OVERLAP("YSA_HEADCODE", ARRAY[?])  AND "DATE" = ?  GROUP BY "YSA_HEADCODE"}
-2026-11-26 15:05:00.954	
-2026-11-26T09:35:00.954Z  INFO 1 --- [AnalyticsService] [handler-1619927] c.f.a.service.SemanticDrillDownService   : Executing DrillDown for view: [YSA_BANK], logicalDim: [HeadCode]
-2026-11-26 15:05:00.962	
-2026-11-26T09:35:00.962Z  INFO 1 --- [AnalyticsService] [handler-1619927] c.f.a.service.SemanticDrillDownService   : Final druid payload to be executed: {parameters=[{value=01160, type=VARCHAR}, {value=31-03-2026, type=VARCHAR}], query=SELECT "YSA_HEADCODE" AS "HeadCode", ROUND(SUM("BALANCE"), 2) AS "AMOUNT" FROM "PRODUCT_WISE" WHERE 1=1  AND ARRAY_OVERLAP("YSA_HEADCODE", ARRAY[?])  AND "DATE" = ?  GROUP BY "YSA_HEADCODE"}
-2026-11-26 15:05:01.482	
-2026-11-26T09:35:01.481Z  INFO 1 --- [AnalyticsService] [handler-1619927] c.f.a.service.SemanticDrillDownService   : Executing DrillDown for view: [YSA_BANK], logicalDim: [HeadCode]
-2026-11-26 15:05:01.483	
-2026-11-26T09:35:01.483Z  INFO 1 --- [AnalyticsService] [handler-1619927] c.f.a.service.SemanticDrillDownService   : Final druid payload to be executed: {parameters=[{value=01160, type=VARCHAR}, {value=31-03-2026, type=VARCHAR}], query=SELECT "YSA_HEADCODE" AS "HeadCode", ROUND(SUM("BALANCE"), 2) AS "AMOUNT" FROM "PRODUCT_WISE" WHERE 1=1  AND ARRAY_OVERLAP("YSA_HEADCODE", ARRAY[?])  AND "DATE" = ?  GROUP BY "YSA_HEADCODE"}
-2026-11-26 15:05:01.499	
-2026-11-26T09:35:01.498Z ERROR 1 --- [AnalyticsService] [handler-1619927] c.f.a.exception.GlobalExceptionHandler   : Druid API Error - Status: 401 UNAUTHORIZED, Body: {"error":"Unauthorized request","errorMessage":null,"errorClass":null,"host":"fcproddruidbroker4"}
-2026-11-26 15:05:22.372	
-2026-11-26T09:35:22.372Z ERROR 1 --- [AnalyticsService] [handler-1619937] c.f.c.security.ContextRbacFilter         : Auth Error: The parsed JWT indicates it was signed with the 'RS256' signature algorithm, but the provided javax.crypto.spec.SecretKeySpec key may not be used to verify RS256 signatures.  Because the specified key reflects a specific and expected algorithm, and the JWT does not reflect this algorithm, it is likely that the JWT was not expected and therefore should not be trusted.  Another possibility is that the parser was provided the incorrect signature verification key, but this cannot be assumed for security reasons.
-
-
-
-
-
-
-
+{
+    "detail": "Filter dimension not mapped: BranchCode",
+    "instance": "/api/analytics/drill-down",
+    "status": 400,
+    "title": "Bad Request"
+}
