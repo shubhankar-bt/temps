@@ -19,6 +19,28 @@ Executing DrillDown for view: [YSA_BANK], logicalDim: [Branch-Circle]
 
 
 
+---
+
+	
+2026-11-27 16:18:19.305	
+2026-11-27T10:48:19.305Z  INFO 1 --- [AnalyticsService] [t-handler-34114] c.f.a.service.SemanticDrillDownService   : Executing DrillDown for view: [YSA_BANK], logicalDim: [HeadCode]
+2026-11-27 16:18:19.306	
+2026-11-27T10:48:19.306Z  INFO 1 --- [AnalyticsService] [t-handler-34114] c.f.a.service.SemanticDrillDownService   : Final druid payload to be executed: {parameters=[{type=VARCHAR, value=01160}, {type=VARCHAR, value=01036}, {type=VARCHAR, value=01980}, {type=VARCHAR, value=11-05-2026}], query=SELECT "YSA_HEADCODE" AS "HeadCode", ROUND(SUM("BALANCE"), 2) AS "AMOUNT" FROM "PRODUCT_WISE" WHERE 1=1  AND ARRAY_OVERLAP("YSA_HEADCODE", ARRAY[?, ?, ?])  AND "DATE" = ?  GROUP BY "YSA_HEADCODE"}
+2026-11-27 16:18:19.817	
+2026-11-27T10:48:19.817Z  INFO 1 --- [AnalyticsService] [t-handler-34114] c.f.a.service.SemanticDrillDownService   : Executing DrillDown for view: [YSA_BANK], logicalDim: [HeadCode]
+2026-11-27 16:18:19.818	
+2026-11-27T10:48:19.818Z  INFO 1 --- [AnalyticsService] [t-handler-34114] c.f.a.service.SemanticDrillDownService   : Final druid payload to be executed: {parameters=[{type=VARCHAR, value=01160}, {type=VARCHAR, value=01036}, {type=VARCHAR, value=01980}, {type=VARCHAR, value=11-05-2026}], query=SELECT "YSA_HEADCODE" AS "HeadCode", ROUND(SUM("BALANCE"), 2) AS "AMOUNT" FROM "PRODUCT_WISE" WHERE 1=1  AND ARRAY_OVERLAP("YSA_HEADCODE", ARRAY[?, ?, ?])  AND "DATE" = ?  GROUP BY "YSA_HEADCODE"}
+2026-11-27 16:18:30.616	
+2026-11-27T10:48:30.615Z  INFO 1 --- [AnalyticsService] [t-handler-34114] c.f.a.service.SemanticDrillDownService   : Executing DrillDown for view: [YSA_BANK], logicalDim: [HeadCode]
+2026-11-27 16:18:30.616	
+2026-11-27T10:48:30.616Z  INFO 1 --- [AnalyticsService] [t-handler-34114] c.f.a.service.SemanticDrillDownService   : Final druid payload to be executed: {parameters=[{type=VARCHAR, value=01160}, {type=VARCHAR, value=01036}, {type=VARCHAR, value=01980}, {type=VARCHAR, value=11-05-2026}], query=SELECT "YSA_HEADCODE" AS "HeadCode", ROUND(SUM("BALANCE"), 2) AS "AMOUNT" FROM "PRODUCT_WISE" WHERE 1=1  AND ARRAY_OVERLAP("YSA_HEADCODE", ARRAY[?, ?, ?])  AND "DATE" = ?  GROUP BY "YSA_HEADCODE"}
+2026-11-27 16:18:30.625	
+2026-11-27T10:48:30.625Z ERROR 1 --- [AnalyticsService] [t-handler-34114] c.f.a.exception.GlobalExceptionHandler   : Druid API Error - Status: 400 BAD_REQUEST, Body: {"error":"druidException","errorCode":"invalidInput","persona":"USER","category":"INVALID_INPUT","errorMessage":"Object 'PRODUCT_WISE' not found (line [1], column [80])","context":{"sourceType":"sql","line":"1","column":"80","endLine":"1","endColumn":"93"}}
+2026-11-27 16:18:41.049	
+2026-11-27T10:48:41.049Z  INFO 1 --- [AnalyticsService] [t-handler-34123] c.f.a.service.SemanticDrillDownService   : Executing DrillDown for view: [YSA_BANK], logicalDim: [HeadCode]
+2026-11-27 16:18:41.050	
+2026-11-27T10:48:41.050Z  INFO 1 --- [AnalyticsService] [t-handler-34123] c.f.a.service.SemanticDrillDownService   : Final druid payload to be executed: {parameters=[{type=VARCHAR, value=01160}, {type=VARCHAR, value=01036}, {type=VARCHAR, value=01980}, {type=VARCHAR, value=11-05-2026}], query=SELECT "YSA_HEADCODE" AS "HeadCode", ROUND(SUM("BALANCE"), 2) AS "AMOUNT" FROM "PRODUCT_WISE" WHERE 1=1  AND ARRAY_OVERLAP("YSA_HEADCODE", ARRAY[?, ?, ?])  AND "DATE" = ?  GROUP BY "YSA_HEADCODE"}
+
 
 
 
